@@ -45,6 +45,7 @@
       touch-action: pan-y;
     }
 
+    /* Main Container with dynamic fluid vertical gap */
     .app-viewport {
       width: 100%;
       max-width: 380px;
@@ -53,7 +54,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      gap: clamp(0.25rem, 0.8dvh, 0.55rem);
+      gap: clamp(0.2rem, 0.8dvh, 0.6rem);
     }
 
     header {
@@ -129,7 +130,7 @@
       background: #1e293b;
       border: 1px solid #334155;
       color: #fff;
-      padding: clamp(0.42rem, 1.1dvh, 0.55rem) 0.85rem;
+      padding: clamp(0.45rem, 1.1dvh, 0.6rem) 0.9rem;
       border-radius: 9999px;
       font-size: 0.82rem;
       outline: none;
@@ -177,17 +178,25 @@
     .sugg-num { color: var(--subtext); font-weight: 700; margin-right: 0.4rem; }
     .sugg-tick { color: var(--green); font-weight: 900; }
 
-    /* Stadium Arena Wheel Container */
+    /* Fluid Wheel Container */
     .wheel-container {
       position: relative;
-      width: clamp(220px, 33dvh, 265px);
-      height: clamp(220px, 33dvh, 265px);
-      margin: clamp(0.1rem, 0.5dvh, 0.4rem) auto;
+      /* Full generous size on initial page */
+      width: clamp(210px, 34dvh, 250px);
+      height: clamp(210px, 34dvh, 250px);
+      margin: clamp(0.4rem, 1.5dvh, 1rem) auto;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
       transition: all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    
+    /* When Pokémon appears, adapt size fluidly: shrinks gracefully on shorter screens */
+    body.has-active-pokemon .wheel-container {
+      width: clamp(100px, 15dvh, 180px);
+      height: clamp(100px, 15dvh, 180px);
+      margin: 0 auto;
     }
 
     .wheel {
@@ -230,77 +239,49 @@
       border-top: 20px solid #ffffff;
       z-index: 10;
       filter: drop-shadow(0 3px 5px rgba(0,0,0,0.6));
+      transition: all 0.35s;
+    }
+    body.has-active-pokemon .wheel-pointer {
+      top: -9px;
+      border-left: 9px solid transparent;
+      border-right: 9px solid transparent;
+      border-top: 15px solid #ffffff;
     }
     
-    /* Central Arena Stage */
     .wheel-center {
       position: absolute;
-      width: 76%;
-      height: 76%;
-      background: radial-gradient(circle, #1e293b 0%, #0f172a 100%);
+      width: clamp(34px, 6dvh, 50px);
+      height: clamp(34px, 6dvh, 50px);
+      background: #ffffff;
       border-radius: 50%;
-      border: 4px solid #334155;
+      border: 4px solid #0f172a;
       z-index: 5;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 4px 10px rgba(0,0,0,0.3);
-      overflow: hidden;
-      cursor: pointer;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+      transition: all 0.35s;
     }
-    .arena-pokeball-core {
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      background: #ffffff;
-      border: 4px solid #0f172a;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+    body.has-active-pokemon .wheel-center {
+      width: clamp(24px, 3.8dvh, 36px);
+      height: clamp(24px, 3.8dvh, 36px);
+      border: 3px solid #0f172a;
     }
-    .arena-pokeball-core::after {
+    .wheel-center::after {
       content: '';
-      width: 14px;
-      height: 14px;
+      width: 40%;
+      height: 40%;
       border-radius: 50%;
       background: #ef4444;
       border: 2px solid #0f172a;
-    }
-
-    .arena-center-sprite {
-      width: 88%;
-      height: 88%;
-      object-fit: contain;
-      filter: drop-shadow(0 8px 14px rgba(0,0,0,0.6));
-      pointer-events: none;
-      display: none;
-    }
-    .arena-tick-badge {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background: var(--green);
-      color: white;
-      font-size: 0.75rem;
-      font-weight: 900;
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 3px 8px rgba(16, 185, 129, 0.6);
-      border: 2px solid #ffffff;
-      z-index: 6;
     }
 
     .btn-generate {
       background: linear-gradient(135deg, #ef4444, #dc2626);
       color: white;
       border: none;
-      padding: clamp(0.65rem, 1.6dvh, 0.85rem) clamp(1.8rem, 5vw, 2.4rem);
-      font-size: clamp(0.95rem, 2.3dvh, 1.15rem);
+      padding: clamp(0.7rem, 1.8dvh, 0.9rem) clamp(1.8rem, 5vw, 2.4rem);
+      font-size: clamp(1rem, 2.5dvh, 1.15rem);
       font-weight: 800;
       letter-spacing: 0.5px;
       border-radius: 9999px;
@@ -312,12 +293,12 @@
     .btn-generate:active { transform: scale(0.96); }
     .btn-generate:disabled { opacity: 0.55; cursor: not-allowed; }
 
-    /* Stadium Stats Console */
+    /* Dynamic Card that fits the remaining single-screen view */
     .card {
       width: 100%;
       background: var(--card-bg);
       border-radius: 20px;
-      padding: clamp(0.45rem, 1.1dvh, 0.75rem) clamp(0.7rem, 2vw, 1rem);
+      padding: clamp(0.45rem, 1.2dvh, 0.8rem) clamp(0.7rem, 2vw, 1rem);
       border: 1px solid #334155;
       box-shadow: 0 12px 28px rgba(0,0,0,0.4);
       display: none;
@@ -336,8 +317,38 @@
     .nav-arrow { background: none; border: none; color: var(--subtext); font-size: 1.15rem; font-weight: 900; padding: 0 0.5rem; cursor: pointer; }
     .nav-arrow:active { color: #fff; }
 
+    .image-container { position: relative; display: inline-block; margin: 0.05rem 0; }
+    .card img { 
+      width: clamp(80px, 13dvh, 120px); 
+      height: clamp(80px, 13dvh, 120px); 
+      object-fit: contain; 
+      filter: drop-shadow(0 6px 12px rgba(0,0,0,0.45)); 
+      pointer-events: none; 
+    }
+    
+    .collected-badge {
+      position: absolute;
+      top: 2px; right: 2px;
+      background: var(--green);
+      color: white;
+      width: clamp(22px, 3.2dvh, 26px);
+      height: clamp(22px, 3.2dvh, 26px);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 900;
+      box-shadow: 0 3px 8px rgba(16, 185, 129, 0.5);
+      border: 2px solid #ffffff;
+      opacity: 0;
+      transform: scale(0.5);
+      transition: all 0.25s ease;
+    }
+    .collected-badge.active { opacity: 1; transform: scale(1); }
+
     .dex-num { font-size: 0.72rem; font-weight: 800; color: var(--subtext); }
-    .poke-name { font-size: clamp(1.1rem, 2.4dvh, 1.35rem); font-weight: 800; text-transform: capitalize; margin: 0.05rem 0 0.2rem; }
+    .poke-name { font-size: clamp(1.1rem, 2.5dvh, 1.35rem); font-weight: 800; text-transform: capitalize; margin: 0.05rem 0 0.2rem; }
     .types { display: flex; gap: 0.4rem; justify-content: center; margin-bottom: clamp(0.25rem, 0.7dvh, 0.45rem); }
     .type-pill {
       font-size: 0.65rem;
@@ -351,7 +362,7 @@
 
     .btn-collect {
       width: 100%;
-      padding: clamp(0.35rem, 0.9dvh, 0.48rem);
+      padding: clamp(0.35rem, 1dvh, 0.5rem);
       margin-bottom: clamp(0.25rem, 0.7dvh, 0.45rem);
       border-radius: 10px;
       border: 1px solid #334155;
@@ -378,9 +389,9 @@
       gap: 0.15rem 0.7rem;
       text-align: left;
       background: #0f172a;
-      padding: clamp(0.35rem, 0.8dvh, 0.55rem) 0.8rem;
+      padding: clamp(0.4rem, 0.9dvh, 0.6rem) 0.8rem;
       border-radius: 12px;
-      font-size: clamp(0.68rem, 1.45dvh, 0.75rem);
+      font-size: clamp(0.68rem, 1.5dvh, 0.75rem);
     }
     .stat-row span:first-child { color: var(--subtext); }
     .stat-row span:last-child { font-weight: 700; float: right; }
@@ -578,6 +589,7 @@
       </div>
       
       <div class="header-actions">
+        <!-- Full Dex Collection Tracker (Backpack) -->
         <button class="btn-header" onclick="openDexTrackerModal()" title="Full Dex Collection Tracker">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-9Z"/>
@@ -586,6 +598,7 @@
           </svg>
         </button>
 
+        <!-- History Clock -->
         <button class="btn-header" onclick="openRecentModal()" title="Search & Spin History">
           <svg viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="9"></circle>
@@ -606,20 +619,14 @@
       <ul class="suggestions-list" id="suggestionsList"></ul>
     </div>
 
-    <!-- Stadium Arena: Type Wheel Halo with Central Pokemon Stage -->
     <div class="wheel-container">
       <div class="wheel-pointer"></div>
       <div class="wheel" id="wheel"></div>
-      <div class="wheel-center" id="wheelCenter">
-        <div class="arena-pokeball-core" id="arenaCore"></div>
-        <img id="arenaCenterImg" class="arena-center-sprite" src="" alt="Pokémon Artwork" />
-        <div class="arena-tick-badge" id="arenaTickBadge">✓</div>
-      </div>
+      <div class="wheel-center"></div>
     </div>
 
     <button class="btn-generate" id="spinBtn" onclick="spinAndPick()">SPIN & GENERATE</button>
 
-    <!-- Stadium Stats Console -->
     <div class="card" id="pokeCard">
       <div class="card-top-nav">
         <button class="nav-arrow" onclick="navigateDex(-1)" title="Previous Pokémon">‹</button>
@@ -628,6 +635,12 @@
       </div>
 
       <h2 class="poke-name" id="pokeName">Pokémon</h2>
+      
+      <div class="image-container">
+        <img id="pokeImg" src="" alt="Pokémon Artwork" />
+        <div class="collected-badge" id="cardTickBadge">✓</div>
+      </div>
+      
       <div class="types" id="pokeTypes"></div>
       
       <button class="btn-collect" id="collectToggleBtn" onclick="toggleCollectionStatus()">
@@ -917,18 +930,18 @@
 
     function updateCollectionButtonUI(isOwned) {
       const btn = document.getElementById('collectToggleBtn');
-      const arenaTick = document.getElementById('arenaTickBadge');
+      const badge = document.getElementById('cardTickBadge');
       const icon = document.getElementById('collectBtnIcon');
       const text = document.getElementById('collectBtnText');
 
       if (isOwned) {
         btn.classList.add('active');
-        arenaTick.style.display = 'flex';
+        badge.classList.add('active');
         icon.innerText = '✓';
         text.innerText = 'In Collection (Tap to remove)';
       } else {
         btn.classList.remove('active');
-        arenaTick.style.display = 'none';
+        badge.classList.remove('active');
         icon.innerText = '+';
         text.innerText = 'Add to Collection';
       }
@@ -1064,36 +1077,35 @@
       selectPokemonById(nextId, delta, false);
     }
 
-    // Touch Swipe handling on both Center Arena Stage & Stats Card
-    function setupSwipeGestures(element) {
-      let touchStartX = 0;
-      let touchStartY = 0;
-      let touchEndX = 0;
-      let touchEndY = 0;
+    const cardEl = document.getElementById('pokeCard');
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchEndX = 0;
+    let touchEndY = 0;
 
-      element.addEventListener('touchstart', (e) => {
-        touchStartX = e.changedTouches[0].screenX;
-        touchStartY = e.changedTouches[0].screenY;
-      }, { passive: true });
+    cardEl.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+      touchStartY = e.changedTouches[0].screenY;
+    }, { passive: true });
 
-      element.addEventListener('touchend', (e) => {
-        touchEndX = e.changedTouches[0].screenX;
-        touchEndY = e.changedTouches[0].screenY;
-        const deltaX = touchEndX - touchStartX;
-        const deltaY = touchEndY - touchStartY;
-        
-        if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
-          if (deltaX < 0) {
-            navigateDex(1);
-          } else {
-            navigateDex(-1);
-          }
+    cardEl.addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      touchEndY = e.changedTouches[0].screenY;
+      handleCardSwipe();
+    }, { passive: true });
+
+    function handleCardSwipe() {
+      const deltaX = touchEndX - touchStartX;
+      const deltaY = touchEndY - touchStartY;
+      
+      if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
+        if (deltaX < 0) {
+          navigateDex(1);
+        } else {
+          navigateDex(-1);
         }
-      }, { passive: true });
+      }
     }
-
-    setupSwipeGestures(document.getElementById('pokeCard'));
-    setupSwipeGestures(document.getElementById('wheelCenter'));
 
     function submitSearch() {
       const list = document.getElementById('suggestionsList');
@@ -1161,17 +1173,9 @@
 
     function renderPokemon(p, direction = 0) {
       currentPokemonId = p.id;
+      document.body.classList.add('has-active-pokemon');
       const card = document.getElementById('pokeCard');
-      const arenaImg = document.getElementById('arenaCenterImg');
-      const arenaCore = document.getElementById('arenaCore');
       
-      // Update central arena stage
-      arenaCore.style.display = 'none';
-      const imgUrl = p.sprites.other['official-artwork'].front_default || p.sprites.front_default;
-      arenaImg.src = imgUrl;
-      arenaImg.style.display = 'block';
-
-      // Card swipe animations
       card.classList.remove('slide-in-right', 'slide-in-left');
       void card.offsetWidth;
       if (direction > 0) {
@@ -1182,6 +1186,9 @@
 
       document.getElementById('dexNum').innerText = `#${String(p.id).padStart(4, '0')}`;
       document.getElementById('pokeName').innerText = p.name.replace('-', ' ');
+      
+      const imgUrl = p.sprites.other['official-artwork'].front_default || p.sprites.front_default;
+      document.getElementById('pokeImg').src = imgUrl;
 
       const typesContainer = document.getElementById('pokeTypes');
       typesContainer.innerHTML = '';
@@ -1215,3 +1222,4 @@
   </script>
 </body>
 </html>
+

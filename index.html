@@ -26,16 +26,15 @@
       justify-content: center;
       padding: 1.5rem 1rem;
     }
-    header { text-align: center; margin-bottom: 1.5rem; }
+    header { text-align: center; margin-bottom: 1.2rem; }
     header h1 { font-size: 1.7rem; font-weight: 800; letter-spacing: 0.5px; color: #fff; }
     header span { color: var(--accent); }
 
-    /* Centered Wheel Container */
     .wheel-container {
       position: relative;
       width: 240px;
       height: 240px;
-      margin: 0 auto 1.5rem auto;
+      margin: 0 auto 1.2rem auto;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -48,24 +47,24 @@
       border-radius: 50%;
       border: 8px solid #1e293b;
       background: conic-gradient(
-        #A8A77A 0deg 20deg,     /* Normal */
-        #EE8130 20deg 40deg,    /* Fire */
-        #6390F0 40deg 60deg,    /* Water */
-        #7AC74C 60deg 80deg,    /* Grass */
-        #F7D02C 80deg 100deg,   /* Electric */
-        #96D9D6 100deg 120deg,  /* Ice */
-        #C22E28 120deg 140deg,  /* Fighting */
-        #A33EA1 140deg 160deg,  /* Poison */
-        #E2BF65 160deg 180deg,  /* Ground */
-        #A98FF3 180deg 200deg,  /* Flying */
-        #F95587 200deg 220deg,  /* Psychic */
-        #A6B91A 220deg 240deg,  /* Bug */
-        #B6A136 240deg 260deg,  /* Rock */
-        #735797 260deg 280deg,  /* Ghost */
-        #6F35FC 280deg 300deg,  /* Dragon */
-        #705746 300deg 320deg,  /* Dark */
-        #B7B7CE 320deg 340deg,  /* Steel */
-        #D685AD 340deg 360deg   /* Fairy */
+        #A8A77A 0deg 20deg,     /* 0: Normal */
+        #EE8130 20deg 40deg,    /* 1: Fire */
+        #6390F0 40deg 60deg,    /* 2: Water */
+        #7AC74C 60deg 80deg,    /* 3: Grass */
+        #F7D02C 80deg 100deg,   /* 4: Electric */
+        #96D9D6 100deg 120deg,  /* 5: Ice */
+        #C22E28 120deg 140deg,  /* 6: Fighting */
+        #A33EA1 140deg 160deg,  /* 7: Poison */
+        #E2BF65 160deg 180deg,  /* 8: Ground */
+        #A98FF3 180deg 200deg,  /* 9: Flying */
+        #F95587 200deg 220deg,  /* 10: Psychic */
+        #A6B91A 220deg 240deg,  /* 11: Bug */
+        #B6A136 240deg 260deg,  /* 12: Rock */
+        #735797 260deg 280deg,  /* 13: Ghost */
+        #6F35FC 280deg 300deg,  /* 14: Dragon */
+        #705746 300deg 320deg,  /* 15: Dark */
+        #B7B7CE 320deg 340deg,  /* 16: Steel */
+        #D685AD 340deg 360deg   /* 17: Fairy */
       );
       transition: transform 3.2s cubic-bezier(0.12, 0.9, 0.18, 1);
       box-shadow: 0 12px 30px rgba(0,0,0,0.5), inset 0 0 15px rgba(0,0,0,0.2);
@@ -85,7 +84,6 @@
       filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6));
     }
     
-    /* Pokéball center cap */
     .wheel-center {
       position: absolute;
       width: 52px;
@@ -120,7 +118,7 @@
       box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45);
       cursor: pointer;
       transition: all 0.2s;
-      margin-bottom: 1rem;
+      margin-bottom: 0.8rem;
     }
     .btn-generate:active { transform: scale(0.96); }
     .btn-generate:disabled { opacity: 0.55; cursor: not-allowed; }
@@ -130,7 +128,7 @@
       max-width: 350px;
       background: var(--card-bg);
       border-radius: 24px;
-      padding: 1.4rem;
+      padding: 1.3rem;
       border: 1px solid #334155;
       box-shadow: 0 18px 36px rgba(0,0,0,0.4);
       display: none;
@@ -143,15 +141,15 @@
     }
 
     .card img {
-      width: 180px;
-      height: 180px;
+      width: 175px;
+      height: 175px;
       object-fit: contain;
-      margin: 0.4rem 0;
+      margin: 0.3rem 0;
       filter: drop-shadow(0 10px 16px rgba(0,0,0,0.45));
     }
     .dex-num { font-size: 0.85rem; font-weight: 800; color: var(--subtext); }
     .poke-name { font-size: 1.6rem; font-weight: 800; text-transform: capitalize; margin: 0.2rem 0 0.5rem; }
-    .types { display: flex; gap: 0.5rem; justify-content: center; margin-bottom: 1rem; }
+    .types { display: flex; gap: 0.5rem; justify-content: center; margin-bottom: 0.9rem; }
     .type-pill {
       font-size: 0.75rem;
       font-weight: 800;
@@ -205,9 +203,12 @@
   </div>
 
   <script>
-    const TOTAL_POKEMON = 1025;
-    let currentRotation = 0;
-    let audioCtx = null;
+    // 18 types in exact clockwise order matching the CSS conic-gradient
+    const TYPES = [
+      'normal', 'fire', 'water', 'grass', 'electric', 'ice',
+      'fighting', 'poison', 'ground', 'flying', 'psychic', 'bug',
+      'rock', 'ghost', 'dragon', 'dark', 'steel', 'fairy'
+    ];
 
     const TYPE_COLORS = {
       normal: '#A8A77A', fire: '#EE8130', water: '#6390F0', grass: '#7AC74C',
@@ -216,6 +217,9 @@
       rock: '#B6A136', ghost: '#735797', dragon: '#6F35FC', dark: '#705746',
       steel: '#B7B7CE', fairy: '#D685AD'
     };
+
+    let totalRotationsCount = 0;
+    let audioCtx = null;
 
     function initAudio() {
       if (!audioCtx) {
@@ -278,25 +282,48 @@
       btn.disabled = true;
       card.style.display = 'none';
 
-      const randomId = Math.floor(Math.random() * TOTAL_POKEMON) + 1;
-      const extraSpins = (Math.floor(Math.random() * 3) + 4) * 360;
-      const randomStop = Math.floor(Math.random() * 360);
-      currentRotation += extraSpins + randomStop;
-      wheel.style.transform = `rotate(${currentRotation}deg)`;
+      // 1. Pick a random type index (0 to 17)
+      const targetIndex = Math.floor(Math.random() * TYPES.length);
+      const selectedType = TYPES[targetIndex];
 
+      // 2. Calculate exact angle to bring this slice to the top pointer
+      // Slice center angle = (targetIndex * 20) + 10 deg.
+      // Clockwise rotation needed = (360 - center angle).
+      const sliceCenter = (targetIndex * 20) + 10;
+      const targetAngle = (360 - sliceCenter) % 360;
+
+      // Add 4 to 6 full 360 spins on top of existing rotation
+      totalRotationsCount += Math.floor(Math.random() * 3) + 4;
+      const finalRotation = (totalRotationsCount * 360) + targetAngle;
+      
+      wheel.style.transform = `rotate(${finalRotation}deg)`;
       triggerSpinAudio();
 
       try {
-        const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${randomId}`);
-        const data = await res.json();
+        // 3. Fetch all Pokémon with this type
+        const typeRes = await fetch(`https://pokeapi.co/api/v2/type/${selectedType}`);
+        const typeData = await typeRes.json();
+        
+        // Filter to standard National Dex (1 to 1025)
+        const validPokemon = typeData.pokemon.filter(p => {
+          const id = parseInt(p.pokemon.url.split('/').filter(Boolean).pop());
+          return id <= 1025;
+        });
 
+        const randomEntry = validPokemon[Math.floor(Math.random() * validPokemon.length)];
+        
+        // 4. Fetch full Pokémon details
+        const pokeRes = await fetch(randomEntry.pokemon.url);
+        const pokeData = await pokeRes.json();
+
+        // 5. Reveal card when wheel stops
         setTimeout(() => {
-          renderPokemon(data);
+          renderPokemon(pokeData);
           playVictoryChime();
           btn.disabled = false;
         }, 3200);
       } catch (err) {
-        alert("Failed to load Pokémon. Check your internet connection.");
+        alert("Failed to load Pokémon data. Check your internet connection.");
         btn.disabled = false;
       }
     }

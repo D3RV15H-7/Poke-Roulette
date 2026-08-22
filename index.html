@@ -41,36 +41,8 @@
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      padding: clamp(0.3rem, 1dvh, 0.6rem) clamp(0.6rem, 2.5vw, 1rem);
+      padding: clamp(0.4rem, 1.2dvh, 0.8rem) clamp(0.6rem, 2.5vw, 1rem);
       touch-action: pan-y;
-    }
-
-    /* Concept Mode Switcher Pill */
-    .mode-switcher {
-      display: flex;
-      background: #020617;
-      padding: 3px;
-      border-radius: 9999px;
-      border: 1px solid #334155;
-      gap: 2px;
-      margin-bottom: 0.35rem;
-      z-index: 30;
-      flex-shrink: 0;
-    }
-    .mode-btn {
-      background: none;
-      border: none;
-      color: var(--subtext);
-      font-size: 0.68rem;
-      font-weight: 800;
-      padding: 0.25rem 0.65rem;
-      border-radius: 9999px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .mode-btn.active {
-      background: var(--accent);
-      color: #fff;
     }
 
     .app-viewport {
@@ -81,8 +53,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      gap: clamp(0.2rem, 0.8dvh, 0.5rem);
-      position: relative;
+      gap: clamp(0.25rem, 0.8dvh, 0.55rem);
     }
 
     header {
@@ -93,18 +64,18 @@
       flex-shrink: 0;
     }
     .header-left { text-align: left; }
-    header h1 { font-size: clamp(1.25rem, 3.5dvh, 1.45rem); font-weight: 800; letter-spacing: 0.5px; color: #fff; }
+    header h1 { font-size: clamp(1.3rem, 3.8dvh, 1.55rem); font-weight: 800; letter-spacing: 0.5px; color: #fff; }
     header span { color: var(--accent); }
 
     .counter-badge {
       display: inline-block;
-      margin-top: 0.1rem;
+      margin-top: 0.15rem;
       background: #1e293b;
       border: 1px solid #334155;
       color: var(--subtext);
-      font-size: 0.7rem;
+      font-size: 0.72rem;
       font-weight: 700;
-      padding: 0.12rem 0.5rem;
+      padding: 0.15rem 0.55rem;
       border-radius: 9999px;
     }
     .counter-badge strong { color: var(--green); }
@@ -114,9 +85,9 @@
       position: relative;
       background: #1e293b;
       border: 1px solid #334155;
-      width: clamp(34px, 4.2dvh, 38px);
-      height: clamp(34px, 4.2dvh, 38px);
-      border-radius: 11px;
+      width: clamp(36px, 4.5dvh, 40px);
+      height: clamp(36px, 4.5dvh, 40px);
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -125,7 +96,7 @@
       transition: all 0.2s;
     }
     .btn-header:active { transform: scale(0.92); background: #334155; }
-    .btn-header svg { width: 17px; height: 17px; fill: none; stroke: #f8fafc; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .btn-header svg { width: 18px; height: 18px; fill: none; stroke: #f8fafc; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     
     .bag-count-badge {
       position: absolute;
@@ -133,10 +104,10 @@
       right: -4px;
       background: var(--accent);
       color: white;
-      font-size: 0.6rem;
+      font-size: 0.62rem;
       font-weight: 800;
-      width: 16px;
-      height: 16px;
+      width: 17px;
+      height: 17px;
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -158,9 +129,9 @@
       background: #1e293b;
       border: 1px solid #334155;
       color: #fff;
-      padding: clamp(0.42rem, 1dvh, 0.55rem) 0.85rem;
+      padding: clamp(0.42rem, 1.1dvh, 0.55rem) 0.85rem;
       border-radius: 9999px;
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       outline: none;
       transition: border-color 0.2s;
     }
@@ -170,9 +141,9 @@
       background: #334155;
       color: white;
       border: none;
-      padding: 0 0.9rem;
+      padding: 0 0.95rem;
       border-radius: 9999px;
-      font-size: 0.78rem;
+      font-size: 0.8rem;
       font-weight: 700;
       cursor: pointer;
     }
@@ -206,12 +177,12 @@
     .sugg-num { color: var(--subtext); font-weight: 700; margin-right: 0.4rem; }
     .sugg-tick { color: var(--green); font-weight: 900; }
 
-    /* Base Wheel Container */
+    /* Stadium Arena Wheel Container */
     .wheel-container {
       position: relative;
-      width: clamp(210px, 34dvh, 260px);
-      height: clamp(210px, 34dvh, 260px);
-      margin: clamp(0.3rem, 1.2dvh, 0.8rem) auto;
+      width: clamp(220px, 33dvh, 265px);
+      height: clamp(220px, 33dvh, 265px);
+      margin: clamp(0.1rem, 0.5dvh, 0.4rem) auto;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -259,38 +230,77 @@
       border-top: 20px solid #ffffff;
       z-index: 10;
       filter: drop-shadow(0 3px 5px rgba(0,0,0,0.6));
-      transition: all 0.35s;
     }
     
+    /* Central Arena Stage */
     .wheel-center {
       position: absolute;
-      width: clamp(34px, 6dvh, 50px);
-      height: clamp(34px, 6dvh, 50px);
-      background: #ffffff;
+      width: 76%;
+      height: 76%;
+      background: radial-gradient(circle, #1e293b 0%, #0f172a 100%);
       border-radius: 50%;
-      border: 4px solid #0f172a;
+      border: 4px solid #334155;
       z-index: 5;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 3px 8px rgba(0,0,0,0.3);
-      transition: all 0.35s;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 4px 10px rgba(0,0,0,0.3);
+      overflow: hidden;
+      cursor: pointer;
     }
-    .wheel-center::after {
+    .arena-pokeball-core {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 4px solid #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+    }
+    .arena-pokeball-core::after {
       content: '';
-      width: 40%;
-      height: 40%;
+      width: 14px;
+      height: 14px;
       border-radius: 50%;
       background: #ef4444;
       border: 2px solid #0f172a;
+    }
+
+    .arena-center-sprite {
+      width: 88%;
+      height: 88%;
+      object-fit: contain;
+      filter: drop-shadow(0 8px 14px rgba(0,0,0,0.6));
+      pointer-events: none;
+      display: none;
+    }
+    .arena-tick-badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: var(--green);
+      color: white;
+      font-size: 0.75rem;
+      font-weight: 900;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 3px 8px rgba(16, 185, 129, 0.6);
+      border: 2px solid #ffffff;
+      z-index: 6;
     }
 
     .btn-generate {
       background: linear-gradient(135deg, #ef4444, #dc2626);
       color: white;
       border: none;
-      padding: clamp(0.7rem, 1.8dvh, 0.9rem) clamp(1.8rem, 5vw, 2.4rem);
-      font-size: clamp(0.95rem, 2.4dvh, 1.15rem);
+      padding: clamp(0.65rem, 1.6dvh, 0.85rem) clamp(1.8rem, 5vw, 2.4rem);
+      font-size: clamp(0.95rem, 2.3dvh, 1.15rem);
       font-weight: 800;
       letter-spacing: 0.5px;
       border-radius: 9999px;
@@ -302,12 +312,12 @@
     .btn-generate:active { transform: scale(0.96); }
     .btn-generate:disabled { opacity: 0.55; cursor: not-allowed; }
 
-    /* Base Card */
+    /* Stadium Stats Console */
     .card {
       width: 100%;
       background: var(--card-bg);
       border-radius: 20px;
-      padding: clamp(0.5rem, 1.3dvh, 0.85rem) clamp(0.7rem, 2vw, 1rem);
+      padding: clamp(0.45rem, 1.1dvh, 0.75rem) clamp(0.7rem, 2vw, 1rem);
       border: 1px solid #334155;
       box-shadow: 0 12px 28px rgba(0,0,0,0.4);
       display: none;
@@ -326,38 +336,8 @@
     .nav-arrow { background: none; border: none; color: var(--subtext); font-size: 1.15rem; font-weight: 900; padding: 0 0.5rem; cursor: pointer; }
     .nav-arrow:active { color: #fff; }
 
-    .image-container { position: relative; display: inline-block; margin: 0.05rem 0; }
-    .card img { 
-      width: clamp(80px, 13dvh, 120px); 
-      height: clamp(80px, 13dvh, 120px); 
-      object-fit: contain; 
-      filter: drop-shadow(0 6px 12px rgba(0,0,0,0.45)); 
-      pointer-events: none; 
-    }
-    
-    .collected-badge {
-      position: absolute;
-      top: 2px; right: 2px;
-      background: var(--green);
-      color: white;
-      width: clamp(22px, 3.2dvh, 26px);
-      height: clamp(22px, 3.2dvh, 26px);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.8rem;
-      font-weight: 900;
-      box-shadow: 0 3px 8px rgba(16, 185, 129, 0.5);
-      border: 2px solid #ffffff;
-      opacity: 0;
-      transform: scale(0.5);
-      transition: all 0.25s ease;
-    }
-    .collected-badge.active { opacity: 1; transform: scale(1); }
-
     .dex-num { font-size: 0.72rem; font-weight: 800; color: var(--subtext); }
-    .poke-name { font-size: clamp(1.1rem, 2.5dvh, 1.35rem); font-weight: 800; text-transform: capitalize; margin: 0.05rem 0 0.2rem; }
+    .poke-name { font-size: clamp(1.1rem, 2.4dvh, 1.35rem); font-weight: 800; text-transform: capitalize; margin: 0.05rem 0 0.2rem; }
     .types { display: flex; gap: 0.4rem; justify-content: center; margin-bottom: clamp(0.25rem, 0.7dvh, 0.45rem); }
     .type-pill {
       font-size: 0.65rem;
@@ -371,7 +351,7 @@
 
     .btn-collect {
       width: 100%;
-      padding: clamp(0.35rem, 1dvh, 0.5rem);
+      padding: clamp(0.35rem, 0.9dvh, 0.48rem);
       margin-bottom: clamp(0.25rem, 0.7dvh, 0.45rem);
       border-radius: 10px;
       border: 1px solid #334155;
@@ -398,121 +378,12 @@
       gap: 0.15rem 0.7rem;
       text-align: left;
       background: #0f172a;
-      padding: clamp(0.4rem, 0.9dvh, 0.6rem) 0.8rem;
+      padding: clamp(0.35rem, 0.8dvh, 0.55rem) 0.8rem;
       border-radius: 12px;
-      font-size: clamp(0.68rem, 1.5dvh, 0.75rem);
+      font-size: clamp(0.68rem, 1.45dvh, 0.75rem);
     }
     .stat-row span:first-child { color: var(--subtext); }
     .stat-row span:last-child { font-weight: 700; float: right; }
-
-    /* ========================================================
-       CONCEPT 1: Two-Screen Flip Overrides
-       ======================================================== */
-    body.theme-concept1.has-active-pokemon .wheel-container,
-    body.theme-concept1.has-active-pokemon .btn-generate {
-      display: none !important;
-    }
-    body.theme-concept1.has-active-pokemon .card {
-      display: flex !important;
-      flex-direction: column;
-      height: 100%;
-      max-height: 82dvh;
-      justify-content: space-between;
-    }
-    body.theme-concept1 .card img {
-      width: clamp(140px, 24dvh, 190px);
-      height: clamp(140px, 24dvh, 190px);
-    }
-    .concept1-actions {
-      display: none;
-      gap: 0.5rem;
-      width: 100%;
-      margin-top: 0.4rem;
-    }
-    body.theme-concept1.has-active-pokemon .concept1-actions {
-      display: flex;
-    }
-    .btn-concept1-back {
-      flex: 1;
-      background: #334155;
-      color: #fff;
-      border: none;
-      padding: 0.6rem;
-      border-radius: 9999px;
-      font-weight: 700;
-      font-size: 0.85rem;
-      cursor: pointer;
-    }
-    .btn-concept1-respin {
-      flex: 1.5;
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      padding: 0.6rem;
-      border-radius: 9999px;
-      font-weight: 800;
-      font-size: 0.85rem;
-      cursor: pointer;
-    }
-
-    /* ========================================================
-       CONCEPT 2: Bottom Sheet Overrides
-       ======================================================== */
-    body.theme-concept2 .wheel-container {
-      width: clamp(130px, 20dvh, 170px);
-      height: clamp(130px, 20dvh, 170px);
-      margin: 0.2rem auto;
-    }
-    body.theme-concept2 .btn-generate {
-      display: none; /* Spin initiated from bottom sheet header button */
-    }
-    body.theme-concept2 .card {
-      border-radius: 24px 24px 0 0;
-      border-bottom: none;
-      position: absolute;
-      bottom: -15px;
-      left: 0; right: 0;
-      width: 100%;
-      max-width: 100%;
-      background: rgba(30, 41, 59, 0.95);
-      backdrop-filter: blur(10px);
-      box-shadow: 0 -10px 30px rgba(0,0,0,0.6);
-      padding-bottom: 25px;
-      animation: slideUpSheet 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-    }
-    @keyframes slideUpSheet {
-      from { transform: translateY(100%); }
-      to { transform: translateY(0); }
-    }
-
-    /* ========================================================
-       CONCEPT 3: Integrated Stadium Arena Overrides
-       ======================================================== */
-    body.theme-concept3 .wheel-container {
-      position: relative;
-      width: clamp(230px, 35dvh, 270px);
-      height: clamp(230px, 35dvh, 270px);
-      margin: 0.3rem auto;
-    }
-    body.theme-concept3 .wheel-center {
-      width: 78%;
-      height: 78%;
-      background: radial-gradient(circle, #1e293b 0%, #0f172a 100%);
-      border: 4px solid #334155;
-      box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
-    }
-    body.theme-concept3 .wheel-center::after { display: none; }
-    body.theme-concept3 .arena-center-sprite {
-      width: 90%;
-      height: 90%;
-      object-fit: contain;
-      filter: drop-shadow(0 6px 12px rgba(0,0,0,0.5));
-    }
-    body.theme-concept3.has-active-pokemon .card {
-      display: block !important;
-      padding: 0.5rem 0.8rem;
-    }
-    body.theme-concept3 .card .image-container { display: none; } /* Artwork sits inside wheel center */
 
     /* Modals & Full Dex Collection */
     .modal-backdrop {
@@ -697,14 +568,7 @@
     .empty-msg { color: var(--subtext); font-size: 0.85rem; padding: 2.5rem 0; text-align: center; }
   </style>
 </head>
-<body class="theme-concept1">
-
-  <!-- Concept Selector Bar for Testing -->
-  <div class="mode-switcher">
-    <button class="mode-btn active" id="btnMode1" onclick="switchTheme('concept1')">1. Two-Screen</button>
-    <button class="mode-btn" id="btnMode2" onclick="switchTheme('concept2')">2. Bottom Sheet</button>
-    <button class="mode-btn" id="btnMode3" onclick="switchTheme('concept3')">3. Stadium Arena</button>
-  </div>
+<body>
 
   <div class="app-viewport">
     <header>
@@ -742,18 +606,20 @@
       <ul class="suggestions-list" id="suggestionsList"></ul>
     </div>
 
-    <!-- The Interactive Wheel Container -->
+    <!-- Stadium Arena: Type Wheel Halo with Central Pokemon Stage -->
     <div class="wheel-container">
       <div class="wheel-pointer"></div>
       <div class="wheel" id="wheel"></div>
       <div class="wheel-center" id="wheelCenter">
-        <img id="arenaCenterImg" class="arena-center-sprite" src="" style="display:none;" />
+        <div class="arena-pokeball-core" id="arenaCore"></div>
+        <img id="arenaCenterImg" class="arena-center-sprite" src="" alt="Pokémon Artwork" />
+        <div class="arena-tick-badge" id="arenaTickBadge">✓</div>
       </div>
     </div>
 
     <button class="btn-generate" id="spinBtn" onclick="spinAndPick()">SPIN & GENERATE</button>
 
-    <!-- Pokémon Result Card -->
+    <!-- Stadium Stats Console -->
     <div class="card" id="pokeCard">
       <div class="card-top-nav">
         <button class="nav-arrow" onclick="navigateDex(-1)" title="Previous Pokémon">‹</button>
@@ -762,12 +628,6 @@
       </div>
 
       <h2 class="poke-name" id="pokeName">Pokémon</h2>
-      
-      <div class="image-container">
-        <img id="pokeImg" src="" alt="Pokémon Artwork" />
-        <div class="collected-badge" id="cardTickBadge">✓</div>
-      </div>
-      
       <div class="types" id="pokeTypes"></div>
       
       <button class="btn-collect" id="collectToggleBtn" onclick="toggleCollectionStatus()">
@@ -781,12 +641,6 @@
         <div class="stat-row"><span>Attack:</span> <span id="statAtk">-</span></div>
         <div class="stat-row"><span>Defense:</span> <span id="statDef">-</span></div>
         <div class="stat-row"><span>Speed:</span> <span id="statSpd">-</span></div>
-      </div>
-
-      <!-- Actions exclusively for Concept 1 -->
-      <div class="concept1-actions">
-        <button class="btn-concept1-back" onclick="concept1BackToSpin()">‹ Back</button>
-        <button class="btn-concept1-respin" onclick="spinAndPick()">⚡ Spin Again</button>
       </div>
     </div>
   </div>
@@ -844,21 +698,6 @@
     let audioCtx = null;
     let currentPokemonId = null;
     let currentDexFilter = 'all';
-
-    // Switch between the 3 live testing concepts
-    function switchTheme(themeName) {
-      document.body.classList.remove('theme-concept1', 'theme-concept2', 'theme-concept3');
-      document.body.classList.add(`theme-${themeName}`);
-      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-      if (themeName === 'concept1') document.getElementById('btnMode1').classList.add('active');
-      if (themeName === 'concept2') document.getElementById('btnMode2').classList.add('active');
-      if (themeName === 'concept3') document.getElementById('btnMode3').classList.add('active');
-    }
-
-    function concept1BackToSpin() {
-      document.body.classList.remove('has-active-pokemon');
-      document.getElementById('pokeCard').style.display = 'none';
-    }
 
     async function loadDirectory() {
       try {
@@ -1078,18 +917,18 @@
 
     function updateCollectionButtonUI(isOwned) {
       const btn = document.getElementById('collectToggleBtn');
-      const badge = document.getElementById('cardTickBadge');
+      const arenaTick = document.getElementById('arenaTickBadge');
       const icon = document.getElementById('collectBtnIcon');
       const text = document.getElementById('collectBtnText');
 
       if (isOwned) {
         btn.classList.add('active');
-        badge.classList.add('active');
+        arenaTick.style.display = 'flex';
         icon.innerText = '✓';
         text.innerText = 'In Collection (Tap to remove)';
       } else {
         btn.classList.remove('active');
-        badge.classList.remove('active');
+        arenaTick.style.display = 'none';
         icon.innerText = '+';
         text.innerText = 'Add to Collection';
       }
@@ -1225,35 +1064,36 @@
       selectPokemonById(nextId, delta, false);
     }
 
-    const cardEl = document.getElementById('pokeCard');
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let touchEndX = 0;
-    let touchEndY = 0;
+    // Touch Swipe handling on both Center Arena Stage & Stats Card
+    function setupSwipeGestures(element) {
+      let touchStartX = 0;
+      let touchStartY = 0;
+      let touchEndX = 0;
+      let touchEndY = 0;
 
-    cardEl.addEventListener('touchstart', (e) => {
-      touchStartX = e.changedTouches[0].screenX;
-      touchStartY = e.changedTouches[0].screenY;
-    }, { passive: true });
+      element.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+        touchStartY = e.changedTouches[0].screenY;
+      }, { passive: true });
 
-    cardEl.addEventListener('touchend', (e) => {
-      touchEndX = e.changedTouches[0].screenX;
-      touchEndY = e.changedTouches[0].screenY;
-      handleCardSwipe();
-    }, { passive: true });
-
-    function handleCardSwipe() {
-      const deltaX = touchEndX - touchStartX;
-      const deltaY = touchEndY - touchStartY;
-      
-      if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
-        if (deltaX < 0) {
-          navigateDex(1);
-        } else {
-          navigateDex(-1);
+      element.addEventListener('touchend', (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        touchEndY = e.changedTouches[0].screenY;
+        const deltaX = touchEndX - touchStartX;
+        const deltaY = touchEndY - touchStartY;
+        
+        if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
+          if (deltaX < 0) {
+            navigateDex(1);
+          } else {
+            navigateDex(-1);
+          }
         }
-      }
+      }, { passive: true });
     }
+
+    setupSwipeGestures(document.getElementById('pokeCard'));
+    setupSwipeGestures(document.getElementById('wheelCenter'));
 
     function submitSearch() {
       const list = document.getElementById('suggestionsList');
@@ -1321,9 +1161,17 @@
 
     function renderPokemon(p, direction = 0) {
       currentPokemonId = p.id;
-      document.body.classList.add('has-active-pokemon');
       const card = document.getElementById('pokeCard');
+      const arenaImg = document.getElementById('arenaCenterImg');
+      const arenaCore = document.getElementById('arenaCore');
       
+      // Update central arena stage
+      arenaCore.style.display = 'none';
+      const imgUrl = p.sprites.other['official-artwork'].front_default || p.sprites.front_default;
+      arenaImg.src = imgUrl;
+      arenaImg.style.display = 'block';
+
+      // Card swipe animations
       card.classList.remove('slide-in-right', 'slide-in-left');
       void card.offsetWidth;
       if (direction > 0) {
@@ -1334,14 +1182,6 @@
 
       document.getElementById('dexNum').innerText = `#${String(p.id).padStart(4, '0')}`;
       document.getElementById('pokeName').innerText = p.name.replace('-', ' ');
-      
-      const imgUrl = p.sprites.other['official-artwork'].front_default || p.sprites.front_default;
-      document.getElementById('pokeImg').src = imgUrl;
-
-      // Update Arena Center Sprite for Concept 3
-      const arenaImg = document.getElementById('arenaCenterImg');
-      arenaImg.src = imgUrl;
-      arenaImg.style.display = 'block';
 
       const typesContainer = document.getElementById('pokeTypes');
       typesContainer.innerHTML = '';

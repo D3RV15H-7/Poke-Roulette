@@ -58,7 +58,7 @@
     }
     .counter-badge strong { color: var(--green); }
 
-    /* Backpack Icon Button */
+    /* History / Clock Icon Button */
     .btn-bag {
       position: relative;
       background: #1e293b;
@@ -74,7 +74,7 @@
       transition: all 0.2s;
     }
     .btn-bag:active { transform: scale(0.92); background: #334155; }
-    .btn-bag svg { width: 22px; height: 22px; fill: #f8fafc; }
+    .btn-bag svg { width: 22px; height: 22px; fill: none; stroke: #f8fafc; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .bag-count-badge {
       position: absolute;
       top: -4px;
@@ -470,10 +470,13 @@
       <h1>Poké<span>Roulette</span></h1>
       <div class="counter-badge">Collected: <strong id="totalCollectedCount">0</strong> / 1025</div>
     </div>
-    <!-- Trainer Backpack Button -->
-    <button class="btn-bag" onclick="openRecentModal()" title="Trainer Bag / Recents">
+    <!-- History / Clock Search Icon Button -->
+    <button class="btn-bag" onclick="openRecentModal()" title="Search & Spin History">
       <svg viewBox="0 0 24 24">
-        <path d="M20 8h-3V6c0-1.66-1.34-3-3-3h-4C8.34 3 7 4.34 7 6v2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-.55.45-1 1-1h4c.55 0 1 .45 1 1v2H9V6zm11 14H4v-8h3v2h2v-2h6v2h2v-2h3v8z"/>
+        <circle cx="12" cy="12" r="9"></circle>
+        <polyline points="12 7 12 12 15 15"></polyline>
+        <path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"></path>
+        <polyline points="3 3 3 8 8 8"></polyline>
       </svg>
       <div class="bag-count-badge" id="bagCountBadge">0</div>
     </button>
@@ -525,11 +528,11 @@
     </div>
   </div>
 
-  <!-- Trainer Bag Recent History Modal -->
+  <!-- Recent History Modal -->
   <div class="modal-backdrop" id="recentModal" onclick="closeRecentModal(event)">
     <div class="modal-content" onclick="event.stopPropagation()">
       <div class="modal-header">
-        <h3>🎒 Trainer Bag Recents</h3>
+        <h3>🕒 Search & Spin History</h3>
         <div style="display: flex; align-items: center; gap: 0.8rem;">
           <button class="modal-clear-btn" onclick="clearRecentHistory()">Clear</button>
           <button class="modal-close-btn" onclick="closeRecentModal()">✕</button>
@@ -573,7 +576,6 @@
       }
     }
 
-    // --- Local Storage: Collection & Recent History ---
     function getCollectedSet() {
       const saved = localStorage.getItem('poke_collection');
       return saved ? new Set(JSON.parse(saved)) : new Set();
@@ -597,16 +599,13 @@
 
     function addToRecentHistory(p) {
       let recents = getRecentHistory();
-      // Remove duplicate if already present
       recents = recents.filter(item => item.id !== p.id);
-      // Prepend to top
       recents.unshift({
         id: p.id,
         name: p.name,
         type: p.types[0].type.name,
         sprite: p.sprites.front_default || p.sprites.other['official-artwork'].front_default
       });
-      // Keep up to 20 most recent
       if (recents.length > 20) recents = recents.slice(0, 20);
       localStorage.setItem('poke_recents', JSON.stringify(recents));
       updateBagBadge();
@@ -640,7 +639,7 @@
       const collectedSet = getCollectedSet();
 
       if (recents.length === 0) {
-        list.innerHTML = '<div class="empty-recent">🎒 Your bag is empty!<br>Spin the wheel or search to log encounters.</div>';
+        list.innerHTML = '<div class="empty-recent">🕒 No history yet!<br>Spin the wheel or search to log encounters.</div>';
         return;
       }
 
@@ -659,7 +658,7 @@
         `;
         li.onclick = () => {
           document.getElementById('recentModal').style.display = 'none';
-          selectPokemonById(p.id);
+          selectPokemonById(p.id, 0, false);
         };
         list.appendChild(li);
       });
@@ -793,14 +792,14 @@
           <span><span class="sugg-num">#${String(p.id).padStart(4, '0')}</span>${p.name.replace('-', ' ')}</span>
           ${isCollected ? '<span class="sugg-tick">✓</span>' : ''}
         `;
-        li.onmousedown = () => selectPokemonById(p.id);
+        li.onmousedown = () => selectPokemonById(p.id, 0, true);
         list.appendChild(li);
       });
 
       list.style.display = 'block';
     }
 
-    async function selectPokemonById(id, direction = 0) {
+    async function selectPokemonById(id, direction = 0, logToHistory = false) {
       const list = document.getElementById('suggestionsList');
       const input = document.getElementById('searchInput');
       list.style.display = 'none';
@@ -811,7 +810,9 @@
         const data = await res.json();
         snapWheelToType(data.types[0].type.name);
         renderPokemon(data, direction);
-        addToRecentHistory(data);
+        if (logToHistory) {
+          addToRecentHistory(data);
+        }
       } catch (err) {
         console.error("Failed to load Pokémon details.", err);
       }
@@ -822,10 +823,9 @@
       let nextId = currentPokemonId + delta;
       if (nextId < 1) nextId = TOTAL_POKEMON;
       if (nextId > TOTAL_POKEMON) nextId = 1;
-      selectPokemonById(nextId, delta);
+      selectPokemonById(nextId, delta, false);
     }
 
-    // Touch Swipe Handling
     const cardEl = document.getElementById('pokeCard');
     let touchStartX = 0;
     let touchStartY = 0;
@@ -966,7 +966,6 @@
       card.style.display = 'block';
     }
 
-    // Initialize
     loadDirectory();
     updateTotalCountUI();
     updateBagBadge();

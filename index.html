@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>PokéRoulette</title>
   
   <link rel="manifest" href="manifest.json" />
@@ -21,7 +21,17 @@
       --subtext: #94a3b8;
       --green: #10b981;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      -webkit-tap-highlight-color: transparent; 
+    }
+    html, body {
+      width: 100%;
+      overflow-x: hidden;
+    }
     body {
       background: var(--bg);
       color: var(--text);
@@ -93,7 +103,7 @@
       border: 2px solid var(--bg);
     }
 
-    /* Modal Backdrop & Drawers */
+    /* Modals & Strict Vertical-Only Scrolling */
     .modal-backdrop {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -104,13 +114,15 @@
       align-items: flex-end;
       justify-content: center;
       animation: fadeIn 0.2s ease-out;
+      overflow: hidden;
+      touch-action: none;
     }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
     .modal-content {
       background: var(--card-bg);
-      width: 100%;
-      max-width: 480px;
+      width: 100vw;
+      max-width: 500px;
       max-height: 85vh;
       border-radius: 28px 28px 0 0;
       border: 1px solid #334155;
@@ -118,8 +130,10 @@
       box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
       display: flex;
       flex-direction: column;
-      padding: 1.2rem 0.9rem 1rem 0.9rem;
+      padding: 1.1rem 0.75rem calc(1rem + env(safe-area-inset-bottom, 0px)) 0.75rem;
       animation: slideUp 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+      overflow-x: hidden;
+      touch-action: pan-y;
     }
     @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
@@ -128,10 +142,9 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 0.6rem;
-      padding-bottom: 0.5rem;
+      padding: 0 0.35rem 0.5rem 0.35rem;
       border-bottom: 1px solid #334155;
-      padding-left: 0.3rem;
-      padding-right: 0.3rem;
+      width: 100%;
     }
     .modal-header h3 { font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 0.5rem; }
     .modal-close-btn {
@@ -154,19 +167,18 @@
       text-decoration: underline;
     }
 
-    /* Dex Tracker Tabs */
     .dex-tabs {
       display: flex;
-      gap: 0.4rem;
-      margin-bottom: 0.75rem;
-      padding: 0 0.1rem;
+      gap: 0.35rem;
+      margin-bottom: 0.65rem;
+      width: 100%;
     }
     .dex-tab-btn {
       flex: 1;
       background: #0f172a;
       border: 1px solid #334155;
       color: var(--subtext);
-      font-size: 0.75rem;
+      font-size: 0.74rem;
       font-weight: 700;
       padding: 0.45rem 0;
       border-radius: 8px;
@@ -181,21 +193,25 @@
     .dex-grid-list, .recent-list {
       list-style: none;
       overflow-y: auto;
+      overflow-x: hidden;
       flex: 1;
-      padding: 0.2rem;
+      width: 100%;
+      padding: 0.15rem 0.15rem 0.8rem 0.15rem;
+      touch-action: pan-y;
+      -webkit-overflow-scrolling: touch;
     }
 
-    /* 4-Column Responsive Dex Grid */
+    /* 4-Column Fluid Grid locked to parent width */
     .dex-grid-list {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 0.4rem;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.35rem;
     }
     .dex-card-item {
       background: #0f172a;
       border: 1px solid #334155;
       border-radius: 10px;
-      padding: 0.4rem 0.2rem;
+      padding: 0.4rem 0.15rem;
       text-align: center;
       cursor: pointer;
       transition: all 0.15s;
@@ -204,6 +220,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      min-width: 0;
     }
     .dex-card-item:active { transform: scale(0.95); background: #1e293b; }
     .dex-card-item.owned {
@@ -211,26 +228,27 @@
       background: rgba(16, 185, 129, 0.08);
     }
     .dex-item-img {
-      width: 48px;
-      height: 48px;
+      width: 100%;
+      max-width: 48px;
+      aspect-ratio: 1 / 1;
       object-fit: contain;
       margin: 0 auto;
       display: block;
       filter: drop-shadow(0 3px 5px rgba(0,0,0,0.3));
     }
     .dex-card-item.unowned .dex-item-img {
-      filter: grayscale(100%) opacity(0.3);
+      filter: grayscale(100%) opacity(0.28);
     }
-    .dex-item-num { font-size: 0.65rem; font-weight: 800; color: var(--subtext); margin-top: 0.1rem; }
+    .dex-item-num { font-size: 0.62rem; font-weight: 800; color: var(--subtext); margin-top: 0.1rem; }
     .dex-item-name { 
-      font-size: 0.68rem; 
+      font-size: 0.65rem; 
       font-weight: 700; 
       text-transform: capitalize; 
       white-space: nowrap; 
       overflow: hidden; 
       text-overflow: ellipsis; 
       width: 100%;
-      padding: 0 2px;
+      padding: 0 1px;
     }
     .dex-item-tick {
       position: absolute;
@@ -238,10 +256,10 @@
       right: 3px;
       background: var(--green);
       color: white;
-      font-size: 0.55rem;
+      font-size: 0.52rem;
       font-weight: 900;
-      width: 14px;
-      height: 14px;
+      width: 13px;
+      height: 13px;
       border-radius: 50%;
       display: flex;
       align-items: center;

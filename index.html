@@ -172,7 +172,6 @@
         #B7B7CE 320deg 340deg,
         #D685AD 340deg 360deg
       );
-      transition: transform 3.2s cubic-bezier(0.12, 0.9, 0.18, 1);
       box-shadow: 0 12px 30px rgba(0,0,0,0.5), inset 0 0 15px rgba(0,0,0,0.2);
     }
     
@@ -229,7 +228,7 @@
     .btn-generate:active { transform: scale(0.96); }
     .btn-generate:disabled { opacity: 0.55; cursor: not-allowed; }
 
-    /* Card & Navigation Headers */
+    /* Card & Fast Swipe Animations */
     .card {
       width: 100%;
       max-width: 350px;
@@ -242,20 +241,19 @@
       text-align: center;
       user-select: none;
       touch-action: pan-y;
-      transition: transform 0.15s ease-out;
     }
     .card.slide-in-right {
-      animation: slideInRight 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+      animation: slideInRight 0.18s ease-out;
     }
     .card.slide-in-left {
-      animation: slideInLeft 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+      animation: slideInLeft 0.18s ease-out;
     }
     @keyframes slideInRight {
-      from { opacity: 0; transform: translateX(30px); }
+      from { opacity: 0.3; transform: translateX(20px); }
       to { opacity: 1; transform: translateX(0); }
     }
     @keyframes slideInLeft {
-      from { opacity: 0; transform: translateX(-30px); }
+      from { opacity: 0.3; transform: translateX(-20px); }
       to { opacity: 1; transform: translateX(0); }
     }
 
@@ -437,7 +435,7 @@
     };
 
     let pokemonDirectory = [];
-    let totalRotationsCount = 0;
+    let currentRotation = 0;
     let audioCtx = null;
     let currentPokemonId = null;
 
@@ -553,14 +551,17 @@
       }
     }
 
-    function alignWheelToType(typeName) {
+    // Instant snap for Swiping and Searching (No spinning transition)
+    function snapWheelToType(typeName) {
       const targetIndex = TYPES.indexOf(typeName);
       if (targetIndex === -1) return;
       const sliceCenter = (targetIndex * 20) + 10;
       const targetAngle = (360 - sliceCenter) % 360;
-      totalRotationsCount += 1;
-      const finalRotation = (totalRotationsCount * 360) + targetAngle;
-      document.getElementById('wheel').style.transform = `rotate(${finalRotation}deg)`;
+      
+      const wheel = document.getElementById('wheel');
+      wheel.style.transition = 'none'; // Disable animation for instant snap
+      currentRotation = targetAngle;
+      wheel.style.transform = `rotate(${currentRotation}deg)`;
     }
 
     function handleSearchInput(rawVal) {
@@ -608,11 +609,10 @@
       list.style.display = 'none';
       if (input) { input.value = ''; input.blur(); }
 
-      initAudio();
       try {
         const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
         const data = await res.json();
-        alignWheelToType(data.types[0].type.name);
+        snapWheelToType(data.types[0].type.name);
         renderPokemon(data, direction);
       } catch (err) {
         console.error("Failed to load Pokémon details.", err);
@@ -627,7 +627,7 @@
       selectPokemonById(nextId, delta);
     }
 
-    // Touch Swipe Gesture Detection on Card
+    // Touch Swipe Handling
     const cardEl = document.getElementById('pokeCard');
     let touchStartX = 0;
     let touchStartY = 0;
@@ -649,14 +649,11 @@
       const deltaX = touchEndX - touchStartX;
       const deltaY = touchEndY - touchStartY;
       
-      // Ensure horizontal swipe is dominant and exceeds minimum threshold (45px)
-      if (Math.abs(deltaX) > 45 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
+      if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
         if (deltaX < 0) {
-          // Swiped Left -> Forward
-          navigateDex(1);
+          navigateDex(1); // Swipe Left -> Next
         } else {
-          // Swiped Right -> Backward
-          navigateDex(-1);
+          navigateDex(-1); // Swipe Right -> Prev
         }
       }
     }
@@ -678,6 +675,7 @@
       }
     });
 
+    // SPIN BUTTON: Full 3s animated spin with sound
     async function spinAndPick() {
       initAudio();
       document.getElementById('suggestionsList').style.display = 'none';
@@ -694,10 +692,12 @@
       const sliceCenter = (targetIndex * 20) + 10;
       const targetAngle = (360 - sliceCenter) % 360;
 
-      totalRotationsCount += Math.floor(Math.random() * 3) + 4;
-      const finalRotation = (totalRotationsCount * 360) + targetAngle;
+      // Enable smooth 3.2s spin animation
+      wheel.style.transition = 'transform 3.2s cubic-bezier(0.12, 0.9, 0.18, 1)';
+      const extraSpins = (Math.floor(Math.random() * 3) + 4) * 360;
+      currentRotation += extraSpins + ((targetAngle - (currentRotation % 360) + 360) % 360);
       
-      wheel.style.transform = `rotate(${finalRotation}deg)`;
+      wheel.style.transform = `rotate(${currentRotation}deg)`;
       triggerSpinAudio();
 
       try {
@@ -715,7 +715,7 @@
         const pokeData = await pokeRes.json();
 
         setTimeout(() => {
-          renderPokemon(pokeData);
+          renderPokemon(pokeData, 0);
           playVictoryChime();
           btn.disabled = false;
         }, 3200);
@@ -729,8 +729,8 @@
       currentPokemonId = p.id;
       const card = document.getElementById('pokeCard');
       
-      // Reset animation classes
       card.classList.remove('slide-in-right', 'slide-in-left');
+      void card.offsetWidth; // Trigger reflow for snappy animation replay
       if (direction > 0) {
         card.classList.add('slide-in-right');
       } else if (direction < 0) {

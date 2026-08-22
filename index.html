@@ -42,19 +42,19 @@
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      padding: clamp(0.3rem, 1dvh, 0.6rem) clamp(0.6rem, 2.5vw, 1rem);
+      padding: clamp(0.35rem, 1dvh, 0.7rem) clamp(0.6rem, 2.5vw, 1rem);
       touch-action: pan-y;
     }
 
     .app-viewport {
       width: 100%;
-      max-width: 390px;
+      max-width: 380px;
       height: 100%;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      gap: clamp(0.12rem, 0.6dvh, 0.35rem);
+      gap: clamp(0.18rem, 0.7dvh, 0.45rem);
     }
 
     /* Centered Header & Counter */
@@ -63,18 +63,18 @@
       text-align: center;
       flex-shrink: 0;
     }
-    header h1 { font-size: clamp(1.25rem, 3.5dvh, 1.5rem); font-weight: 800; letter-spacing: 0.5px; color: #fff; }
+    header h1 { font-size: clamp(1.3rem, 3.8dvh, 1.55rem); font-weight: 800; letter-spacing: 0.5px; color: #fff; }
     header span { color: var(--accent); }
 
     .counter-badge {
       display: inline-block;
-      margin-top: 0.1rem;
+      margin-top: 0.15rem;
       background: #1e293b;
       border: 1px solid #334155;
       color: var(--subtext);
       font-size: 0.72rem;
       font-weight: 700;
-      padding: 0.12rem 0.55rem;
+      padding: 0.15rem 0.6rem;
       border-radius: 9999px;
     }
     .counter-badge strong { color: var(--green); }
@@ -93,7 +93,7 @@
       background: #1e293b;
       border: 1px solid #334155;
       color: #fff;
-      padding: clamp(0.38rem, 0.9dvh, 0.52rem) 0.85rem;
+      padding: clamp(0.42rem, 1dvh, 0.55rem) 0.85rem;
       border-radius: 9999px;
       font-size: 0.82rem;
       outline: none;
@@ -144,9 +144,9 @@
     /* Fluid Wheel Container */
     .wheel-container {
       position: relative;
-      width: clamp(200px, 32dvh, 250px);
-      height: clamp(200px, 32dvh, 250px);
-      margin: clamp(0.2rem, 0.8dvh, 0.5rem) auto;
+      width: clamp(210px, 34dvh, 250px);
+      height: clamp(210px, 34dvh, 250px);
+      margin: clamp(0.2rem, 1dvh, 0.6rem) auto;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -155,16 +155,17 @@
     }
     
     body.has-active-pokemon .wheel-container {
-      width: clamp(82px, 11dvh, 120px);
-      height: clamp(82px, 11dvh, 120px);
+      width: clamp(95px, 14dvh, 170px);
+      height: clamp(95px, 14dvh, 170px);
       margin: 0 auto;
     }
 
     .wheel {
+      position: relative;
       width: 100%;
       height: 100%;
       border-radius: 50%;
-      border: clamp(4px, 0.9dvh, 7px) solid #1e293b;
+      border: clamp(5px, 1dvh, 8px) solid #1e293b;
       background: conic-gradient(
         #A8A77A 0deg 20deg,
         #EE8130 20deg 40deg,
@@ -187,32 +188,54 @@
       );
       box-shadow: 0 10px 25px rgba(0,0,0,0.5), inset 0 0 15px rgba(0,0,0,0.2);
     }
+
+    /* Slice Type Icon Nodes */
+    .slice-icon {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: clamp(14px, 2.4dvh, 20px);
+      height: clamp(14px, 2.4dvh, 20px);
+      margin-top: calc(-1 * clamp(7px, 1.2dvh, 10px));
+      margin-left: calc(-1 * clamp(7px, 1.2dvh, 10px));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      user-select: none;
+    }
+    .slice-icon svg {
+      width: 100%;
+      height: 100%;
+      fill: #ffffff;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8));
+    }
     
     .wheel-pointer {
       position: absolute;
-      top: -11px;
+      top: -12px;
       left: 50%;
       transform: translateX(-50%);
       width: 0;
       height: 0;
-      border-left: 10px solid transparent;
-      border-right: 10px solid transparent;
-      border-top: 18px solid #ffffff;
+      border-left: 11px solid transparent;
+      border-right: 11px solid transparent;
+      border-top: 20px solid #ffffff;
       z-index: 10;
       filter: drop-shadow(0 3px 5px rgba(0,0,0,0.6));
       transition: all 0.35s;
     }
     body.has-active-pokemon .wheel-pointer {
-      top: -8px;
-      border-left: 8px solid transparent;
-      border-right: 8px solid transparent;
-      border-top: 14px solid #ffffff;
+      top: -9px;
+      border-left: 9px solid transparent;
+      border-right: 9px solid transparent;
+      border-top: 15px solid #ffffff;
     }
     
     .wheel-center {
       position: absolute;
-      width: clamp(32px, 5dvh, 46px);
-      height: clamp(32px, 5dvh, 46px);
+      width: clamp(34px, 6dvh, 50px);
+      height: clamp(34px, 6dvh, 50px);
       background: #ffffff;
       border-radius: 50%;
       border: 4px solid #0f172a;
@@ -224,9 +247,9 @@
       transition: all 0.35s;
     }
     body.has-active-pokemon .wheel-center {
-      width: clamp(20px, 3dvh, 28px);
-      height: clamp(20px, 3dvh, 28px);
-      border: 2.5px solid #0f172a;
+      width: clamp(24px, 3.8dvh, 36px);
+      height: clamp(24px, 3.8dvh, 36px);
+      border: 3px solid #0f172a;
     }
     .wheel-center::after {
       content: '';
@@ -241,8 +264,8 @@
       background: linear-gradient(135deg, #ef4444, #dc2626);
       color: white;
       border: none;
-      padding: clamp(0.55rem, 1.4dvh, 0.8rem) clamp(1.6rem, 4.5vw, 2.2rem);
-      font-size: clamp(0.9rem, 2.1dvh, 1.1rem);
+      padding: clamp(0.65rem, 1.6dvh, 0.85rem) clamp(1.8rem, 5vw, 2.4rem);
+      font-size: clamp(0.95rem, 2.3dvh, 1.15rem);
       font-weight: 800;
       letter-spacing: 0.5px;
       border-radius: 9999px;
@@ -323,7 +346,6 @@
 
     .image-container { position: relative; display: inline-block; margin: 0.1rem 0; }
     
-    /* ENLARGED ARTWORK SIZE */
     .card img { 
       width: clamp(145px, 22dvh, 195px); 
       height: clamp(145px, 22dvh, 195px); 
@@ -657,7 +679,7 @@
       <ul class="suggestions-list" id="suggestionsList"></ul>
     </div>
 
-    <!-- The Interactive Wheel -->
+    <!-- The Interactive Wheel with Vector Type Icons -->
     <div class="wheel-container">
       <div class="wheel-pointer"></div>
       <div class="wheel" id="wheel"></div>
@@ -773,6 +795,43 @@
       rock: '#B6A136', ghost: '#735797', dragon: '#6F35FC', dark: '#705746',
       steel: '#B7B7CE', fairy: '#D685AD'
     };
+
+    // Lightweight Vector Glyphs for Each Pokémon Type
+    const TYPE_SVGS = {
+      normal: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="#fff" stroke-width="2.5"/><circle cx="12" cy="12" r="3"/></svg>',
+      fire: '<svg viewBox="0 0 24 24"><path d="M12 2c1.5 3 4 5.5 4 8.5a6 6 0 1 1-12 0c0-3 3-5.5 4-8.5 1 2 2 3 4 0z"/></svg>',
+      water: '<svg viewBox="0 0 24 24"><path d="M12 2.5C12 2.5 5 11 5 15.5a7 7 0 0 0 14 0C19 11 12 2.5 12 2.5z"/></svg>',
+      grass: '<svg viewBox="0 0 24 24"><path d="M17 4c-5.5 0-9 4-9 9.5 0 2.5 1 4.5 3 6.5 5-1 8-5 8-10.5 0-2.5-.8-4.5-2-5.5z"/></svg>',
+      electric: '<svg viewBox="0 0 24 24"><path d="M13 2 4 14h7v8l9-12h-7z"/></svg>',
+      ice: '<svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M5 5l14 14M5 19 19 5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg>',
+      fighting: '<svg viewBox="0 0 24 24"><path d="M7 6h10v3H7zm0 5h10v7a3 3 0 0 1-3 3h-4a3 3 0 0 1-3-3z"/></svg>',
+      poison: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="9" cy="10" r="1.5" fill="#0f172a"/><circle cx="15" cy="10" r="1.5" fill="#0f172a"/><path d="M10 15h4" stroke="#0f172a" stroke-width="2"/></svg>',
+      ground: '<svg viewBox="0 0 24 24"><path d="M2 18h20M5 13h14M8 8h8" stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none"/></svg>',
+      flying: '<svg viewBox="0 0 24 24"><path d="M3 14c4-7 9-7 9-7s5 0 9 7c-4-2-9-2-9-2s-5 0-9 2z"/></svg>',
+      psychic: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="8" fill="none" stroke="#fff" stroke-width="2"/></svg>',
+      bug: '<svg viewBox="0 0 24 24"><ellipse cx="12" cy="13" rx="5" ry="6"/><circle cx="12" cy="5" r="2.5"/><path d="M5 11l4 2M19 11l-4 2M5 16l4-1M19 16l-4-1" stroke="#fff" stroke-width="2"/></svg>',
+      rock: '<svg viewBox="0 0 24 24"><polygon points="12,3 20,8 18,19 6,19 4,8"/></svg>',
+      ghost: '<svg viewBox="0 0 24 24"><path d="M12 3a7 7 0 0 0-7 7v10l3-2 3 2 3-2 3 2 2-2V10a7 7 0 0 0-7-7z"/><circle cx="9" cy="10" r="1.5" fill="#0f172a"/><circle cx="15" cy="10" r="1.5" fill="#0f172a"/></svg>',
+      dragon: '<svg viewBox="0 0 24 24"><path d="M4 18c3-2 5-6 6-12 3 3 7 3 10 0-2 7-6 10-16 12z"/></svg>',
+      dark: '<svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.5 0-1-.1-1.5A7 7 0 0 1 12 3z"/></svg>',
+      steel: '<svg viewBox="0 0 24 24"><polygon points="12,2 21,7 21,17 12,22 3,17 3,7" fill="none" stroke="#fff" stroke-width="2.5"/><circle cx="12" cy="12" r="3.5"/></svg>',
+      fairy: '<svg viewBox="0 0 24 24"><polygon points="12,2 15,9 22,12 15,15 12,22 9,15 2,12 9,9"/></svg>'
+    };
+
+    // Render Type Icons into Wheel Slices
+    function buildWheelIcons() {
+      const wheel = document.getElementById('wheel');
+      wheel.innerHTML = '';
+      TYPES.forEach((type, index) => {
+        const sliceAngle = index * 20 + 10;
+        const iconContainer = document.createElement('div');
+        iconContainer.className = 'slice-icon';
+        // Positioned 37% outward along each slice vector
+        iconContainer.style.transform = `rotate(${sliceAngle}deg) translateY(-37cqw) rotate(-${sliceAngle}deg)`;
+        iconContainer.innerHTML = TYPE_SVGS[type] || '';
+        wheel.appendChild(iconContainer);
+      });
+    }
 
     let pokemonDirectory = [];
     let currentRotation = 0;
@@ -1017,6 +1076,7 @@
       }
     }
 
+    // --- Audio & Haptic System ---
     function initAudio() {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1043,31 +1103,12 @@
       osc.stop(audioCtx.currentTime + 0.04);
     }
 
-    function playVictoryChime() {
-      if (navigator.vibrate) navigator.vibrate([25, 40, 25]);
-
-      if (!audioCtx) return;
-      const notes = [523.25, 659.25, 783.99, 1046.50];
-      notes.forEach((freq, index) => {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime + index * 0.08);
-        gain.gain.setValueAtTime(0.08, audioCtx.currentTime + index * 0.08);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + index * 0.08 + 0.24);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start(audioCtx.currentTime + index * 0.08);
-        osc.stop(audioCtx.currentTime + index * 0.08 + 0.24);
-      });
-    }
-
     function playCurrentPokemonCry() {
       if (!currentPokemonData) return;
       const cryUrl = currentPokemonData.cries ? (currentPokemonData.cries.latest || currentPokemonData.cries.legacy) : null;
       if (cryUrl) {
         const cryAudio = new Audio(cryUrl);
-        cryAudio.volume = 0.6;
+        cryAudio.volume = 0.65;
         cryAudio.play().catch(() => {});
       }
     }
@@ -1083,6 +1124,7 @@
       }
     }
 
+    // --- Shiny Form System ---
     function triggerShinySparkle() {
       const sparkle = document.getElementById('shinySparkle');
       sparkle.classList.remove('sparkle-pop');
@@ -1280,8 +1322,7 @@
         setTimeout(() => {
           renderPokemon(pokeData, 0, isShinyEncounter);
           addToRecentHistory(pokeData);
-          playVictoryChime();
-          playCurrentPokemonCry();
+          playCurrentPokemonCry(); // Plays only authentic Pokemon Cry
           if (isShinyEncounter) triggerShinySparkle();
           btn.disabled = false;
         }, 3200);
@@ -1338,6 +1379,8 @@
       card.style.display = 'block';
     }
 
+    // Startup Initialization
+    buildWheelIcons();
     loadDirectory();
     updateTotalCountUI();
     updateBagBadge();

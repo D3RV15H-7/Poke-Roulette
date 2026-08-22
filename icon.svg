@@ -1,11 +1,50 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Rounded Dark Background -->
   <rect width="512" height="512" rx="115" fill="#0f172a"/>
-  <text x="256" y="82" font-family="system-ui, -apple-system, sans-serif" font-size="42" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="3">POKÉROULETTE</text>
-  <g transform="translate(0, 24)">
-    <circle cx="256" cy="265" r="165" fill="#ffffff" stroke="#020617" stroke-width="16"/>
-    <path d="M 91 265 A 165 165 0 0 1 421 265 Z" fill="#ef4444" stroke="#020617" stroke-width="16"/>
-    <line x1="91" y1="265" x2="421" y2="265" stroke="#020617" stroke-width="22"/>
-    <circle cx="256" cy="265" r="54" fill="#ffffff" stroke="#020617" stroke-width="18"/>
-    <circle cx="256" cy="265" r="24" fill="#f8fafc" stroke="#94a3b8" stroke-width="4"/>
+
+  <!-- Pokéball Body (White Bottom Half) -->
+  <circle cx="256" cy="256" r="185" fill="#f8fafc" stroke="#020617" stroke-width="18"/>
+
+  <!-- Pokéball Top Half (Red) -->
+  <path d="M 71 256 A 185 185 0 0 1 441 256 Z" fill="#ef4444" stroke="#020617" stroke-width="18"/>
+
+  <!-- Center Black Dividing Band -->
+  <line x1="71" y1="256" x2="441" y2="256" stroke="#020617" stroke-width="24"/>
+
+  <!-- CURVED "POKÉ" (Font Size 34px, Radius 125px) -->
+  <g fill="#ffffff" font-family="system-ui, -apple-system, Roboto, sans-serif" font-weight="900" font-size="34" text-anchor="middle" dominant-baseline="central">
+    <!-- P (-27°) -->
+    <text transform="translate(199.3, 144.6) rotate(-27)">P</text>
+    <!-- O (-9°) -->
+    <text transform="translate(236.4, 132.5) rotate(-9)">O</text>
+    <!-- K (+9°) -->
+    <text transform="translate(275.6, 132.5) rotate(9)">K</text>
+    <!-- É (+27°) -->
+    <text transform="translate(312.7, 144.6) rotate(27)">É</text>
   </g>
+
+  <!-- CURVED "ROULETTE" (Font Size 34px, Radius 128px) -->
+  <g fill="#0f172a" font-family="system-ui, -apple-system, Roboto, sans-serif" font-weight="900" font-size="34" text-anchor="middle" dominant-baseline="central">
+    <!-- R (-45.5°) -->
+    <text transform="translate(164.7, 347.3) rotate(45.5)">R</text>
+    <!-- O (-32.5°) -->
+    <text transform="translate(187.3, 363.9) rotate(32.5)">O</text>
+    <!-- U (-19.5°) -->
+    <text transform="translate(213.2, 376.7) rotate(19.5)">U</text>
+    <!-- L (-6.5°) -->
+    <text transform="translate(241.5, 383.2) rotate(6.5)">L</text>
+    <!-- E (+6.5°) -->
+    <text transform="translate(270.5, 383.2) rotate(-6.5)">E</text>
+    <!-- T (+19.5°) -->
+    <text transform="translate(298.8, 376.7) rotate(-19.5)">T</text>
+    <!-- T (+32.5°) -->
+    <text transform="translate(324.7, 363.9) rotate(-32.5)">T</text>
+    <!-- E (+45.5°) -->
+    <text transform="translate(347.3, 347.3) rotate(-45.5)">E</text>
+  </g>
+
+  <!-- Center Button Outer Ring -->
+  <circle cx="256" cy="256" r="58" fill="#ffffff" stroke="#020617" stroke-width="20"/>
+  <!-- Center Button Inner Cap -->
+  <circle cx="256" cy="256" r="25" fill="#f1f5f9" stroke="#94a3b8" stroke-width="5"/>
 </svg>

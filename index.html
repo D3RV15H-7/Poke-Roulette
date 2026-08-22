@@ -41,21 +41,31 @@
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      padding: clamp(0.4rem, 1.5dvh, 0.9rem) clamp(0.6rem, 2.5vw, 1rem);
+      padding: clamp(0.4rem, 1.2dvh, 0.8rem) clamp(0.6rem, 2.5vw, 1rem);
       touch-action: pan-y;
+    }
+
+    /* Main Container with dynamic fluid vertical gap */
+    .app-viewport {
+      width: 100%;
+      max-width: 380px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: clamp(0.2rem, 0.8dvh, 0.6rem);
     }
 
     header {
       width: 100%;
-      max-width: 380px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-shrink: 0;
-      margin-bottom: clamp(0.2rem, 0.8dvh, 0.45rem);
     }
     .header-left { text-align: left; }
-    header h1 { font-size: clamp(1.25rem, 4dvh, 1.55rem); font-weight: 800; letter-spacing: 0.5px; color: #fff; }
+    header h1 { font-size: clamp(1.3rem, 3.8dvh, 1.55rem); font-weight: 800; letter-spacing: 0.5px; color: #fff; }
     header span { color: var(--accent); }
 
     .counter-badge {
@@ -76,8 +86,8 @@
       position: relative;
       background: #1e293b;
       border: 1px solid #334155;
-      width: clamp(36px, 5dvh, 40px);
-      height: clamp(36px, 5dvh, 40px);
+      width: clamp(36px, 4.5dvh, 40px);
+      height: clamp(36px, 4.5dvh, 40px);
       border-radius: 12px;
       display: flex;
       align-items: center;
@@ -106,13 +116,12 @@
       border: 2px solid var(--bg);
     }
 
-    /* Search & Autocomplete Container */
+    /* Search Container */
     .search-wrapper {
       position: relative;
       width: 100%;
       max-width: 340px;
       flex-shrink: 0;
-      margin-bottom: clamp(0.3rem, 1dvh, 0.55rem);
       z-index: 20;
     }
     .search-container { display: flex; gap: 0.35rem; width: 100%; }
@@ -121,7 +130,7 @@
       background: #1e293b;
       border: 1px solid #334155;
       color: #fff;
-      padding: clamp(0.45rem, 1.2dvh, 0.6rem) 0.9rem;
+      padding: clamp(0.45rem, 1.1dvh, 0.6rem) 0.9rem;
       border-radius: 9999px;
       font-size: 0.82rem;
       outline: none;
@@ -169,12 +178,13 @@
     .sugg-num { color: var(--subtext); font-weight: 700; margin-right: 0.4rem; }
     .sugg-tick { color: var(--green); font-weight: 900; }
 
-    /* Interactive Fluid Wheel Container */
+    /* Fluid Wheel Container */
     .wheel-container {
       position: relative;
-      width: clamp(170px, 26dvh, 220px);
-      height: clamp(170px, 26dvh, 220px);
-      margin: clamp(0.2rem, 1dvh, 0.6rem) auto;
+      /* Full generous size on initial page */
+      width: clamp(210px, 34dvh, 250px);
+      height: clamp(210px, 34dvh, 250px);
+      margin: clamp(0.4rem, 1.5dvh, 1rem) auto;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -182,18 +192,18 @@
       transition: all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
     
-    /* Compact Wheel Header when Pokémon is Active */
+    /* When Pokémon appears, adapt size fluidly: shrinks gracefully on shorter screens */
     body.has-active-pokemon .wheel-container {
-      width: clamp(88px, 13dvh, 105px);
-      height: clamp(88px, 13dvh, 105px);
-      margin: 0 auto clamp(0.2rem, 0.8dvh, 0.45rem) auto;
+      width: clamp(100px, 15dvh, 180px);
+      height: clamp(100px, 15dvh, 180px);
+      margin: 0 auto;
     }
 
     .wheel {
       width: 100%;
       height: 100%;
       border-radius: 50%;
-      border: clamp(4px, 1dvh, 7px) solid #1e293b;
+      border: clamp(5px, 1dvh, 8px) solid #1e293b;
       background: conic-gradient(
         #A8A77A 0deg 20deg,
         #EE8130 20deg 40deg,
@@ -219,29 +229,29 @@
     
     .wheel-pointer {
       position: absolute;
-      top: -10px;
+      top: -12px;
       left: 50%;
       transform: translateX(-50%);
       width: 0;
       height: 0;
-      border-left: 10px solid transparent;
-      border-right: 10px solid transparent;
-      border-top: 18px solid #ffffff;
+      border-left: 11px solid transparent;
+      border-right: 11px solid transparent;
+      border-top: 20px solid #ffffff;
       z-index: 10;
       filter: drop-shadow(0 3px 5px rgba(0,0,0,0.6));
       transition: all 0.35s;
     }
     body.has-active-pokemon .wheel-pointer {
-      top: -8px;
-      border-left: 8px solid transparent;
-      border-right: 8px solid transparent;
-      border-top: 14px solid #ffffff;
+      top: -9px;
+      border-left: 9px solid transparent;
+      border-right: 9px solid transparent;
+      border-top: 15px solid #ffffff;
     }
     
     .wheel-center {
       position: absolute;
-      width: clamp(24px, 5dvh, 46px);
-      height: clamp(24px, 5dvh, 46px);
+      width: clamp(34px, 6dvh, 50px);
+      height: clamp(34px, 6dvh, 50px);
       background: #ffffff;
       border-radius: 50%;
       border: 4px solid #0f172a;
@@ -253,8 +263,8 @@
       transition: all 0.35s;
     }
     body.has-active-pokemon .wheel-center {
-      width: 22px;
-      height: 22px;
+      width: clamp(24px, 3.8dvh, 36px);
+      height: clamp(24px, 3.8dvh, 36px);
       border: 3px solid #0f172a;
     }
     .wheel-center::after {
@@ -270,8 +280,8 @@
       background: linear-gradient(135deg, #ef4444, #dc2626);
       color: white;
       border: none;
-      padding: clamp(0.65rem, 1.6dvh, 0.85rem) clamp(1.6rem, 5vw, 2.2rem);
-      font-size: clamp(0.95rem, 2.5dvh, 1.1rem);
+      padding: clamp(0.7rem, 1.8dvh, 0.9rem) clamp(1.8rem, 5vw, 2.4rem);
+      font-size: clamp(1rem, 2.5dvh, 1.15rem);
       font-weight: 800;
       letter-spacing: 0.5px;
       border-radius: 9999px;
@@ -279,20 +289,18 @@
       cursor: pointer;
       transition: all 0.2s;
       flex-shrink: 0;
-      margin-bottom: clamp(0.2rem, 0.8dvh, 0.5rem);
     }
     .btn-generate:active { transform: scale(0.96); }
     .btn-generate:disabled { opacity: 0.55; cursor: not-allowed; }
 
-    /* Fluid Auto-Fitting Card */
+    /* Dynamic Card that fits the remaining single-screen view */
     .card {
       width: 100%;
-      max-width: 350px;
       background: var(--card-bg);
       border-radius: 20px;
-      padding: clamp(0.5rem, 1.4dvh, 0.9rem) clamp(0.7rem, 2vw, 1rem);
+      padding: clamp(0.45rem, 1.2dvh, 0.8rem) clamp(0.7rem, 2vw, 1rem);
       border: 1px solid #334155;
-      box-shadow: 0 14px 28px rgba(0,0,0,0.4);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.4);
       display: none;
       text-align: center;
       user-select: none;
@@ -305,16 +313,16 @@
     @keyframes slideInRight { from { opacity: 0.3; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
     @keyframes slideInLeft { from { opacity: 0.3; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
 
-    .card-top-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.1rem; }
+    .card-top-nav { display: flex; justify-content: space-between; align-items: center; }
     .nav-arrow { background: none; border: none; color: var(--subtext); font-size: 1.15rem; font-weight: 900; padding: 0 0.5rem; cursor: pointer; }
     .nav-arrow:active { color: #fff; }
 
-    .image-container { position: relative; display: inline-block; margin: 0.1rem 0; }
+    .image-container { position: relative; display: inline-block; margin: 0.05rem 0; }
     .card img { 
-      width: clamp(90px, 14dvh, 128px); 
-      height: clamp(90px, 14dvh, 128px); 
+      width: clamp(80px, 13dvh, 120px); 
+      height: clamp(80px, 13dvh, 120px); 
       object-fit: contain; 
-      filter: drop-shadow(0 8px 14px rgba(0,0,0,0.45)); 
+      filter: drop-shadow(0 6px 12px rgba(0,0,0,0.45)); 
       pointer-events: none; 
     }
     
@@ -323,13 +331,13 @@
       top: 2px; right: 2px;
       background: var(--green);
       color: white;
-      width: clamp(24px, 3.5dvh, 28px);
-      height: clamp(24px, 3.5dvh, 28px);
+      width: clamp(22px, 3.2dvh, 26px);
+      height: clamp(22px, 3.2dvh, 26px);
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       font-weight: 900;
       box-shadow: 0 3px 8px rgba(16, 185, 129, 0.5);
       border: 2px solid #ffffff;
@@ -339,13 +347,13 @@
     }
     .collected-badge.active { opacity: 1; transform: scale(1); }
 
-    .dex-num { font-size: 0.75rem; font-weight: 800; color: var(--subtext); }
-    .poke-name { font-size: clamp(1.15rem, 2.6dvh, 1.4rem); font-weight: 800; text-transform: capitalize; margin: 0.1rem 0 0.25rem; }
-    .types { display: flex; gap: 0.4rem; justify-content: center; margin-bottom: clamp(0.3rem, 0.8dvh, 0.5rem); }
+    .dex-num { font-size: 0.72rem; font-weight: 800; color: var(--subtext); }
+    .poke-name { font-size: clamp(1.1rem, 2.5dvh, 1.35rem); font-weight: 800; text-transform: capitalize; margin: 0.05rem 0 0.2rem; }
+    .types { display: flex; gap: 0.4rem; justify-content: center; margin-bottom: clamp(0.25rem, 0.7dvh, 0.45rem); }
     .type-pill {
-      font-size: 0.68rem;
+      font-size: 0.65rem;
       font-weight: 800;
-      padding: 0.18rem 0.65rem;
+      padding: 0.16rem 0.6rem;
       border-radius: 9999px;
       text-transform: uppercase;
       color: #fff;
@@ -354,13 +362,13 @@
 
     .btn-collect {
       width: 100%;
-      padding: clamp(0.4rem, 1.1dvh, 0.55rem);
-      margin-bottom: clamp(0.35rem, 0.8dvh, 0.55rem);
+      padding: clamp(0.35rem, 1dvh, 0.5rem);
+      margin-bottom: clamp(0.25rem, 0.7dvh, 0.45rem);
       border-radius: 10px;
       border: 1px solid #334155;
       background: #0f172a;
       color: var(--subtext);
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       font-weight: 700;
       cursor: pointer;
       display: flex;
@@ -378,17 +386,17 @@
     .stats-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 0.2rem 0.7rem;
+      gap: 0.15rem 0.7rem;
       text-align: left;
       background: #0f172a;
-      padding: clamp(0.45rem, 1dvh, 0.65rem) 0.85rem;
+      padding: clamp(0.4rem, 0.9dvh, 0.6rem) 0.8rem;
       border-radius: 12px;
-      font-size: clamp(0.7rem, 1.6dvh, 0.76rem);
+      font-size: clamp(0.68rem, 1.5dvh, 0.75rem);
     }
     .stat-row span:first-child { color: var(--subtext); }
     .stat-row span:last-child { font-weight: 700; float: right; }
 
-    /* Modals & Full Dex Sheet */
+    /* Modals & Full Dex Collection */
     .modal-backdrop {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -573,78 +581,80 @@
 </head>
 <body>
 
-  <header>
-    <div class="header-left">
-      <h1>Poké<span>Roulette</span></h1>
-      <div class="counter-badge">Collected: <strong id="totalCollectedCount">0</strong> / 1025</div>
+  <div class="app-viewport">
+    <header>
+      <div class="header-left">
+        <h1>Poké<span>Roulette</span></h1>
+        <div class="counter-badge">Collected: <strong id="totalCollectedCount">0</strong> / 1025</div>
+      </div>
+      
+      <div class="header-actions">
+        <!-- Full Dex Collection Tracker (Backpack) -->
+        <button class="btn-header" onclick="openDexTrackerModal()" title="Full Dex Collection Tracker">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-9Z"/>
+            <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+            <path d="M8 10h8v4H8z"/>
+          </svg>
+        </button>
+
+        <!-- History Clock -->
+        <button class="btn-header" onclick="openRecentModal()" title="Search & Spin History">
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9"></circle>
+            <polyline points="12 7 12 12 15 15"></polyline>
+            <path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"></path>
+            <polyline points="3 3 3 8 8 8"></polyline>
+          </svg>
+          <div class="bag-count-badge" id="bagCountBadge">0</div>
+        </button>
+      </div>
+    </header>
+
+    <div class="search-wrapper">
+      <form class="search-container" onsubmit="event.preventDefault(); submitSearch();">
+        <input type="text" id="searchInput" class="search-input" placeholder="Type Pokémon Name or Dex #" autocomplete="off" oninput="handleSearchInput(this.value)" />
+        <button type="submit" class="btn-search">Search</button>
+      </form>
+      <ul class="suggestions-list" id="suggestionsList"></ul>
     </div>
-    
-    <div class="header-actions">
-      <!-- Full Dex Collection Tracker (Backpack) -->
-      <button class="btn-header" onclick="openDexTrackerModal()" title="Full Dex Collection Tracker">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-9Z"/>
-          <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
-          <path d="M8 10h8v4H8z"/>
-        </svg>
+
+    <div class="wheel-container">
+      <div class="wheel-pointer"></div>
+      <div class="wheel" id="wheel"></div>
+      <div class="wheel-center"></div>
+    </div>
+
+    <button class="btn-generate" id="spinBtn" onclick="spinAndPick()">SPIN & GENERATE</button>
+
+    <div class="card" id="pokeCard">
+      <div class="card-top-nav">
+        <button class="nav-arrow" onclick="navigateDex(-1)" title="Previous Pokémon">‹</button>
+        <div class="dex-num" id="dexNum">#0000</div>
+        <button class="nav-arrow" onclick="navigateDex(1)" title="Next Pokémon">›</button>
+      </div>
+
+      <h2 class="poke-name" id="pokeName">Pokémon</h2>
+      
+      <div class="image-container">
+        <img id="pokeImg" src="" alt="Pokémon Artwork" />
+        <div class="collected-badge" id="cardTickBadge">✓</div>
+      </div>
+      
+      <div class="types" id="pokeTypes"></div>
+      
+      <button class="btn-collect" id="collectToggleBtn" onclick="toggleCollectionStatus()">
+        <span id="collectBtnIcon">+</span> <span id="collectBtnText">Add to Collection</span>
       </button>
 
-      <!-- History Clock -->
-      <button class="btn-header" onclick="openRecentModal()" title="Search & Spin History">
-        <svg viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="9"></circle>
-          <polyline points="12 7 12 12 15 15"></polyline>
-          <path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"></path>
-          <polyline points="3 3 3 8 8 8"></polyline>
-        </svg>
-        <div class="bag-count-badge" id="bagCountBadge">0</div>
-      </button>
-    </div>
-  </header>
-
-  <div class="search-wrapper">
-    <form class="search-container" onsubmit="event.preventDefault(); submitSearch();">
-      <input type="text" id="searchInput" class="search-input" placeholder="Type Pokémon Name or Dex #" autocomplete="off" oninput="handleSearchInput(this.value)" />
-      <button type="submit" class="btn-search">Search</button>
-    </form>
-    <ul class="suggestions-list" id="suggestionsList"></ul>
-  </div>
-
-  <div class="wheel-container">
-    <div class="wheel-pointer"></div>
-    <div class="wheel" id="wheel"></div>
-    <div class="wheel-center"></div>
-  </div>
-
-  <button class="btn-generate" id="spinBtn" onclick="spinAndPick()">SPIN & GENERATE</button>
-
-  <div class="card" id="pokeCard">
-    <div class="card-top-nav">
-      <button class="nav-arrow" onclick="navigateDex(-1)" title="Previous Pokémon">‹</button>
-      <div class="dex-num" id="dexNum">#0000</div>
-      <button class="nav-arrow" onclick="navigateDex(1)" title="Next Pokémon">›</button>
-    </div>
-
-    <h2 class="poke-name" id="pokeName">Pokémon</h2>
-    
-    <div class="image-container">
-      <img id="pokeImg" src="" alt="Pokémon Artwork" />
-      <div class="collected-badge" id="cardTickBadge">✓</div>
-    </div>
-    
-    <div class="types" id="pokeTypes"></div>
-    
-    <button class="btn-collect" id="collectToggleBtn" onclick="toggleCollectionStatus()">
-      <span id="collectBtnIcon">+</span> <span id="collectBtnText">Add to Collection</span>
-    </button>
-
-    <div class="stats-grid">
-      <div class="stat-row"><span>Height:</span> <span id="pokeHeight">-</span></div>
-      <div class="stat-row"><span>Weight:</span> <span id="pokeWeight">-</span></div>
-      <div class="stat-row"><span>HP:</span> <span id="statHp">-</span></div>
-      <div class="stat-row"><span>Attack:</span> <span id="statAtk">-</span></div>
-      <div class="stat-row"><span>Defense:</span> <span id="statDef">-</span></div>
-      <div class="stat-row"><span>Speed:</span> <span id="statSpd">-</span></div>
+      <div class="stats-grid">
+        <div class="stat-row"><span>Height:</span> <span id="pokeHeight">-</span></div>
+        <div class="stat-row"><span>Weight:</span> <span id="pokeWeight">-</span></div>
+        <div class="stat-row"><span>HP:</span> <span id="statHp">-</span></div>
+        <div class="stat-row"><span>Attack:</span> <span id="statAtk">-</span></div>
+        <div class="stat-row"><span>Defense:</span> <span id="statDef">-</span></div>
+        <div class="stat-row"><span>Speed:</span> <span id="statSpd">-</span></div>
+      </div>
     </div>
   </div>
 
@@ -1119,7 +1129,6 @@
       document.getElementById('suggestionsList').style.display = 'none';
       const btn = document.getElementById('spinBtn');
       const wheel = document.getElementById('wheel');
-      const card = document.getElementById('pokeCard');
       
       btn.disabled = true;
 

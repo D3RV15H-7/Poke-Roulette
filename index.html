@@ -4,6 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>PokéRoulette</title>
+  
+  <!-- Web App Manifest for Android Chrome PWA -->
+  <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Pok%C3%A9Roulette%22%2C%22short_name%22%3A%22Pok%C3%A9Roulette%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f172a%22%2C%22theme_color%22%3A%22%23dc2626%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20512%20512'%253E%253Crect%20width%3D'512'%20height%3D'512'%20rx%3D'115'%20fill%3D'%230f172a'%2F%253E%253Ctext%20x%3D'256'%20y%3D'78'%20font-family%3D'system-ui%2C-apple-system%2Csans-serif'%20font-size%3D'44'%20font-weight%3D'900'%20fill%3D'%23ffffff'%20text-anchor%3D'middle'%20letter-spacing%3D'3'%253EPOK%25C3%2589ROULETTE%253C%2Ftext%253E%253Cg%20transform%3D'translate(0%2C%2022)'%253E%253Ccircle%20cx%3D'256'%20cy%3D'270'%20r%3D'175'%20fill%3D'%23ffffff'%20stroke%3D'%23111827'%20stroke-width%3D'18'%2F%253E%253Cpath%20d%3D'M%2081%20270%20A%20175%20175%200%200%201%20431%20270%20Z'%20fill%3D'%23ef4444'%20stroke%3D'%23111827'%20stroke-width%3D'18'%2F%253E%253Cline%20x1%3D'81'%20y1%3D'270'%20x2%3D'431'%20y2%3D'270'%20stroke%3D'%23111827'%20stroke-width%3D'26'%2F%253E%253Ccircle%20cx%3D'256'%20cy%3D'270'%20r%3D'58'%20fill%3D'%23ffffff'%20stroke%3D'%23111827'%20stroke-width%3D'22'%2F%253E%253Ccircle%20cx%3D'256'%20cy%3D'270'%20r%3D'26'%20fill%3D'%23f8fafc'%20stroke%3D'%2394a3b8'%20stroke-width%3D'4'%2F%253E%253C%2Fg%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%2C%22purpose%22%3A%22any%20maskable%22%7D%5D%7D" />
+
+  <!-- Apple Touch Icon for iOS Safari -->
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='115' fill='%230f172a'/%3E%3Ctext x='256' y='78' font-family='system-ui,-apple-system,sans-serif' font-size='44' font-weight='900' fill='%23ffffff' text-anchor='middle' letter-spacing='3'%3EPOKÉROULETTE%3C/text%3E%3Cg transform='translate(0, 22)'%3E%3Ccircle cx='256' cy='270' r='175' fill='%23ffffff' stroke='%23111827' stroke-width='18'/%3E%3Cpath d='M 81 270 A 175 175 0 0 1 431 270 Z' fill='%23ef4444' stroke='%23111827' stroke-width='18'/%3E%3Cline x1='81' y1='270' x2='431' y2='270' stroke='%23111827' stroke-width='26'/%3E%3Ccircle cx='256' cy='270' r='58' fill='%23ffffff' stroke='%23111827' stroke-width='22'/%3E%3Ccircle cx='256' cy='270' r='26' fill='%23f8fafc' stroke='%2394a3b8' stroke-width='4'/%3E%3C/g%3E%3C/svg%3E" />
+
+  <!-- Standard Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='115' fill='%230f172a'/%3E%3Ctext x='256' y='78' font-family='system-ui,-apple-system,sans-serif' font-size='44' font-weight='900' fill='%23ffffff' text-anchor='middle' letter-spacing='3'%3EPOKÉROULETTE%3C/text%3E%3Cg transform='translate(0, 22)'%3E%3Ccircle cx='256' cy='270' r='175' fill='%23ffffff' stroke='%23111827' stroke-width='18'/%3E%3Cpath d='M 81 270 A 175 175 0 0 1 431 270 Z' fill='%23ef4444' stroke='%23111827' stroke-width='18'/%3E%3Cline x1='81' y1='270' x2='431' y2='270' stroke='%23111827' stroke-width='26'/%3E%3Ccircle cx='256' cy='270' r='58' fill='%23ffffff' stroke='%23111827' stroke-width='22'/%3E%3Ccircle cx='256' cy='270' r='26' fill='%23f8fafc' stroke='%2394a3b8' stroke-width='4'/%3E%3C/g%3E%3C/svg%3E" />
+
   <meta name="theme-color" content="#dc2626" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -40,31 +50,30 @@
       justify-content: center;
     }
     
-    /* 18 Official Pokémon Types (20deg per slice) */
     .wheel {
       width: 100%;
       height: 100%;
       border-radius: 50%;
       border: 8px solid #1e293b;
       background: conic-gradient(
-        #A8A77A 0deg 20deg,     /* 0: Normal */
-        #EE8130 20deg 40deg,    /* 1: Fire */
-        #6390F0 40deg 60deg,    /* 2: Water */
-        #7AC74C 60deg 80deg,    /* 3: Grass */
-        #F7D02C 80deg 100deg,   /* 4: Electric */
-        #96D9D6 100deg 120deg,  /* 5: Ice */
-        #C22E28 120deg 140deg,  /* 6: Fighting */
-        #A33EA1 140deg 160deg,  /* 7: Poison */
-        #E2BF65 160deg 180deg,  /* 8: Ground */
-        #A98FF3 180deg 200deg,  /* 9: Flying */
-        #F95587 200deg 220deg,  /* 10: Psychic */
-        #A6B91A 220deg 240deg,  /* 11: Bug */
-        #B6A136 240deg 260deg,  /* 12: Rock */
-        #735797 260deg 280deg,  /* 13: Ghost */
-        #6F35FC 280deg 300deg,  /* 14: Dragon */
-        #705746 300deg 320deg,  /* 15: Dark */
-        #B7B7CE 320deg 340deg,  /* 16: Steel */
-        #D685AD 340deg 360deg   /* 17: Fairy */
+        #A8A77A 0deg 20deg,
+        #EE8130 20deg 40deg,
+        #6390F0 40deg 60deg,
+        #7AC74C 60deg 80deg,
+        #F7D02C 80deg 100deg,
+        #96D9D6 100deg 120deg,
+        #C22E28 120deg 140deg,
+        #A33EA1 140deg 160deg,
+        #E2BF65 160deg 180deg,
+        #A98FF3 180deg 200deg,
+        #F95587 200deg 220deg,
+        #A6B91A 220deg 240deg,
+        #B6A136 240deg 260deg,
+        #735797 260deg 280deg,
+        #6F35FC 280deg 300deg,
+        #705746 300deg 320deg,
+        #B7B7CE 320deg 340deg,
+        #D685AD 340deg 360deg
       );
       transition: transform 3.2s cubic-bezier(0.12, 0.9, 0.18, 1);
       box-shadow: 0 12px 30px rgba(0,0,0,0.5), inset 0 0 15px rgba(0,0,0,0.2);
@@ -203,7 +212,6 @@
   </div>
 
   <script>
-    // 18 types in exact clockwise order matching the CSS conic-gradient
     const TYPES = [
       'normal', 'fire', 'water', 'grass', 'electric', 'ice',
       'fighting', 'poison', 'ground', 'flying', 'psychic', 'bug',
@@ -282,17 +290,12 @@
       btn.disabled = true;
       card.style.display = 'none';
 
-      // 1. Pick a random type index (0 to 17)
       const targetIndex = Math.floor(Math.random() * TYPES.length);
       const selectedType = TYPES[targetIndex];
 
-      // 2. Calculate exact angle to bring this slice to the top pointer
-      // Slice center angle = (targetIndex * 20) + 10 deg.
-      // Clockwise rotation needed = (360 - center angle).
       const sliceCenter = (targetIndex * 20) + 10;
       const targetAngle = (360 - sliceCenter) % 360;
 
-      // Add 4 to 6 full 360 spins on top of existing rotation
       totalRotationsCount += Math.floor(Math.random() * 3) + 4;
       const finalRotation = (totalRotationsCount * 360) + targetAngle;
       
@@ -300,11 +303,9 @@
       triggerSpinAudio();
 
       try {
-        // 3. Fetch all Pokémon with this type
         const typeRes = await fetch(`https://pokeapi.co/api/v2/type/${selectedType}`);
         const typeData = await typeRes.json();
         
-        // Filter to standard National Dex (1 to 1025)
         const validPokemon = typeData.pokemon.filter(p => {
           const id = parseInt(p.pokemon.url.split('/').filter(Boolean).pop());
           return id <= 1025;
@@ -312,11 +313,9 @@
 
         const randomEntry = validPokemon[Math.floor(Math.random() * validPokemon.length)];
         
-        // 4. Fetch full Pokémon details
         const pokeRes = await fetch(randomEntry.pokemon.url);
         const pokeData = await pokeRes.json();
 
-        // 5. Reveal card when wheel stops
         setTimeout(() => {
           renderPokemon(pokeData);
           playVictoryChime();

@@ -33,29 +33,151 @@
       padding: 1.5rem 1rem;
       touch-action: pan-y;
     }
-    header { text-align: center; margin-bottom: 0.8rem; }
-    header h1 { font-size: 1.7rem; font-weight: 800; letter-spacing: 0.5px; color: #fff; }
+    header {
+      width: 100%;
+      max-width: 350px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.6rem;
+    }
+    .header-left { text-align: left; }
+    header h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: 0.5px; color: #fff; }
     header span { color: var(--accent); }
 
     .counter-badge {
       display: inline-block;
-      margin-top: 0.3rem;
+      margin-top: 0.2rem;
       background: #1e293b;
       border: 1px solid #334155;
       color: var(--subtext);
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 700;
-      padding: 0.25rem 0.8rem;
+      padding: 0.2rem 0.65rem;
       border-radius: 9999px;
     }
     .counter-badge strong { color: var(--green); }
+
+    /* Backpack Icon Button */
+    .btn-bag {
+      position: relative;
+      background: #1e293b;
+      border: 1px solid #334155;
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      transition: all 0.2s;
+    }
+    .btn-bag:active { transform: scale(0.92); background: #334155; }
+    .btn-bag svg { width: 22px; height: 22px; fill: #f8fafc; }
+    .bag-count-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      background: var(--accent);
+      color: white;
+      font-size: 0.65rem;
+      font-weight: 800;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--bg);
+    }
+
+    /* Modal Backdrop & Drawer */
+    .modal-backdrop {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(6px);
+      z-index: 100;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      animation: fadeIn 0.2s ease-out;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .modal-content {
+      background: var(--card-bg);
+      width: 100%;
+      max-width: 420px;
+      max-height: 75vh;
+      border-radius: 28px 28px 0 0;
+      border: 1px solid #334155;
+      border-bottom: none;
+      box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      padding: 1.2rem;
+      animation: slideUp 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.8rem;
+      padding-bottom: 0.6rem;
+      border-bottom: 1px solid #334155;
+    }
+    .modal-header h3 { font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 0.5rem; }
+    .modal-close-btn {
+      background: #334155;
+      color: #fff;
+      border: none;
+      font-size: 1.1rem;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .modal-clear-btn {
+      background: none;
+      border: none;
+      color: var(--subtext);
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .recent-list {
+      list-style: none;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .recent-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.55rem 0.6rem;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .recent-item:hover, .recent-item:active { background: #0f172a; }
+    .recent-sprite { width: 44px; height: 44px; object-fit: contain; }
+    .recent-info { flex: 1; text-align: left; }
+    .recent-name { font-weight: 800; font-size: 0.95rem; text-transform: capitalize; }
+    .recent-meta { font-size: 0.75rem; color: var(--subtext); font-weight: 700; }
+    .recent-tick { color: var(--green); font-weight: 900; font-size: 1rem; }
+    .empty-recent { color: var(--subtext); font-size: 0.85rem; padding: 2rem 0; text-align: center; }
 
     /* Search & Autocomplete Container */
     .search-wrapper {
       position: relative;
       width: 100%;
       max-width: 320px;
-      margin-top: 0.8rem;
+      margin-top: 0.6rem;
       margin-bottom: 0.4rem;
       z-index: 20;
     }
@@ -75,12 +197,8 @@
       outline: none;
       transition: border-color 0.2s;
     }
-    .search-input:focus {
-      border-color: var(--accent);
-    }
-    .search-input::placeholder {
-      color: #64748b;
-    }
+    .search-input:focus { border-color: var(--accent); }
+    .search-input::placeholder { color: #64748b; }
     .btn-search {
       background: #334155;
       color: white;
@@ -92,9 +210,7 @@
       cursor: pointer;
       transition: background 0.2s;
     }
-    .btn-search:active {
-      background: #475569;
-    }
+    .btn-search:active { background: #475569; }
 
     /* Live Suggestions Dropdown */
     .suggestions-list {
@@ -121,21 +237,10 @@
       cursor: pointer;
       text-transform: capitalize;
     }
-    .suggestions-list li:last-child {
-      border-bottom: none;
-    }
-    .suggestions-list li:active, .suggestions-list li:hover {
-      background: #334155;
-    }
-    .sugg-num {
-      color: var(--subtext);
-      font-weight: 700;
-      margin-right: 0.5rem;
-    }
-    .sugg-tick {
-      color: var(--green);
-      font-weight: 900;
-    }
+    .suggestions-list li:last-child { border-bottom: none; }
+    .suggestions-list li:active, .suggestions-list li:hover { background: #334155; }
+    .sugg-num { color: var(--subtext); font-weight: 700; margin-right: 0.5rem; }
+    .sugg-tick { color: var(--green); font-weight: 900; }
 
     .wheel-container {
       position: relative;
@@ -228,7 +333,7 @@
     .btn-generate:active { transform: scale(0.96); }
     .btn-generate:disabled { opacity: 0.55; cursor: not-allowed; }
 
-    /* Card & Fast Swipe Animations */
+    /* Card */
     .card {
       width: 100%;
       max-width: 350px;
@@ -242,12 +347,8 @@
       user-select: none;
       touch-action: pan-y;
     }
-    .card.slide-in-right {
-      animation: slideInRight 0.18s ease-out;
-    }
-    .card.slide-in-left {
-      animation: slideInLeft 0.18s ease-out;
-    }
+    .card.slide-in-right { animation: slideInRight 0.18s ease-out; }
+    .card.slide-in-left { animation: slideInLeft 0.18s ease-out; }
     @keyframes slideInRight {
       from { opacity: 0.3; transform: translateX(20px); }
       to { opacity: 1; transform: translateX(0); }
@@ -271,11 +372,8 @@
       font-weight: 900;
       padding: 0 0.5rem;
       cursor: pointer;
-      transition: color 0.15s;
     }
-    .nav-arrow:active {
-      color: #fff;
-    }
+    .nav-arrow:active { color: #fff; }
 
     .image-container {
       position: relative;
@@ -368,8 +466,17 @@
 <body>
 
   <header>
-    <h1>Poké<span>Roulette</span></h1>
-    <div class="counter-badge">Collected: <strong id="totalCollectedCount">0</strong> / 1025</div>
+    <div class="header-left">
+      <h1>Poké<span>Roulette</span></h1>
+      <div class="counter-badge">Collected: <strong id="totalCollectedCount">0</strong> / 1025</div>
+    </div>
+    <!-- Trainer Backpack Button -->
+    <button class="btn-bag" onclick="openRecentModal()" title="Trainer Bag / Recents">
+      <svg viewBox="0 0 24 24">
+        <path d="M20 8h-3V6c0-1.66-1.34-3-3-3h-4C8.34 3 7 4.34 7 6v2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-.55.45-1 1-1h4c.55 0 1 .45 1 1v2H9V6zm11 14H4v-8h3v2h2v-2h6v2h2v-2h3v8z"/>
+      </svg>
+      <div class="bag-count-badge" id="bagCountBadge">0</div>
+    </button>
   </header>
 
   <div class="search-wrapper">
@@ -418,6 +525,20 @@
     </div>
   </div>
 
+  <!-- Trainer Bag Recent History Modal -->
+  <div class="modal-backdrop" id="recentModal" onclick="closeRecentModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>🎒 Trainer Bag Recents</h3>
+        <div style="display: flex; align-items: center; gap: 0.8rem;">
+          <button class="modal-clear-btn" onclick="clearRecentHistory()">Clear</button>
+          <button class="modal-close-btn" onclick="closeRecentModal()">✕</button>
+        </div>
+      </div>
+      <ul class="recent-list" id="recentList"></ul>
+    </div>
+  </div>
+
   <script>
     const TOTAL_POKEMON = 1025;
     const TYPES = [
@@ -452,6 +573,7 @@
       }
     }
 
+    // --- Local Storage: Collection & Recent History ---
     function getCollectedSet() {
       const saved = localStorage.getItem('poke_collection');
       return saved ? new Set(JSON.parse(saved)) : new Set();
@@ -460,11 +582,87 @@
     function saveCollectedSet(set) {
       localStorage.setItem('poke_collection', JSON.stringify(Array.from(set)));
       updateTotalCountUI();
+      renderRecentList();
     }
 
     function updateTotalCountUI() {
       const set = getCollectedSet();
       document.getElementById('totalCollectedCount').innerText = set.size;
+    }
+
+    function getRecentHistory() {
+      const saved = localStorage.getItem('poke_recents');
+      return saved ? JSON.parse(saved) : [];
+    }
+
+    function addToRecentHistory(p) {
+      let recents = getRecentHistory();
+      // Remove duplicate if already present
+      recents = recents.filter(item => item.id !== p.id);
+      // Prepend to top
+      recents.unshift({
+        id: p.id,
+        name: p.name,
+        type: p.types[0].type.name,
+        sprite: p.sprites.front_default || p.sprites.other['official-artwork'].front_default
+      });
+      // Keep up to 20 most recent
+      if (recents.length > 20) recents = recents.slice(0, 20);
+      localStorage.setItem('poke_recents', JSON.stringify(recents));
+      updateBagBadge();
+    }
+
+    function clearRecentHistory() {
+      localStorage.removeItem('poke_recents');
+      updateBagBadge();
+      renderRecentList();
+    }
+
+    function updateBagBadge() {
+      const recents = getRecentHistory();
+      document.getElementById('bagCountBadge').innerText = recents.length;
+    }
+
+    function openRecentModal() {
+      renderRecentList();
+      document.getElementById('recentModal').style.display = 'flex';
+    }
+
+    function closeRecentModal(e) {
+      if (!e || e.target.id === 'recentModal' || e.target.classList.contains('modal-close-btn')) {
+        document.getElementById('recentModal').style.display = 'none';
+      }
+    }
+
+    function renderRecentList() {
+      const list = document.getElementById('recentList');
+      const recents = getRecentHistory();
+      const collectedSet = getCollectedSet();
+
+      if (recents.length === 0) {
+        list.innerHTML = '<div class="empty-recent">🎒 Your bag is empty!<br>Spin the wheel or search to log encounters.</div>';
+        return;
+      }
+
+      list.innerHTML = '';
+      recents.forEach(p => {
+        const li = document.createElement('li');
+        li.className = 'recent-item';
+        const isOwned = collectedSet.has(p.id);
+        li.innerHTML = `
+          <img class="recent-sprite" src="${p.sprite}" alt="${p.name}" />
+          <div class="recent-info">
+            <div class="recent-name">${p.name.replace('-', ' ')}</div>
+            <div class="recent-meta">#${String(p.id).padStart(4, '0')} · <span style="color:${TYPE_COLORS[p.type] || '#fff'}">${p.type.toUpperCase()}</span></div>
+          </div>
+          ${isOwned ? '<span class="recent-tick">✓</span>' : ''}
+        `;
+        li.onclick = () => {
+          document.getElementById('recentModal').style.display = 'none';
+          selectPokemonById(p.id);
+        };
+        list.appendChild(li);
+      });
     }
 
     function toggleCollectionStatus() {
@@ -551,7 +749,6 @@
       }
     }
 
-    // Instant snap for Swiping and Searching (No spinning transition)
     function snapWheelToType(typeName) {
       const targetIndex = TYPES.indexOf(typeName);
       if (targetIndex === -1) return;
@@ -559,7 +756,7 @@
       const targetAngle = (360 - sliceCenter) % 360;
       
       const wheel = document.getElementById('wheel');
-      wheel.style.transition = 'none'; // Disable animation for instant snap
+      wheel.style.transition = 'none';
       currentRotation = targetAngle;
       wheel.style.transform = `rotate(${currentRotation}deg)`;
     }
@@ -614,6 +811,7 @@
         const data = await res.json();
         snapWheelToType(data.types[0].type.name);
         renderPokemon(data, direction);
+        addToRecentHistory(data);
       } catch (err) {
         console.error("Failed to load Pokémon details.", err);
       }
@@ -651,9 +849,9 @@
       
       if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
         if (deltaX < 0) {
-          navigateDex(1); // Swipe Left -> Next
+          navigateDex(1);
         } else {
-          navigateDex(-1); // Swipe Right -> Prev
+          navigateDex(-1);
         }
       }
     }
@@ -675,7 +873,6 @@
       }
     });
 
-    // SPIN BUTTON: Full 3s animated spin with sound
     async function spinAndPick() {
       initAudio();
       document.getElementById('suggestionsList').style.display = 'none';
@@ -692,7 +889,6 @@
       const sliceCenter = (targetIndex * 20) + 10;
       const targetAngle = (360 - sliceCenter) % 360;
 
-      // Enable smooth 3.2s spin animation
       wheel.style.transition = 'transform 3.2s cubic-bezier(0.12, 0.9, 0.18, 1)';
       const extraSpins = (Math.floor(Math.random() * 3) + 4) * 360;
       currentRotation += extraSpins + ((targetAngle - (currentRotation % 360) + 360) % 360);
@@ -716,6 +912,7 @@
 
         setTimeout(() => {
           renderPokemon(pokeData, 0);
+          addToRecentHistory(pokeData);
           playVictoryChime();
           btn.disabled = false;
         }, 3200);
@@ -730,7 +927,7 @@
       const card = document.getElementById('pokeCard');
       
       card.classList.remove('slide-in-right', 'slide-in-left');
-      void card.offsetWidth; // Trigger reflow for snappy animation replay
+      void card.offsetWidth;
       if (direction > 0) {
         card.classList.add('slide-in-right');
       } else if (direction < 0) {
@@ -769,8 +966,10 @@
       card.style.display = 'block';
     }
 
+    // Initialize
     loadDirectory();
     updateTotalCountUI();
+    updateBagBadge();
   </script>
 </body>
 </html>

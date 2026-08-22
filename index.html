@@ -103,7 +103,7 @@
       border: 2px solid var(--bg);
     }
 
-    /* Modals & Strict Vertical-Only Scrolling */
+    /* Modals */
     .modal-backdrop {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -201,7 +201,6 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    /* 4-Column Fluid Grid locked to parent width */
     .dex-grid-list {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -214,15 +213,16 @@
       padding: 0.4rem 0.15rem;
       text-align: center;
       cursor: pointer;
-      transition: all 0.15s;
+      transition: all 0.15s ease-out;
       position: relative;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       min-width: 0;
+      user-select: none;
     }
-    .dex-card-item:active { transform: scale(0.95); background: #1e293b; }
+    .dex-card-item:active { transform: scale(0.93); }
     .dex-card-item.owned {
       border-color: rgba(16, 185, 129, 0.45);
       background: rgba(16, 185, 129, 0.08);
@@ -235,6 +235,8 @@
       margin: 0 auto;
       display: block;
       filter: drop-shadow(0 3px 5px rgba(0,0,0,0.3));
+      transition: filter 0.15s ease;
+      pointer-events: none;
     }
     .dex-card-item.unowned .dex-item-img {
       filter: grayscale(100%) opacity(0.28);
@@ -687,8 +689,8 @@
       localStorage.setItem('poke_collection', JSON.stringify(Array.from(set)));
       updateTotalCountUI();
       renderRecentList();
-      if (document.getElementById('dexModal').style.display === 'flex') {
-        renderDexGrid();
+      if (currentPokemonId) {
+        updateCollectionButtonUI(set.has(currentPokemonId));
       }
     }
 
@@ -729,6 +731,47 @@
       document.getElementById('bagCountBadge').innerText = recents.length;
     }
 
+    // Toggle Pokémon ownership directly inside the Dex grid
+    function toggleDexCollectionItem(id, cardElement) {
+      initAudio();
+      const set = getCollectedSet();
+      const isCurrentlyOwned = set.has(id);
+
+      if (isCurrentlyOwned) {
+        set.delete(id);
+      } else {
+        set.add(id);
+        playTick();
+      }
+
+      saveCollectedSet(set);
+
+      // If viewing filtered tabs (Owned or Missing), re-filter to slide out card
+      if (currentDexFilter !== 'all') {
+        renderDexGrid();
+        return;
+      }
+
+      // Smooth inline toggle without reflowing scroll position
+      const nowOwned = set.has(id);
+      if (nowOwned) {
+        cardElement.classList.remove('unowned');
+        cardElement.classList.add('owned');
+        if (!cardElement.querySelector('.dex-item-tick')) {
+          const tick = document.createElement('div');
+          tick.className = 'dex-item-tick';
+          tick.innerText = '✓';
+          cardElement.appendChild(tick);
+        }
+      } else {
+        cardElement.classList.remove('owned');
+        cardElement.classList.add('unowned');
+        const tick = cardElement.querySelector('.dex-item-tick');
+        if (tick) tick.remove();
+      }
+    }
+
+    // --- Dex Collection Modal UI ---
     function openDexTrackerModal() {
       updateTotalCountUI();
       renderDexGrid();
@@ -782,10 +825,7 @@
           <div class="dex-item-name">${p.name.replace('-', ' ')}</div>
         `;
 
-        card.onclick = () => {
-          document.getElementById('dexModal').style.display = 'none';
-          selectPokemonById(p.id, 0, false);
-        };
+        card.onclick = () => toggleDexCollectionItem(p.id, card);
 
         fragment.appendChild(card);
       });
@@ -793,6 +833,7 @@
       container.appendChild(fragment);
     }
 
+    // --- Recents Modal ---
     function openRecentModal() {
       renderRecentList();
       document.getElementById('recentModal').style.display = 'flex';
@@ -845,7 +886,6 @@
         playTick();
       }
       saveCollectedSet(set);
-      updateCollectionButtonUI(set.has(currentPokemonId));
     }
 
     function updateCollectionButtonUI(isOwned) {

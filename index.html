@@ -189,26 +189,30 @@
       box-shadow: 0 10px 25px rgba(0,0,0,0.5), inset 0 0 15px rgba(0,0,0,0.2);
     }
 
-    /* Slice Type Icon Nodes */
-    .slice-icon {
+    /* Embedded Coordinate Icon Layer */
+    .wheel-icons-layer {
       position: absolute;
-      top: 50%;
-      left: 50%;
-      width: clamp(14px, 2.4dvh, 20px);
-      height: clamp(14px, 2.4dvh, 20px);
-      margin-top: calc(-1 * clamp(7px, 1.2dvh, 10px));
-      margin-left: calc(-1 * clamp(7px, 1.2dvh, 10px));
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       pointer-events: none;
       user-select: none;
     }
-    .slice-icon svg {
+    .slice-icon-item {
+      position: absolute;
+      width: 11%;
+      height: 11%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .slice-icon-item svg {
       width: 100%;
       height: 100%;
       fill: #ffffff;
-      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8));
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.85));
     }
     
     .wheel-pointer {
@@ -319,7 +323,7 @@
       border: 2px solid var(--bg);
     }
 
-    /* Larger & Dynamic Display Card */
+    /* Display Card */
     .card {
       width: 100%;
       background: var(--card-bg);
@@ -398,7 +402,6 @@
     .dex-num { font-size: 0.72rem; font-weight: 800; color: var(--subtext); }
     .poke-name { font-size: clamp(1.15rem, 2.4dvh, 1.4rem); font-weight: 800; text-transform: capitalize; margin: 0.02rem 0 0.15rem; }
 
-    /* Action Row Above Collection Bar */
     .card-actions-row {
       display: flex;
       align-items: center;
@@ -478,7 +481,7 @@
     .stat-row span:first-child { color: var(--subtext); }
     .stat-row span:last-child { font-weight: 700; float: right; }
 
-    /* Modals & Full Dex Collection */
+    /* Modals */
     .modal-backdrop {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -679,7 +682,7 @@
       <ul class="suggestions-list" id="suggestionsList"></ul>
     </div>
 
-    <!-- The Interactive Wheel with Vector Type Icons -->
+    <!-- Interactive Wheel with Mathematically Pinned Slice Icons -->
     <div class="wheel-container">
       <div class="wheel-pointer"></div>
       <div class="wheel" id="wheel"></div>
@@ -796,7 +799,6 @@
       steel: '#B7B7CE', fairy: '#D685AD'
     };
 
-    // Lightweight Vector Glyphs for Each Pokémon Type
     const TYPE_SVGS = {
       normal: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="#fff" stroke-width="2.5"/><circle cx="12" cy="12" r="3"/></svg>',
       fire: '<svg viewBox="0 0 24 24"><path d="M12 2c1.5 3 4 5.5 4 8.5a6 6 0 1 1-12 0c0-3 3-5.5 4-8.5 1 2 2 3 4 0z"/></svg>',
@@ -818,19 +820,35 @@
       fairy: '<svg viewBox="0 0 24 24"><polygon points="12,2 15,9 22,12 15,15 12,22 9,15 2,12 9,9"/></svg>'
     };
 
-    // Render Type Icons into Wheel Slices
+    // Mathematically calculates exact coordinate positions for all 18 slices
     function buildWheelIcons() {
       const wheel = document.getElementById('wheel');
       wheel.innerHTML = '';
+      
+      const layer = document.createElement('div');
+      layer.className = 'wheel-icons-layer';
+
+      // Center is (50%, 50%), radius is 37% outward (74% of wheel radius)
+      const radiusPercent = 37;
+      const centerPercent = 50;
+
       TYPES.forEach((type, index) => {
-        const sliceAngle = index * 20 + 10;
-        const iconContainer = document.createElement('div');
-        iconContainer.className = 'slice-icon';
-        // Positioned 37% outward along each slice vector
-        iconContainer.style.transform = `rotate(${sliceAngle}deg) translateY(-37cqw) rotate(-${sliceAngle}deg)`;
-        iconContainer.innerHTML = TYPE_SVGS[type] || '';
-        wheel.appendChild(iconContainer);
+        const sliceAngleDeg = (index * 20) + 10;
+        // Adjust for conic-gradient zero point at 12 o'clock
+        const angleRad = (sliceAngleDeg - 90) * (Math.PI / 180);
+        
+        const x = centerPercent + radiusPercent * Math.cos(angleRad);
+        const y = centerPercent + radiusPercent * Math.sin(angleRad);
+
+        const iconEl = document.createElement('div');
+        iconEl.className = 'slice-icon-item';
+        iconEl.style.left = `${x.toFixed(2)}%`;
+        iconEl.style.top = `${y.toFixed(2)}%`;
+        iconEl.innerHTML = TYPE_SVGS[type] || '';
+        layer.appendChild(iconEl);
       });
+
+      wheel.appendChild(layer);
     }
 
     let pokemonDirectory = [];
@@ -1322,7 +1340,7 @@
         setTimeout(() => {
           renderPokemon(pokeData, 0, isShinyEncounter);
           addToRecentHistory(pokeData);
-          playCurrentPokemonCry(); // Plays only authentic Pokemon Cry
+          playCurrentPokemonCry();
           if (isShinyEncounter) triggerShinySparkle();
           btn.disabled = false;
         }, 3200);
@@ -1379,7 +1397,7 @@
       card.style.display = 'block';
     }
 
-    // Startup Initialization
+    // Build icons with direct coordinate pinning
     buildWheelIcons();
     loadDirectory();
     updateTotalCountUI();

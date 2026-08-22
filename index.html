@@ -70,7 +70,7 @@
       color: #fff;
       padding: 0.65rem 1rem;
       border-radius: 9999px;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       outline: none;
       transition: border-color 0.2s;
     }
@@ -339,10 +339,10 @@
     <div class="counter-badge">Collected: <strong id="totalCollectedCount">0</strong> / 1025</div>
   </header>
 
-  <!-- Search with Live Fuzzy Suggestions Dropdown -->
+  <!-- Search with Updated Placeholder -->
   <div class="search-wrapper">
     <form class="search-container" onsubmit="event.preventDefault(); submitSearch();">
-      <input type="text" id="searchInput" class="search-input" placeholder="Search 'chari', '0032', '32'..." autocomplete="off" oninput="handleSearchInput(this.value)" />
+      <input type="text" id="searchInput" class="search-input" placeholder="Type Pokémon Name or Dex #" autocomplete="off" oninput="handleSearchInput(this.value)" />
       <button type="submit" class="btn-search">Search</button>
     </form>
     <ul class="suggestions-list" id="suggestionsList"></ul>
@@ -397,12 +397,11 @@
       steel: '#B7B7CE', fairy: '#D685AD'
     };
 
-    let pokemonDirectory = []; // [{id: 1, name: "bulbasaur"}, ...]
+    let pokemonDirectory = [];
     let totalRotationsCount = 0;
     let audioCtx = null;
     let currentPokemonId = null;
 
-    // Load full Dex name directory once on startup for instantaneous matching
     async function loadDirectory() {
       try {
         const res = await fetch(`https://pokeapi.co/api/v2/pokemon?limit=${TOTAL_POKEMON}`);
@@ -525,7 +524,6 @@
       document.getElementById('wheel').style.transform = `rotate(${finalRotation}deg)`;
     }
 
-    // Fuzzy & Numeric matching engine
     function handleSearchInput(rawVal) {
       const list = document.getElementById('suggestionsList');
       const val = rawVal.trim().toLowerCase().replace('#', '');
@@ -538,13 +536,12 @@
       const isNum = !isNaN(numVal);
       const collectedSet = getCollectedSet();
 
-      // Find matching items
       const matches = pokemonDirectory.filter(p => {
         if (isNum) {
           return p.id === numVal || String(p.id).startsWith(val);
         }
         return p.name.toLowerCase().includes(val);
-      }).slice(0, 7); // Show top 7 results
+      }).slice(0, 7);
 
       if (matches.length === 0) {
         list.style.display = 'none';
@@ -595,7 +592,6 @@
       }
     }
 
-    // Hide suggestions dropdown on click outside
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.search-wrapper')) {
         document.getElementById('suggestionsList').style.display = 'none';
@@ -683,7 +679,6 @@
       document.getElementById('pokeCard').style.display = 'block';
     }
 
-    // Initialize directory & collection counter on startup
     loadDirectory();
     updateTotalCountUI();
   </script>

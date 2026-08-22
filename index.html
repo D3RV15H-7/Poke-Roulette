@@ -20,6 +20,7 @@
       --text: #f8fafc;
       --subtext: #94a3b8;
       --green: #10b981;
+      --gold: #f59e0b;
     }
     * { 
       box-sizing: border-box; 
@@ -45,7 +46,6 @@
       touch-action: pan-y;
     }
 
-    /* Main Container with dynamic fluid vertical gap */
     .app-viewport {
       width: 100%;
       max-width: 380px;
@@ -181,7 +181,6 @@
     /* Fluid Wheel Container */
     .wheel-container {
       position: relative;
-      /* Full generous size on initial page */
       width: clamp(210px, 34dvh, 250px);
       height: clamp(210px, 34dvh, 250px);
       margin: clamp(0.4rem, 1.5dvh, 1rem) auto;
@@ -192,7 +191,6 @@
       transition: all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
     
-    /* When Pokémon appears, adapt size fluidly: shrinks gracefully on shorter screens */
     body.has-active-pokemon .wheel-container {
       width: clamp(100px, 15dvh, 180px);
       height: clamp(100px, 15dvh, 180px);
@@ -293,7 +291,7 @@
     .btn-generate:active { transform: scale(0.96); }
     .btn-generate:disabled { opacity: 0.55; cursor: not-allowed; }
 
-    /* Dynamic Card that fits the remaining single-screen view */
+    /* Responsive Card */
     .card {
       width: 100%;
       background: var(--card-bg);
@@ -307,6 +305,7 @@
       touch-action: pan-y;
       flex-shrink: 1;
       min-height: 0;
+      position: relative;
     }
     .card.slide-in-right { animation: slideInRight 0.18s ease-out; }
     .card.slide-in-left { animation: slideInLeft 0.18s ease-out; }
@@ -317,6 +316,32 @@
     .nav-arrow { background: none; border: none; color: var(--subtext); font-size: 1.15rem; font-weight: 900; padding: 0 0.5rem; cursor: pointer; }
     .nav-arrow:active { color: #fff; }
 
+    /* Top Left Cry Button & Top Right Shiny Toggle */
+    .btn-card-cry {
+      background: none;
+      border: none;
+      color: var(--subtext);
+      font-size: 0.95rem;
+      cursor: pointer;
+      padding: 0 0.3rem;
+      transition: transform 0.15s;
+    }
+    .btn-card-cry:active { transform: scale(1.25); color: #fff; }
+
+    .btn-shiny-toggle {
+      background: none;
+      border: none;
+      font-size: 1.05rem;
+      cursor: pointer;
+      color: var(--subtext);
+      transition: all 0.2s;
+    }
+    .btn-shiny-toggle.active {
+      color: var(--gold);
+      filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.7));
+      transform: scale(1.15);
+    }
+
     .image-container { position: relative; display: inline-block; margin: 0.05rem 0; }
     .card img { 
       width: clamp(80px, 13dvh, 120px); 
@@ -324,6 +349,27 @@
       object-fit: contain; 
       filter: drop-shadow(0 6px 12px rgba(0,0,0,0.45)); 
       pointer-events: none; 
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* Shiny Star Sparkle Animation */
+    .shiny-sparkle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      font-size: 2.2rem;
+      color: var(--gold);
+      pointer-events: none;
+      z-index: 10;
+    }
+    .shiny-sparkle.sparkle-pop {
+      animation: sparklePop 0.8s ease-out forwards;
+    }
+    @keyframes sparklePop {
+      0% { transform: translate(-50%, -50%) scale(0) rotate(0deg); opacity: 0; }
+      50% { transform: translate(-50%, -50%) scale(1.6) rotate(180deg); opacity: 1; filter: drop-shadow(0 0 10px #f59e0b); }
+      100% { transform: translate(-50%, -50%) scale(2.2) rotate(360deg); opacity: 0; }
     }
     
     .collected-badge {
@@ -347,7 +393,7 @@
     }
     .collected-badge.active { opacity: 1; transform: scale(1); }
 
-    .dex-num { font-size: 0.72rem; font-weight: 800; color: var(--subtext); }
+    .dex-num { font-size: 0.72rem; font-weight: 800; color: var(--subtext); display: flex; align-items: center; gap: 0.3rem; }
     .poke-name { font-size: clamp(1.1rem, 2.5dvh, 1.35rem); font-weight: 800; text-transform: capitalize; margin: 0.05rem 0 0.2rem; }
     .types { display: flex; gap: 0.4rem; justify-content: center; margin-bottom: clamp(0.25rem, 0.7dvh, 0.45rem); }
     .type-pill {
@@ -630,7 +676,13 @@
     <div class="card" id="pokeCard">
       <div class="card-top-nav">
         <button class="nav-arrow" onclick="navigateDex(-1)" title="Previous Pokémon">‹</button>
-        <div class="dex-num" id="dexNum">#0000</div>
+        
+        <div class="dex-num">
+          <button class="btn-card-cry" onclick="playCurrentPokemonCry()" title="Play Pokémon Cry">🔊</button>
+          <span id="dexNum">#0000</span>
+          <button class="btn-shiny-toggle" id="shinyToggleBtn" onclick="toggleShinyForm()" title="Toggle Shiny Form">★</button>
+        </div>
+
         <button class="nav-arrow" onclick="navigateDex(1)" title="Next Pokémon">›</button>
       </div>
 
@@ -638,6 +690,7 @@
       
       <div class="image-container">
         <img id="pokeImg" src="" alt="Pokémon Artwork" />
+        <div class="shiny-sparkle" id="shinySparkle">✨</div>
         <div class="collected-badge" id="cardTickBadge">✓</div>
       </div>
       
@@ -709,6 +762,8 @@
     let pokemonDirectory = [];
     let currentRotation = 0;
     let audioCtx = null;
+    let currentPokemonData = null;
+    let isCurrentShiny = false;
     let currentPokemonId = null;
     let currentDexFilter = 'all';
 
@@ -947,6 +1002,7 @@
       }
     }
 
+    // --- Audio & Haptic Feedback ---
     function initAudio() {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -957,6 +1013,8 @@
     }
 
     function playTick() {
+      if (navigator.vibrate) navigator.vibrate(12); // Haptic Pulse
+
       if (!audioCtx) return;
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
@@ -972,6 +1030,8 @@
     }
 
     function playVictoryChime() {
+      if (navigator.vibrate) navigator.vibrate([25, 40, 25]);
+
       if (!audioCtx) return;
       const notes = [523.25, 659.25, 783.99, 1046.50];
       notes.forEach((freq, index) => {
@@ -988,6 +1048,16 @@
       });
     }
 
+    function playCurrentPokemonCry() {
+      if (!currentPokemonData) return;
+      const cryUrl = currentPokemonData.cries ? (currentPokemonData.cries.latest || currentPokemonData.cries.legacy) : null;
+      if (cryUrl) {
+        const cryAudio = new Audio(cryUrl);
+        cryAudio.volume = 0.6;
+        cryAudio.play().catch(() => {});
+      }
+    }
+
     function triggerSpinAudio() {
       const totalDuration = 3000;
       let delay = 0;
@@ -996,6 +1066,39 @@
         setTimeout(playTick, delay);
         delay += interval;
         interval *= 1.1;
+      }
+    }
+
+    // --- Shiny Form Engine ---
+    function triggerShinySparkle() {
+      const sparkle = document.getElementById('shinySparkle');
+      sparkle.classList.remove('sparkle-pop');
+      void sparkle.offsetWidth;
+      sparkle.classList.add('sparkle-pop');
+      if (navigator.vibrate) navigator.vibrate([40, 60, 40, 60, 80]);
+    }
+
+    function toggleShinyForm() {
+      if (!currentPokemonData) return;
+      isCurrentShiny = !isCurrentShiny;
+      updateArtworkDisplay();
+      if (isCurrentShiny) triggerShinySparkle();
+    }
+
+    function updateArtworkDisplay() {
+      if (!currentPokemonData) return;
+      const p = currentPokemonData;
+      const imgEl = document.getElementById('pokeImg');
+      const starBtn = document.getElementById('shinyToggleBtn');
+
+      if (isCurrentShiny) {
+        const shinyArt = p.sprites.other['official-artwork'].front_shiny || p.sprites.front_shiny;
+        imgEl.src = shinyArt;
+        starBtn.classList.add('active');
+      } else {
+        const defaultArt = p.sprites.other['official-artwork'].front_default || p.sprites.front_default;
+        imgEl.src = defaultArt;
+        starBtn.classList.remove('active');
       }
     }
 
@@ -1060,7 +1163,7 @@
         const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
         const data = await res.json();
         snapWheelToType(data.types[0].type.name);
-        renderPokemon(data, direction);
+        renderPokemon(data, direction, false);
         if (logToHistory) {
           addToRecentHistory(data);
         }
@@ -1159,10 +1262,15 @@
         const pokeRes = await fetch(randomEntry.pokemon.url);
         const pokeData = await pokeRes.json();
 
+        // 1 in 100 chance of spontaneous Shiny Encounter on spins
+        const isShinyEncounter = Math.floor(Math.random() * 100) === 0;
+
         setTimeout(() => {
-          renderPokemon(pokeData, 0);
+          renderPokemon(pokeData, 0, isShinyEncounter);
           addToRecentHistory(pokeData);
           playVictoryChime();
+          playCurrentPokemonCry();
+          if (isShinyEncounter) triggerShinySparkle();
           btn.disabled = false;
         }, 3200);
       } catch (err) {
@@ -1171,8 +1279,11 @@
       }
     }
 
-    function renderPokemon(p, direction = 0) {
+    function renderPokemon(p, direction = 0, forceShiny = false) {
       currentPokemonId = p.id;
+      currentPokemonData = p;
+      isCurrentShiny = forceShiny;
+
       document.body.classList.add('has-active-pokemon');
       const card = document.getElementById('pokeCard');
       
@@ -1187,8 +1298,7 @@
       document.getElementById('dexNum').innerText = `#${String(p.id).padStart(4, '0')}`;
       document.getElementById('pokeName').innerText = p.name.replace('-', ' ');
       
-      const imgUrl = p.sprites.other['official-artwork'].front_default || p.sprites.front_default;
-      document.getElementById('pokeImg').src = imgUrl;
+      updateArtworkDisplay();
 
       const typesContainer = document.getElementById('pokeTypes');
       typesContainer.innerHTML = '';
@@ -1222,4 +1332,3 @@
   </script>
 </body>
 </html>
-

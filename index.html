@@ -42,7 +42,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      padding: clamp(0.4rem, 1.2dvh, 0.8rem) clamp(0.6rem, 2.5vw, 1rem);
+      padding: clamp(0.35rem, 1dvh, 0.7rem) clamp(0.6rem, 2.5vw, 1rem);
       touch-action: pan-y;
     }
 
@@ -54,17 +54,15 @@
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      gap: clamp(0.2rem, 0.8dvh, 0.6rem);
+      gap: clamp(0.18rem, 0.7dvh, 0.45rem);
     }
 
+    /* Centered Header & Counter */
     header {
       width: 100%;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      text-align: center;
       flex-shrink: 0;
     }
-    .header-left { text-align: left; }
     header h1 { font-size: clamp(1.3rem, 3.8dvh, 1.55rem); font-weight: 800; letter-spacing: 0.5px; color: #fff; }
     header span { color: var(--accent); }
 
@@ -76,45 +74,10 @@
       color: var(--subtext);
       font-size: 0.72rem;
       font-weight: 700;
-      padding: 0.15rem 0.55rem;
+      padding: 0.15rem 0.6rem;
       border-radius: 9999px;
     }
     .counter-badge strong { color: var(--green); }
-
-    .header-actions { display: flex; gap: 0.4rem; }
-    .btn-header {
-      position: relative;
-      background: #1e293b;
-      border: 1px solid #334155;
-      width: clamp(36px, 4.5dvh, 40px);
-      height: clamp(36px, 4.5dvh, 40px);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-      transition: all 0.2s;
-    }
-    .btn-header:active { transform: scale(0.92); background: #334155; }
-    .btn-header svg { width: 18px; height: 18px; fill: none; stroke: #f8fafc; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-    
-    .bag-count-badge {
-      position: absolute;
-      top: -4px;
-      right: -4px;
-      background: var(--accent);
-      color: white;
-      font-size: 0.62rem;
-      font-weight: 800;
-      width: 17px;
-      height: 17px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 2px solid var(--bg);
-    }
 
     /* Search Container */
     .search-wrapper {
@@ -130,7 +93,7 @@
       background: #1e293b;
       border: 1px solid #334155;
       color: #fff;
-      padding: clamp(0.45rem, 1.1dvh, 0.6rem) 0.9rem;
+      padding: clamp(0.42rem, 1dvh, 0.55rem) 0.85rem;
       border-radius: 9999px;
       font-size: 0.82rem;
       outline: none;
@@ -183,7 +146,7 @@
       position: relative;
       width: clamp(210px, 34dvh, 250px);
       height: clamp(210px, 34dvh, 250px);
-      margin: clamp(0.4rem, 1.5dvh, 1rem) auto;
+      margin: clamp(0.2rem, 1dvh, 0.6rem) auto;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -192,8 +155,8 @@
     }
     
     body.has-active-pokemon .wheel-container {
-      width: clamp(100px, 15dvh, 180px);
-      height: clamp(100px, 15dvh, 180px);
+      width: clamp(95px, 14dvh, 170px);
+      height: clamp(95px, 14dvh, 170px);
       margin: 0 auto;
     }
 
@@ -278,8 +241,8 @@
       background: linear-gradient(135deg, #ef4444, #dc2626);
       color: white;
       border: none;
-      padding: clamp(0.7rem, 1.8dvh, 0.9rem) clamp(1.8rem, 5vw, 2.4rem);
-      font-size: clamp(1rem, 2.5dvh, 1.15rem);
+      padding: clamp(0.65rem, 1.6dvh, 0.85rem) clamp(1.8rem, 5vw, 2.4rem);
+      font-size: clamp(0.95rem, 2.3dvh, 1.15rem);
       font-weight: 800;
       letter-spacing: 0.5px;
       border-radius: 9999px;
@@ -291,12 +254,54 @@
     .btn-generate:active { transform: scale(0.96); }
     .btn-generate:disabled { opacity: 0.55; cursor: not-allowed; }
 
+    /* Centered Action Row Below Spin Button */
+    .actions-hub {
+      display: flex;
+      justify-content: center;
+      gap: 0.75rem;
+      margin: 0.1rem 0;
+      flex-shrink: 0;
+    }
+    .btn-hub {
+      position: relative;
+      background: #1e293b;
+      border: 1px solid #334155;
+      width: clamp(38px, 4.8dvh, 42px);
+      height: clamp(38px, 4.8dvh, 42px);
+      border-radius: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      transition: all 0.2s;
+    }
+    .btn-hub:active { transform: scale(0.92); background: #334155; }
+    .btn-hub svg { width: 19px; height: 19px; fill: none; stroke: #f8fafc; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    
+    .hub-count-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      background: var(--accent);
+      color: white;
+      font-size: 0.62rem;
+      font-weight: 800;
+      width: 17px;
+      height: 17px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--bg);
+    }
+
     /* Responsive Card */
     .card {
       width: 100%;
       background: var(--card-bg);
       border-radius: 20px;
-      padding: clamp(0.45rem, 1.2dvh, 0.8rem) clamp(0.7rem, 2vw, 1rem);
+      padding: clamp(0.45rem, 1.1dvh, 0.75rem) clamp(0.7rem, 2vw, 1rem);
       border: 1px solid #334155;
       box-shadow: 0 12px 28px rgba(0,0,0,0.4);
       display: none;
@@ -316,43 +321,16 @@
     .nav-arrow { background: none; border: none; color: var(--subtext); font-size: 1.15rem; font-weight: 900; padding: 0 0.5rem; cursor: pointer; }
     .nav-arrow:active { color: #fff; }
 
-    /* Top Left Cry Button & Top Right Shiny Toggle */
-    .btn-card-cry {
-      background: none;
-      border: none;
-      color: var(--subtext);
-      font-size: 0.95rem;
-      cursor: pointer;
-      padding: 0 0.3rem;
-      transition: transform 0.15s;
-    }
-    .btn-card-cry:active { transform: scale(1.25); color: #fff; }
-
-    .btn-shiny-toggle {
-      background: none;
-      border: none;
-      font-size: 1.05rem;
-      cursor: pointer;
-      color: var(--subtext);
-      transition: all 0.2s;
-    }
-    .btn-shiny-toggle.active {
-      color: var(--gold);
-      filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.7));
-      transform: scale(1.15);
-    }
-
     .image-container { position: relative; display: inline-block; margin: 0.05rem 0; }
     .card img { 
-      width: clamp(80px, 13dvh, 120px); 
-      height: clamp(80px, 13dvh, 120px); 
+      width: clamp(80px, 12dvh, 115px); 
+      height: clamp(80px, 12dvh, 115px); 
       object-fit: contain; 
       filter: drop-shadow(0 6px 12px rgba(0,0,0,0.45)); 
       pointer-events: none; 
       transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
-    /* Shiny Star Sparkle Animation */
     .shiny-sparkle {
       position: absolute;
       top: 50%;
@@ -393,9 +371,43 @@
     }
     .collected-badge.active { opacity: 1; transform: scale(1); }
 
-    .dex-num { font-size: 0.72rem; font-weight: 800; color: var(--subtext); display: flex; align-items: center; gap: 0.3rem; }
-    .poke-name { font-size: clamp(1.1rem, 2.5dvh, 1.35rem); font-weight: 800; text-transform: capitalize; margin: 0.05rem 0 0.2rem; }
-    .types { display: flex; gap: 0.4rem; justify-content: center; margin-bottom: clamp(0.25rem, 0.7dvh, 0.45rem); }
+    .dex-num { font-size: 0.72rem; font-weight: 800; color: var(--subtext); }
+    .poke-name { font-size: clamp(1.1rem, 2.4dvh, 1.35rem); font-weight: 800; text-transform: capitalize; margin: 0.05rem 0 0.2rem; }
+
+    /* Sound and Shiny Action Row Above Collection Bar */
+    .card-actions-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      margin-bottom: clamp(0.25rem, 0.7dvh, 0.45rem);
+      padding: 0 0.4rem;
+    }
+    .btn-card-cry {
+      background: none;
+      border: none;
+      font-size: 1.05rem;
+      cursor: pointer;
+      color: var(--subtext);
+      transition: transform 0.15s;
+    }
+    .btn-card-cry:active { transform: scale(1.25); color: #fff; }
+
+    .btn-shiny-toggle {
+      background: none;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+      color: var(--subtext);
+      transition: all 0.2s;
+    }
+    .btn-shiny-toggle.active {
+      color: var(--gold);
+      filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.7));
+      transform: scale(1.15);
+    }
+
+    .types { display: flex; gap: 0.4rem; justify-content: center; }
     .type-pill {
       font-size: 0.65rem;
       font-weight: 800;
@@ -408,7 +420,7 @@
 
     .btn-collect {
       width: 100%;
-      padding: clamp(0.35rem, 1dvh, 0.5rem);
+      padding: clamp(0.35rem, 0.9dvh, 0.48rem);
       margin-bottom: clamp(0.25rem, 0.7dvh, 0.45rem);
       border-radius: 10px;
       border: 1px solid #334155;
@@ -435,9 +447,9 @@
       gap: 0.15rem 0.7rem;
       text-align: left;
       background: #0f172a;
-      padding: clamp(0.4rem, 0.9dvh, 0.6rem) 0.8rem;
+      padding: clamp(0.35rem, 0.8dvh, 0.55rem) 0.8rem;
       border-radius: 12px;
-      font-size: clamp(0.68rem, 1.5dvh, 0.75rem);
+      font-size: clamp(0.68rem, 1.45dvh, 0.75rem);
     }
     .stat-row span:first-child { color: var(--subtext); }
     .stat-row span:last-child { font-weight: 700; float: right; }
@@ -628,35 +640,13 @@
 <body>
 
   <div class="app-viewport">
+    <!-- Centered Header & Collection Progress -->
     <header>
-      <div class="header-left">
-        <h1>Poké<span>Roulette</span></h1>
-        <div class="counter-badge">Collected: <strong id="totalCollectedCount">0</strong> / 1025</div>
-      </div>
-      
-      <div class="header-actions">
-        <!-- Full Dex Collection Tracker (Backpack) -->
-        <button class="btn-header" onclick="openDexTrackerModal()" title="Full Dex Collection Tracker">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-9Z"/>
-            <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
-            <path d="M8 10h8v4H8z"/>
-          </svg>
-        </button>
-
-        <!-- History Clock -->
-        <button class="btn-header" onclick="openRecentModal()" title="Search & Spin History">
-          <svg viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="9"></circle>
-            <polyline points="12 7 12 12 15 15"></polyline>
-            <path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"></path>
-            <polyline points="3 3 3 8 8 8"></polyline>
-          </svg>
-          <div class="bag-count-badge" id="bagCountBadge">0</div>
-        </button>
-      </div>
+      <h1>Poké<span>Roulette</span></h1>
+      <div class="counter-badge">Collected: <strong id="totalCollectedCount">0</strong> / 1025</div>
     </header>
 
+    <!-- Search Box -->
     <div class="search-wrapper">
       <form class="search-container" onsubmit="event.preventDefault(); submitSearch();">
         <input type="text" id="searchInput" class="search-input" placeholder="Type Pokémon Name or Dex #" autocomplete="off" oninput="handleSearchInput(this.value)" />
@@ -665,24 +655,42 @@
       <ul class="suggestions-list" id="suggestionsList"></ul>
     </div>
 
+    <!-- The Interactive Wheel -->
     <div class="wheel-container">
       <div class="wheel-pointer"></div>
       <div class="wheel" id="wheel"></div>
       <div class="wheel-center"></div>
     </div>
 
+    <!-- Spin Button -->
     <button class="btn-generate" id="spinBtn" onclick="spinAndPick()">SPIN & GENERATE</button>
 
+    <!-- Centered Action Hub: Dex Collection (Backpack) & History (Clock) -->
+    <div class="actions-hub">
+      <button class="btn-hub" onclick="openDexTrackerModal()" title="Full Dex Collection Tracker">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-9Z"/>
+          <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+          <path d="M8 10h8v4H8z"/>
+        </svg>
+      </button>
+
+      <button class="btn-hub" onclick="openRecentModal()" title="Search & Spin History">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9"></circle>
+          <polyline points="12 7 12 12 15 15"></polyline>
+          <path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"></path>
+          <polyline points="3 3 3 8 8 8"></polyline>
+        </svg>
+        <div class="hub-count-badge" id="bagCountBadge">0</div>
+      </button>
+    </div>
+
+    <!-- Pokémon Result Card -->
     <div class="card" id="pokeCard">
       <div class="card-top-nav">
         <button class="nav-arrow" onclick="navigateDex(-1)" title="Previous Pokémon">‹</button>
-        
-        <div class="dex-num">
-          <button class="btn-card-cry" onclick="playCurrentPokemonCry()" title="Play Pokémon Cry">🔊</button>
-          <span id="dexNum">#0000</span>
-          <button class="btn-shiny-toggle" id="shinyToggleBtn" onclick="toggleShinyForm()" title="Toggle Shiny Form">★</button>
-        </div>
-
+        <div class="dex-num" id="dexNum">#0000</div>
         <button class="nav-arrow" onclick="navigateDex(1)" title="Next Pokémon">›</button>
       </div>
 
@@ -694,7 +702,12 @@
         <div class="collected-badge" id="cardTickBadge">✓</div>
       </div>
       
-      <div class="types" id="pokeTypes"></div>
+      <!-- Action Row: Cry Sound (Left), Types (Center), Shiny Toggle (Right) -->
+      <div class="card-actions-row">
+        <button class="btn-card-cry" onclick="playCurrentPokemonCry()" title="Play Pokémon Cry">🔊</button>
+        <div class="types" id="pokeTypes"></div>
+        <button class="btn-shiny-toggle" id="shinyToggleBtn" onclick="toggleShinyForm()" title="Toggle Shiny Form">★</button>
+      </div>
       
       <button class="btn-collect" id="collectToggleBtn" onclick="toggleCollectionStatus()">
         <span id="collectBtnIcon">+</span> <span id="collectBtnText">Add to Collection</span>
@@ -1002,7 +1015,6 @@
       }
     }
 
-    // --- Audio & Haptic Feedback ---
     function initAudio() {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1013,7 +1025,7 @@
     }
 
     function playTick() {
-      if (navigator.vibrate) navigator.vibrate(12); // Haptic Pulse
+      if (navigator.vibrate) navigator.vibrate(12);
 
       if (!audioCtx) return;
       const osc = audioCtx.createOscillator();
@@ -1069,7 +1081,6 @@
       }
     }
 
-    // --- Shiny Form Engine ---
     function triggerShinySparkle() {
       const sparkle = document.getElementById('shinySparkle');
       sparkle.classList.remove('sparkle-pop');
@@ -1262,7 +1273,6 @@
         const pokeRes = await fetch(randomEntry.pokemon.url);
         const pokeData = await pokeRes.json();
 
-        // 1 in 100 chance of spontaneous Shiny Encounter on spins
         const isShinyEncounter = Math.floor(Math.random() * 100) === 0;
 
         setTimeout(() => {

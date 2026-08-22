@@ -49,6 +49,47 @@
     }
     .counter-badge strong { color: var(--green); }
 
+    /* Search Bar Form */
+    .search-container {
+      display: flex;
+      gap: 0.4rem;
+      width: 100%;
+      max-width: 320px;
+      margin-top: 0.8rem;
+      margin-bottom: 0.4rem;
+    }
+    .search-input {
+      flex: 1;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #fff;
+      padding: 0.6rem 1rem;
+      border-radius: 9999px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus {
+      border-color: var(--accent);
+    }
+    .search-input::placeholder {
+      color: #64748b;
+    }
+    .btn-search {
+      background: #334155;
+      color: white;
+      border: none;
+      padding: 0 1rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-search:active {
+      background: #475569;
+    }
+
     .wheel-container {
       position: relative;
       width: 240px;
@@ -170,7 +211,6 @@
       filter: drop-shadow(0 10px 16px rgba(0,0,0,0.45));
     }
     
-    /* Green Caught Badge Overlay */
     .collected-badge {
       position: absolute;
       top: 6px;
@@ -209,7 +249,6 @@
       text-shadow: 0 1px 2px rgba(0,0,0,0.3);
     }
 
-    /* Toggle Button */
     .btn-collect {
       width: 100%;
       padding: 0.65rem;
@@ -253,6 +292,12 @@
     <h1>Poké<span>Roulette</span></h1>
     <div class="counter-badge">Collected: <strong id="totalCollectedCount">0</strong> / 1025</div>
   </header>
+
+  <!-- Search Bar Form -->
+  <form class="search-container" onsubmit="event.preventDefault(); searchPokemon();">
+    <input type="text" id="searchInput" class="search-input" placeholder="Search name or Dex #" autocomplete="off" />
+    <button type="submit" class="btn-search">Search</button>
+  </form>
 
   <div class="wheel-container">
     <div class="wheel-pointer"></div>
@@ -306,7 +351,6 @@
     let audioCtx = null;
     let currentPokemonId = null;
 
-    // Load Local Storage collection set
     function getCollectedSet() {
       const saved = localStorage.getItem('poke_collection');
       return saved ? new Set(JSON.parse(saved)) : new Set();
@@ -406,6 +450,39 @@
       }
     }
 
+    // Align wheel slice cleanly without a long spin
+    function alignWheelToType(typeName) {
+      const targetIndex = TYPES.indexOf(typeName);
+      if (targetIndex === -1) return;
+      const sliceCenter = (targetIndex * 20) + 10;
+      const targetAngle = (360 - sliceCenter) % 360;
+      totalRotationsCount += 1;
+      const finalRotation = (totalRotationsCount * 360) + targetAngle;
+      document.getElementById('wheel').style.transform = `rotate(${finalRotation}deg)`;
+    }
+
+    async function searchPokemon() {
+      const input = document.getElementById('searchInput');
+      let query = input.value.trim().toLowerCase().replace('#', '');
+      if (!query) return;
+
+      initAudio();
+      try {
+        const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${query}`);
+        if (!res.ok) throw new Error("Not found");
+        const data = await res.json();
+        
+        // Align wheel to the found Pokémon's primary type
+        alignWheelToType(data.types[0].type.name);
+        
+        renderPokemon(data);
+        input.value = '';
+        input.blur();
+      } catch (err) {
+        alert("Pokémon not found! Please check the name or Pokédex number.");
+      }
+    }
+
     async function spinAndPick() {
       initAudio();
       const btn = document.getElementById('spinBtn');
@@ -480,14 +557,12 @@
       document.getElementById('statDef').innerText = stats['defense'] || '-';
       document.getElementById('statSpd').innerText = stats['speed'] || '-';
 
-      // Check Collection status on render
       const set = getCollectedSet();
       updateCollectionButtonUI(set.has(p.id));
 
       document.getElementById('pokeCard').style.display = 'block';
     }
 
-    // Initialize counter on load
     updateTotalCountUI();
   </script>
 </body>

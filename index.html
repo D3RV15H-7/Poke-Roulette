@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>PokéRoulette</title>
+  <meta name="theme-color" content="#dc2626" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --accent: #ef4444;
+      --text: #f8fafc;
+      --subtext: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem 1rem;
+    }
+    header { text-align: center; margin-bottom: 1.2rem; }
+    header h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: 0.5px; color: #fff; }
+    header span { color: var(--accent); }
+
+    .wheel-container {
+      position: relative;
+      width: 170px;
+      height: 170px;
+      margin-bottom: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .wheel {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 8px solid #334155;
+      background: conic-gradient(
+        #ef4444 0deg 45deg, #3b82f6 45deg 90deg, #10b981 90deg 135deg,
+        #f59e0b 135deg 180deg, #8b5cf6 180deg 225deg, #ec4899 225deg 270deg,
+        #06b6d4 270deg 315deg, #eab308 315deg 360deg
+      );
+      transition: transform 3s cubic-bezier(0.15, 0.9, 0.2, 1);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    }
+    .wheel-pointer {
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 12px solid transparent;
+      border-right: 12px solid transparent;
+      border-top: 20px solid #ffffff;
+      z-index: 10;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+    }
+    .wheel-center {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      background: #ffffff;
+      border-radius: 50%;
+      border: 5px solid #1e293b;
+      z-index: 5;
+    }
+
+    .btn-generate {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white;
+      border: none;
+      padding: 0.9rem 2.2rem;
+      font-size: 1.1rem;
+      font-weight: 700;
+      border-radius: 9999px;
+      box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-generate:active { transform: scale(0.96); }
+    .btn-generate:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .card {
+      margin-top: 1.2rem;
+      width: 100%;
+      max-width: 360px;
+      background: var(--card-bg);
+      border-radius: 20px;
+      padding: 1.2rem;
+      border: 1px solid #334155;
+      box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+      display: none;
+      text-align: center;
+      animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes popIn { 
+      from { opacity: 0; transform: scale(0.9) translateY(15px); } 
+      to { opacity: 1; transform: scale(1) translateY(0); } 
+    }
+
+    .card img {
+      width: 175px;
+      height: 175px;
+      object-fit: contain;
+      filter: drop-shadow(0 8px 14px rgba(0,0,0,0.4));
+    }
+    .dex-num { font-size: 0.85rem; font-weight: 700; color: var(--subtext); }
+    .poke-name { font-size: 1.5rem; font-weight: 800; text-transform: capitalize; margin: 0.2rem 0 0.6rem; }
+    .types { display: flex; gap: 0.4rem; justify-content: center; margin-bottom: 0.8rem; }
+    .type-pill {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      background: #334155;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.4rem 0.8rem;
+      text-align: left;
+      background: #0f172a;
+      padding: 0.8rem 1rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+    }
+    .stat-row span:first-child { color: var(--subtext); }
+    .stat-row span:last-child { font-weight: 700; float: right; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Poké<span>Roulette</span></h1>
+  </header>
+
+  <div class="wheel-container">
+    <div class="wheel-pointer"></div>
+    <div class="wheel" id="wheel"></div>
+    <div class="wheel-center"></div>
+  </div>
+
+  <button class="btn-generate" id="spinBtn" onclick="spinAndPick()">SPIN & GENERATE</button>
+
+  <div class="card" id="pokeCard">
+    <div class="dex-num" id="dexNum">#0000</div>
+    <h2 class="poke-name" id="pokeName">Pokémon</h2>
+    <img id="pokeImg" src="" alt="Pokémon Artwork" />
+    <div class="types" id="pokeTypes"></div>
+    <div class="stats-grid">
+      <div class="stat-row"><span>Height:</span> <span id="pokeHeight">-</span></div>
+      <div class="stat-row"><span>Weight:</span> <span id="pokeWeight">-</span></div>
+      <div class="stat-row"><span>HP:</span> <span id="statHp">-</span></div>
+      <div class="stat-row"><span>Attack:</span> <span id="statAtk">-</span></div>
+      <div class="stat-row"><span>Defense:</span> <span id="statDef">-</span></div>
+      <div class="stat-row"><span>Speed:</span> <span id="statSpd">-</span></div>
+    </div>
+  </div>
+
+  <script>
+    const TOTAL_POKEMON = 1025;
+    let currentRotation = 0;
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    // Synthesized Tick / Click Sound
+    function playTick() {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(320, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.04);
+      gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.04);
+    }
+
+    // Synthesized Victory Chime
+    function playVictoryChime() {
+      if (!audioCtx) return;
+      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+      notes.forEach((freq, index) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime + index * 0.09);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime + index * 0.09);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + index * 0.09 + 0.22);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(audioCtx.currentTime + index * 0.09);
+        osc.stop(audioCtx.currentTime + index * 0.09 + 0.22);
+      });
+    }
+
+    // Schedule decaying tick sounds to match the decelerating wheel
+    function triggerSpinAudio() {
+      const totalDuration = 2800; // ms
+      let delay = 0;
+      let interval = 50; // starts fast
+      while (delay < totalDuration) {
+        setTimeout(playTick, delay);
+        delay += interval;
+        interval *= 1.1; // gradually slows down
+      }
+    }
+
+    async function spinAndPick() {
+      initAudio();
+      const btn = document.getElementById('spinBtn');
+      const wheel = document.getElementById('wheel');
+      const card = document.getElementById('pokeCard');
+      
+      btn.disabled = true;
+      card.style.display = 'none';
+
+      const randomId = Math.floor(Math.random() * TOTAL_POKEMON) + 1;
+      const extraSpins = (Math.floor(Math.random() * 3) + 4) * 360;
+      const randomStop = Math.floor(Math.random() * 360);
+      currentRotation += extraSpins + randomStop;
+      wheel.style.transform = `rotate(${currentRotation}deg)`;
+
+      triggerSpinAudio();
+
+      try {
+        const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${randomId}`);
+        const data = await res.json();
+
+        setTimeout(() => {
+          renderPokemon(data);
+          playVictoryChime();
+          btn.disabled = false;
+        }, 3000);
+      } catch (err) {
+        alert("Failed to fetch Pokémon data. Check internet connection.");
+        btn.disabled = false;
+      }
+    }
+
+    function renderPokemon(p) {
+      document.getElementById('dexNum').innerText = `#${String(p.id).padStart(4, '0')}`;
+      document.getElementById('pokeName').innerText = p.name.replace('-', ' ');
+      
+      const imgUrl = p.sprites.other['official-artwork'].front_default || p.sprites.front_default;
+      document.getElementById('pokeImg').src = imgUrl;
+
+      const typesContainer = document.getElementById('pokeTypes');
+      typesContainer.innerHTML = '';
+      p.types.forEach(t => {
+        const pill = document.createElement('span');
+        pill.className = 'type-pill';
+        pill.innerText = t.type.name;
+        typesContainer.appendChild(pill);
+      });
+
+      document.getElementById('pokeHeight').innerText = (p.height / 10) + ' m';
+      document.getElementById('pokeWeight').innerText = (p.weight / 10) + ' kg';
+      
+      const stats = {};
+      p.stats.forEach(s => stats[s.stat.name] = s.base_stat);
+      document.getElementById('statHp').innerText = stats['hp'] || '-';
+      document.getElementById('statAtk').innerText = stats['attack'] || '-';
+      document.getElementById('statDef').innerText = stats['defense'] || '-';
+      document.getElementById('statSpd').innerText = stats['speed'] || '-';
+
+      document.getElementById('pokeCard').style.display = 'block';
+    }
+  </script>
+</body>
+</html>

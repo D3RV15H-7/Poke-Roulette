@@ -49,21 +49,26 @@
     }
     .counter-badge strong { color: var(--green); }
 
-    /* Search Bar Form */
-    .search-container {
-      display: flex;
-      gap: 0.4rem;
+    /* Search & Autocomplete Container */
+    .search-wrapper {
+      position: relative;
       width: 100%;
       max-width: 320px;
       margin-top: 0.8rem;
       margin-bottom: 0.4rem;
+      z-index: 20;
+    }
+    .search-container {
+      display: flex;
+      gap: 0.4rem;
+      width: 100%;
     }
     .search-input {
       flex: 1;
       background: #1e293b;
       border: 1px solid #334155;
       color: #fff;
-      padding: 0.6rem 1rem;
+      padding: 0.65rem 1rem;
       border-radius: 9999px;
       font-size: 0.9rem;
       outline: none;
@@ -79,7 +84,7 @@
       background: #334155;
       color: white;
       border: none;
-      padding: 0 1rem;
+      padding: 0 1.1rem;
       border-radius: 9999px;
       font-size: 0.85rem;
       font-weight: 700;
@@ -88,6 +93,47 @@
     }
     .btn-search:active {
       background: #475569;
+    }
+
+    /* Live Suggestions Dropdown */
+    .suggestions-list {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      max-height: 220px;
+      overflow-y: auto;
+      list-style: none;
+      display: none;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    .suggestions-list li {
+      padding: 0.6rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      border-bottom: 1px solid #2d3748;
+      cursor: pointer;
+      text-transform: capitalize;
+    }
+    .suggestions-list li:last-child {
+      border-bottom: none;
+    }
+    .suggestions-list li:active, .suggestions-list li:hover {
+      background: #334155;
+    }
+    .sugg-num {
+      color: var(--subtext);
+      font-weight: 700;
+      margin-right: 0.5rem;
+    }
+    .sugg-tick {
+      color: var(--green);
+      font-weight: 900;
     }
 
     .wheel-container {
@@ -293,11 +339,14 @@
     <div class="counter-badge">Collected: <strong id="totalCollectedCount">0</strong> / 1025</div>
   </header>
 
-  <!-- Search Bar Form -->
-  <form class="search-container" onsubmit="event.preventDefault(); searchPokemon();">
-    <input type="text" id="searchInput" class="search-input" placeholder="Search name or Dex #" autocomplete="off" />
-    <button type="submit" class="btn-search">Search</button>
-  </form>
+  <!-- Search with Live Fuzzy Suggestions Dropdown -->
+  <div class="search-wrapper">
+    <form class="search-container" onsubmit="event.preventDefault(); submitSearch();">
+      <input type="text" id="searchInput" class="search-input" placeholder="Search 'chari', '0032', '32'..." autocomplete="off" oninput="handleSearchInput(this.value)" />
+      <button type="submit" class="btn-search">Search</button>
+    </form>
+    <ul class="suggestions-list" id="suggestionsList"></ul>
+  </div>
 
   <div class="wheel-container">
     <div class="wheel-pointer"></div>
@@ -333,6 +382,7 @@
   </div>
 
   <script>
+    const TOTAL_POKEMON = 1025;
     const TYPES = [
       'normal', 'fire', 'water', 'grass', 'electric', 'ice',
       'fighting', 'poison', 'ground', 'flying', 'psychic', 'bug',
@@ -347,9 +397,24 @@
       steel: '#B7B7CE', fairy: '#D685AD'
     };
 
+    let pokemonDirectory = []; // [{id: 1, name: "bulbasaur"}, ...]
     let totalRotationsCount = 0;
     let audioCtx = null;
     let currentPokemonId = null;
+
+    // Load full Dex name directory once on startup for instantaneous matching
+    async function loadDirectory() {
+      try {
+        const res = await fetch(`https://pokeapi.co/api/v2/pokemon?limit=${TOTAL_POKEMON}`);
+        const data = await res.json();
+        pokemonDirectory = data.results.map((p, idx) => ({
+          id: idx + 1,
+          name: p.name
+        }));
+      } catch (err) {
+        console.error("Directory load failed", err);
+      }
+    }
 
     function getCollectedSet() {
       const saved = localStorage.getItem('poke_collection');
@@ -450,7 +515,6 @@
       }
     }
 
-    // Align wheel slice cleanly without a long spin
     function alignWheelToType(typeName) {
       const targetIndex = TYPES.indexOf(typeName);
       if (targetIndex === -1) return;
@@ -461,30 +525,86 @@
       document.getElementById('wheel').style.transform = `rotate(${finalRotation}deg)`;
     }
 
-    async function searchPokemon() {
+    // Fuzzy & Numeric matching engine
+    function handleSearchInput(rawVal) {
+      const list = document.getElementById('suggestionsList');
+      const val = rawVal.trim().toLowerCase().replace('#', '');
+      if (!val || pokemonDirectory.length === 0) {
+        list.style.display = 'none';
+        return;
+      }
+
+      const numVal = parseInt(val, 10);
+      const isNum = !isNaN(numVal);
+      const collectedSet = getCollectedSet();
+
+      // Find matching items
+      const matches = pokemonDirectory.filter(p => {
+        if (isNum) {
+          return p.id === numVal || String(p.id).startsWith(val);
+        }
+        return p.name.toLowerCase().includes(val);
+      }).slice(0, 7); // Show top 7 results
+
+      if (matches.length === 0) {
+        list.style.display = 'none';
+        return;
+      }
+
+      list.innerHTML = '';
+      matches.forEach(p => {
+        const li = document.createElement('li');
+        const isCollected = collectedSet.has(p.id);
+        li.innerHTML = `
+          <span><span class="sugg-num">#${String(p.id).padStart(4, '0')}</span>${p.name.replace('-', ' ')}</span>
+          ${isCollected ? '<span class="sugg-tick">✓</span>' : ''}
+        `;
+        li.onmousedown = () => selectPokemonById(p.id);
+        list.appendChild(li);
+      });
+
+      list.style.display = 'block';
+    }
+
+    async function selectPokemonById(id) {
+      const list = document.getElementById('suggestionsList');
       const input = document.getElementById('searchInput');
-      let query = input.value.trim().toLowerCase().replace('#', '');
-      if (!query) return;
+      list.style.display = 'none';
+      input.value = '';
+      input.blur();
 
       initAudio();
       try {
-        const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${query}`);
-        if (!res.ok) throw new Error("Not found");
+        const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
         const data = await res.json();
-        
-        // Align wheel to the found Pokémon's primary type
         alignWheelToType(data.types[0].type.name);
-        
         renderPokemon(data);
-        input.value = '';
-        input.blur();
       } catch (err) {
-        alert("Pokémon not found! Please check the name or Pokédex number.");
+        alert("Failed to load Pokémon details.");
       }
     }
 
+    function submitSearch() {
+      const list = document.getElementById('suggestionsList');
+      const firstItem = list.querySelector('li');
+      if (firstItem) {
+        firstItem.onmousedown();
+      } else {
+        const input = document.getElementById('searchInput').value;
+        handleSearchInput(input);
+      }
+    }
+
+    // Hide suggestions dropdown on click outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.search-wrapper')) {
+        document.getElementById('suggestionsList').style.display = 'none';
+      }
+    });
+
     async function spinAndPick() {
       initAudio();
+      document.getElementById('suggestionsList').style.display = 'none';
       const btn = document.getElementById('spinBtn');
       const wheel = document.getElementById('wheel');
       const card = document.getElementById('pokeCard');
@@ -510,7 +630,7 @@
         
         const validPokemon = typeData.pokemon.filter(p => {
           const id = parseInt(p.pokemon.url.split('/').filter(Boolean).pop());
-          return id <= 1025;
+          return id <= TOTAL_POKEMON;
         });
 
         const randomEntry = validPokemon[Math.floor(Math.random() * validPokemon.length)];
@@ -563,6 +683,8 @@
       document.getElementById('pokeCard').style.display = 'block';
     }
 
+    // Initialize directory & collection counter on startup
+    loadDirectory();
     updateTotalCountUI();
   </script>
 </body>

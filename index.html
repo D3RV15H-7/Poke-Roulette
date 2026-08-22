@@ -31,6 +31,7 @@
       align-items: center;
       justify-content: center;
       padding: 1.5rem 1rem;
+      touch-action: pan-y;
     }
     header { text-align: center; margin-bottom: 0.8rem; }
     header h1 { font-size: 1.7rem; font-weight: 800; letter-spacing: 0.5px; color: #fff; }
@@ -228,6 +229,7 @@
     .btn-generate:active { transform: scale(0.96); }
     .btn-generate:disabled { opacity: 0.55; cursor: not-allowed; }
 
+    /* Card & Navigation Headers */
     .card {
       width: 100%;
       max-width: 350px;
@@ -238,11 +240,43 @@
       box-shadow: 0 18px 36px rgba(0,0,0,0.4);
       display: none;
       text-align: center;
-      animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      user-select: none;
+      touch-action: pan-y;
+      transition: transform 0.15s ease-out;
     }
-    @keyframes popIn { 
-      from { opacity: 0; transform: scale(0.9) translateY(18px); } 
-      to { opacity: 1; transform: scale(1) translateY(0); } 
+    .card.slide-in-right {
+      animation: slideInRight 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .card.slide-in-left {
+      animation: slideInLeft 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(30px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes slideInLeft {
+      from { opacity: 0; transform: translateX(-30px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .card-top-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.2rem;
+    }
+    .nav-arrow {
+      background: none;
+      border: none;
+      color: var(--subtext);
+      font-size: 1.2rem;
+      font-weight: 900;
+      padding: 0 0.5rem;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+    .nav-arrow:active {
+      color: #fff;
     }
 
     .image-container {
@@ -255,6 +289,7 @@
       height: 170px;
       object-fit: contain;
       filter: drop-shadow(0 10px 16px rgba(0,0,0,0.45));
+      pointer-events: none;
     }
     
     .collected-badge {
@@ -339,7 +374,6 @@
     <div class="counter-badge">Collected: <strong id="totalCollectedCount">0</strong> / 1025</div>
   </header>
 
-  <!-- Search with Updated Placeholder -->
   <div class="search-wrapper">
     <form class="search-container" onsubmit="event.preventDefault(); submitSearch();">
       <input type="text" id="searchInput" class="search-input" placeholder="Type Pokémon Name or Dex #" autocomplete="off" oninput="handleSearchInput(this.value)" />
@@ -357,7 +391,12 @@
   <button class="btn-generate" id="spinBtn" onclick="spinAndPick()">SPIN & GENERATE</button>
 
   <div class="card" id="pokeCard">
-    <div class="dex-num" id="dexNum">#0000</div>
+    <div class="card-top-nav">
+      <button class="nav-arrow" onclick="navigateDex(-1)" title="Previous Pokémon">‹</button>
+      <div class="dex-num" id="dexNum">#0000</div>
+      <button class="nav-arrow" onclick="navigateDex(1)" title="Next Pokémon">›</button>
+    </div>
+
     <h2 class="poke-name" id="pokeName">Pokémon</h2>
     
     <div class="image-container">
@@ -563,21 +602,62 @@
       list.style.display = 'block';
     }
 
-    async function selectPokemonById(id) {
+    async function selectPokemonById(id, direction = 0) {
       const list = document.getElementById('suggestionsList');
       const input = document.getElementById('searchInput');
       list.style.display = 'none';
-      input.value = '';
-      input.blur();
+      if (input) { input.value = ''; input.blur(); }
 
       initAudio();
       try {
         const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
         const data = await res.json();
         alignWheelToType(data.types[0].type.name);
-        renderPokemon(data);
+        renderPokemon(data, direction);
       } catch (err) {
-        alert("Failed to load Pokémon details.");
+        console.error("Failed to load Pokémon details.", err);
+      }
+    }
+
+    function navigateDex(delta) {
+      if (!currentPokemonId) return;
+      let nextId = currentPokemonId + delta;
+      if (nextId < 1) nextId = TOTAL_POKEMON;
+      if (nextId > TOTAL_POKEMON) nextId = 1;
+      selectPokemonById(nextId, delta);
+    }
+
+    // Touch Swipe Gesture Detection on Card
+    const cardEl = document.getElementById('pokeCard');
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchEndX = 0;
+    let touchEndY = 0;
+
+    cardEl.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+      touchStartY = e.changedTouches[0].screenY;
+    }, { passive: true });
+
+    cardEl.addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      touchEndY = e.changedTouches[0].screenY;
+      handleCardSwipe();
+    }, { passive: true });
+
+    function handleCardSwipe() {
+      const deltaX = touchEndX - touchStartX;
+      const deltaY = touchEndY - touchStartY;
+      
+      // Ensure horizontal swipe is dominant and exceeds minimum threshold (45px)
+      if (Math.abs(deltaX) > 45 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
+        if (deltaX < 0) {
+          // Swiped Left -> Forward
+          navigateDex(1);
+        } else {
+          // Swiped Right -> Backward
+          navigateDex(-1);
+        }
       }
     }
 
@@ -645,8 +725,18 @@
       }
     }
 
-    function renderPokemon(p) {
+    function renderPokemon(p, direction = 0) {
       currentPokemonId = p.id;
+      const card = document.getElementById('pokeCard');
+      
+      // Reset animation classes
+      card.classList.remove('slide-in-right', 'slide-in-left');
+      if (direction > 0) {
+        card.classList.add('slide-in-right');
+      } else if (direction < 0) {
+        card.classList.add('slide-in-left');
+      }
+
       document.getElementById('dexNum').innerText = `#${String(p.id).padStart(4, '0')}`;
       document.getElementById('pokeName').innerText = p.name.replace('-', ' ');
       
@@ -676,7 +766,7 @@
       const set = getCollectedSet();
       updateCollectionButtonUI(set.has(p.id));
 
-      document.getElementById('pokeCard').style.display = 'block';
+      card.style.display = 'block';
     }
 
     loadDirectory();

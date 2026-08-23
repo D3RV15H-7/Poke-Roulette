@@ -806,31 +806,29 @@
       evoBox.style.display = 'flex';
     }
 
-    // High Precision Multi-Tier Full-Art & Secret Art Filter
-    function isStrictPremium(card) {
+    // Explicit Full-Page Artwork Verifier (Filters out regular boxed-art cards)
+    function isStrictFullArtCard(card) {
       const r = (card.rarity || '').toLowerCase().trim();
       const subtypes = (card.subtypes || []).map(s => s.toLowerCase().trim());
       const number = String(card.number || '').toLowerCase().trim();
-      const printedTotal = card.set?.printedTotal || 0;
+      const setTotal = card.set?.printedTotal || 0;
 
-      // Mega Pokémon Cards
-      const isMega = subtypes.includes('mega') || (card.name || '').toLowerCase().startsWith('m ') || (card.name || '').toLowerCase().startsWith('m-');
-      if (isMega) return true;
-
-      // Special Subsets (Trainer Gallery, Galarian Gallery, Shiny Vault, Radiant, Classic Collections)
-      const isSubset = number.startsWith('tg') || number.startsWith('gg') || number.startsWith('sv') || number.startsWith('rc') || number.startsWith('svp');
-      const isTrainerGallery = r.includes('trainer gallery') || r.includes('character');
-      if (isSubset || isTrainerGallery) return true;
-
-      // Explicit Illustration / Secret / Full Art Labels
-      const isIllustration = r.includes('illustration') || subtypes.includes('special illustration rare') || subtypes.includes('illustration rare');
+      // 1. True Full-Art Subtypes & Rarities
+      const isIllustration = r.includes('illustration') || subtypes.includes('illustration rare') || subtypes.includes('special illustration rare');
       const isSecretOrHyper = r.includes('secret') || r.includes('hyper') || r.includes('rainbow') || r.includes('crown') || r.includes('gold') || r.includes('shining') || r.includes('star');
-      const isFullArt = subtypes.includes('full art') || r.includes('shiny ultra rare') || r.includes('shiny super rare');
-      if (isIllustration || isSecretOrHyper || isFullArt) return true;
+      const isFullArtUltra = subtypes.includes('full art') || r.includes('shiny ultra rare') || r.includes('shiny super rare');
+      const isTrainerGallery = (r.includes('trainer gallery') || r.includes('character')) && (number.startsWith('tg') || number.startsWith('gg'));
+      const isMega = subtypes.includes('mega') || (card.name || '').toLowerCase().startsWith('m ');
 
-      // Mathematical Secret/Full-Art check (Card number > Printed Total) e.g., Zapdos ex 192/165 or 202/165
+      if (isIllustration || isSecretOrHyper || isFullArtUltra || isTrainerGallery || isMega) {
+        return true;
+      }
+
+      // 2. Mathematically verify secret full arts (e.g. 192/165, 202/165)
       const numVal = parseInt(number.replace(/\D/g, ''));
-      if (printedTotal > 0 && numVal > printedTotal) return true;
+      if (setTotal > 0 && numVal > setTotal && !r.includes('common') && !r.includes('uncommon')) {
+        return true;
+      }
 
       return false;
     }
@@ -841,7 +839,7 @@
       const sectionTitle = document.getElementById('tcgSectionTitle');
       
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_strict_exclusive_v15_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_fullart_guarantee_v20_${cleanName.toLowerCase()}`;
       
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
@@ -851,7 +849,7 @@
       }
 
       countText.innerText = "Loading cards...";
-      sectionTitle.innerText = "✨ Illustration, Mega & Full Arts";
+      sectionTitle.innerText = "✨ Illustration & Full Arts";
       strip.innerHTML = `
         <div class="tcg-skeleton-card"></div>
         <div class="tcg-skeleton-card"></div>
@@ -863,42 +861,42 @@
       currentFetchController = new AbortController();
 
       try {
-        // Query base term with wildcards to catch regional forms (Galarian/Hisuian/Alolan/Rocket's/ex/V/VMAX/Megas)
         const primaryTerm = cleanName.split(' ')[0];
-        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:*${encodeURIComponent(primaryTerm)}*&select=id,name,images,set,number,rarity,subtypes&pageSize=150&orderBy=-set.releaseDate`;
+        // Query both prefix and exact phrases to match Galarian, Hisuian, Megas, ex, and V
+        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:*${encodeURIComponent(primaryTerm)}*&select=id,name,images,set,number,rarity,subtypes&pageSize=175&orderBy=-set.releaseDate`;
         
         let res = await fetch(queryUrl, { signal: currentFetchController.signal });
         let data = await res.json();
         let allCards = data.data || [];
 
-        // Exact name verification
-        const validCards = allCards.filter(c => {
+        // Retain only cards that belong to this species (including forms like Galarian, Alolan, M, Mega, V, ex)
+        const speciesCards = allCards.filter(c => {
           const cardName = (c.name || '').toLowerCase();
           const target = cleanName.toLowerCase();
           return cardName.includes(target);
         });
 
-        // 1. Separate full arts, Megas, and illustration rares
-        let premiumCards = validCards.filter(isStrictPremium).map(c => ({
+        // 1. Check for genuine full-card artwork
+        let fullArtCards = speciesCards.filter(isStrictFullArtCard).map(c => ({
           id: c.id,
           name: c.name,
           smallImg: c.images?.small || '',
           largeImg: c.images?.large || c.images?.small || '',
           setName: c.set?.name || 'Set',
           number: c.number || '?',
-          rarity: c.rarity || 'Special Art'
+          rarity: c.rarity || 'Full Art'
         })).filter(c => c.smallImg);
 
         let finalCards = [];
         let isFallback = false;
 
-        // If even 1 premium card exists, show ONLY premium cards
-        if (premiumCards.length > 0) {
-          finalCards = premiumCards;
+        // If even 1 full art exists, show ONLY full art cards
+        if (fullArtCards.length > 0) {
+          finalCards = fullArtCards;
           isFallback = false;
-        } else if (validCards.length > 0) {
-          // Fallback: If 0 premium cards exist across all sets, show standard cards
-          finalCards = validCards.map(c => ({
+        } else if (speciesCards.length > 0) {
+          // If 0 full art prints exist across all sets, fallback to standard cards
+          finalCards = speciesCards.map(c => ({
             id: c.id,
             name: c.name,
             smallImg: c.images?.small || '',
@@ -926,7 +924,7 @@
       if (isFallback) {
         sectionTitle.innerText = "🃏 All TCG Card Releases";
       } else {
-        sectionTitle.innerText = "✨ Illustration, Mega & Full Arts";
+        sectionTitle.innerText = "✨ Illustration & Full Arts";
       }
 
       if (!cards || !cards.length) {

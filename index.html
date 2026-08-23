@@ -145,7 +145,7 @@
       object-fit: contain; 
       filter: drop-shadow(0 8px 18px rgba(0,0,0,0.5)); 
       pointer-events: none; 
-      transition: transform 0.2s ease-out;
+      transition: opacity 0.15s ease-out;
     }
 
     .sparkle { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); font-size: 2.4rem; color: var(--gold); pointer-events: none; z-index: 10; }
@@ -328,7 +328,7 @@
     
     function addRec(p) {
       let r = getRec().filter(x => x.id !== p.id);
-      r.unshift({ id: p.id, name: p.name, type: p.types[0].type.name, sprite: p.sprites.other?.['official-artwork']?.front_default || p.sprites.other?.home?.front_default || p.sprites.front_default });
+      r.unshift({ id: p.id, name: p.name, type: p.types[0].type.name, sprite: p.sprites.other?.home?.front_default || p.sprites.other?.['official-artwork']?.front_default || p.sprites.front_default });
       localStorage.setItem('p_rec', JSON.stringify(r.slice(0, 20)));
       updateCounts();
     }
@@ -418,14 +418,24 @@
 
     function toggleShiny() { if (!curPoke) return; isShiny = !isShiny; updateArt(); if (isShiny) triggerSparkle(); }
     
-    // Matched High-Definition Artwork Scaling Engine
+    // Identical asset family pairing guarantees 100% matching image sizes across forms
     function updateArt() {
       if (!curPoke) return;
       const p = curPoke;
-      const defaultArtwork = p.sprites.other?.['official-artwork']?.front_default || p.sprites.other?.home?.front_default || p.sprites.front_default;
-      const shinyArtwork = p.sprites.other?.['official-artwork']?.front_shiny || p.sprites.other?.home?.front_shiny || p.sprites.front_shiny || defaultArtwork;
+      
+      let defaultImg, shinyImg;
+      if (p.sprites.other?.home?.front_default) {
+        defaultImg = p.sprites.other.home.front_default;
+        shinyImg = p.sprites.other.home.front_shiny || defaultImg;
+      } else if (p.sprites.other?.['official-artwork']?.front_default) {
+        defaultImg = p.sprites.other['official-artwork'].front_default;
+        shinyImg = p.sprites.other['official-artwork'].front_shiny || defaultImg;
+      } else {
+        defaultImg = p.sprites.front_default;
+        shinyImg = p.sprites.front_shiny || defaultImg;
+      }
 
-      document.getElementById('pokeImg').src = isShiny ? shinyArtwork : defaultArtwork;
+      document.getElementById('pokeImg').src = isShiny ? shinyImg : defaultImg;
       document.getElementById('shinyBtn').classList.toggle('active', isShiny);
     }
 

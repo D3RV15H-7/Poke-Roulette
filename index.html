@@ -275,7 +275,6 @@
       text-overflow: ellipsis;
     }
 
-    /* Filter Toggle */
     .tcg-toggle-btn {
       background: #334155;
       border: 1px solid #475569;
@@ -506,8 +505,8 @@
       <div class="tcg-section-wrap" id="tcgWrap">
         <div class="tcg-header-row">
           <div class="tcg-title-area">
-            <span class="tcg-title-text" id="tcgSectionTitle">✨ Illustration & Full Arts</span>
-            <button class="tcg-toggle-btn" id="tcgModeToggle" onclick="toggleTcgViewMode()">Show All</button>
+            <span class="tcg-title-text" id="tcgSectionTitle">✨ Full Arts</span>
+            <button class="tcg-toggle-btn" id="tcgModeToggle" onclick="toggleTcgViewMode()">Other Variants</button>
           </div>
           <span class="tcg-count-text" id="tcgCountText">Loading cards...</span>
         </div>
@@ -632,8 +631,8 @@
     };
 
     let dir = [], rot = 0, audioCtx = null, curPoke = null, isShiny = false, curId = null, tabFilter = 'all', dexQuery = '', activeTcgRequestId = 0, isSpinning = false;
-    let tcgShowAllMode = false;
-    let currentTcgDataSet = { premium: [], all: [] };
+    let tcgShowOtherMode = false;
+    let currentTcgDataSet = { fullArts: [], otherVariants: [] };
     const memoryTcgCache = new Map();
 
     function getCleanNationalDexName(pokeName, speciesName) {
@@ -901,53 +900,102 @@
       evoBox.style.display = 'flex';
     }
 
-    function isStrictPremium(card) {
+    // Exact Tier Classification & Explicit Strict Priority Ordering
+    function evaluateCardTier(card) {
       const r = (card.rarity || '').toLowerCase().trim();
       const subtypes = (card.subtypes || []).map(s => s.toLowerCase().trim());
       const number = String(card.number || '').toLowerCase().trim();
       const setTotal = card.set?.printedTotal || card.set?.total || 0;
+      const name = (card.name || '').toLowerCase().trim();
 
-      // 1. Megas
-      const isMega = subtypes.includes('mega') || (card.name || '').toLowerCase().startsWith('m ') || (card.name || '').toLowerCase().startsWith('m-');
-      if (isMega) return true;
-
-      // 2. Special Subsets (Trainer Gallery, Galarian Gallery, Shiny Vault, Radiant, Classic Collections)
-      const isSubset = number.startsWith('tg') || number.startsWith('gg') || number.startsWith('sv') || number.startsWith('rc') || number.startsWith('svp');
-      const isTrainerGallery = r.includes('trainer gallery') || r.includes('character');
-      if (isSubset || isTrainerGallery) return true;
-
-      // 3. Full Art / Secret / Ultra / Illustration Identifiers
-      const isIllustration = r.includes('illustration') || subtypes.includes('special illustration rare') || subtypes.includes('illustration rare');
-      const isSecretOrHyper = r.includes('secret') || r.includes('hyper') || r.includes('rainbow') || r.includes('crown') || r.includes('gold') || r.includes('shining') || r.includes('star');
-      const isFullArtUltra = subtypes.includes('full art') || r.includes('ultra rare') || r.includes('rare ultra') || r.includes('shiny ultra rare') || r.includes('shiny super rare');
-      if (isIllustration || isSecretOrHyper || isFullArtUltra) return true;
-
-      // 4. Mathematical Secret Check
       const numVal = parseInt(number.replace(/\D/g, ''));
-      if (setTotal > 0 && numVal > setTotal && !r.includes('common') && !r.includes('uncommon')) {
-        return true;
-      }
+      const isSecretMath = (setTotal > 0 && numVal > setTotal && !r.includes('common') && !r.includes('uncommon'));
+      const isSubset = number.startsWith('tg') || number.startsWith('gg') || number.startsWith('sv') || number.startsWith('rc') || number.startsWith('svp');
 
-      return false;
+      // --- FULL ARTS GROUP (Rank 1 to 12) ---
+      // 1. Mega Attack Rare
+      if (r.includes('mega attack')) return { category: 'fullArts', rank: 1 };
+      // 2. Mega Hyper Rare
+      if (r.includes('mega hyper')) return { category: 'fullArts', rank: 2 };
+      // 3. Black White Rare
+      if (r.includes('black white') || r.includes('black & white rare')) return { category: 'fullArts', rank: 3 };
+      // 4. Hyper Rare
+      if (r.includes('hyper rare') || r.includes('rainbow') || r.includes('crown') || r.includes('gold')) return { category: 'fullArts', rank: 4 };
+      // 5. Shiny Ultra Rare
+      if (r.includes('shiny ultra rare') || r.includes('shiny super rare')) return { category: 'fullArts', rank: 5 };
+      // 6. Special Illustration Rare
+      if (r.includes('special illustration') || subtypes.includes('special illustration rare')) return { category: 'fullArts', rank: 6 };
+      // 7. Illustration Rare
+      if (r.includes('illustration rare') || subtypes.includes('illustration rare') || (isSecretMath && r.includes('rare') && !r.includes('holo')) || isSubset) return { category: 'fullArts', rank: 7 };
+      // 8. Promo (with full card artwork)
+      if (r.includes('promo') && (subtypes.includes('full art') || isSubset || number.startsWith('svp') || number.startsWith('swsh'))) return { category: 'fullArts', rank: 8 };
+      // 9. Rare Break
+      if (r.includes('break') || subtypes.includes('break')) return { category: 'fullArts', rank: 9 };
+      // 10. Ultra Rare
+      if (r.includes('ultra rare') || r.includes('rare ultra') || subtypes.includes('full art')) return { category: 'fullArts', rank: 10 };
+      // 11. Rare Holo GX
+      if (r.includes('rare holo gx') || r.includes('gx') || name.includes(' gx')) return { category: 'fullArts', rank: 11 };
+      // 12. Rare Holo EX / Mega (with full card artwork)
+      if ((r.includes('rare holo ex') || r.includes('ex') || name.includes(' ex') || subtypes.includes('mega') || name.startsWith('m ')) && (subtypes.includes('full art') || isSecretMath || subtypes.includes('mega'))) return { category: 'fullArts', rank: 12 };
+
+      // --- OTHER VARIANTS GROUP (Rank 13 to 25) ---
+      // 13. Shiny Rare
+      if (r.includes('shiny rare') || r.includes('shining')) return { category: 'otherVariants', rank: 13 };
+      // 14. Radiant Rare
+      if (r.includes('radiant') || subtypes.includes('radiant')) return { category: 'otherVariants', rank: 14 };
+      // 15. Amazing
+      if (r.includes('amazing') || subtypes.includes('amazing')) return { category: 'otherVariants', rank: 15 };
+      // 16. Promo (standard boxed art)
+      if (r.includes('promo')) return { category: 'otherVariants', rank: 16 };
+      // 17. ACE SPEC Rare
+      if (r.includes('ace spec') || subtypes.includes('ace spec')) return { category: 'otherVariants', rank: 17 };
+      // 18. Double Rare
+      if (r.includes('double rare')) return { category: 'otherVariants', rank: 18 };
+      // 19. LEGEND
+      if (r.includes('legend') || subtypes.includes('legend')) return { category: 'otherVariants', rank: 19 };
+      // 20. Rare Prime
+      if (r.includes('prime') || subtypes.includes('prime')) return { category: 'otherVariants', rank: 20 };
+      // 21. Rare Holo Lv.X
+      if (r.includes('lv.x') || subtypes.includes('lv.x') || name.includes(' lv.x')) return { category: 'otherVariants', rank: 21 };
+      // 22. Rare Holo EX (standard non-full art)
+      if (r.includes('rare holo ex') || r.includes('ex') || name.includes(' ex')) return { category: 'otherVariants', rank: 22 };
+      // 23. Rare Holo
+      if (r.includes('rare holo') || r.includes('holo')) return { category: 'otherVariants', rank: 23 };
+      // 24. Rare
+      if (r.includes('rare')) return { category: 'otherVariants', rank: 24 };
+      // 25. Uncommon & Common
+      if (r.includes('uncommon')) return { category: 'otherVariants', rank: 25 };
+      if (r.includes('common')) return { category: 'otherVariants', rank: 26 };
+
+      return { category: 'otherVariants', rank: 27 };
     }
 
     function toggleTcgViewMode() {
-      tcgShowAllMode = !tcgShowAllMode;
+      tcgShowOtherMode = !tcgShowOtherMode;
       const toggleBtn = document.getElementById('tcgModeToggle');
-      if (tcgShowAllMode) {
-        toggleBtn.innerText = 'Full/IR Only';
+      if (tcgShowOtherMode) {
+        toggleBtn.innerText = 'Full Arts';
         toggleBtn.classList.add('active-all');
       } else {
-        toggleBtn.innerText = 'Show All';
+        toggleBtn.innerText = 'Other Variants';
         toggleBtn.classList.remove('active-all');
       }
       renderActiveTcgDisplay();
     }
 
     function renderActiveTcgDisplay() {
-      const displayCards = tcgShowAllMode ? (currentTcgDataSet.all.length ? currentTcgDataSet.all : currentTcgDataSet.premium) : (currentTcgDataSet.premium.length ? currentTcgDataSet.premium : currentTcgDataSet.all);
-      const isShowingAll = tcgShowAllMode || (currentTcgDataSet.premium.length === 0);
-      renderTcgCards(displayCards, isShowingAll);
+      let displayCards = [];
+      let isShowingOther = false;
+
+      if (tcgShowOtherMode) {
+        displayCards = currentTcgDataSet.otherVariants.length ? currentTcgDataSet.otherVariants : currentTcgDataSet.fullArts;
+        isShowingOther = true;
+      } else {
+        displayCards = currentTcgDataSet.fullArts.length ? currentTcgDataSet.fullArts : currentTcgDataSet.otherVariants;
+        isShowingOther = currentTcgDataSet.fullArts.length === 0;
+      }
+
+      renderTcgCards(displayCards, isShowingOther);
     }
 
     async function fetchTcgCards(pokeName, speciesName) {
@@ -957,7 +1005,7 @@
       const sectionTitle = document.getElementById('tcgSectionTitle');
       
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_strict_exclusive_v75_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_strict_exclusive_v85_${cleanName.toLowerCase()}`;
       
       if (memoryTcgCache.has(cacheKey)) {
         const cached = memoryTcgCache.get(cacheKey);
@@ -981,7 +1029,7 @@
 
       if (!isSpinning) {
         countText.innerText = "Loading cards...";
-        sectionTitle.innerText = "✨ Illustration & Full Arts";
+        sectionTitle.innerText = "✨ Full Arts";
         strip.innerHTML = `
           <div class="tcg-skeleton-card"></div>
           <div class="tcg-skeleton-card"></div>
@@ -1036,27 +1084,36 @@
           return cardName.includes(target);
         });
 
-        let premiumCards = speciesCards.filter(isStrictPremium).map(c => ({
-          id: c.id,
-          name: c.name,
-          smallImg: c.images?.small || '',
-          largeImg: c.images?.large || c.images?.small || '',
-          setName: resolveSetName(c.set),
-          number: c.number || '?',
-          rarity: c.rarity || 'Special Art'
-        })).filter(c => c.smallImg);
+        const fullArts = [];
+        const otherVariants = [];
 
-        let allSpeciesFormatted = speciesCards.map(c => ({
-          id: c.id,
-          name: c.name,
-          smallImg: c.images?.small || '',
-          largeImg: c.images?.large || c.images?.small || '',
-          setName: resolveSetName(c.set),
-          number: c.number || '?',
-          rarity: c.rarity || 'Card'
-        })).filter(c => c.smallImg);
+        speciesCards.forEach(c => {
+          const tier = evaluateCardTier(c);
+          const formatted = {
+            id: c.id,
+            name: c.name,
+            smallImg: c.images?.small || '',
+            largeImg: c.images?.large || c.images?.small || '',
+            setName: resolveSetName(c.set),
+            number: c.number || '?',
+            rarity: c.rarity || 'Card',
+            rank: tier.rank
+          };
 
-        currentTcgDataSet = { premium: premiumCards, all: allSpeciesFormatted };
+          if (formatted.smallImg) {
+            if (tier.category === 'fullArts') {
+              fullArts.push(formatted);
+            } else {
+              otherVariants.push(formatted);
+            }
+          }
+        });
+
+        // Sort both pools in order of rarity
+        fullArts.sort((a, b) => a.rank - b.rank);
+        otherVariants.sort((a, b) => a.rank - b.rank);
+
+        currentTcgDataSet = { fullArts, otherVariants };
         memoryTcgCache.set(cacheKey, currentTcgDataSet);
         try { localStorage.setItem(cacheKey, JSON.stringify(currentTcgDataSet)); } catch (e) {}
         
@@ -1065,21 +1122,21 @@
         }
       } catch (err) {
         if (!isSpinning && requestId === activeTcgRequestId) {
-          currentTcgDataSet = { premium: [], all: [] };
+          currentTcgDataSet = { fullArts: [], otherVariants: [] };
           renderTcgCards([], false);
         }
       }
     }
 
-    function renderTcgCards(cards, isShowingAll = false) {
+    function renderTcgCards(cards, isShowingOther = false) {
       const strip = document.getElementById('tcgStrip');
       const countText = document.getElementById('tcgCountText');
       const sectionTitle = document.getElementById('tcgSectionTitle');
 
-      if (isShowingAll) {
-        sectionTitle.innerText = "🃏 All TCG Card Releases";
+      if (isShowingOther) {
+        sectionTitle.innerText = "🃏 Other Variants";
       } else {
-        sectionTitle.innerText = "✨ Illustration & Full Arts";
+        sectionTitle.innerText = "✨ Full Arts";
       }
 
       if (!cards || !cards.length) {
@@ -1240,6 +1297,14 @@
       document.getElementById('pokeName').innerText = cleanName;
       updateArt();
       updateCardAura(p.types);
+
+      // Reset view mode to Full Arts default on every new card reveal
+      tcgShowOtherMode = false;
+      const toggleBtn = document.getElementById('tcgModeToggle');
+      if (toggleBtn) {
+        toggleBtn.innerText = 'Other Variants';
+        toggleBtn.classList.remove('active-all');
+      }
 
       fetchLoreAndEvolution(p.species?.url, p.id);
       fetchTcgCards(p.name, p.species?.name);

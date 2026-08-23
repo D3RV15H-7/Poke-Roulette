@@ -34,9 +34,36 @@
 
     .wheel-wrap { position: relative; width: clamp(210px, 34dvh, 250px); height: clamp(210px, 34dvh, 250px); margin: clamp(0.2rem, 1dvh, 0.6rem) auto; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
     body.has-active .wheel-wrap { width: clamp(95px, 14dvh, 170px); height: clamp(95px, 14dvh, 170px); margin: 0 auto; }
-    .wheel { position: relative; width: 100%; height: 100%; border-radius: 50%; border: clamp(5px, 1dvh, 8px) solid var(--card); background: conic-gradient(#A8A77A 0 20deg,#EE8130 20deg 40deg,#6390F0 40deg 60deg,#7AC74C 60deg 80deg,#F7D02C 80deg 100deg,#96D9D6 100deg 120deg,#C22E28 120deg 140deg,#A33EA1 140deg 160deg,#E2BF65 160deg 180deg,#A98FF3 180deg 200deg,#F95587 200deg 220deg,#A6B91A 220deg 240deg,#B6A136 240deg 260deg,#735797 260deg 280deg,#6F35FC 280deg 300deg,#705746 300deg 320deg,#B7B7CE 320deg 340deg,#D685AD 340deg 360deg); box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    .wheel { 
+      position: relative; 
+      width: 100%; 
+      height: 100%; 
+      border-radius: 50%; 
+      border: clamp(5px, 1dvh, 8px) solid var(--card); 
+      background: conic-gradient(
+        #EAE5CE 0 20deg,
+        #EE3F1E 20deg 40deg,
+        #1C95F0 40deg 60deg,
+        #22C02A 60deg 80deg,
+        #F5D61A 80deg 100deg,
+        #70D6F5 100deg 120deg,
+        #E65A15 120deg 140deg,
+        #A944B8 140deg 160deg,
+        #CCA03B 160deg 180deg,
+        #8E6BE8 180deg 200deg,
+        #EA3E7B 200deg 220deg,
+        #91C01E 220deg 240deg,
+        #B59030 240deg 260deg,
+        #6B45B5 260deg 280deg,
+        #E5BE00 280deg 300deg,
+        #233544 300deg 320deg,
+        #9AA2AC 320deg 340deg,
+        #F469A9 340deg 360deg
+      ); 
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
+    }
     .wheel-icons { position: absolute; inset: 0; pointer-events: none; }
-    .slice-icon { position: absolute; width: 11.5%; height: 11.5%; display: flex; align-items: center; justify-content: center; opacity: 0.88; }
+    .slice-icon { position: absolute; width: 11.5%; height: 11.5%; display: flex; align-items: center; justify-content: center; opacity: 0.9; }
     .slice-icon svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.45)); }
     .pointer { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 11px solid transparent; border-right: 11px solid transparent; border-top: 20px solid #fff; z-index: 10; filter: drop-shadow(0 3px 5px rgba(0,0,0,0.6)); transition: all 0.35s; }
     body.has-active .pointer { top: -9px; border-left-width: 8px; border-right-width: 8px; border-top-width: 15px; }
@@ -45,17 +72,8 @@
     .center-hub::after { content: ''; width: 40%; height: 40%; border-radius: 50%; background: var(--red); border: 2px solid var(--bg); }
 
     /* Centered Spin Row */
-    .spin-row { 
-      display: flex; 
-      gap: 0; 
-      width: 100%; 
-      justify-content: center; 
-      align-items: center; 
-      flex-shrink: 0; 
-    }
-    body.has-active .spin-row {
-      gap: 0.5rem;
-    }
+    .spin-row { display: flex; gap: 0; width: 100%; justify-content: center; align-items: center; flex-shrink: 0; }
+    body.has-active .spin-row { gap: 0.5rem; }
 
     .btn-spin { 
       background: linear-gradient(135deg, var(--red), #dc2626); 
@@ -78,7 +96,6 @@
       padding: clamp(0.65rem, 1.6dvh, 0.85rem) clamp(1.2rem, 3.5vw, 1.7rem);
     }
 
-    /* Pop-In Close Button */
     .btn-close { 
       background: linear-gradient(135deg, var(--red), #dc2626); 
       color: #fff; 
@@ -97,13 +114,8 @@
       animation: springPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
     .btn-close:active { transform: scale(0.92); }
-    body.has-active .btn-close {
-      display: flex;
-    }
-    @keyframes springPop {
-      0% { opacity: 0; transform: scale(0.3) rotate(-90deg); }
-      100% { opacity: 1; transform: scale(1) rotate(0deg); }
-    }
+    body.has-active .btn-close { display: flex; }
+    @keyframes springPop { 0% { opacity: 0; transform: scale(0.3) rotate(-90deg); } 100% { opacity: 1; transform: scale(1) rotate(0deg); } }
 
     .hub { display: flex; justify-content: center; gap: 0.75rem; margin: 0.05rem 0; flex-shrink: 0; }
     .btn-hub { position: relative; background: var(--card); border: 1px solid #334155; width: clamp(34px, 4.2dvh, 38px); height: clamp(34px, 4.2dvh, 38px); border-radius: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
@@ -169,7 +181,7 @@
       <div class="center-hub"></div>
     </div>
 
-    <!-- Centered Spin Row -->
+    <!-- Centered Morphing Spin/Close Row -->
     <div class="spin-row">
       <button class="btn-spin" id="spinBtn" onclick="spinAndPick()">SPIN & GENERATE</button>
       <button class="btn-close" id="closeBtn" onclick="hideActive()" title="Hide Pokémon View">✕</button>
@@ -247,26 +259,28 @@
   <script>
     const TOTAL = 1025;
     const TYPES = ['normal','fire','water','grass','electric','ice','fighting','poison','ground','flying','psychic','bug','rock','ghost','dragon','dark','steel','fairy'];
-    const COLORS = { normal:'#A8A77A', fire:'#EE8130', water:'#6390F0', grass:'#7AC74C', electric:'#F7D02C', ice:'#96D9D6', fighting:'#C22E28', poison:'#A33EA1', ground:'#E2BF65', flying:'#A98FF3', psychic:'#F95587', bug:'#A6B91A', rock:'#B6A136', ghost:'#735797', dragon:'#6F35FC', dark:'#705746', steel:'#B7B7CE', fairy:'#D685AD' };
+    const COLORS = { normal:'#A8A77A', fire:'#EE3F1E', water:'#1C95F0', grass:'#22C02A', electric:'#F5D61A', ice:'#70D6F5', fighting:'#E65A15', poison:'#A944B8', ground:'#CCA03B', flying:'#8E6BE8', psychic:'#EA3E7B', bug:'#91C01E', rock:'#B59030', ghost:'#6B45B5', dragon:'#E5BE00', dark:'#233544', steel:'#9AA2AC', fairy:'#F469A9' };
+    
+    // Official Pokémon TCG Insignia Vector Glyphs matching the chart
     const SVGS = {
-      normal:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5" fill="none" stroke="#68674d" stroke-width="2.5"/><circle cx="12" cy="12" r="2.8" fill="#68674d"/></svg>',
-      fire:'<svg viewBox="0 0 24 24"><path fill="#923900" d="M12 2c1.5 3 4 5.5 4 8.5a6 6 0 1 1-12 0c0-3 3-5.5 4-8.5 1 2 2 3 4 0z"/></svg>',
-      water:'<svg viewBox="0 0 24 24"><path fill="#2c53a8" d="M12 2.5C12 2.5 5 11 5 15.5a7 7 0 0 0 14 0C19 11 12 2.5 12 2.5z"/></svg>',
-      grass:'<svg viewBox="0 0 24 24"><path fill="#407722" d="M17 4c-5.5 0-9 4-9 9.5 0 2.5 1 4.5 3 6.5 5-1 8-5 8-10.5 0-2.5-.8-4.5-2-5.5z"/></svg>',
-      electric:'<svg viewBox="0 0 24 24"><path fill="#9b7a00" d="M13 2 4 14h7v8l9-12h-7z"/></svg>',
-      ice:'<svg viewBox="0 0 24 24"><path stroke="#488684" stroke-width="2.4" stroke-linecap="round" fill="none" d="M12 2v20M2 12h20M5 5l14 14M5 19 19 5"/></svg>',
-      fighting:'<svg viewBox="0 0 24 24"><path fill="#711c18" d="M7 6h10v3H7zm0 5h10v7a3 3 0 0 1-3 3h-4a3 3 0 0 1-3-3z"/></svg>',
-      poison:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="#641d63"/><circle cx="9" cy="10" r="1.5" fill="#f8fafc"/><circle cx="15" cy="10" r="1.5" fill="#f8fafc"/><path d="M10 15h4" stroke="#f8fafc" stroke-width="2"/></svg>',
-      ground:'<svg viewBox="0 0 24 24"><path stroke="#866d2f" stroke-width="3" stroke-linecap="round" fill="none" d="M2 18h20M5 13h14M8 8h8"/></svg>',
-      flying:'<svg viewBox="0 0 24 24"><path fill="#5e499e" d="M3 14c4-7 9-7 9-7s5 0 9 7c-4-2-9-2-9-2s-5 0-9 2z"/></svg>',
-      psychic:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="#a0294b"/><circle cx="12" cy="12" r="8" fill="none" stroke="#a0294b" stroke-width="2"/></svg>',
-      bug:'<svg viewBox="0 0 24 24"><ellipse cx="12" cy="13" rx="5" ry="6" fill="#637012"/><circle cx="12" cy="5" r="2.5" fill="#637012"/><path stroke="#637012" stroke-width="2" d="M5 11l4 2M19 11l-4 2M5 16l4-1M19 16l-4-1"/></svg>',
-      rock:'<svg viewBox="0 0 24 24"><polygon points="12,3 20,8 18,19 6,19 4,8" fill="#6d5e1a"/></svg>',
-      ghost:'<svg viewBox="0 0 24 24"><path fill="#422f5c" d="M12 3a7 7 0 0 0-7 7v10l3-2 3 2 3-2 3 2 2-2V10a7 7 0 0 0-7-7z"/><circle cx="9" cy="10" r="1.5" fill="#f8fafc"/><circle cx="15" cy="10" r="1.5" fill="#f8fafc"/></svg>',
-      dragon:'<svg viewBox="0 0 24 24"><path fill="#451ebd" d="M4 18c3-2 5-6 6-12 3 3 7 3 10 0-2 7-6 10-16 12z"/></svg>',
-      dark:'<svg viewBox="0 0 24 24"><path fill="#413127" d="M12 3a9 9 0 1 0 9 9c0-.5 0-1-.1-1.5A7 7 0 0 1 12 3z"/></svg>',
-      steel:'<svg viewBox="0 0 24 24"><polygon points="12,2 21,7 21,17 12,22 3,17 3,7" fill="none" stroke="#686880" stroke-width="2.5"/><circle cx="12" cy="12" r="3.5" fill="#686880"/></svg>',
-      fairy:'<svg viewBox="0 0 24 24"><polygon points="12,2 15,9 22,12 15,15 12,22 9,15 2,12 9,9" fill="#8f4369"/></svg>'
+      normal: '<svg viewBox="0 0 24 24"><path fill="#444133" d="M12 2l2.3 6.6 6.7.4-5.2 4.4 1.8 6.6L12 16l-5.6 4-1.8-6.6-5.2-4.4 6.7-.4z"/></svg>',
+      fire: '<svg viewBox="0 0 24 24"><path fill="#541200" d="M12 2c1.8 3.2 4.5 5.8 4.5 9 0 4-3 7-6.5 7s-6.5-3-6.5-7c0-2.8 1.8-5.2 3.5-7.5-.2 1.8.8 3.2 2 3.5-.2-2 1.5-3.8 3-5z"/></svg>',
+      water: '<svg viewBox="0 0 24 24"><path fill="#083863" d="M12 2.5C12 2.5 5.5 10.5 5.5 15a6.5 6.5 0 0 0 13 0c0-4.5-6.5-12.5-6.5-12.5zm-2.2 16a2.2 2.2 0 0 1-2.2-2.2c0-1.2 1-2.2 2.2-2.2s2.2 1 2.2 2.2-1 2.2-2.2 2.2z"/></svg>',
+      grass: '<svg viewBox="0 0 24 24"><path fill="#0a460e" d="M17.5 3.5C10 4 6 10 6 17c0 2.5 1.5 4 4 4 7 0 10.5-5 10.5-13.5 0-2.5-1-4-3-4zm-5 13.5c-.8-1.5-1-3-1-5 1.5.5 3 1.2 4 2.5-1.5 1-2 2-3 2.5z"/></svg>',
+      electric: '<svg viewBox="0 0 24 24"><path fill="#665400" d="M14 2L4 13.5h6.5L8.5 22 20 9.5h-6z"/></svg>',
+      ice: '<svg viewBox="0 0 24 24"><path fill="#165b6e" d="M12 2l2 4.5h-4zM12 22l-2-4.5h4zM2 12l4.5-2v4zM22 12l-4.5 2v-4zM5.5 5.5l4.5 1.5-1.5 4.5zM18.5 18.5l-4.5-1.5 1.5-4.5zM18.5 5.5l-1.5 4.5-4.5-1.5zM5.5 18.5l1.5-4.5 4.5 1.5z"/></svg>',
+      fighting: '<svg viewBox="0 0 24 24"><path fill="#541b00" d="M6 5h12v3H6zm0 4h12v4H6zm0 5h12v5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/></svg>',
+      poison: '<svg viewBox="0 0 24 24"><path fill="#420f4c" d="M12 3a7.5 7.5 0 0 0-7.5 7.5c0 3.2 2 5.5 4.5 6.5V20a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-3c2.5-1 4.5-3.3 4.5-6.5A7.5 7.5 0 0 0 12 3zm-3 8a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm6 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>',
+      ground: '<svg viewBox="0 0 24 24"><path fill="#4e3b0e" d="M5 19h14a1 1 0 0 0 1-1l-3-10a1 1 0 0 0-1-.7h-5a1 1 0 0 0-.9.6L4 18a1 1 0 0 0 1 1zm3-3l1.5-4h2.5l-1 4z"/></svg>',
+      flying: '<svg viewBox="0 0 24 24"><path fill="#2e1b60" d="M3 13.5C7 8 13 8 21 8c-3 2-6 3.5-9 3.5-3 0-5.5 1-9 2zm2 3.5c3-1 6-1 10-1-2 1.5-4.5 2-8 2.5-1 0-1.5-.5-2-1.5z"/></svg>',
+      psychic: '<svg viewBox="0 0 24 24"><path fill="#5b0d28" d="M12 4a8 8 0 0 0-8 8 8 8 0 0 0 8 8c3.5 0 6.5-2.2 7.5-5.5a1 1 0 0 0-1-1.2c-2.5.2-5-1.5-5.5-4 0-.8.2-1.5.5-2.2A8 8 0 0 0 12 4z"/></svg>',
+      bug: '<svg viewBox="0 0 24 24"><path fill="#3a4a06" d="M12 4c-3.5 0-6.5 2.5-6.5 6 0 2.2 1.2 4.2 3 5.2V19a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1v-3.8c1.8-1 3-3 3-5.2 0-3.5-3-6-6.5-6zm-2.5 7a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>',
+      rock: '<svg viewBox="0 0 24 24"><path fill="#463608" d="M7 5l6-2 5 4-1 6-7 7-5-3 2-12zm4 3l-2 5 4 3 3-4-1-3-4-1z"/></svg>',
+      ghost: '<svg viewBox="0 0 24 24"><path fill="#2c1556" d="M12 3c-4.5 0-8 3.5-8 8v8l3-2 2.5 2 2.5-2 2.5 2 2.5-2 3 2v-8c0-4.5-3.5-8-8-8zm-3 8a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm6 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>',
+      dragon: '<svg viewBox="0 0 24 24"><path fill="#544300" d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c1.5 0 3-.3 4.2-1-3-1-5-3.5-5-7 0-3.5 2.5-6.5 6-7.5-1.5-1.2-3.2-2.5-5.2-2.5z"/></svg>',
+      dark: '<svg viewBox="0 0 24 24"><path fill="#0d1924" d="M12 3a9 9 0 1 0 9 9c0-.6 0-1.2-.2-1.8A7 7 0 0 1 12 3z"/></svg>',
+      steel: '<svg viewBox="0 0 24 24"><path fill="#363c44" d="M12 2L4 7v10l8 5 8-5V7l-8-5zm0 3.5l5 3.2v6.6l-5 3.2-5-3.2V8.7l5-3.2z"/></svg>',
+      fairy: '<svg viewBox="0 0 24 24"><path fill="#5e1538" d="M12 2.5C10 6 7 9 7 13c0 3.5 2.5 6 5 8.5 2.5-2.5 5-5 5-8.5 0-4-3-7-5-10.5zm0 10a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>'
     };
 
     let dir = [], rot = 0, audioCtx = null, curPoke = null, isShiny = false, curId = null, tabFilter = 'all';

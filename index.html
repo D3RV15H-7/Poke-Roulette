@@ -360,7 +360,7 @@
     .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.04rem 0.7rem; text-align: left; background: var(--bg); padding: clamp(0.15rem, 0.35dvh, 0.22rem) 0.65rem; border-radius: 8px; font-size: clamp(0.58rem, 1.05dvh, 0.65rem); }
     .stats span:last-child { font-weight: 700; float: right; }
 
-    /* Zoom Modal */
+    /* Zoom Modal - Flat 2D Frame (No 3D Tilting) */
     .tcg-zoom-modal {
       position: fixed;
       inset: 0;
@@ -413,6 +413,7 @@
       aspect-ratio: 63 / 88;
       border-radius: 12px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+      overflow: hidden;
     }
     .tcg-zoom-img {
       width: 100%;
@@ -428,10 +429,9 @@
       border-radius: 12px;
       pointer-events: none;
       mix-blend-mode: color-dodge;
-      opacity: 0.75;
-      background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.45) 45%, rgba(255, 0, 128, 0.35) 50%, rgba(0, 255, 255, 0.35) 55%, transparent 80%);
+      opacity: 0.45;
+      background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.35) 45%, rgba(255, 0, 128, 0.25) 50%, rgba(0, 255, 255, 0.25) 55%, transparent 80%);
       background-size: 200% 200%;
-      background-position: var(--pos-x, 50%) var(--pos-y, 50%);
       transition: opacity 0.2s;
     }
     .holo-glitter {
@@ -440,8 +440,8 @@
       border-radius: 12px;
       pointer-events: none;
       mix-blend-mode: overlay;
-      opacity: 0.5;
-      background-image: radial-gradient(circle at var(--pos-x, 50%) var(--pos-y, 50%), rgba(255,255,255,0.8) 0%, transparent 60%);
+      opacity: 0.35;
+      background-image: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.7) 0%, transparent 60%);
     }
 
     .tcg-zoom-arrow {
@@ -1237,7 +1237,7 @@
 
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_all_variations_v330_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_all_variations_v340_${cleanName.toLowerCase()}`;
       
       if (!bypassCache) {
         if (memoryTcgCache.has(cacheKey)) {
@@ -1429,14 +1429,11 @@
       const shader = document.getElementById('holoShader');
       if (shader) {
         if (card.rank <= 5) {
-          shader.style.opacity = '0.9';
-          shader.style.filter = 'drop-shadow(0 0 8px gold)';
-        } else if (card.rank <= 13) {
           shader.style.opacity = '0.75';
-          shader.style.filter = 'none';
+        } else if (card.rank <= 13) {
+          shader.style.opacity = '0.5';
         } else {
-          shader.style.opacity = '0.25';
-          shader.style.filter = 'none';
+          shader.style.opacity = '0.15';
         }
       }
     }
@@ -1450,8 +1447,10 @@
       }
     }
 
+    // Touch Swipe Navigation
     let zoomTouchX = 0;
     const zoomViewArea = document.getElementById('zoomViewArea');
+    
     if (zoomViewArea) {
       zoomViewArea.addEventListener('touchstart', e => {
         zoomTouchX = e.changedTouches[0].screenX;
@@ -1459,7 +1458,7 @@
 
       zoomViewArea.addEventListener('touchend', e => {
         const dX = e.changedTouches[0].screenX - zoomTouchX;
-        if (Math.abs(dX) > 45) {
+        if (Math.abs(dX) > 40) {
           if (dX < 0) {
             navigateZoomCard(1);
           } else {

@@ -35,13 +35,14 @@
     .badge { display: inline-block; margin-top: 0.02rem; background: var(--card); border: 1px solid #334155; color: var(--sub); font-size: 0.64rem; font-weight: 700; padding: 0.04rem 0.4rem; border-radius: 99px; }
     .badge strong { color: var(--green); }
 
-    .search-wrap { position: relative; width: 100%; max-width: 340px; flex-shrink: 0; z-index: 20; }
-    .search-box { display: flex; gap: 0.35rem; width: 100%; }
-    .search-box input { flex: 1; background: var(--card); border: 1px solid #334155; color: #fff; padding: clamp(0.28rem, 0.6dvh, 0.38rem) 0.8rem; border-radius: 99px; font-size: 0.74rem; outline: none; }
+    /* Enlarged Main Search Bar */
+    .search-wrap { position: relative; width: 100%; max-width: 360px; flex-shrink: 0; z-index: 20; }
+    .search-box { display: flex; gap: 0.4rem; width: 100%; }
+    .search-box input { flex: 1; background: var(--card); border: 1.5px solid #334155; color: #fff; padding: clamp(0.45rem, 1dvh, 0.6rem) 1rem; border-radius: 99px; font-size: 0.88rem; outline: none; transition: border-color 0.2s; }
     .search-box input:focus { border-color: var(--red); }
-    .search-box button { background: #334155; color: #fff; border: none; padding: 0 0.9rem; border-radius: 99px; font-size: 0.74rem; font-weight: 700; cursor: pointer; }
-    .suggestions { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--card); border: 1px solid #334155; border-radius: 14px; max-height: 180px; overflow-y: auto; list-style: none; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-    .suggestions li { padding: 0.5rem 0.8rem; display: flex; justify-content: space-between; font-size: 0.8rem; border-bottom: 1px solid #2d3748; cursor: pointer; text-transform: capitalize; }
+    .search-box button { background: #334155; color: #fff; border: none; padding: 0 1.15rem; border-radius: 99px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+    .suggestions { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--card); border: 1px solid #334155; border-radius: 14px; max-height: 190px; overflow-y: auto; list-style: none; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    .suggestions li { padding: 0.55rem 0.85rem; display: flex; justify-content: space-between; font-size: 0.84rem; border-bottom: 1px solid #2d3748; cursor: pointer; text-transform: capitalize; }
     .suggestions li:last-child { border-bottom: none; }
 
     .wheel-wrap { 
@@ -366,13 +367,24 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.4rem;
       box-shadow: 0 10px 30px rgba(0,0,0,0.7);
       animation: zoomIn 0.2s ease-out;
       position: relative;
     }
     @keyframes zoomIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     
+    .tcg-zoom-counter {
+      font-size: 0.75rem;
+      font-weight: 900;
+      color: var(--gold);
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      padding: 0.1rem 0.6rem;
+      border-radius: 99px;
+      margin-bottom: 0.2rem;
+    }
+
     .tcg-zoom-view-area {
       position: relative;
       display: flex;
@@ -538,6 +550,7 @@
 
   <div class="tcg-zoom-modal" id="tcgZoomModal" onclick="closeTcgZoom()">
     <div class="tcg-zoom-content" onclick="event.stopPropagation()">
+      <div class="tcg-zoom-counter" id="tcgZoomCounter">1 / 1</div>
       <div class="tcg-zoom-view-area" id="zoomViewArea">
         <button class="tcg-zoom-arrow left" id="zoomLeftArrow" onclick="navigateZoomCard(-1)">‹</button>
         <img class="tcg-zoom-img" id="tcgZoomImg" src="" alt="Card HD" />
@@ -965,7 +978,7 @@
       const countText = document.getElementById('tcgCountText');
       
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_all_variations_v210_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_all_variations_v230_${cleanName.toLowerCase()}`;
       
       if (memoryTcgCache.has(cacheKey)) {
         currentCardsList = memoryTcgCache.get(cacheKey);
@@ -1120,6 +1133,7 @@
       document.getElementById('tcgZoomImg').src = card.largeImg || card.smallImg;
       document.getElementById('tcgZoomTitle').innerText = card.name;
       document.getElementById('tcgZoomMeta').innerText = `${card.setName} · #${card.number} · ${card.rarity}`;
+      document.getElementById('tcgZoomCounter').innerText = `${currentZoomIndex + 1} / ${currentCardsList.length}`;
 
       const leftArrow = document.getElementById('zoomLeftArrow');
       const rightArrow = document.getElementById('zoomRightArrow');
@@ -1137,7 +1151,6 @@
       }
     }
 
-    // Touch swipe support for zoom modal
     let zoomTouchX = 0;
     const zoomViewArea = document.getElementById('zoomViewArea');
     if (zoomViewArea) {

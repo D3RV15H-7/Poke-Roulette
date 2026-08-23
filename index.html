@@ -514,6 +514,22 @@
     }
     .dex-cell-set { font-size: 0.58rem; font-weight: 700; color: #fff; margin-top: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; text-align: center; }
     .dex-cell-num { font-size: 0.52rem; color: var(--sub); font-weight: 700; }
+    
+    .btn-header-action {
+      background: #334155;
+      color: #fff;
+      border: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s, background 0.15s;
+    }
+    .btn-header-action:active { transform: scale(0.92); background: #475569; }
   </style>
 </head>
 <body>
@@ -619,11 +635,15 @@
     </div>
   </div>
 
+  <!-- Hold-to-View 3x3 Card Grid Modal with Manual Refresh -->
   <div class="dex-cards-modal" id="dexCardsModal" onclick="closeDexCardsModal()">
     <div class="dex-cards-content" onclick="event.stopPropagation()">
       <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:0.5rem;">
         <h3 id="dexCardsTitle" style="font-size:1.05rem;font-weight:800;text-transform:capitalize;">Card Variations</h3>
-        <button style="background:#334155;color:#fff;border:none;width:26px;height:26px;border-radius:50%;cursor:pointer;font-weight:900;" onclick="closeDexCardsModal()">✕</button>
+        <div style="display:flex;gap:0.45rem;align-items:center;">
+          <button class="btn-header-action" title="Refresh Cards" onclick="refreshCurrentDexCards()">↻</button>
+          <button class="btn-header-action" onclick="closeDexCardsModal()">✕</button>
+        </div>
       </div>
       <div class="dex-cards-grid" id="dexCardsGrid">
         <div style="grid-column:span 3;text-align:center;color:var(--sub);padding:2rem 0;font-size:0.8rem;">Loading cards...</div>
@@ -725,6 +745,7 @@
     let dir = [], rot = 0, audioCtx = null, curPoke = null, isShiny = false, curId = null, tabFilter = 'all', dexQuery = '', activeTcgRequestId = 0, isSpinning = false;
     let currentCardsList = [];
     let currentZoomIndex = 0;
+    let activeDexModalPoke = null;
     const memoryTcgCache = new Map();
 
     function getCleanNationalDexName(pokeName, speciesName) {
@@ -849,7 +870,7 @@
         d.innerHTML = `${owned ? '<div style="position:absolute;top:3px;right:3px;background:var(--green);color:#fff;font-size:0.52rem;font-weight:900;width:13px;height:13px;border-radius:50%;display:flex;align-items:center;justify-content:center;">✓</div>' : ''}<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png" loading="lazy"/><div style="font-size:0.62rem;font-weight:800;color:var(--sub)">#${String(p.id).padStart(4,'0')}</div><div style="font-size:0.65rem;font-weight:700;text-transform:capitalize;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name.replace('-',' ')}</div>`;
         
         let holdTimer = null;
-        d.addEventListener('touchstart', (e) => {
+        d.addEventListener('touchstart', () => {
           holdTimer = setTimeout(() => openDexCardsModal(p), 450);
         }, { passive: true });
         d.addEventListener('touchend', () => clearTimeout(holdTimer), { passive: true });
@@ -871,18 +892,19 @@
       });
     }
 
-    async function openDexCardsModal(p) {
+    async function openDexCardsModal(p, bypassCache = false) {
+      activeDexModalPoke = p;
       const modal = document.getElementById('dexCardsModal');
       const grid = document.getElementById('dexCardsGrid');
       const title = document.getElementById('dexCardsTitle');
       
       const cleanName = getCleanNationalDexName(p.name, p.species?.name);
       title.innerText = `${cleanName} Cards`;
-      grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:2rem 0;font-size:0.8rem;">Loading variations...</div>';
+      grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:2rem 0;font-size:0.8rem;">Loading cards...</div>';
       modal.style.display = 'flex';
 
       try {
-        const cardsList = await fetchTcgCardsData(p.name, p.species?.name);
+        const cardsList = await fetchTcgCardsData(p.name, p.species?.name, bypassCache);
         grid.innerHTML = cardsList.length ? '' : '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">No cards found</div>';
         cardsList.forEach((card, index) => {
           const cell = document.createElement('div');
@@ -900,7 +922,13 @@
           grid.appendChild(cell);
         });
       } catch (e) {
-        grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">Failed to load cards</div>';
+        grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">Failed to load cards. Tap ↻ to retry.</div>';
+      }
+    }
+
+    function refreshCurrentDexCards() {
+      if (activeDexModalPoke) {
+        openDexCardsModal(activeDexModalPoke, true);
       }
     }
 
@@ -1093,32 +1121,36 @@
       return 25;
     }
 
-    // Unified Reliable Multi-Source Card Fetcher
-    async function fetchTcgCardsData(pokeName, speciesName) {
+    // High-Resiliency Multi-Threaded Card Fetcher
+    async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_all_variations_v280_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_all_variations_v290_${cleanName.toLowerCase()}`;
       
-      if (memoryTcgCache.has(cacheKey)) {
-        return memoryTcgCache.get(cacheKey);
-      }
-
-      const stored = localStorage.getItem(cacheKey);
-      if (stored) {
-        const cached = JSON.parse(stored);
-        memoryTcgCache.set(cacheKey, cached);
-        return cached;
+      if (!bypassCache) {
+        if (memoryTcgCache.has(cacheKey)) {
+          return memoryTcgCache.get(cacheKey);
+        }
+        const stored = localStorage.getItem(cacheKey);
+        if (stored) {
+          const cached = JSON.parse(stored);
+          memoryTcgCache.set(cacheKey, cached);
+          return cached;
+        }
       }
 
       const primaryTerm = cleanName.split(' ')[0];
 
-      const fetchWithRetry = async (url, retries = 2, delay = 400) => {
+      const fetchWithRetry = async (url, retries = 3, delay = 350) => {
         for (let i = 0; i < retries; i++) {
           try {
-            const res = await fetch(url);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 4500);
+            const res = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeoutId);
             if (res.ok) return await res.json();
           } catch (e) {
             if (i === retries - 1) throw e;
-            await new Promise(r => setTimeout(r, delay));
+            await new Promise(r => setTimeout(r, delay * Math.pow(1.3, i)));
           }
         }
         throw new Error("Failed to fetch");
@@ -1148,9 +1180,17 @@
 
       let allCards = [];
       try {
-        allCards = await Promise.race([
+        allCards = await Promise.any([
           pokemontcgPromise(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 2600))
+          new Promise((resolve, reject) => {
+            setTimeout(async () => {
+              try {
+                const res = await tcgdexPromise();
+                if (res.length) resolve(res);
+                else reject();
+              } catch (e) { reject(); }
+            }, 800);
+          })
         ]);
       } catch (e) {
         allCards = await tcgdexPromise().catch(() => []);
@@ -1178,8 +1218,10 @@
 
       formattedCards.sort((a, b) => a.rank - b.rank);
 
-      memoryTcgCache.set(cacheKey, formattedCards);
-      try { localStorage.setItem(cacheKey, JSON.stringify(formattedCards)); } catch (e) {}
+      if (formattedCards.length > 0) {
+        memoryTcgCache.set(cacheKey, formattedCards);
+        try { localStorage.setItem(cacheKey, JSON.stringify(formattedCards)); } catch (e) {}
+      }
       return formattedCards;
     }
 

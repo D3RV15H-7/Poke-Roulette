@@ -345,10 +345,11 @@
     .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.04rem 0.7rem; text-align: left; background: var(--bg); padding: clamp(0.15rem, 0.35dvh, 0.22rem) 0.65rem; border-radius: 8px; font-size: clamp(0.58rem, 1.05dvh, 0.65rem); }
     .stats span:last-child { font-weight: 700; float: right; }
 
+    /* Zoom Modal with Swipe / Navigation Arrows */
     .tcg-zoom-modal {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.88);
+      background: rgba(15, 23, 42, 0.9);
       backdrop-filter: blur(8px);
       z-index: 200;
       display: none;
@@ -361,26 +362,58 @@
       border: 1px solid #334155;
       border-radius: 20px;
       padding: 1rem;
-      max-width: 320px;
+      max-width: 340px;
       width: 100%;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.6rem;
+      gap: 0.5rem;
       box-shadow: 0 10px 30px rgba(0,0,0,0.7);
       animation: zoomIn 0.2s ease-out;
+      position: relative;
     }
     @keyframes zoomIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    
+    .tcg-zoom-view-area {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+    }
     .tcg-zoom-img {
-      width: 235px;
+      width: 215px;
       aspect-ratio: 63 / 88;
       border-radius: 10px;
       object-fit: cover;
       box-shadow: 0 8px 24px rgba(0,0,0,0.6);
     }
-    .tcg-zoom-title { font-size: 0.95rem; font-weight: 800; text-align: center; }
-    .tcg-zoom-meta { font-size: 0.72rem; color: var(--sub); font-weight: 700; text-align: center; }
-    .tcg-zoom-close { background: var(--red); color: white; border: none; padding: 0.4rem 1.2rem; border-radius: 99px; font-size: 0.75rem; font-weight: 800; cursor: pointer; }
+    .tcg-zoom-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(30, 41, 59, 0.85);
+      border: 1px solid #475569;
+      color: #fff;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      font-weight: 900;
+      cursor: pointer;
+      z-index: 10;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+    .tcg-zoom-arrow:active { transform: translateY(-50%) scale(0.92); }
+    .tcg-zoom-arrow.left { left: -4px; }
+    .tcg-zoom-arrow.right { right: -4px; }
+
+    .tcg-zoom-title { font-size: 0.9rem; font-weight: 800; text-align: center; }
+    .tcg-zoom-meta { font-size: 0.7rem; color: var(--sub); font-weight: 700; text-align: center; }
+    .tcg-zoom-close { background: var(--red); color: white; border: none; padding: 0.35rem 1.1rem; border-radius: 99px; font-size: 0.72rem; font-weight: 800; cursor: pointer; }
 
     .modal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.78); backdrop-filter: blur(6px); z-index: 100; display: none; align-items: flex-end; justify-content: center; }
     .modal-body { background: var(--card); width: 100vw; max-width: 500px; max-height: 85vh; border-radius: 28px 28px 0 0; border: 1px solid #334155; border-bottom: none; display: flex; flex-direction: column; padding: 1.1rem 0.75rem 1rem 0.75rem; }
@@ -501,9 +534,14 @@
     </div>
   </div>
 
+  <!-- Swipeable Zoom Modal -->
   <div class="tcg-zoom-modal" id="tcgZoomModal" onclick="closeTcgZoom()">
     <div class="tcg-zoom-content" onclick="event.stopPropagation()">
-      <img class="tcg-zoom-img" id="tcgZoomImg" src="" alt="Card HD" />
+      <div class="tcg-zoom-view-area">
+        <button class="tcg-zoom-arrow left" onclick="navigateZoomCard(-1)">‹</button>
+        <img class="tcg-zoom-img" id="tcgZoomImg" src="" alt="Card HD" />
+        <button class="tcg-zoom-arrow right" onclick="navigateZoomCard(1)">›</button>
+      </div>
       <div class="tcg-zoom-title" id="tcgZoomTitle">Card Title</div>
       <div class="tcg-zoom-meta" id="tcgZoomMeta">Set · Number · Rarity</div>
       <button class="tcg-zoom-close" onclick="closeTcgZoom()">Close Preview</button>
@@ -601,6 +639,8 @@
     };
 
     let dir = [], rot = 0, audioCtx = null, curPoke = null, isShiny = false, curId = null, tabFilter = 'all', dexQuery = '', activeTcgRequestId = 0, isSpinning = false;
+    let currentCardsList = [];
+    let currentZoomIndex = 0;
     const memoryTcgCache = new Map();
 
     function getCleanNationalDexName(pokeName, speciesName) {
@@ -918,22 +958,22 @@
       const countText = document.getElementById('tcgCountText');
       
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_all_variations_v180_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_all_variations_v190_${cleanName.toLowerCase()}`;
       
       if (memoryTcgCache.has(cacheKey)) {
-        const cached = memoryTcgCache.get(cacheKey);
+        currentCardsList = memoryTcgCache.get(cacheKey);
         if (!isSpinning && requestId === activeTcgRequestId) {
-          renderTcgCards(cached);
+          renderTcgCards(currentCardsList);
         }
         return;
       }
 
       const stored = localStorage.getItem(cacheKey);
       if (stored) {
-        const cached = JSON.parse(stored);
-        memoryTcgCache.set(cacheKey, cached);
+        currentCardsList = JSON.parse(stored);
+        memoryTcgCache.set(cacheKey, currentCardsList);
         if (!isSpinning && requestId === activeTcgRequestId) {
-          renderTcgCards(cached);
+          renderTcgCards(currentCardsList);
         }
         return;
       }
@@ -950,8 +990,7 @@
 
       const primaryTerm = cleanName.split(' ')[0];
 
-      // Robust retry loop and parallel fallback for slow mobile network connections
-      const fetchWithRetry = async (url, retries = 3, delay = 600) => {
+      const fetchWithRetry = async (url, retries = 3, delay = 500) => {
         for (let i = 0; i < retries; i++) {
           try {
             const res = await fetch(url);
@@ -1000,7 +1039,7 @@
           return cardName.includes(target);
         });
 
-        const formattedCards = speciesCards.map(c => ({
+        currentCardsList = speciesCards.map(c => ({
           id: c.id,
           name: c.name,
           smallImg: c.images?.small || '',
@@ -1011,16 +1050,17 @@
           rank: evaluateCardRank(c)
         })).filter(c => c.smallImg);
 
-        formattedCards.sort((a, b) => a.rank - b.rank);
+        currentCardsList.sort((a, b) => a.rank - b.rank);
 
-        memoryTcgCache.set(cacheKey, formattedCards);
-        try { localStorage.setItem(cacheKey, JSON.stringify(formattedCards)); } catch (e) {}
+        memoryTcgCache.set(cacheKey, currentCardsList);
+        try { localStorage.setItem(cacheKey, JSON.stringify(currentCardsList)); } catch (e) {}
         
         if (!isSpinning && requestId === activeTcgRequestId) {
-          renderTcgCards(formattedCards);
+          renderTcgCards(currentCardsList);
         }
       } catch (err) {
         if (!isSpinning && requestId === activeTcgRequestId) {
+          currentCardsList = [];
           renderTcgCards([]);
         }
       }
@@ -1039,7 +1079,7 @@
       countText.innerText = `${cards.length} Card${cards.length === 1 ? '' : 's'}`;
       strip.innerHTML = '';
       
-      cards.forEach(card => {
+      cards.forEach((card, index) => {
         const node = document.createElement('div');
         node.className = 'tcg-card-item';
         node.innerHTML = `
@@ -1054,18 +1094,31 @@
         node.addEventListener('touchend', e => e.stopPropagation(), { passive: true });
         node.onclick = (e) => {
           e.stopPropagation();
-          openTcgZoom(card);
+          openTcgZoom(index);
         };
         
         strip.appendChild(node);
       });
     }
 
-    function openTcgZoom(card) {
+    function openTcgZoom(index) {
+      currentZoomIndex = index;
+      updateZoomModalContent();
+      document.getElementById('tcgZoomModal').style.display = 'flex';
+    }
+
+    function updateZoomModalContent() {
+      if (!currentCardsList.length) return;
+      const card = currentCardsList[currentZoomIndex];
       document.getElementById('tcgZoomImg').src = card.largeImg || card.smallImg;
       document.getElementById('tcgZoomTitle').innerText = card.name;
       document.getElementById('tcgZoomMeta').innerText = `${card.setName} · #${card.number} · ${card.rarity}`;
-      document.getElementById('tcgZoomModal').style.display = 'flex';
+    }
+
+    function navigateZoomCard(dir) {
+      if (!currentCardsList.length) return;
+      currentZoomIndex = (currentZoomIndex + dir + currentCardsList.length) % currentCardsList.length;
+      updateZoomModalContent();
     }
 
     function closeTcgZoom() {
@@ -1090,6 +1143,7 @@
       document.body.classList.remove('has-active'); 
       document.getElementById('pokeCard').style.display = 'none'; 
       curId = curPoke = null; 
+      currentCardsList = [];
     }
 
     function handleSearch(val) {

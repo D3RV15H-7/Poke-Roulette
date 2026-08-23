@@ -14,10 +14,25 @@
     :root { --bg: #0f172a; --card: #1e293b; --red: #ef4444; --text: #f8fafc; --sub: #94a3b8; --green: #10b981; --gold: #f59e0b; }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
     html, body { width: 100vw; height: 100dvh; overflow: hidden; background: var(--bg); color: var(--text); }
-    body { display: flex; flex-direction: column; align-items: center; padding: clamp(0.3rem, 0.8dvh, 0.6rem) clamp(0.6rem, 2.5vw, 1rem); touch-action: pan-y; }
-    .viewport { width: 100%; max-width: 380px; height: 100%; display: flex; flex-direction: column; align-items: center; gap: clamp(0.15rem, 0.6dvh, 0.4rem); }
+    body { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: clamp(0.3rem, 0.8dvh, 0.6rem) clamp(0.6rem, 2.5vw, 1rem); touch-action: pan-y; }
     
-    header { width: 100%; text-align: center; flex-shrink: 0; }
+    /* Viewport Smooth Transition: Centered when idle, Anchored to top when active */
+    .viewport { 
+      width: 100%; 
+      max-width: 380px; 
+      height: 100%; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      justify-content: center;
+      gap: clamp(0.15rem, 0.6dvh, 0.4rem); 
+      transition: justify-content 0.4s ease;
+    }
+    body.has-active .viewport {
+      justify-content: flex-start;
+    }
+    
+    header { width: 100%; text-align: center; flex-shrink: 0; transition: transform 0.4s ease; }
     header h1 { font-size: clamp(1.25rem, 3.5dvh, 1.5rem); font-weight: 800; color: #fff; }
     header span { color: var(--red); }
     .badge { display: inline-block; margin-top: 0.1rem; background: var(--card); border: 1px solid #334155; color: var(--sub); font-size: 0.7rem; font-weight: 700; padding: 0.12rem 0.55rem; border-radius: 99px; }
@@ -25,15 +40,33 @@
 
     .search-wrap { position: relative; width: 100%; max-width: 340px; flex-shrink: 0; z-index: 20; }
     .search-box { display: flex; gap: 0.35rem; width: 100%; }
-    .search-box input { flex: 1; background: var(--card); border: 1px solid #334155; color: #fff; padding: clamp(0.38rem, 0.9dvh, 0.52rem) 0.85rem; border-radius: 99px; font-size: 0.8rem; outline: none; }
+    .search-box input { flex: 1; background: var(--card); border: 1px solid #334155; color: #fff; padding: clamp(0.42rem, 1dvh, 0.55rem) 0.85rem; border-radius: 99px; font-size: 0.8rem; outline: none; }
     .search-box input:focus { border-color: var(--red); }
     .search-box button { background: #334155; color: #fff; border: none; padding: 0 0.95rem; border-radius: 99px; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
     .suggestions { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--card); border: 1px solid #334155; border-radius: 14px; max-height: 180px; overflow-y: auto; list-style: none; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
     .suggestions li { padding: 0.55rem 0.85rem; display: flex; justify-content: space-between; font-size: 0.82rem; border-bottom: 1px solid #2d3748; cursor: pointer; text-transform: capitalize; }
     .suggestions li:last-child { border-bottom: none; }
 
-    .wheel-wrap { position: relative; width: clamp(200px, 32dvh, 245px); height: clamp(200px, 32dvh, 245px); margin: clamp(0.15rem, 0.8dvh, 0.5rem) auto; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
-    body.has-active .wheel-wrap { width: clamp(88px, 12.5dvh, 140px); height: clamp(88px, 12.5dvh, 140px); margin: 0 auto; }
+    /* Wheel Container Animation & Proportions */
+    .wheel-wrap { 
+      position: relative; 
+      width: clamp(230px, 36dvh, 275px); 
+      height: clamp(230px, 36dvh, 275px); 
+      margin: clamp(0.4rem, 1.2dvh, 0.8rem) auto; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      flex-shrink: 0; 
+      transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                  height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                  margin 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); 
+    }
+    body.has-active .wheel-wrap { 
+      width: clamp(88px, 12.5dvh, 135px); 
+      height: clamp(88px, 12.5dvh, 135px); 
+      margin: 0 auto clamp(0.15rem, 0.5dvh, 0.3rem) auto; 
+    }
+    
     .wheel { 
       position: relative; 
       width: 100%; 
@@ -54,7 +87,7 @@
     .slice-icon svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.45)); }
     .pointer { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 11px solid transparent; border-right: 11px solid transparent; border-top: 20px solid #fff; z-index: 10; filter: drop-shadow(0 3px 5px rgba(0,0,0,0.6)); transition: all 0.35s; }
     body.has-active .pointer { top: -9px; border-left-width: 8px; border-right-width: 8px; border-top-width: 15px; }
-    .center-hub { position: absolute; width: clamp(34px, 6dvh, 50px); height: clamp(34px, 6dvh, 50px); background: #fff; border-radius: 50%; border: 4px solid var(--bg); z-index: 5; display: flex; align-items: center; justify-content: center; transition: all 0.35s; }
+    .center-hub { position: absolute; width: clamp(36px, 6dvh, 52px); height: clamp(36px, 6dvh, 52px); background: #fff; border-radius: 50%; border: 4px solid var(--bg); z-index: 5; display: flex; align-items: center; justify-content: center; transition: all 0.35s; }
     body.has-active .center-hub { width: clamp(22px, 3.5dvh, 32px); height: clamp(22px, 3.5dvh, 32px); border-width: 3px; }
     .center-hub::after { content: ''; width: 40%; height: 40%; border-radius: 50%; background: var(--red); border: 2px solid var(--bg); }
 
@@ -66,8 +99,8 @@
       background: linear-gradient(135deg, var(--red), #dc2626); 
       color: #fff; 
       border: none; 
-      padding: clamp(0.6rem, 1.5dvh, 0.8rem) clamp(1.8rem, 5vw, 2.4rem); 
-      font-size: clamp(0.92rem, 2.2dvh, 1.1rem); 
+      padding: clamp(0.7rem, 1.8dvh, 0.9rem) clamp(2rem, 6vw, 2.7rem); 
+      font-size: clamp(0.95rem, 2.3dvh, 1.15rem); 
       font-weight: 800; 
       letter-spacing: 0.5px; 
       border-radius: 99px; 
@@ -79,7 +112,7 @@
     .btn-spin:active { transform: scale(0.96); }
     .btn-spin:disabled { opacity: 0.55; cursor: not-allowed; }
     
-    body.has-active .btn-spin { padding: clamp(0.6rem, 1.5dvh, 0.8rem) clamp(1.1rem, 3.2vw, 1.6rem); }
+    body.has-active .btn-spin { padding: clamp(0.55rem, 1.4dvh, 0.75rem) clamp(1.1rem, 3.2vw, 1.6rem); }
 
     .btn-close { 
       background: linear-gradient(135deg, var(--red), #dc2626); 
@@ -102,12 +135,12 @@
     body.has-active .btn-close { display: flex; }
     @keyframes springPop { 0% { opacity: 0; transform: scale(0.3) rotate(-90deg); } 100% { opacity: 1; transform: scale(1) rotate(0deg); } }
 
-    .hub { display: flex; justify-content: center; gap: 0.75rem; margin: 0.02rem 0; flex-shrink: 0; }
-    .btn-hub { position: relative; background: var(--card); border: 1px solid #334155; width: clamp(32px, 4dvh, 36px); height: clamp(32px, 4dvh, 36px); border-radius: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-    .btn-hub svg { width: 16px; height: 16px; fill: none; stroke: #f8fafc; stroke-width: 2; }
+    .hub { display: flex; justify-content: center; gap: 0.75rem; margin: 0.05rem 0; flex-shrink: 0; }
+    .btn-hub { position: relative; background: var(--card); border: 1px solid #334155; width: clamp(34px, 4.2dvh, 38px); height: clamp(34px, 4.2dvh, 38px); border-radius: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .btn-hub svg { width: 17px; height: 17px; fill: none; stroke: #f8fafc; stroke-width: 2; }
     .hub-badge { position: absolute; top: -4px; right: -4px; background: var(--red); color: #fff; font-size: 0.6rem; font-weight: 800; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid var(--bg); }
 
-    /* Dynamic Card with Ambient Aura Glow */
+    /* Sliding/Custody Card Engine */
     .card { 
       width: 100%; 
       background: var(--card); 
@@ -121,8 +154,14 @@
       flex-shrink: 1; 
       min-height: 0; 
       position: relative; 
+      animation: custodySlideUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
       transition: border-color 0.4s ease, box-shadow 0.4s ease;
     }
+    @keyframes custodySlideUp {
+      from { opacity: 0; transform: translateY(35px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
     .card-nav { display: flex; justify-content: space-between; align-items: center; }
     .card-nav button { background: none; border: none; color: var(--sub); font-size: 1.15rem; font-weight: 900; padding: 0 0.5rem; cursor: pointer; }
     
@@ -462,7 +501,6 @@
       document.getElementById('shinyBtn').classList.toggle('active', isShiny);
     }
 
-    // Dynamic Card Aura Glow Engine
     function hexToRgb(hex) {
       hex = hex.replace('#', '');
       if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
@@ -482,7 +520,6 @@
       card.style.boxShadow = `0 14px 32px rgba(0,0,0,0.55), 0 0 24px rgba(${pRgb}, 0.45), inset 0 0 16px rgba(${sRgb}, 0.25)`;
     }
 
-    // Lore Flavor Text Engine
     async function fetchLoreText(speciesUrl, fallbackId) {
       const loreBox = document.getElementById('pokeLore');
       loreBox.innerText = "Accessing Pokédex lore...";
@@ -581,10 +618,7 @@
       try {
         const tRes = await fetch(`https://pokeapi.co/api/v2/type/${TYPES[idx]}`);
         const tData = await tRes.json();
-        const valid = tData.pokemon.filter(p => {
-          const id = parseInt(p.pokemon.url.split('/').filter(Boolean).pop());
-          return id <= TOTAL;
-        });
+        const valid = tData.pokemon.filter(p => parseInt(p.pokemon.url.split('/').filter(Boolean).pop()) <= TOTAL);
         const pRes = await fetch(valid[Math.floor(Math.random() * valid.length)].pokemon.url);
         const pData = await pRes.json();
         const shiny = Math.floor(Math.random() * 100) === 0;

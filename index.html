@@ -360,7 +360,7 @@
     .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.04rem 0.7rem; text-align: left; background: var(--bg); padding: clamp(0.15rem, 0.35dvh, 0.22rem) 0.65rem; border-radius: 8px; font-size: clamp(0.58rem, 1.05dvh, 0.65rem); }
     .stats span:last-child { font-weight: 700; float: right; }
 
-    /* 3D Holographic Zoom Modal */
+    /* Zoom Modal */
     .tcg-zoom-modal {
       position: fixed;
       inset: 0;
@@ -405,7 +405,6 @@
       align-items: center;
       justify-content: center;
       width: 100%;
-      perspective: 800px;
       touch-action: pan-y;
     }
     .holo-card-stage {
@@ -413,8 +412,6 @@
       width: 220px;
       aspect-ratio: 63 / 88;
       border-radius: 12px;
-      transform-style: preserve-3d;
-      transition: transform 0.15s ease-out;
       box-shadow: 0 10px 30px rgba(0,0,0,0.7);
     }
     .tcg-zoom-img {
@@ -841,13 +838,11 @@
     }
 
     function resolveSetName(setObj, cardId = '') {
-      // 1. Try resolving using set object's ID
       if (setObj?.id) {
         const idLower = String(setObj.id).toLowerCase().trim();
         if (KNOWN_SETS[idLower]) return KNOWN_SETS[idLower];
       }
 
-      // 2. Try resolving using set object's name if valid
       if (setObj?.name) {
         const nameClean = String(setObj.name).trim();
         const lowerName = nameClean.toLowerCase();
@@ -857,13 +852,11 @@
         }
       }
 
-      // 3. Fallback: Parse set ID prefix directly from Card ID (e.g., 'sm115-001' or 'swsh12-14')
       if (cardId && typeof cardId === 'string' && cardId.includes('-')) {
         const prefix = cardId.split('-')[0].toLowerCase().trim();
         if (KNOWN_SETS[prefix]) return KNOWN_SETS[prefix];
       }
 
-      // 4. Try series string if provided
       if (setObj?.series && typeof setObj.series === 'string') {
         const sClean = setObj.series.trim();
         if (sClean && !['promo', 'expansion', 'set'].includes(sClean.toLowerCase())) {
@@ -1242,10 +1235,9 @@
       return regex.test(c);
     }
 
-    // High-Resiliency Multi-Threaded Card Fetcher with Digital-Set Filtering
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_all_variations_v320_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_all_variations_v330_${cleanName.toLowerCase()}`;
       
       if (!bypassCache) {
         if (memoryTcgCache.has(cacheKey)) {
@@ -1320,7 +1312,6 @@
         }
       }
 
-      // Word boundary matching filter + Digital-Only exclusion filter
       const physicalSpeciesCards = allCards
         .filter(c => !isDigitalOnlyCard(c))
         .filter(c => matchesExactPokemonName(c.name, cleanName));
@@ -1461,38 +1452,12 @@
 
     let zoomTouchX = 0;
     const zoomViewArea = document.getElementById('zoomViewArea');
-    const holoStage = document.getElementById('holoStage');
-    
-    if (zoomViewArea && holoStage) {
-      const handleTilt = (clientX, clientY) => {
-        const rect = holoStage.getBoundingClientRect();
-        const x = clientX - rect.left;
-        const y = clientY - rect.top;
-        const centerX = rect.width / 2;
-        const centerY = rect.height / 2;
-        
-        const rotateX = ((y - centerY) / centerY) * -16;
-        const rotateY = ((x - centerX) / centerX) * 16;
-        
-        holoStage.style.transform = `rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg)`;
-        
-        const posX = ((x / rect.width) * 100).toFixed(1);
-        const posY = ((y / rect.height) * 100).toFixed(1);
-        holoStage.style.setProperty('--pos-x', `${posX}%`);
-        holoStage.style.setProperty('--pos-y', `${posY}%`);
-      };
-
+    if (zoomViewArea) {
       zoomViewArea.addEventListener('touchstart', e => {
         zoomTouchX = e.changedTouches[0].screenX;
-        handleTilt(e.touches[0].clientX, e.touches[0].clientY);
-      }, { passive: true });
-
-      zoomViewArea.addEventListener('touchmove', e => {
-        handleTilt(e.touches[0].clientX, e.touches[0].clientY);
       }, { passive: true });
 
       zoomViewArea.addEventListener('touchend', e => {
-        holoStage.style.transform = 'rotateX(0deg) rotateY(0deg)';
         const dX = e.changedTouches[0].screenX - zoomTouchX;
         if (Math.abs(dX) > 45) {
           if (dX < 0) {
@@ -1502,18 +1467,10 @@
           }
         }
       }, { passive: true });
-
-      zoomViewArea.addEventListener('mousemove', e => {
-        handleTilt(e.clientX, e.clientY);
-      });
-      zoomViewArea.addEventListener('mouseleave', () => {
-        holoStage.style.transform = 'rotateX(0deg) rotateY(0deg)';
-      });
     }
 
     function closeTcgZoom() {
       document.getElementById('tcgZoomModal').style.display = 'none';
-      if (holoStage) holoStage.style.transform = 'rotateX(0deg) rotateY(0deg)';
     }
 
     function toggleCollect() {

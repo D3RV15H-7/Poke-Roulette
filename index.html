@@ -437,6 +437,7 @@
       </button>
     </div>
 
+    <!-- Pokémon Result Card -->
     <div class="card" id="pokeCard">
       <div class="card-nav">
         <button onclick="navigateDex(-1)">‹</button>
@@ -457,10 +458,13 @@
         <button class="btn-icon" id="shinyBtn" onclick="toggleShiny()">★</button>
       </div>
 
+      <!-- Auto-Fitting Lore Text Box -->
       <div class="lore-box" id="pokeLore">Accessing Pokédex lore...</div>
 
+      <!-- Interactive Evolution Mini Chain -->
       <div class="evo-chain-wrap" id="evoChain"></div>
 
+      <!-- Dynamic Full Art / Card Strip -->
       <div class="tcg-section-wrap" id="tcgWrap">
         <div class="tcg-header-row">
           <span id="tcgSectionTitle">✨ Illustration & Full Arts</span>
@@ -489,6 +493,7 @@
     </div>
   </div>
 
+  <!-- TCG Card Zoom Modal -->
   <div class="tcg-zoom-modal" id="tcgZoomModal" onclick="closeTcgZoom()">
     <div class="tcg-zoom-content" onclick="event.stopPropagation()">
       <img class="tcg-zoom-img" id="tcgZoomImg" src="" alt="Card HD" />
@@ -498,6 +503,7 @@
     </div>
   </div>
 
+  <!-- Full Dex Collection Tracker Modal with In-Modal Search Bar -->
   <div class="modal" id="dexModal" onclick="closeModal(event, 'dexModal')">
     <div class="modal-body" onclick="event.stopPropagation()">
       <div class="modal-head">
@@ -806,45 +812,31 @@
       evoBox.style.display = 'flex';
     }
 
-    // Exclusively Full-Art, Mega & Illustration Rare Verifier
-    function isStrictFullArtOrMega(card) {
-      const r = (card.rarity || '').toLowerCase();
-      const subtypes = (card.subtypes || []).map(s => s.toLowerCase());
-      const name = (card.name || '').toLowerCase();
+    // Strict Full-Art / Special Art Verifier
+    function isStrictPremium(card) {
+      const r = (card.rarity || '').toLowerCase().trim();
+      const subtypes = (card.subtypes || []).map(s => s.toLowerCase().trim());
+      const name = (card.name || '').toLowerCase().trim();
 
       const isMega = subtypes.includes('mega') || name.startsWith('m ') || name.startsWith('m-') || name.includes('mega ');
+      if (isMega) return true;
 
-      // Strictly discard all non-full-art regular formats
-      if (!isMega && ['common', 'uncommon', 'rare', 'rare holo', 'rare holo v', 'rare holo ex', 'rare holo gx', 'rare holo vmax', 'rare holo vstar', 'double rare', 'shiny rare', 'promo', 'promo rare'].includes(r)) {
-        return false;
-      }
+      // Positive verification: Only accept dedicated illustration / full-art tiers
+      const isIllustration = r.includes('illustration rare') || subtypes.includes('illustration rare') || subtypes.includes('special illustration rare');
+      const isSecretOrHyper = r.includes('secret') || r.includes('hyper rare') || r.includes('rainbow rare') || r.includes('crown rare') || r.includes('gold');
+      const isTrainerGallery = r.includes('trainer gallery') || r.includes('character');
+      const isFullArtUltra = subtypes.includes('full art') || r.includes('shiny ultra rare') || r.includes('shiny super rare');
 
-      return (
-        isMega ||
-        r.includes('illustration rare') || 
-        r.includes('special illustration rare') ||
-        r.includes('hyper rare') || 
-        r.includes('secret rare') || 
-        r.includes('rainbow rare') || 
-        r.includes('trainer gallery') ||
-        r.includes('crown rare') ||
-        r.includes('shiny ultra rare') ||
-        r.includes('shiny super rare') ||
-        subtypes.includes('special illustration rare') ||
-        subtypes.includes('illustration rare') ||
-        subtypes.includes('full art') ||
-        (r.includes('ultra rare') && subtypes.includes('full art'))
-      );
+      return isIllustration || isSecretOrHyper || isTrainerGallery || isFullArtUltra;
     }
 
-    // High-Speed TCG Engine: Strictly Discards Regular Cards if Any Premium Exists
     async function fetchTcgCards(pokeName, speciesName) {
       const strip = document.getElementById('tcgStrip');
       const countText = document.getElementById('tcgCountText');
       const sectionTitle = document.getElementById('tcgSectionTitle');
       
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_strict_exclusive_v1_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_strict_exclusive_v5_${cleanName.toLowerCase()}`;
       
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
@@ -866,22 +858,13 @@
       currentFetchController = new AbortController();
 
       try {
-        const nameQuery = `(name:"${cleanName}" OR name:"M ${cleanName}" OR name:"M-${cleanName}" OR name:"Mega ${cleanName}")`;
-        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(nameQuery)}&select=id,name,images,set,number,rarity,subtypes&pageSize=50&orderBy=-set.releaseDate`;
+        // Step 1: Query API explicitly for premium cards first
+        const premiumRarities = '(rarity:"Illustration Rare" OR rarity:"Special Illustration Rare" OR rarity:"Hyper Rare" OR rarity:"Rare Secret" OR rarity:"Rare Rainbow" OR rarity:"Trainer Gallery Rare Holo" OR rarity:"Shiny Ultra Rare" OR rarity:"Crown Rare" OR subtypes:"Special Illustration Rare" OR subtypes:"Illustration Rare" OR subtypes:"Full Art" OR subtypes:"Mega")';
+        const premiumQuery = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanName)}" ${premiumRarities}&select=id,name,images,set,number,rarity,subtypes&pageSize=40&orderBy=-set.releaseDate`;
         
-        let res = await fetch(queryUrl, { signal: currentFetchController.signal });
+        let res = await fetch(premiumQuery, { signal: currentFetchController.signal });
         let data = await res.json();
-        let allCards = data.data || [];
-
-        if (!allCards.length && cleanName.includes(' ')) {
-          const root = cleanName.split(' ')[0];
-          const rRes = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(root)}"&select=id,name,images,set,number,rarity,subtypes&pageSize=50&orderBy=-set.releaseDate`, { signal: currentFetchController.signal });
-          const rData = await rRes.json();
-          allCards = rData.data || [];
-        }
-
-        // 1. Filter specifically for Illustration Rares, Megas, and Full Arts
-        let premiumCards = allCards.filter(isStrictFullArtOrMega).map(c => ({
+        let premiumCards = (data.data || []).filter(isStrictPremium).map(c => ({
           id: c.id,
           name: c.name,
           smallImg: c.images?.small || '',
@@ -891,60 +874,31 @@
           rarity: c.rarity || 'Special Art'
         })).filter(c => c.smallImg);
 
-        let finalCards = [];
-        let isFallback = false;
-
-        // If even 1 premium art card exists, ONLY show premium arts (discard all normal cards)
+        // If premium cards exist, ONLY show premium cards
         if (premiumCards.length > 0) {
-          finalCards = premiumCards;
-          isFallback = false;
-        } else if (allCards.length > 0) {
-          // Only if 0 premium cards exist across all sets do we show regular cards
-          finalCards = allCards.map(c => ({
-            id: c.id,
-            name: c.name,
-            smallImg: c.images?.small || '',
-            largeImg: c.images?.large || c.images?.small || '',
-            setName: c.set?.name || 'Set',
-            number: c.number || '?',
-            rarity: c.rarity || 'Card'
-          })).filter(c => c.smallImg);
-          isFallback = true;
+          try { localStorage.setItem(cacheKey, JSON.stringify({ cards: premiumCards, isFallback: false })); } catch (e) {}
+          renderTcgCards(premiumCards, false);
+          return;
         }
 
-        try { localStorage.setItem(cacheKey, JSON.stringify({ cards: finalCards, isFallback })); } catch (e) {}
-        renderTcgCards(finalCards, isFallback);
+        // Step 2: Fallback ONLY if 0 premium cards exist across all sets
+        const fallbackQuery = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanName)}"&select=id,name,images,set,number,rarity,subtypes&pageSize=30&orderBy=-set.releaseDate`;
+        let fRes = await fetch(fallbackQuery, { signal: currentFetchController.signal });
+        let fData = await fRes.json();
+        let fallbackCards = (fData.data || []).map(c => ({
+          id: c.id,
+          name: c.name,
+          smallImg: c.images?.small || '',
+          largeImg: c.images?.large || c.images?.small || '',
+          setName: c.set?.name || 'Set',
+          number: c.number || '?',
+          rarity: c.rarity || 'Card'
+        })).filter(c => c.smallImg);
+
+        try { localStorage.setItem(cacheKey, JSON.stringify({ cards: fallbackCards, isFallback: true })); } catch (e) {}
+        renderTcgCards(fallbackCards, true);
       } catch (err) {
         if (err.name === 'AbortError') return;
-
-        // Fallback to TCGdex
-        try {
-          const queryName = cleanName.split(' ')[0].toLowerCase();
-          const fRes = await fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(queryName)}`);
-          const fData = await fRes.json();
-          if (Array.isArray(fData) && fData.length > 0) {
-            let fPremium = fData.filter(isStrictFullArtOrMega);
-            let useList = fPremium.length > 0 ? fPremium : fData;
-            let isFallback = fPremium.length === 0;
-
-            const fCards = useList.map(c => ({
-              id: c.id,
-              name: c.name,
-              smallImg: `${c.image}/low.webp`,
-              largeImg: `${c.image}/high.webp`,
-              setName: c.set?.name || 'TCG Set',
-              number: c.localId || '?',
-              rarity: c.rarity || 'Card'
-            })).filter(c => c.smallImg && !c.smallImg.includes('undefined'));
-
-            if (fCards.length) {
-              try { localStorage.setItem(cacheKey, JSON.stringify({ cards: fCards, isFallback })); } catch (e) {}
-              renderTcgCards(fCards, isFallback);
-              return;
-            }
-          }
-        } catch (fErr) {}
-
         renderTcgCards([], false);
       }
     }
@@ -1064,7 +1018,6 @@
       loadPoke(next, d, false);
     }
 
-    // Spin Engine: Keeps Result View Hidden Until the Wheel Stops
     async function spinAndPick() {
       initAudio();
       document.getElementById('sList').style.display = 'none';
@@ -1087,12 +1040,7 @@
         const pData = await pRes.json();
         const shiny = Math.floor(Math.random() * 100) === 0;
 
-        // Pre-warm data into cache silently during the spin without touching DOM
-        const cleanName = getCleanNationalDexName(pData.name, pData.species?.name);
-        const nameQuery = `(name:"${cleanName}" OR name:"M ${cleanName}" OR name:"M-${cleanName}" OR name:"Mega ${cleanName}")`;
-        fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(nameQuery)}&select=id,name,images,set,number,rarity,subtypes&pageSize=50&orderBy=-set.releaseDate`).catch(() => {});
-
-        // Reveal card ONLY once the 3.2s animation finishes
+        // Reveal card only after the full 3.2s wheel spin animation finishes
         setTimeout(() => {
           renderCard(pData, 0, shiny, false);
           addRec(pData);

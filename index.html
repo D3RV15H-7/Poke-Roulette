@@ -240,7 +240,7 @@
     .evo-node.active-evo span { color: #fff; }
     .evo-arrow { color: var(--sub); font-size: 0.6rem; font-weight: 900; }
 
-    /* Exclusive Full Art / Illustration Rare TCG Shelf */
+    /* Dynamic TCG Shelf */
     .tcg-section-wrap {
       width: 100%;
       margin-bottom: clamp(0.1rem, 0.25dvh, 0.18rem);
@@ -261,6 +261,7 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
+    .tcg-header-row span:first-child { color: #f8fafc; font-weight: 800; }
     .tcg-header-row span:last-child { color: var(--gold); font-size: 0.58rem; }
     .tcg-scroll-strip {
       display: flex;
@@ -468,10 +469,10 @@
       <!-- Interactive Evolution Mini Chain -->
       <div class="evo-chain-wrap" id="evoChain"></div>
 
-      <!-- Full Art / Mega & Illustration Rare TCG Strip -->
+      <!-- Dynamic Full Art / Card Strip -->
       <div class="tcg-section-wrap" id="tcgWrap">
         <div class="tcg-header-row">
-          <span>✨ Illustration, Mega & Full Arts</span>
+          <span id="tcgSectionTitle">✨ Illustration & Full Arts</span>
           <span id="tcgCountText">Loading cards...</span>
         </div>
         <div class="tcg-scroll-strip" id="tcgStrip">
@@ -816,21 +817,18 @@
       evoBox.style.display = 'flex';
     }
 
-    // Exclusively Full-Art, Mega & Illustration Rare Verifier
+    // Full-Art, Mega & Illustration Rare Verifier
     function isStrictFullArtOrMega(card) {
       const r = (card.rarity || '').toLowerCase();
       const subtypes = (card.subtypes || []).map(s => s.toLowerCase());
       const name = (card.name || '').toLowerCase();
 
-      // Explicit support for Mega Pokémon Cards (e.g. M Charizard EX, Mega Rayquaza EX)
       const isMega = subtypes.includes('mega') || name.startsWith('m ') || name.startsWith('m-') || name.includes('mega ');
 
-      // Reject non-full-art standard baseline formats (unless it is a Mega card)
       if (!isMega && ['common', 'uncommon', 'rare', 'rare holo', 'rare holo v', 'rare holo ex', 'rare holo gx', 'rare holo vmax', 'rare holo vstar', 'double rare', 'shiny rare', 'promo'].includes(r)) {
         return false;
       }
 
-      // Explicit whitelist for true full-card artwork & Mega cards
       return (
         isMega ||
         r.includes('illustration rare') || 
@@ -849,20 +847,24 @@
       );
     }
 
+    // High-Speed TCG Engine with Seamless All-Card Fallback
     async function fetchTcgCards(pokeName, speciesName) {
       const strip = document.getElementById('tcgStrip');
       const countText = document.getElementById('tcgCountText');
+      const sectionTitle = document.getElementById('tcgSectionTitle');
       
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_mega_fullarts_v1_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_mega_fallback_v1_${cleanName.toLowerCase()}`;
       
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
-        renderTcgCards(JSON.parse(cached));
+        const cachedData = JSON.parse(cached);
+        renderTcgCards(cachedData.cards, cachedData.isFallback);
         return;
       }
 
       countText.innerText = "Loading cards...";
+      sectionTitle.innerText = "✨ Illustration, Mega & Full Arts";
       strip.innerHTML = `
         <div class="tcg-skeleton-card"></div>
         <div class="tcg-skeleton-card"></div>
@@ -874,15 +876,22 @@
       currentFetchController = new AbortController();
 
       try {
-        // Query base Pokémon as well as its Mega variants (e.g. "Charizard" OR "M Charizard" OR "Mega Charizard")
         const nameQuery = `(name:"${cleanName}" OR name:"M ${cleanName}" OR name:"M-${cleanName}" OR name:"Mega ${cleanName}")`;
         const queryUrl = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(nameQuery)}&select=id,name,images,set,number,rarity,subtypes&pageSize=50&orderBy=-set.releaseDate`;
         
         let res = await fetch(queryUrl, { signal: currentFetchController.signal });
         let data = await res.json();
-        let cards = data.data || [];
+        let allCards = data.data || [];
 
-        let filteredCards = cards.filter(isStrictFullArtOrMega).map(c => ({
+        if (!allCards.length && cleanName.includes(' ')) {
+          const root = cleanName.split(' ')[0];
+          const rRes = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(root)}"&select=id,name,images,set,number,rarity,subtypes&pageSize=50&orderBy=-set.releaseDate`, { signal: currentFetchController.signal });
+          const rData = await rRes.json();
+          allCards = rData.data || [];
+        }
+
+        // Tier 1: Check for Illustration Rares, Megas, and Full Arts
+        let premiumCards = allCards.filter(isStrictFullArtOrMega).map(c => ({
           id: c.id,
           name: c.name,
           smallImg: c.images?.small || '',
@@ -892,68 +901,81 @@
           rarity: c.rarity || 'Special Art'
         })).filter(c => c.smallImg);
 
-        // Fallback root query if initial query returned empty on multi-part names
-        if (!filteredCards.length && cleanName.includes(' ')) {
-          const root = cleanName.split(' ')[0];
-          const rRes = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(root)}"&select=id,name,images,set,number,rarity,subtypes&pageSize=50&orderBy=-set.releaseDate`, { signal: currentFetchController.signal });
-          const rData = await rRes.json();
-          filteredCards = (rData.data || []).filter(isStrictFullArtOrMega).map(c => ({
+        let finalCards = [];
+        let isFallback = false;
+
+        if (premiumCards.length > 0) {
+          finalCards = premiumCards;
+          isFallback = false;
+        } else if (allCards.length > 0) {
+          // Tier 2 Fallback: If no full arts exist, show available cards across all sets
+          finalCards = allCards.map(c => ({
             id: c.id,
             name: c.name,
             smallImg: c.images?.small || '',
             largeImg: c.images?.large || c.images?.small || '',
             setName: c.set?.name || 'Set',
             number: c.number || '?',
-            rarity: c.rarity || 'Special Art'
+            rarity: c.rarity || 'Card'
           })).filter(c => c.smallImg);
+          isFallback = true;
         }
 
-        try { localStorage.setItem(cacheKey, JSON.stringify(filteredCards)); } catch (e) {}
-        renderTcgCards(filteredCards);
+        try { localStorage.setItem(cacheKey, JSON.stringify({ cards: finalCards, isFallback })); } catch (e) {}
+        renderTcgCards(finalCards, isFallback);
       } catch (err) {
         if (err.name === 'AbortError') return;
 
-        // Fallback to TCGdex filtered strictly for Illustration, Mega & Full Arts
+        // Fallback to TCGdex
         try {
           const queryName = cleanName.split(' ')[0].toLowerCase();
           const fRes = await fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(queryName)}`);
           const fData = await fRes.json();
-          if (Array.isArray(fData)) {
-            const fCards = fData
-              .filter(isStrictFullArtOrMega)
-              .map(c => ({
-                id: c.id,
-                name: c.name,
-                smallImg: `${c.image}/low.webp`,
-                largeImg: `${c.image}/high.webp`,
-                setName: c.set?.name || 'TCG Set',
-                number: c.localId || '?',
-                rarity: c.rarity || 'Full Art'
-              })).filter(c => c.smallImg && !c.smallImg.includes('undefined'));
+          if (Array.isArray(fData) && fData.length > 0) {
+            let fPremium = fData.filter(isStrictFullArtOrMega);
+            let useList = fPremium.length > 0 ? fPremium : fData;
+            let isFallback = fPremium.length === 0;
+
+            const fCards = useList.map(c => ({
+              id: c.id,
+              name: c.name,
+              smallImg: `${c.image}/low.webp`,
+              largeImg: `${c.image}/high.webp`,
+              setName: c.set?.name || 'TCG Set',
+              number: c.localId || '?',
+              rarity: c.rarity || 'Card'
+            })).filter(c => c.smallImg && !c.smallImg.includes('undefined'));
 
             if (fCards.length) {
-              try { localStorage.setItem(cacheKey, JSON.stringify(fCards)); } catch (e) {}
-              renderTcgCards(fCards);
+              try { localStorage.setItem(cacheKey, JSON.stringify({ cards: fCards, isFallback })); } catch (e) {}
+              renderTcgCards(fCards, isFallback);
               return;
             }
           }
         } catch (fErr) {}
 
-        renderTcgCards([]);
+        renderTcgCards([], false);
       }
     }
 
-    function renderTcgCards(cards) {
+    function renderTcgCards(cards, isFallback = false) {
       const strip = document.getElementById('tcgStrip');
       const countText = document.getElementById('tcgCountText');
+      const sectionTitle = document.getElementById('tcgSectionTitle');
+
+      if (isFallback) {
+        sectionTitle.innerText = "🃏 All TCG Card Releases";
+      } else {
+        sectionTitle.innerText = "✨ Illustration, Mega & Full Arts";
+      }
 
       if (!cards || !cards.length) {
-        countText.innerText = "0 Arts";
-        strip.innerHTML = '<div class="tcg-empty-msg">No full arts available</div>';
+        countText.innerText = "0 Cards";
+        strip.innerHTML = '<div class="tcg-empty-msg">No trading cards found across sets</div>';
         return;
       }
 
-      countText.innerText = `${cards.length} Art${cards.length === 1 ? '' : 's'}`;
+      countText.innerText = `${cards.length} Card${cards.length === 1 ? '' : 's'}`;
       strip.innerHTML = '';
       
       cards.forEach(card => {

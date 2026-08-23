@@ -240,7 +240,7 @@
     .evo-node.active-evo span { color: #fff; }
     .evo-arrow { color: var(--sub); font-size: 0.6rem; font-weight: 900; }
 
-    /* Strict Fixed-Dimension TCG Shelf with Skeleton Shimmer */
+    /* Full Art / Illustration Rare TCG Shelf */
     .tcg-section-wrap {
       width: 100%;
       margin-bottom: clamp(0.1rem, 0.25dvh, 0.18rem);
@@ -318,7 +318,6 @@
     }
     .tcg-card-num { font-size: 0.46rem; color: var(--sub); font-weight: 700; }
     
-    /* Skeleton Shimmer Loading Blocks */
     .tcg-skeleton-card {
       flex: 0 0 clamp(48px, 6.5dvh, 58px);
       width: clamp(48px, 6.5dvh, 58px);
@@ -469,10 +468,10 @@
       <!-- Interactive Evolution Mini Chain -->
       <div class="evo-chain-wrap" id="evoChain"></div>
 
-      <!-- Pokémon TCG Card Collection Strip -->
+      <!-- Full Art / Illustration Rare TCG Strip -->
       <div class="tcg-section-wrap" id="tcgWrap">
         <div class="tcg-header-row">
-          <span>🃏 TCG Cards</span>
+          <span>✨ Illustration & Full Arts</span>
           <span id="tcgCountText">Finding Sets...</span>
         </div>
         <div class="tcg-scroll-strip" id="tcgStrip">
@@ -801,13 +800,13 @@
       evoBox.style.display = 'flex';
     }
 
-    // High-Speed Dual-Tier TCG Fetch Engine
+    // Fast-Lane Illustration & Full Art TCG Engine
     async function fetchTcgCards(pokeName) {
       const strip = document.getElementById('tcgStrip');
       const countText = document.getElementById('tcgCountText');
       
       const cleanName = pokeName.replace(/-m$/i, ' ♂').replace(/-f$/i, ' ♀').replace(/-/g, ' ');
-      const cacheKey = `tcg_cards_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_art_cards_${cleanName.toLowerCase()}`;
       
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
@@ -825,49 +824,56 @@
 
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4500);
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-        let res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanName)}"&pageSize=30&orderBy=-set.releaseDate`, {
-          signal: controller.signal
-        });
+        // Targeted query for Full Art, Illustration Rare, Secret, and Ultra rarities only
+        const rarityQuery = '(rarity:"Illustration Rare" OR rarity:"Special Illustration Rare" OR rarity:"Rare Ultra" OR rarity:"Rare Secret" OR rarity:"Rare Rainbow" OR rarity:"Trainer Gallery Rare Holo" OR rarity:"Shiny Ultra Rare" OR rarity:"Hyper Rare" OR rarity:"Rare Holo EX" OR rarity:"Rare Holo GX" OR rarity:"Rare Holo VMAX" OR rarity:"Rare Holo V")';
+        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanName)}" ${rarityQuery}&select=id,name,images,set,number,rarity&pageSize=30&orderBy=-set.releaseDate`;
+
+        let res = await fetch(queryUrl, { signal: controller.signal });
         clearTimeout(timeoutId);
 
         let data = await res.json();
-        
-        if ((!data.data || data.data.length === 0) && cleanName.includes(' ')) {
-          const rootName = cleanName.split(' ')[0];
-          res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(rootName)}"&pageSize=30&orderBy=-set.releaseDate`);
-          data = await res.json();
+        let cards = data.data || [];
+
+        // Fallback: If no special full art prints are found, query general Holo/Rare prints
+        if (!cards.length) {
+          const fallbackRes = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanName)}" -rarity:Common -rarity:Uncommon&select=id,name,images,set,number,rarity&pageSize=20&orderBy=-set.releaseDate`);
+          const fallbackData = await fallbackRes.json();
+          cards = fallbackData.data || [];
         }
 
-        const cards = (data.data || []).map(c => ({
+        const formattedCards = cards.map(c => ({
           id: c.id,
           name: c.name,
           smallImg: c.images?.small || '',
           largeImg: c.images?.large || c.images?.small || '',
           setName: c.set?.name || 'Promo',
           number: c.number || '?',
-          rarity: c.rarity || 'Card'
+          rarity: c.rarity || 'Full Art'
         })).filter(c => c.smallImg);
 
-        try { localStorage.setItem(cacheKey, JSON.stringify(cards)); } catch (e) {}
-        renderTcgCards(cards);
+        try { localStorage.setItem(cacheKey, JSON.stringify(formattedCards)); } catch (e) {}
+        renderTcgCards(formattedCards);
       } catch (err) {
-        // High-Speed Fallback to Public CDN TCGdex index
+        // High-Speed Fallback to TCGdex
         try {
           const queryName = pokeName.split('-')[0].toLowerCase();
           const fRes = await fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(queryName)}`);
           const fData = await fRes.json();
           if (Array.isArray(fData) && fData.length > 0) {
-            const fCards = fData.slice(0, 24).map(c => ({
-              id: c.id,
-              name: c.name,
-              smallImg: `${c.image}/low.webp`,
-              largeImg: `${c.image}/high.webp`,
-              setName: c.set?.name || 'TCG Set',
-              number: c.localId || '?',
-              rarity: 'Card'
-            })).filter(c => c.smallImg && !c.smallImg.includes('undefined'));
+            const fCards = fData
+              .filter(c => c.rarity && !['Common', 'Uncommon'].includes(c.rarity))
+              .slice(0, 20)
+              .map(c => ({
+                id: c.id,
+                name: c.name,
+                smallImg: `${c.image}/low.webp`,
+                largeImg: `${c.image}/high.webp`,
+                setName: c.set?.name || 'TCG Set',
+                number: c.localId || '?',
+                rarity: c.rarity || 'Special Art'
+              })).filter(c => c.smallImg && !c.smallImg.includes('undefined'));
 
             if (fCards.length) {
               try { localStorage.setItem(cacheKey, JSON.stringify(fCards)); } catch (e) {}
@@ -877,8 +883,8 @@
           }
         } catch (fErr) {}
 
-        countText.innerText = "0 Cards";
-        strip.innerHTML = '<div class="tcg-empty-msg">TCG card archive busy. Tap again.</div>';
+        countText.innerText = "0 Arts";
+        strip.innerHTML = '<div class="tcg-empty-msg">No special art cards found.</div>';
       }
     }
 
@@ -887,12 +893,12 @@
       const countText = document.getElementById('tcgCountText');
 
       if (!cards || !cards.length) {
-        countText.innerText = "0 Cards";
-        strip.innerHTML = '<div class="tcg-empty-msg">No card versions found.</div>';
+        countText.innerText = "0 Arts";
+        strip.innerHTML = '<div class="tcg-empty-msg">No illustration rare cards found.</div>';
         return;
       }
 
-      countText.innerText = `${cards.length} Version${cards.length === 1 ? '' : 's'}`;
+      countText.innerText = `${cards.length} Art${cards.length === 1 ? '' : 's'}`;
       strip.innerHTML = '';
       
       cards.forEach(card => {
@@ -1012,7 +1018,7 @@
         const pData = await pRes.json();
         const shiny = Math.floor(Math.random() * 100) === 0;
 
-        // Background Pre-fetch TCG cards & Lore while the wheel is spinning
+        // Background Pre-fetch high-rarity TCG cards & Lore during spin
         fetchTcgCards(pData.name);
         fetchLoreAndEvolution(pData.species?.url, pData.id);
 
@@ -1063,7 +1069,6 @@
       card.style.display = 'block';
     }
 
-    // Touch Navigation with Protected TCG/Evolution Strip zones
     let tX = 0, tY = 0, isSwipeRestricted = false;
     const cardEl = document.getElementById('pokeCard');
     

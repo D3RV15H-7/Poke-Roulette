@@ -450,17 +450,18 @@
     .tabs button.active { background: var(--red); border-color: var(--red); color: #fff; }
     .list-view { list-style: none; overflow-y: auto; flex: 1; width: 100%; padding-bottom: 0.8rem; }
     .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.35rem; }
-    .dex-item { background: var(--bg); border: 1px solid #334155; border-radius: 10px; padding: 0.4rem 0.15rem; text-align: center; cursor: pointer; position: relative; }
+    .dex-item { background: var(--bg); border: 1px solid #334155; border-radius: 10px; padding: 0.4rem 0.15rem; text-align: center; cursor: pointer; position: relative; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
     .dex-item.owned { border-color: rgba(16,185,129,0.45); background: rgba(16,185,129,0.08); }
-    .dex-item img { width: 100%; max-width: 48px; aspect-ratio: 1; object-fit: contain; }
+    .dex-item img { width: 100%; max-width: 48px; aspect-ratio: 1; object-fit: contain; pointer-events: none; }
     .dex-item.unowned img { filter: grayscale(1) opacity(0.28); }
     .recent-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.55rem; border-radius: 12px; cursor: pointer; }
     .recent-item img { width: 44px; height: 44px; object-fit: contain; }
 
+    /* Enlarged 3x3 Card Grid Modal matching Zoom sizing */
     .dex-cards-modal {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.88);
+      background: rgba(15, 23, 42, 0.9);
       backdrop-filter: blur(8px);
       z-index: 250;
       display: none;
@@ -472,22 +473,22 @@
       background: var(--card);
       border: 1px solid #334155;
       border-radius: 20px;
-      padding: 1rem 0.8rem;
-      max-width: 360px;
+      padding: 1.1rem;
+      max-width: 420px;
       width: 100%;
-      max-height: 85vh;
+      max-height: 88vh;
       display: flex;
       flex-direction: column;
-      gap: 0.6rem;
-      box-shadow: 0 12px 32px rgba(0,0,0,0.75);
+      gap: 0.8rem;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.8);
       animation: zoomIn 0.2s ease-out;
     }
     .dex-cards-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 0.45rem;
+      gap: 0.6rem;
       overflow-y: auto;
-      max-height: calc(75vh - 70px);
+      max-height: calc(80vh - 70px);
       padding: 0.2rem;
       scrollbar-width: thin;
       scrollbar-color: #334155 transparent;
@@ -495,8 +496,8 @@
     .dex-card-thumb-cell {
       background: #0f172a;
       border: 1px solid #334155;
-      border-radius: 8px;
-      padding: 0.3rem;
+      border-radius: 10px;
+      padding: 0.4rem;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -508,11 +509,12 @@
       width: 100%;
       aspect-ratio: 63 / 88;
       object-fit: fill;
-      border-radius: 4px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+      border-radius: 6px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+      pointer-events: none;
     }
-    .dex-cell-set { font-size: 0.48rem; font-weight: 700; color: #fff; margin-top: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; text-align: center; }
-    .dex-cell-num { font-size: 0.44rem; color: var(--sub); font-weight: 700; }
+    .dex-cell-set { font-size: 0.58rem; font-weight: 700; color: #fff; margin-top: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; text-align: center; }
+    .dex-cell-num { font-size: 0.52rem; color: var(--sub); font-weight: 700; }
   </style>
 </head>
 <body>
@@ -620,12 +622,12 @@
 
   <div class="dex-cards-modal" id="dexCardsModal" onclick="closeDexCardsModal()">
     <div class="dex-cards-content" onclick="event.stopPropagation()">
-      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:0.4rem;">
-        <h3 id="dexCardsTitle" style="font-size:0.95rem;font-weight:800;text-transform:capitalize;">Card Variations</h3>
-        <button style="background:#334155;color:#fff;border:none;width:24px;height:24px;border-radius:50%;cursor:pointer;font-weight:900;" onclick="closeDexCardsModal()">✕</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:0.5rem;">
+        <h3 id="dexCardsTitle" style="font-size:1.05rem;font-weight:800;text-transform:capitalize;">Card Variations</h3>
+        <button style="background:#334155;color:#fff;border:none;width:26px;height:26px;border-radius:50%;cursor:pointer;font-weight:900;" onclick="closeDexCardsModal()">✕</button>
       </div>
       <div class="dex-cards-grid" id="dexCardsGrid">
-        <div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.75rem;">Loading cards...</div>
+        <div style="grid-column:span 3;text-align:center;color:var(--sub);padding:2rem 0;font-size:0.8rem;">Loading cards...</div>
       </div>
     </div>
   </div>
@@ -876,7 +878,7 @@
       
       const cleanName = getCleanNationalDexName(p.name, p.species?.name);
       title.innerText = `${cleanName} Cards`;
-      grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:2rem 0;font-size:0.75rem;">Loading variations...</div>';
+      grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:2rem 0;font-size:0.8rem;">Loading variations...</div>';
       modal.style.display = 'flex';
 
       try {
@@ -905,7 +907,7 @@
 
         cardsList.sort((a, b) => a.rank - b.rank);
 
-        grid.innerHTML = cardsList.length ? '' : '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.75rem;">No cards found</div>';
+        grid.innerHTML = cardsList.length ? '' : '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">No cards found</div>';
         cardsList.forEach((card, index) => {
           const cell = document.createElement('div');
           cell.className = 'dex-card-thumb-cell';
@@ -922,7 +924,7 @@
           grid.appendChild(cell);
         });
       } catch (e) {
-        grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.75rem;">Failed to load cards</div>';
+        grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">Failed to load cards</div>';
       }
     }
 
@@ -1083,6 +1085,7 @@
       evoBox.style.display = 'flex';
     }
 
+    // Exact Rarity Sequence Ranking (1 to 24)
     function evaluateCardRank(card) {
       const r = (card.rarity || '').toLowerCase().trim();
       const name = (card.name || '').toLowerCase().trim();
@@ -1121,7 +1124,7 @@
       const countText = document.getElementById('tcgCountText');
       
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_all_variations_v250_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_all_variations_v270_${cleanName.toLowerCase()}`;
       
       if (memoryTcgCache.has(cacheKey)) {
         currentCardsList = memoryTcgCache.get(cacheKey);

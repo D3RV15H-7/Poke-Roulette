@@ -360,7 +360,7 @@
     .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.04rem 0.7rem; text-align: left; background: var(--bg); padding: clamp(0.15rem, 0.35dvh, 0.22rem) 0.65rem; border-radius: 8px; font-size: clamp(0.58rem, 1.05dvh, 0.65rem); }
     .stats span:last-child { font-weight: 700; float: right; }
 
-    /* Flat 2D Zoom Modal - Completely Removed 3D Tilting */
+    /* Flat 2D Zoom Modal */
     .tcg-zoom-modal {
       position: fixed;
       inset: 0;
@@ -983,7 +983,7 @@
           const cell = document.createElement('div');
           cell.className = 'dex-card-thumb-cell';
           cell.innerHTML = `
-            <img src="${card.smallImg}" loading="lazy" alt="${card.name}" />
+            <img src="${card.smallImg}" loading="lazy" alt="${card.name}" onerror="this.closest('.dex-card-thumb-cell')?.remove()" />
             ${card.priceGBP ? `<div class="tcg-card-price-badge">£${card.priceGBP}</div>` : ''}
             <div class="dex-cell-set" title="${card.setName}">${card.setName}</div>
             <div class="dex-cell-num">#${card.number}</div>
@@ -1195,7 +1195,6 @@
       return 25;
     }
 
-    // Comprehensive Pricing Extractor (TCGplayer & Cardmarket in GBP)
     function extractCardPriceGBP(card) {
       if (card.tcgplayer?.prices) {
         const p = card.tcgplayer.prices;
@@ -1233,10 +1232,9 @@
       return regex.test(c);
     }
 
-    // High-Resiliency Multi-Threaded Card Fetcher
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_all_variations_v350_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_all_variations_v360_${cleanName.toLowerCase()}`;
       
       if (!bypassCache) {
         if (memoryTcgCache.has(cacheKey)) {
@@ -1313,7 +1311,8 @@
 
       const physicalSpeciesCards = allCards
         .filter(c => !isDigitalOnlyCard(c))
-        .filter(c => matchesExactPokemonName(c.name, cleanName));
+        .filter(c => matchesExactPokemonName(c.name, cleanName))
+        .filter(c => c.images?.small && typeof c.images.small === 'string' && !c.images.small.includes('undefined'));
 
       const formattedCards = physicalSpeciesCards.map(c => ({
         id: c.id,
@@ -1325,7 +1324,7 @@
         rarity: c.rarity || 'Card',
         priceGBP: extractCardPriceGBP(c),
         rank: evaluateCardRank(c)
-      })).filter(c => c.smallImg);
+      }));
 
       formattedCards.sort((a, b) => a.rank - b.rank);
 
@@ -1382,7 +1381,7 @@
         node.className = 'tcg-card-item';
         node.innerHTML = `
           <div class="tcg-thumb-frame">
-            <img class="tcg-card-thumb" src="${card.smallImg}" loading="lazy" alt="${card.name}" />
+            <img class="tcg-card-thumb" src="${card.smallImg}" loading="lazy" alt="${card.name}" onerror="this.closest('.tcg-card-item')?.remove()" />
             ${card.priceGBP ? `<div class="tcg-card-price-badge">£${card.priceGBP}</div>` : ''}
           </div>
           <div class="tcg-card-set" title="${card.setName}">${card.setName}</div>
@@ -1435,7 +1434,7 @@
       }
     }
 
-    // Touch Swipe Navigation
+    // Touch Swipe Navigation (Strict 2D Horizontal)
     let zoomTouchX = 0;
     const zoomViewArea = document.getElementById('zoomViewArea');
     

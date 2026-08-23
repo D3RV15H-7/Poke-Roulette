@@ -399,7 +399,6 @@
       border-radius: 99px;
     }
 
-    /* 3D Tilt Wrapper & Foil Shaders */
     .tcg-zoom-view-area {
       position: relative;
       display: flex;
@@ -683,7 +682,6 @@
     </div>
   </div>
 
-  <!-- 3D Holographic Interactive Zoom Modal -->
   <div class="tcg-zoom-modal" id="tcgZoomModal" onclick="closeTcgZoom()">
     <div class="tcg-zoom-content" onclick="event.stopPropagation()">
       <div class="tcg-zoom-counter" id="tcgZoomCounter">1 / 1</div>
@@ -814,6 +812,10 @@
       'bwp': 'BW Promos', 'dpp': 'DP Promos', 'np': 'Nintendo Promos', 'pop': 'POP Series'
     };
 
+    const DIGITAL_SET_BLACKLIST = new Set([
+      'a1', 'a1a', 'a2', 'a2a', 'p-a', 'tcgp', 'tcg-pocket', 'pocket', 'tcglive', 'digital'
+    ]);
+
     let dir = [], rot = 0, audioCtx = null, curPoke = null, isShiny = false, curId = null, tabFilter = 'all', dexQuery = '', activeTcgRequestId = 0, isSpinning = false;
     let currentCardsList = [];
     let currentZoomIndex = 0;
@@ -838,23 +840,49 @@
       return pokeName.replace(/-/g, ' ');
     }
 
-    function resolveSetName(setObj) {
-      if (!setObj) return 'Promo';
-      if (typeof setObj === 'string') {
-        const clean = setObj.trim();
-        if (KNOWN_SETS[clean.toLowerCase()]) return KNOWN_SETS[clean.toLowerCase()];
-        if (clean && clean !== 'Set' && clean !== 'TCG Set') return clean;
-        return 'Promo';
+    function resolveSetName(setObj, cardId = '') {
+      // 1. Try resolving using set object's ID
+      if (setObj?.id) {
+        const idLower = String(setObj.id).toLowerCase().trim();
+        if (KNOWN_SETS[idLower]) return KNOWN_SETS[idLower];
       }
-      if (setObj.id) {
-        const lowerId = setObj.id.toLowerCase();
-        if (KNOWN_SETS[lowerId]) return KNOWN_SETS[lowerId];
-        if (setObj.name && setObj.name !== 'Set') return setObj.name;
-        return setObj.id.toUpperCase();
+
+      // 2. Try resolving using set object's name if valid
+      if (setObj?.name) {
+        const nameClean = String(setObj.name).trim();
+        const lowerName = nameClean.toLowerCase();
+        if (KNOWN_SETS[lowerName]) return KNOWN_SETS[lowerName];
+        if (nameClean && !['promo', 'expansion', 'set', 'tcg set'].includes(lowerName)) {
+          return nameClean;
+        }
       }
-      if (setObj.name && setObj.name !== 'Set' && setObj.name !== 'TCG Set') return setObj.name;
-      if (setObj.series) return setObj.series;
+
+      // 3. Fallback: Parse set ID prefix directly from Card ID (e.g., 'sm115-001' or 'swsh12-14')
+      if (cardId && typeof cardId === 'string' && cardId.includes('-')) {
+        const prefix = cardId.split('-')[0].toLowerCase().trim();
+        if (KNOWN_SETS[prefix]) return KNOWN_SETS[prefix];
+      }
+
+      // 4. Try series string if provided
+      if (setObj?.series && typeof setObj.series === 'string') {
+        const sClean = setObj.series.trim();
+        if (sClean && !['promo', 'expansion', 'set'].includes(sClean.toLowerCase())) {
+          return sClean;
+        }
+      }
+
       return 'Promo';
+    }
+
+    function isDigitalOnlyCard(card) {
+      const setId = String(card.set?.id || '').toLowerCase().trim();
+      const cardId = String(card.id || '').toLowerCase().trim();
+      const setName = String(card.set?.name || '').toLowerCase().trim();
+
+      if (DIGITAL_SET_BLACKLIST.has(setId)) return true;
+      if (DIGITAL_SET_BLACKLIST.has(cardId.split('-')[0])) return true;
+      if (setName.includes('genetic apex') || setName.includes('mythical island') || setName.includes('pocket')) return true;
+      return false;
     }
 
     function buildIcons() {
@@ -977,7 +1005,7 @@
 
       try {
         const cardsList = await fetchTcgCardsData(p.name, p.species?.name, bypassCache);
-        grid.innerHTML = cardsList.length ? '' : '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">No cards found</div>';
+        grid.innerHTML = cardsList.length ? '' : '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">No physical cards found</div>';
         cardsList.forEach((card, index) => {
           const cell = document.createElement('div');
           cell.className = 'dex-card-thumb-cell';
@@ -1214,9 +1242,10 @@
       return regex.test(c);
     }
 
+    // High-Resiliency Multi-Threaded Card Fetcher with Digital-Set Filtering
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_all_variations_v310_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_all_variations_v320_${cleanName.toLowerCase()}`;
       
       if (!bypassCache) {
         if (memoryTcgCache.has(cacheKey)) {
@@ -1263,7 +1292,7 @@
           id: c.id,
           name: c.name,
           images: { small: `${c.image}/low.webp`, large: `${c.image}/high.webp` },
-          set: { name: resolveSetName(c.set?.name || c.set?.id), id: c.set?.id || '', printedTotal: c.set?.cardCount?.official || 0 },
+          set: { name: resolveSetName(c.set, c.id), id: c.set?.id || '', printedTotal: c.set?.cardCount?.official || 0 },
           number: c.localId || '?',
           rarity: c.rarity || 'Rare',
           subtypes: []
@@ -1291,14 +1320,17 @@
         }
       }
 
-      const speciesCards = allCards.filter(c => matchesExactPokemonName(c.name, cleanName));
+      // Word boundary matching filter + Digital-Only exclusion filter
+      const physicalSpeciesCards = allCards
+        .filter(c => !isDigitalOnlyCard(c))
+        .filter(c => matchesExactPokemonName(c.name, cleanName));
 
-      const formattedCards = speciesCards.map(c => ({
+      const formattedCards = physicalSpeciesCards.map(c => ({
         id: c.id,
         name: c.name,
         smallImg: c.images?.small || '',
         largeImg: c.images?.large || c.images?.small || '',
-        setName: resolveSetName(c.set),
+        setName: resolveSetName(c.set, c.id),
         number: c.number || '?',
         rarity: c.rarity || 'Card',
         priceGBP: extractCardPriceGBP(c),
@@ -1348,7 +1380,7 @@
 
       if (!cards || !cards.length) {
         countText.innerText = "0 Cards";
-        strip.innerHTML = '<div class="tcg-empty-msg">No cards found</div>';
+        strip.innerHTML = '<div class="tcg-empty-msg">No physical cards found</div>';
         return;
       }
 
@@ -1403,7 +1435,6 @@
       if (leftArrow) leftArrow.style.display = currentZoomIndex > 0 ? 'flex' : 'none';
       if (rightArrow) rightArrow.style.display = currentZoomIndex < currentCardsList.length - 1 ? 'flex' : 'none';
 
-      // Apply Foil Shader Shimmer intensity based on Rarity Rank
       const shader = document.getElementById('holoShader');
       if (shader) {
         if (card.rank <= 5) {
@@ -1428,7 +1459,6 @@
       }
     }
 
-    // 3D Parallax Tilt & Touch Gesture Tracking
     let zoomTouchX = 0;
     const zoomViewArea = document.getElementById('zoomViewArea');
     const holoStage = document.getElementById('holoStage');

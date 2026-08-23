@@ -555,7 +555,7 @@
       fairy: '<svg viewBox="0 0 24 24"><path fill="#5e1538" d="M12 2.5C10 6 7 9 7 13c0 3.5 2.5 6 5 8.5 2.5-2.5 5-5 5-8.5 0-4-3-7-5-10.5zm0 10a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>'
     };
 
-    let dir = [], rot = 0, audioCtx = null, curPoke = null, isShiny = false, curId = null, tabFilter = 'all', dexQuery = '', currentFetchController = null;
+    let dir = [], rot = 0, audioCtx = null, curPoke = null, isShiny = false, curId = null, tabFilter = 'all', dexQuery = '', activeTcgRequestId = 0;
 
     function getCleanNationalDexName(pokeName, speciesName) {
       if (speciesName) return speciesName.replace(/-/g, ' ');
@@ -806,21 +806,17 @@
       evoBox.style.display = 'flex';
     }
 
-    // Comprehensive Full-Art & Illustration Rare Verifier
     function isStrictFullArtCard(card) {
       const r = (card.rarity || '').toLowerCase().trim();
       const subtypes = (card.subtypes || []).map(s => s.toLowerCase().trim());
       const number = String(card.number || '').toLowerCase().trim();
       const setTotal = card.set?.printedTotal || 0;
 
-      // Filter out standard boxed non-full-art cards
       if (['common', 'uncommon', 'rare', 'rare holo', 'rare holo v', 'rare holo ex', 'rare holo gx', 'rare holo vmax', 'rare holo vstar', 'double rare', 'shiny rare', 'promo', 'promo rare'].includes(r)) {
-        // Only pass if it has an explicit full-art flag or subset number
         const isExempt = subtypes.includes('full art') || subtypes.includes('illustration rare') || subtypes.includes('special illustration rare') || number.startsWith('tg') || number.startsWith('gg');
         if (!isExempt) return false;
       }
 
-      // True Full-Art / Special Illustration Rarity Types
       const isUltraOrSecret = r.includes('ultra') || r.includes('secret') || r.includes('hyper') || r.includes('rainbow') || r.includes('crown') || r.includes('gold') || r.includes('shining') || r.includes('star');
       const isIllustration = r.includes('illustration') || subtypes.includes('special illustration rare') || subtypes.includes('illustration rare');
       const isFullArt = subtypes.includes('full art') || r.includes('shiny ultra rare') || r.includes('shiny super rare');
@@ -831,20 +827,21 @@
         return true;
       }
 
-      // Mathematical Secret Card Check
       const numVal = parseInt(number.replace(/\D/g, ''));
       if (setTotal > 0 && numVal > setTotal) return true;
 
       return false;
     }
 
+    // Reliable Multi-Tier TCG Fetch Engine (Persistent Loading Guarantee)
     async function fetchTcgCards(pokeName, speciesName) {
+      const requestId = ++activeTcgRequestId;
       const strip = document.getElementById('tcgStrip');
       const countText = document.getElementById('tcgCountText');
       const sectionTitle = document.getElementById('tcgSectionTitle');
       
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_fullart_guarantee_v25_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_fullart_guarantee_v30_${cleanName.toLowerCase()}`;
       
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
@@ -862,16 +859,15 @@
         <div class="tcg-skeleton-card"></div>
       `;
 
-      if (currentFetchController) currentFetchController.abort();
-      currentFetchController = new AbortController();
-
       try {
         const primaryTerm = cleanName.split(' ')[0];
         const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:*${encodeURIComponent(primaryTerm)}*&select=id,name,images,set,number,rarity,subtypes&pageSize=175&orderBy=-set.releaseDate`;
         
-        let res = await fetch(queryUrl, { signal: currentFetchController.signal });
+        let res = await fetch(queryUrl);
         let data = await res.json();
         let allCards = data.data || [];
+
+        if (requestId !== activeTcgRequestId) return;
 
         const speciesCards = allCards.filter(c => {
           const cardName = (c.name || '').toLowerCase();
@@ -879,7 +875,6 @@
           return cardName.includes(target);
         });
 
-        // 1. Separate genuine full-art cards
         let fullArtCards = speciesCards.filter(isStrictFullArtCard).map(c => ({
           id: c.id,
           name: c.name,
@@ -893,12 +888,10 @@
         let finalCards = [];
         let isFallback = false;
 
-        // If even 1 full art exists, show ONLY full art cards
         if (fullArtCards.length > 0) {
           finalCards = fullArtCards;
           isFallback = false;
         } else if (speciesCards.length > 0) {
-          // If 0 full arts exist, fallback to standard cards
           finalCards = speciesCards.map(c => ({
             id: c.id,
             name: c.name,
@@ -912,9 +905,11 @@
         }
 
         try { localStorage.setItem(cacheKey, JSON.stringify({ cards: finalCards, isFallback })); } catch (e) {}
-        renderTcgCards(finalCards, isFallback);
+        if (requestId === activeTcgRequestId) {
+          renderTcgCards(finalCards, isFallback);
+        }
       } catch (err) {
-        if (err.name === 'AbortError') return;
+        if (requestId !== activeTcgRequestId) return;
         renderTcgCards([], false);
       }
     }

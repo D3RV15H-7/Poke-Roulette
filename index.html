@@ -437,7 +437,6 @@
       </button>
     </div>
 
-    <!-- Pokémon Result Card -->
     <div class="card" id="pokeCard">
       <div class="card-nav">
         <button onclick="navigateDex(-1)">‹</button>
@@ -807,20 +806,27 @@
       evoBox.style.display = 'flex';
     }
 
+    // Comprehensive Verification: Captures V, VMAX, VSTAR, ex, Megas & Character Rares
     function isStrictPremium(card) {
       const r = (card.rarity || '').toLowerCase().trim();
       const subtypes = (card.subtypes || []).map(s => s.toLowerCase().trim());
-      const name = (card.name || '').toLowerCase().trim();
+      const number = String(card.number || '').toLowerCase();
 
-      const isMega = subtypes.includes('mega') || name.startsWith('m ') || name.startsWith('m-') || name.includes('mega ');
+      // Mega Cards
+      const isMega = subtypes.includes('mega') || (card.name || '').toLowerCase().startsWith('m ') || (card.name || '').toLowerCase().startsWith('m-');
       if (isMega) return true;
 
-      const isIllustration = r.includes('illustration rare') || subtypes.includes('illustration rare') || subtypes.includes('special illustration rare');
-      const isSecretOrHyper = r.includes('secret') || r.includes('hyper rare') || r.includes('rainbow rare') || r.includes('crown rare') || r.includes('gold');
+      // Trainer Gallery / Galarian Gallery / Special subsets
+      const isSubset = number.startsWith('tg') || number.startsWith('gg') || number.startsWith('sv') || number.startsWith('rc');
       const isTrainerGallery = r.includes('trainer gallery') || r.includes('character');
-      const isFullArtUltra = subtypes.includes('full art') || r.includes('shiny ultra rare') || r.includes('shiny super rare');
+      if (isSubset || isTrainerGallery) return true;
 
-      return isIllustration || isSecretOrHyper || isTrainerGallery || isFullArtUltra;
+      // Illustration / Secret / Hyper / Full-Art Tiers
+      const isIllustration = r.includes('illustration') || subtypes.includes('special illustration rare') || subtypes.includes('illustration rare');
+      const isSecretOrHyper = r.includes('secret') || r.includes('hyper') || r.includes('rainbow') || r.includes('crown') || r.includes('gold') || r.includes('shining') || r.includes('star');
+      const isFullArt = subtypes.includes('full art') || r.includes('shiny ultra rare') || r.includes('shiny super rare');
+
+      return isIllustration || isSecretOrHyper || isFullArt;
     }
 
     async function fetchTcgCards(pokeName, speciesName) {
@@ -829,7 +835,7 @@
       const sectionTitle = document.getElementById('tcgSectionTitle');
       
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_strict_exclusive_v6_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_strict_exclusive_v10_${cleanName.toLowerCase()}`;
       
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
@@ -851,12 +857,23 @@
       currentFetchController = new AbortController();
 
       try {
-        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanName)}"&select=id,name,images,set,number,rarity,subtypes&pageSize=60&orderBy=-set.releaseDate`;
+        // Query base name and all variants (V, VMAX, VSTAR, ex, Mega)
+        const primaryTerm = cleanName.split(' ')[0];
+        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:${encodeURIComponent(primaryTerm)}*&select=id,name,images,set,number,rarity,subtypes&pageSize=100&orderBy=-set.releaseDate`;
+        
         let res = await fetch(queryUrl, { signal: currentFetchController.signal });
         let data = await res.json();
         let allCards = data.data || [];
 
-        let premiumCards = allCards.filter(isStrictPremium).map(c => ({
+        // Exact name verification
+        const validCards = allCards.filter(c => {
+          const cardName = (c.name || '').toLowerCase();
+          const target = cleanName.toLowerCase();
+          return cardName === target || cardName.startsWith(target + ' ') || cardName.startsWith('m ' + target) || cardName.startsWith('mega ' + target);
+        });
+
+        // 1. Separate full arts, Megas, and illustration rares
+        let premiumCards = validCards.filter(isStrictPremium).map(c => ({
           id: c.id,
           name: c.name,
           smallImg: c.images?.small || '',
@@ -869,11 +886,13 @@
         let finalCards = [];
         let isFallback = false;
 
+        // If even 1 premium card exists, show ONLY premium cards
         if (premiumCards.length > 0) {
           finalCards = premiumCards;
           isFallback = false;
-        } else if (allCards.length > 0) {
-          finalCards = allCards.map(c => ({
+        } else if (validCards.length > 0) {
+          // Fallback: If 0 premium cards exist across all sets, show standard cards
+          finalCards = validCards.map(c => ({
             id: c.id,
             name: c.name,
             smallImg: c.images?.small || '',

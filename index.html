@@ -125,8 +125,29 @@
     .card { width: 100%; background: var(--card); border-radius: 20px; padding: clamp(0.4rem, 1dvh, 0.7rem) clamp(0.7rem, 2vw, 1rem); border: 1px solid #334155; box-shadow: 0 12px 28px rgba(0,0,0,0.4); display: none; text-align: center; user-select: none; flex-shrink: 1; min-height: 0; position: relative; }
     .card-nav { display: flex; justify-content: space-between; align-items: center; }
     .card-nav button { background: none; border: none; color: var(--sub); font-size: 1.15rem; font-weight: 900; padding: 0 0.5rem; cursor: pointer; }
-    .img-box { position: relative; display: inline-block; margin: 0.1rem 0; }
-    .card img { width: clamp(145px, 22dvh, 195px); height: clamp(145px, 22dvh, 195px); object-fit: contain; filter: drop-shadow(0 8px 18px rgba(0,0,0,0.5)); pointer-events: none; }
+    
+    /* Strict Uniform Aspect Ratio Frame */
+    .img-box { 
+      position: relative; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      margin: 0.1rem auto;
+      width: clamp(145px, 22dvh, 195px); 
+      height: clamp(145px, 22dvh, 195px); 
+      aspect-ratio: 1 / 1;
+    }
+    .card img { 
+      width: 100%; 
+      height: 100%; 
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain; 
+      filter: drop-shadow(0 8px 18px rgba(0,0,0,0.5)); 
+      pointer-events: none; 
+      transition: transform 0.2s ease-out;
+    }
+
     .sparkle { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); font-size: 2.4rem; color: var(--gold); pointer-events: none; z-index: 10; }
     .sparkle.pop { animation: pop 0.8s ease-out forwards; }
     @keyframes pop { 0% { transform: translate(-50%, -50%) scale(0) rotate(0deg); opacity: 0; } 50% { transform: translate(-50%, -50%) scale(1.6) rotate(180deg); opacity: 1; filter: drop-shadow(0 0 10px #f59e0b); } 100% { transform: translate(-50%, -50%) scale(2.2) rotate(360deg); opacity: 0; } }
@@ -261,7 +282,6 @@
     const TYPES = ['normal','fire','water','grass','electric','ice','fighting','poison','ground','flying','psychic','bug','rock','ghost','dragon','dark','steel','fairy'];
     const COLORS = { normal:'#A8A77A', fire:'#EE3F1E', water:'#1C95F0', grass:'#22C02A', electric:'#F5D61A', ice:'#70D6F5', fighting:'#E65A15', poison:'#A944B8', ground:'#CCA03B', flying:'#8E6BE8', psychic:'#EA3E7B', bug:'#91C01E', rock:'#B59030', ghost:'#6B45B5', dragon:'#E5BE00', dark:'#233544', steel:'#9AA2AC', fairy:'#F469A9' };
     
-    // Official Pokémon TCG Insignia Vector Glyphs matching the chart
     const SVGS = {
       normal: '<svg viewBox="0 0 24 24"><path fill="#444133" d="M12 2l2.3 6.6 6.7.4-5.2 4.4 1.8 6.6L12 16l-5.6 4-1.8-6.6-5.2-4.4 6.7-.4z"/></svg>',
       fire: '<svg viewBox="0 0 24 24"><path fill="#541200" d="M12 2c1.8 3.2 4.5 5.8 4.5 9 0 4-3 7-6.5 7s-6.5-3-6.5-7c0-2.8 1.8-5.2 3.5-7.5-.2 1.8.8 3.2 2 3.5-.2-2 1.5-3.8 3-5z"/></svg>',
@@ -308,7 +328,7 @@
     
     function addRec(p) {
       let r = getRec().filter(x => x.id !== p.id);
-      r.unshift({ id: p.id, name: p.name, type: p.types[0].type.name, sprite: p.sprites.front_default || p.sprites.other['official-artwork'].front_default });
+      r.unshift({ id: p.id, name: p.name, type: p.types[0].type.name, sprite: p.sprites.other?.['official-artwork']?.front_default || p.sprites.other?.home?.front_default || p.sprites.front_default });
       localStorage.setItem('p_rec', JSON.stringify(r.slice(0, 20)));
       updateCounts();
     }
@@ -397,9 +417,15 @@
     }
 
     function toggleShiny() { if (!curPoke) return; isShiny = !isShiny; updateArt(); if (isShiny) triggerSparkle(); }
+    
+    // Matched High-Definition Artwork Scaling Engine
     function updateArt() {
       if (!curPoke) return;
-      document.getElementById('pokeImg').src = isShiny ? (curPoke.sprites.other['official-artwork'].front_shiny || curPoke.sprites.front_shiny) : (curPoke.sprites.other['official-artwork'].front_default || curPoke.sprites.front_default);
+      const p = curPoke;
+      const defaultArtwork = p.sprites.other?.['official-artwork']?.front_default || p.sprites.other?.home?.front_default || p.sprites.front_default;
+      const shinyArtwork = p.sprites.other?.['official-artwork']?.front_shiny || p.sprites.other?.home?.front_shiny || p.sprites.front_shiny || defaultArtwork;
+
+      document.getElementById('pokeImg').src = isShiny ? shinyArtwork : defaultArtwork;
       document.getElementById('shinyBtn').classList.toggle('active', isShiny);
     }
 

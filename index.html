@@ -635,7 +635,6 @@
     </div>
   </div>
 
-  <!-- Hold-to-View 3x3 Card Grid Modal with Manual Refresh -->
   <div class="dex-cards-modal" id="dexCardsModal" onclick="closeDexCardsModal()">
     <div class="dex-cards-content" onclick="event.stopPropagation()">
       <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:0.5rem;">
@@ -695,7 +694,7 @@
       electric: '<svg viewBox="0 0 24 24"><path fill="#665400" d="M14 2L4 13.5h6.5L8.5 22 20 9.5h-6z"/></svg>',
       ice: '<svg viewBox="0 0 24 24"><path fill="#165b6e" d="M12 2l2 4.5h-4zM12 22l-2-4.5h4zM2 12l4.5-2v4zM22 12l-4.5 2v-4zM5.5 5.5l4.5 1.5-1.5 4.5zM18.5 18.5l-4.5-1.5 1.5-4.5zM18.5 5.5l-1.5 4.5-4.5-1.5zM5.5 18.5l1.5-4.5 4.5 1.5z"/></svg>',
       fighting: '<svg viewBox="0 0 24 24"><path fill="#541b00" d="M6 5h12v3H6zm0 4h12v4H6zm0 5h12v5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/></svg>',
-      poison: '<svg viewBox="0 0 24 24"><path fill="#420f4c" d="M12 3a7.5 7.5 0 0 0-7.5 7.5c0 3.2 2 5.5 4.5 6.5V20a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-3c2.5-1 4.5-3.3 4.5-6.5A7.5 7.5 0 0 0 12 3zm-3 8a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm6 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>',
+      poison: '<svg viewBox="0 0 24 24"><path fill="#420f4c" d="M12 3a7.5 7.5 0 0 0-7.5 7.5c0 3.2 2 5.5 4.5 6.5V20a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-3c2.5-1 4.5-3.3 4.5-6.5A7.5 7.5 0 0 0 12 3zm-3 8a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>',
       ground: '<svg viewBox="0 0 24 24"><path fill="#4e3b0e" d="M5 19h14a1 1 0 0 0 1-1l-3-10a1 1 0 0 0-1-.7h-5a1 1 0 0 0-.9.6L4 18a1 1 0 0 0 1 1zm3-3l1.5-4h2.5l-1 4z"/></svg>',
       flying: '<svg viewBox="0 0 24 24"><path fill="#2e1b60" d="M3 13.5C7 8 13 8 21 8c-3 2-6 3.5-9 3.5-3 0-5.5 1-9 2zm2 3.5c3-1 6-1 10-1-2 1.5-4.5 2-8 2.5-1 0-1.5-.5-2-1.5z"/></svg>',
       psychic: '<svg viewBox="0 0 24 24"><path fill="#5b0d28" d="M12 4a8 8 0 0 0-8 8 8 8 0 0 0 8 8c3.5 0 6.5-2.2 7.5-5.5a1 1 0 0 0-1-1.2c-2.5.2-5-1.5-5.5-4 0-.8.2-1.5.5-2.2A8 8 0 0 0 12 4z"/></svg>',
@@ -1121,10 +1120,21 @@
       return 25;
     }
 
-    // High-Resiliency Multi-Threaded Card Fetcher
+    // Exact word boundary-aware filter to prevent substring collisions (e.g. Mew vs Mewtwo)
+    function matchesExactPokemonName(cardName, targetName) {
+      const c = (cardName || '').toLowerCase().trim();
+      const t = targetName.toLowerCase().trim();
+
+      // Explicit boundary regex check
+      const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(^|[\\s\\-_/&])${escaped}([\\s\\-_/&]|$)`, 'i');
+      return regex.test(c);
+    }
+
+    // Resilient Parallel Multi-Threaded Card Fetcher
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_all_variations_v290_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_all_variations_v300_${cleanName.toLowerCase()}`;
       
       if (!bypassCache) {
         if (memoryTcgCache.has(cacheKey)) {
@@ -1199,11 +1209,8 @@
         }
       }
 
-      const speciesCards = allCards.filter(c => {
-        const cardName = (c.name || '').toLowerCase();
-        const target = cleanName.toLowerCase();
-        return cardName.includes(target);
-      });
+      // Word boundary matching filter
+      const speciesCards = allCards.filter(c => matchesExactPokemonName(c.name, cleanName));
 
       const formattedCards = speciesCards.map(c => ({
         id: c.id,

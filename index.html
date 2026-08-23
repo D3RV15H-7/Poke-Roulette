@@ -240,7 +240,7 @@
     .evo-node.active-evo span { color: #fff; }
     .evo-arrow { color: var(--sub); font-size: 0.6rem; font-weight: 900; }
 
-    /* Full Art / Illustration Rare TCG Shelf */
+    /* Exclusive Full Art / Illustration Rare TCG Shelf */
     .tcg-section-wrap {
       width: 100%;
       margin-bottom: clamp(0.1rem, 0.25dvh, 0.18rem);
@@ -472,7 +472,7 @@
       <div class="tcg-section-wrap" id="tcgWrap">
         <div class="tcg-header-row">
           <span>✨ Illustration & Full Arts</span>
-          <span id="tcgCountText">Finding Sets...</span>
+          <span id="tcgCountText">Loading cards...</span>
         </div>
         <div class="tcg-scroll-strip" id="tcgStrip">
           <div class="tcg-skeleton-card"></div>
@@ -800,28 +800,38 @@
       evoBox.style.display = 'flex';
     }
 
-    // Precise Full-Art & Illustration Rare Query Engine
-    const STRICT_RARITIES = new Set([
-      'Illustration Rare',
-      'Special Illustration Rare',
-      'Rare Ultra',
-      'Rare Secret',
-      'Rare Rainbow',
-      'Trainer Gallery Rare Holo',
-      'Shiny Ultra Rare',
-      'Shiny Super Rare',
-      'Hyper Rare',
-      'Crown Rare',
-      'Rare Holo Star',
-      'Rare Shining'
-    ]);
+    // Strict Full-Art & Illustration Rare Engine
+    function isStrictFullArt(card) {
+      const r = (card.rarity || '').toLowerCase();
+      const subtypes = (card.subtypes || []).map(s => s.toLowerCase());
+
+      // Blacklist regular non-full art formats
+      if (r === 'common' || r === 'uncommon' || r === 'rare' || r === 'rare holo' || r === 'rare holo v' || r === 'rare holo ex' || r === 'rare holo gx' || r === 'rare holo vmax' || r === 'rare holo vstar') {
+        return false;
+      }
+
+      // Explicit whitelist for true full-art / illustration / secret rares
+      return (
+        r.includes('illustration') || // Illustration Rare, Special Illustration Rare
+        r.includes('secret') ||       // Secret Rare
+        r.includes('rainbow') ||      // Rainbow Rare
+        r.includes('hyper') ||        // Hyper Rare
+        r.includes('ultra') ||        // Ultra Rare (Full Art)
+        r.includes('trainer gallery') || // Character Super Rare
+        r.includes('shining') ||
+        r.includes('star') ||
+        subtypes.includes('special illustration rare') || //
+        subtypes.includes('illustration rare') || //
+        subtypes.includes('full art')
+      );
+    }
 
     async function fetchTcgCards(pokeName) {
       const strip = document.getElementById('tcgStrip');
       const countText = document.getElementById('tcgCountText');
       
       const cleanName = pokeName.replace(/-m$/i, ' ♂').replace(/-f$/i, ' ♀').replace(/-/g, ' ');
-      const cacheKey = `tcg_strict_arts_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_strict_fullarts_${cleanName.toLowerCase()}`;
       
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
@@ -829,8 +839,8 @@
         return;
       }
 
-      // Keep showing active shimmering skeleton while querying
-      countText.innerText = "Finding Arts...";
+      // Continuous animated shimmer during loading
+      countText.innerText = "Loading cards...";
       strip.innerHTML = `
         <div class="tcg-skeleton-card"></div>
         <div class="tcg-skeleton-card"></div>
@@ -842,54 +852,50 @@
       currentFetchController = new AbortController();
 
       try {
-        const rarityQuery = '(rarity:"Illustration Rare" OR rarity:"Special Illustration Rare" OR rarity:"Rare Ultra" OR rarity:"Rare Secret" OR rarity:"Rare Rainbow" OR rarity:"Trainer Gallery Rare Holo" OR rarity:"Shiny Ultra Rare" OR rarity:"Hyper Rare" OR rarity:"Crown Rare" OR rarity:"Rare Shining" OR rarity:"Rare Holo Star")';
-        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanName)}" ${rarityQuery}&select=id,name,images,set,number,rarity,subtypes&pageSize=40&orderBy=-set.releaseDate`;
-
+        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanName)}"&select=id,name,images,set,number,rarity,subtypes&pageSize=40&orderBy=-set.releaseDate`;
         let res = await fetch(queryUrl, { signal: currentFetchController.signal });
         let data = await res.json();
         let cards = data.data || [];
 
-        // Secondary query if specific variant (e.g. Charizard-ex or base name)
-        if (!cards.length && cleanName.includes(' ')) {
-          const root = cleanName.split(' ')[0];
-          const rootUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(root)}" ${rarityQuery}&select=id,name,images,set,number,rarity,subtypes&pageSize=30&orderBy=-set.releaseDate`;
-          const rootRes = await fetch(rootUrl, { signal: currentFetchController.signal });
-          const rootData = await rootRes.json();
-          cards = rootData.data || [];
-        }
+        let filteredCards = cards.filter(isStrictFullArt).map(c => ({
+          id: c.id,
+          name: c.name,
+          smallImg: c.images?.small || '',
+          largeImg: c.images?.large || c.images?.small || '',
+          setName: c.set?.name || 'Set',
+          number: c.number || '?',
+          rarity: c.rarity || 'Full Art'
+        })).filter(c => c.smallImg);
 
-        // Strict client-side filter to eliminate standard non-full art regular cards
-        const filteredCards = cards
-          .filter(c => {
-            const r = c.rarity || '';
-            const isFullArtSubtype = c.subtypes && c.subtypes.some(s => s.includes('Full') || s.includes('Special'));
-            return STRICT_RARITIES.has(r) || isFullArtSubtype || r.includes('Illustration') || r.includes('Secret') || r.includes('Rainbow') || r.includes('Hyper') || r.includes('Gold');
-          })
-          .map(c => ({
+        // Try primary term if multi-word failed
+        if (!filteredCards.length && cleanName.includes(' ')) {
+          const root = cleanName.split(' ')[0];
+          const rRes = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(root)}"&select=id,name,images,set,number,rarity,subtypes&pageSize=40&orderBy=-set.releaseDate`, { signal: currentFetchController.signal });
+          const rData = await rRes.json();
+          filteredCards = (rData.data || []).filter(isStrictFullArt).map(c => ({
             id: c.id,
             name: c.name,
             smallImg: c.images?.small || '',
             largeImg: c.images?.large || c.images?.small || '',
-            setName: c.set?.name || 'Promo',
+            setName: c.set?.name || 'Set',
             number: c.number || '?',
-            rarity: c.rarity || 'Special Art'
-          }))
-          .filter(c => c.smallImg);
+            rarity: c.rarity || 'Full Art'
+          })).filter(c => c.smallImg);
+        }
 
         try { localStorage.setItem(cacheKey, JSON.stringify(filteredCards)); } catch (e) {}
         renderTcgCards(filteredCards);
       } catch (err) {
         if (err.name === 'AbortError') return;
 
-        // Fallback to TCGdex filtered for High Rarity Art only
+        // CDN fallback strictly filtered for Illustration / Full Art tiers
         try {
           const queryName = pokeName.split('-')[0].toLowerCase();
           const fRes = await fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(queryName)}`);
           const fData = await fRes.json();
-          if (Array.isArray(fData) && fData.length > 0) {
+          if (Array.isArray(fData)) {
             const fCards = fData
-              .filter(c => c.rarity && STRICT_RARITIES.has(c.rarity))
-              .slice(0, 20)
+              .filter(isStrictFullArt)
               .map(c => ({
                 id: c.id,
                 name: c.name,
@@ -897,9 +903,8 @@
                 largeImg: `${c.image}/high.webp`,
                 setName: c.set?.name || 'TCG Set',
                 number: c.localId || '?',
-                rarity: c.rarity || 'Illustration Art'
-              }))
-              .filter(c => c.smallImg && !c.smallImg.includes('undefined'));
+                rarity: c.rarity || 'Full Art'
+              })).filter(c => c.smallImg && !c.smallImg.includes('undefined'));
 
             if (fCards.length) {
               try { localStorage.setItem(cacheKey, JSON.stringify(fCards)); } catch (e) {}
@@ -919,7 +924,7 @@
 
       if (!cards || !cards.length) {
         countText.innerText = "0 Arts";
-        strip.innerHTML = '<div class="tcg-empty-msg">No Illustration Rare / Full Art cards recorded.</div>';
+        strip.innerHTML = '<div class="tcg-empty-msg">No full arts available</div>';
         return;
       }
 
@@ -1093,7 +1098,6 @@
       card.style.display = 'block';
     }
 
-    // Touch Navigation with Protected TCG/Evolution Strip zones
     let tX = 0, tY = 0, isSwipeRestricted = false;
     const cardEl = document.getElementById('pokeCard');
     

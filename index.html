@@ -555,7 +555,7 @@
       fairy: '<svg viewBox="0 0 24 24"><path fill="#5e1538" d="M12 2.5C10 6 7 9 7 13c0 3.5 2.5 6 5 8.5 2.5-2.5 5-5 5-8.5 0-4-3-7-5-10.5zm0 10a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>'
     };
 
-    let dir = [], rot = 0, audioCtx = null, curPoke = null, isShiny = false, curId = null, tabFilter = 'all', dexQuery = '', activeTcgRequestId = 0;
+    let dir = [], rot = 0, audioCtx = null, curPoke = null, isShiny = false, curId = null, tabFilter = 'all', dexQuery = '', activeTcgRequestId = 0, isSpinning = false;
     const memoryTcgCache = new Map();
 
     function getCleanNationalDexName(pokeName, speciesName) {
@@ -741,9 +741,11 @@
     async function fetchLoreAndEvolution(speciesUrl, fallbackId) {
       const loreBox = document.getElementById('pokeLore');
       const evoBox = document.getElementById('evoChain');
-      loreBox.innerText = "Accessing Pokédex lore...";
-      evoBox.style.display = 'none';
-      evoBox.innerHTML = '';
+      if (!isSpinning) {
+        loreBox.innerText = "Accessing Pokédex lore...";
+        evoBox.style.display = 'none';
+        evoBox.innerHTML = '';
+      }
 
       try {
         const url = speciesUrl || `https://pokeapi.co/api/v2/pokemon-species/${fallbackId}/`;
@@ -751,6 +753,8 @@
         if (!res.ok) throw new Error("Species error");
         const data = await res.json();
         
+        if (isSpinning) return;
+
         const cleanSpeciesName = (data.names && data.names.find(n => n.language.name === 'en')?.name) || data.name.replace(/-/g, ' ');
         document.getElementById('pokeName').innerText = cleanSpeciesName;
 
@@ -763,7 +767,7 @@
           renderEvolutionChain(evoData.chain);
         }
       } catch (err) {
-        loreBox.innerText = "PokéRoulette analyzer synchronized.";
+        if (!isSpinning) loreBox.innerText = "PokéRoulette analyzer synchronized.";
       }
     }
 
@@ -849,7 +853,9 @@
       
       if (memoryTcgCache.has(cacheKey)) {
         const cached = memoryTcgCache.get(cacheKey);
-        renderTcgCards(cached.cards, cached.isFallback);
+        if (!isSpinning && requestId === activeTcgRequestId) {
+          renderTcgCards(cached.cards, cached.isFallback);
+        }
         return;
       }
 
@@ -857,18 +863,22 @@
       if (stored) {
         const cached = JSON.parse(stored);
         memoryTcgCache.set(cacheKey, cached);
-        renderTcgCards(cached.cards, cached.isFallback);
+        if (!isSpinning && requestId === activeTcgRequestId) {
+          renderTcgCards(cached.cards, cached.isFallback);
+        }
         return;
       }
 
-      countText.innerText = "Loading cards...";
-      sectionTitle.innerText = "✨ Illustration & Full Arts";
-      strip.innerHTML = `
-        <div class="tcg-skeleton-card"></div>
-        <div class="tcg-skeleton-card"></div>
-        <div class="tcg-skeleton-card"></div>
-        <div class="tcg-skeleton-card"></div>
-      `;
+      if (!isSpinning) {
+        countText.innerText = "Loading cards...";
+        sectionTitle.innerText = "✨ Illustration & Full Arts";
+        strip.innerHTML = `
+          <div class="tcg-skeleton-card"></div>
+          <div class="tcg-skeleton-card"></div>
+          <div class="tcg-skeleton-card"></div>
+          <div class="tcg-skeleton-card"></div>
+        `;
+      }
 
       const primaryTerm = cleanName.split(' ')[0];
 
@@ -910,8 +920,6 @@
           }
         }
 
-        if (requestId !== activeTcgRequestId) return;
-
         const speciesCards = allCards.filter(c => {
           const cardName = (c.name || '').toLowerCase();
           const target = cleanName.toLowerCase();
@@ -951,12 +959,13 @@
         memoryTcgCache.set(cacheKey, payload);
         try { localStorage.setItem(cacheKey, JSON.stringify(payload)); } catch (e) {}
         
-        if (requestId === activeTcgRequestId) {
+        if (!isSpinning && requestId === activeTcgRequestId) {
           renderTcgCards(finalCards, isFallback);
         }
       } catch (err) {
-        if (requestId !== activeTcgRequestId) return;
-        renderTcgCards([], false);
+        if (!isSpinning && requestId === activeTcgRequestId) {
+          renderTcgCards([], false);
+        }
       }
     }
 
@@ -1080,6 +1089,11 @@
       document.getElementById('sList').style.display = 'none';
       const btn = document.getElementById('spinBtn'), w = document.getElementById('wheel');
       btn.disabled = true;
+      isSpinning = true;
+
+      // Conceal card view during the spin
+      hideActive();
+
       const idx = Math.floor(Math.random() * TYPES.length);
       const targetDeg = (360 - (idx * 20 + 10)) % 360;
       w.style.transition = 'transform 3.2s cubic-bezier(0.12, 0.9, 0.18, 1)';
@@ -1097,7 +1111,12 @@
         const pData = await pRes.json();
         const shiny = Math.floor(Math.random() * 100) === 0;
 
+        // Background caching without DOM mutation
+        fetchTcgCards(pData.name, pData.species?.name);
+        fetchLoreAndEvolution(pData.species?.url, pData.id);
+
         setTimeout(() => {
+          isSpinning = false;
           renderCard(pData, 0, shiny, false);
           addRec(pData);
           playCry();
@@ -1106,6 +1125,7 @@
         }, 3200);
       } catch (e) { 
         console.error(e);
+        isSpinning = false;
         btn.disabled = false; 
       }
     }

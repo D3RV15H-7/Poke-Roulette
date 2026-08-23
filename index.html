@@ -137,7 +137,7 @@
 
     .card { 
       width: 100%; 
-      max-width: 440px;
+      max-width: 440px; 
       background: var(--card); 
       border-radius: 20px; 
       padding: clamp(0.35rem, 0.9dvh, 0.65rem) clamp(0.7rem, 2.2vw, 1rem); 
@@ -308,6 +308,7 @@
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
+      position: relative;
     }
     .tcg-card-thumb {
       width: 100%;
@@ -315,6 +316,20 @@
       object-fit: fill;
       display: block;
     }
+    .tcg-card-price-badge {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: var(--green);
+      font-size: 0.48rem;
+      font-weight: 800;
+      padding: 0.02rem 0.25rem;
+      border-radius: 4px;
+      backdrop-filter: blur(4px);
+    }
+
     .tcg-card-set {
       font-size: 0.52rem;
       font-weight: 700;
@@ -345,11 +360,12 @@
     .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.04rem 0.7rem; text-align: left; background: var(--bg); padding: clamp(0.15rem, 0.35dvh, 0.22rem) 0.65rem; border-radius: 8px; font-size: clamp(0.58rem, 1.05dvh, 0.65rem); }
     .stats span:last-child { font-weight: 700; float: right; }
 
+    /* 3D Holographic Zoom Modal */
     .tcg-zoom-modal {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.9);
-      backdrop-filter: blur(8px);
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(10px);
       z-index: 200;
       display: none;
       align-items: center;
@@ -366,8 +382,8 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.4rem;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+      gap: 0.45rem;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.85);
       animation: zoomIn 0.2s ease-out;
       position: relative;
     }
@@ -381,25 +397,57 @@
       border: 1px solid rgba(245, 158, 11, 0.3);
       padding: 0.1rem 0.6rem;
       border-radius: 99px;
-      margin-bottom: 0.2rem;
     }
 
+    /* 3D Tilt Wrapper & Foil Shaders */
     .tcg-zoom-view-area {
       position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
       width: 100%;
+      perspective: 800px;
       touch-action: pan-y;
     }
-    .tcg-zoom-img {
-      width: 215px;
+    .holo-card-stage {
+      position: relative;
+      width: 220px;
       aspect-ratio: 63 / 88;
-      border-radius: 10px;
+      border-radius: 12px;
+      transform-style: preserve-3d;
+      transition: transform 0.15s ease-out;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+    }
+    .tcg-zoom-img {
+      width: 100%;
+      height: 100%;
+      border-radius: 12px;
       object-fit: cover;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      display: block;
       pointer-events: none;
     }
+    .holo-shader {
+      position: absolute;
+      inset: 0;
+      border-radius: 12px;
+      pointer-events: none;
+      mix-blend-mode: color-dodge;
+      opacity: 0.75;
+      background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.45) 45%, rgba(255, 0, 128, 0.35) 50%, rgba(0, 255, 255, 0.35) 55%, transparent 80%);
+      background-size: 200% 200%;
+      background-position: var(--pos-x, 50%) var(--pos-y, 50%);
+      transition: opacity 0.2s;
+    }
+    .holo-glitter {
+      position: absolute;
+      inset: 0;
+      border-radius: 12px;
+      pointer-events: none;
+      mix-blend-mode: overlay;
+      opacity: 0.5;
+      background-image: radial-gradient(circle at var(--pos-x, 50%) var(--pos-y, 50%), rgba(255,255,255,0.8) 0%, transparent 60%);
+    }
+
     .tcg-zoom-arrow {
       position: absolute;
       top: 50%;
@@ -426,6 +474,19 @@
 
     .tcg-zoom-title { font-size: 0.9rem; font-weight: 800; text-align: center; }
     .tcg-zoom-meta { font-size: 0.7rem; color: var(--sub); font-weight: 700; text-align: center; }
+    .tcg-zoom-price-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 0.2rem 0.8rem;
+      border-radius: 99px;
+      color: var(--green);
+      font-size: 0.75rem;
+      font-weight: 800;
+    }
     .tcg-zoom-close { background: var(--red); color: white; border: none; padding: 0.35rem 1.1rem; border-radius: 99px; font-size: 0.72rem; font-weight: 800; cursor: pointer; }
 
     .modal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.78); backdrop-filter: blur(6px); z-index: 100; display: none; align-items: flex-end; justify-content: center; }
@@ -502,6 +563,7 @@
       align-items: center;
       cursor: pointer;
       transition: transform 0.15s;
+      position: relative;
     }
     .dex-card-thumb-cell:active { transform: scale(0.94); }
     .dex-card-thumb-cell img {
@@ -621,16 +683,26 @@
     </div>
   </div>
 
+  <!-- 3D Holographic Interactive Zoom Modal -->
   <div class="tcg-zoom-modal" id="tcgZoomModal" onclick="closeTcgZoom()">
     <div class="tcg-zoom-content" onclick="event.stopPropagation()">
       <div class="tcg-zoom-counter" id="tcgZoomCounter">1 / 1</div>
+      
       <div class="tcg-zoom-view-area" id="zoomViewArea">
         <button class="tcg-zoom-arrow left" id="zoomLeftArrow" onclick="navigateZoomCard(-1)">‹</button>
-        <img class="tcg-zoom-img" id="tcgZoomImg" src="" alt="Card HD" />
+        <div class="holo-card-stage" id="holoStage">
+          <img class="tcg-zoom-img" id="tcgZoomImg" src="" alt="Card HD" />
+          <div class="holo-shader" id="holoShader"></div>
+          <div class="holo-glitter" id="holoGlitter"></div>
+        </div>
         <button class="tcg-zoom-arrow right" id="zoomRightArrow" onclick="navigateZoomCard(1)">›</button>
       </div>
+
       <div class="tcg-zoom-title" id="tcgZoomTitle">Card Title</div>
       <div class="tcg-zoom-meta" id="tcgZoomMeta">Set · Number · Rarity</div>
+      <div class="tcg-zoom-price-row" id="tcgZoomPrice">
+        <span>Est. Value:</span> <strong id="tcgZoomPriceVal">£--.--</strong>
+      </div>
       <button class="tcg-zoom-close" onclick="closeTcgZoom()">Close Preview</button>
     </div>
   </div>
@@ -683,6 +755,7 @@
 
   <script>
     const TOTAL = 1025;
+    const USD_TO_GBP = 0.79;
     const TYPES = ['normal','fire','water','grass','electric','ice','fighting','poison','ground','flying','psychic','bug','rock','ghost','dragon','dark','steel','fairy'];
     const COLORS = { normal:'#A8A77A', fire:'#EE3F1E', water:'#1C95F0', grass:'#22C02A', electric:'#F5D61A', ice:'#70D6F5', fighting:'#E65A15', poison:'#A944B8', ground:'#CCA03B', flying:'#8E6BE8', psychic:'#EA3E7B', bug:'#91C01E', rock:'#B59030', ghost:'#6B45B5', dragon:'#E5BE00', dark:'#233544', steel:'#9AA2AC', fairy:'#F469A9' };
     
@@ -694,7 +767,7 @@
       electric: '<svg viewBox="0 0 24 24"><path fill="#665400" d="M14 2L4 13.5h6.5L8.5 22 20 9.5h-6z"/></svg>',
       ice: '<svg viewBox="0 0 24 24"><path fill="#165b6e" d="M12 2l2 4.5h-4zM12 22l-2-4.5h4zM2 12l4.5-2v4zM22 12l-4.5 2v-4zM5.5 5.5l4.5 1.5-1.5 4.5zM18.5 18.5l-4.5-1.5 1.5-4.5zM18.5 5.5l-1.5 4.5-4.5-1.5zM5.5 18.5l1.5-4.5 4.5 1.5z"/></svg>',
       fighting: '<svg viewBox="0 0 24 24"><path fill="#541b00" d="M6 5h12v3H6zm0 4h12v4H6zm0 5h12v5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/></svg>',
-      poison: '<svg viewBox="0 0 24 24"><path fill="#420f4c" d="M12 3a7.5 7.5 0 0 0-7.5 7.5c0 3.2 2 5.5 4.5 6.5V20a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-3c2.5-1 4.5-3.3 4.5-6.5A7.5 7.5 0 0 0 12 3zm-3 8a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>',
+      poison: '<svg viewBox="0 0 24 24"><path fill="#420f4c" d="M12 3a7.5 7.5 0 0 0-7.5 7.5c0 3.2 2 5.5 4.5 6.5V20a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-3c2.5-1 4.5-3.3 4.5-6.5A7.5 7.5 0 0 0 12 3zm-3 8a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm6 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>',
       ground: '<svg viewBox="0 0 24 24"><path fill="#4e3b0e" d="M5 19h14a1 1 0 0 0 1-1l-3-10a1 1 0 0 0-1-.7h-5a1 1 0 0 0-.9.6L4 18a1 1 0 0 0 1 1zm3-3l1.5-4h2.5l-1 4z"/></svg>',
       flying: '<svg viewBox="0 0 24 24"><path fill="#2e1b60" d="M3 13.5C7 8 13 8 21 8c-3 2-6 3.5-9 3.5-3 0-5.5 1-9 2zm2 3.5c3-1 6-1 10-1-2 1.5-4.5 2-8 2.5-1 0-1.5-.5-2-1.5z"/></svg>',
       psychic: '<svg viewBox="0 0 24 24"><path fill="#5b0d28" d="M12 4a8 8 0 0 0-8 8 8 8 0 0 0 8 8c3.5 0 6.5-2.2 7.5-5.5a1 1 0 0 0-1-1.2c-2.5.2-5-1.5-5.5-4 0-.8.2-1.5.5-2.2A8 8 0 0 0 12 4z"/></svg>',
@@ -910,6 +983,7 @@
           cell.className = 'dex-card-thumb-cell';
           cell.innerHTML = `
             <img src="${card.smallImg}" loading="lazy" alt="${card.name}" />
+            ${card.priceGBP ? `<div class="tcg-card-price-badge">£${card.priceGBP}</div>` : ''}
             <div class="dex-cell-set" title="${card.setName}">${card.setName}</div>
             <div class="dex-cell-num">#${card.number}</div>
           `;
@@ -1120,21 +1194,29 @@
       return 25;
     }
 
-    // Exact word boundary-aware filter to prevent substring collisions (e.g. Mew vs Mewtwo)
+    function extractCardPriceGBP(card) {
+      if (card.tcgplayer?.prices) {
+        const prices = card.tcgplayer.prices;
+        const market = prices.holofoil?.market || prices.normal?.market || prices.unlimitedHolofoil?.market || prices['1stEditionHolofoil']?.market;
+        if (market) return (market * USD_TO_GBP).toFixed(2);
+      }
+      if (card.cardmarket?.prices?.averageSellPrice) {
+        return (card.cardmarket.prices.averageSellPrice * 0.86).toFixed(2);
+      }
+      return null;
+    }
+
     function matchesExactPokemonName(cardName, targetName) {
       const c = (cardName || '').toLowerCase().trim();
       const t = targetName.toLowerCase().trim();
-
-      // Explicit boundary regex check
       const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(`(^|[\\s\\-_/&])${escaped}([\\s\\-_/&]|$)`, 'i');
       return regex.test(c);
     }
 
-    // Resilient Parallel Multi-Threaded Card Fetcher
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_all_variations_v300_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_all_variations_v310_${cleanName.toLowerCase()}`;
       
       if (!bypassCache) {
         if (memoryTcgCache.has(cacheKey)) {
@@ -1167,7 +1249,7 @@
       };
 
       const pokemontcgPromise = async () => {
-        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:*${encodeURIComponent(primaryTerm)}*&select=id,name,images,set,number,rarity,subtypes&pageSize=200&orderBy=-set.releaseDate`;
+        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:*${encodeURIComponent(primaryTerm)}*&select=id,name,images,set,number,rarity,subtypes,tcgplayer,cardmarket&pageSize=200&orderBy=-set.releaseDate`;
         const json = await fetchWithRetry(queryUrl);
         return json.data || [];
       };
@@ -1209,7 +1291,6 @@
         }
       }
 
-      // Word boundary matching filter
       const speciesCards = allCards.filter(c => matchesExactPokemonName(c.name, cleanName));
 
       const formattedCards = speciesCards.map(c => ({
@@ -1220,6 +1301,7 @@
         setName: resolveSetName(c.set),
         number: c.number || '?',
         rarity: c.rarity || 'Card',
+        priceGBP: extractCardPriceGBP(c),
         rank: evaluateCardRank(c)
       })).filter(c => c.smallImg);
 
@@ -1279,6 +1361,7 @@
         node.innerHTML = `
           <div class="tcg-thumb-frame">
             <img class="tcg-card-thumb" src="${card.smallImg}" loading="lazy" alt="${card.name}" />
+            ${card.priceGBP ? `<div class="tcg-card-price-badge">£${card.priceGBP}</div>` : ''}
           </div>
           <div class="tcg-card-set" title="${card.setName}">${card.setName}</div>
           <div class="tcg-card-num">#${card.number}</div>
@@ -1308,12 +1391,32 @@
       document.getElementById('tcgZoomTitle').innerText = card.name;
       document.getElementById('tcgZoomMeta').innerText = `${card.setName} · #${card.number} · ${card.rarity}`;
       document.getElementById('tcgZoomCounter').innerText = `${currentZoomIndex + 1} / ${currentCardsList.length}`;
+      
+      const priceValEl = document.getElementById('tcgZoomPriceVal');
+      if (priceValEl) {
+        priceValEl.innerText = card.priceGBP ? `£${card.priceGBP}` : 'Market N/A';
+      }
 
       const leftArrow = document.getElementById('zoomLeftArrow');
       const rightArrow = document.getElementById('zoomRightArrow');
 
       if (leftArrow) leftArrow.style.display = currentZoomIndex > 0 ? 'flex' : 'none';
       if (rightArrow) rightArrow.style.display = currentZoomIndex < currentCardsList.length - 1 ? 'flex' : 'none';
+
+      // Apply Foil Shader Shimmer intensity based on Rarity Rank
+      const shader = document.getElementById('holoShader');
+      if (shader) {
+        if (card.rank <= 5) {
+          shader.style.opacity = '0.9';
+          shader.style.filter = 'drop-shadow(0 0 8px gold)';
+        } else if (card.rank <= 13) {
+          shader.style.opacity = '0.75';
+          shader.style.filter = 'none';
+        } else {
+          shader.style.opacity = '0.25';
+          shader.style.filter = 'none';
+        }
+      }
     }
 
     function navigateZoomCard(dir) {
@@ -1325,16 +1428,43 @@
       }
     }
 
+    // 3D Parallax Tilt & Touch Gesture Tracking
     let zoomTouchX = 0;
     const zoomViewArea = document.getElementById('zoomViewArea');
-    if (zoomViewArea) {
+    const holoStage = document.getElementById('holoStage');
+    
+    if (zoomViewArea && holoStage) {
+      const handleTilt = (clientX, clientY) => {
+        const rect = holoStage.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        
+        const rotateX = ((y - centerY) / centerY) * -16;
+        const rotateY = ((x - centerX) / centerX) * 16;
+        
+        holoStage.style.transform = `rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg)`;
+        
+        const posX = ((x / rect.width) * 100).toFixed(1);
+        const posY = ((y / rect.height) * 100).toFixed(1);
+        holoStage.style.setProperty('--pos-x', `${posX}%`);
+        holoStage.style.setProperty('--pos-y', `${posY}%`);
+      };
+
       zoomViewArea.addEventListener('touchstart', e => {
         zoomTouchX = e.changedTouches[0].screenX;
+        handleTilt(e.touches[0].clientX, e.touches[0].clientY);
+      }, { passive: true });
+
+      zoomViewArea.addEventListener('touchmove', e => {
+        handleTilt(e.touches[0].clientX, e.touches[0].clientY);
       }, { passive: true });
 
       zoomViewArea.addEventListener('touchend', e => {
+        holoStage.style.transform = 'rotateX(0deg) rotateY(0deg)';
         const dX = e.changedTouches[0].screenX - zoomTouchX;
-        if (Math.abs(dX) > 40) {
+        if (Math.abs(dX) > 45) {
           if (dX < 0) {
             navigateZoomCard(1);
           } else {
@@ -1342,10 +1472,18 @@
           }
         }
       }, { passive: true });
+
+      zoomViewArea.addEventListener('mousemove', e => {
+        handleTilt(e.clientX, e.clientY);
+      });
+      zoomViewArea.addEventListener('mouseleave', () => {
+        holoStage.style.transform = 'rotateX(0deg) rotateY(0deg)';
+      });
     }
 
     function closeTcgZoom() {
       document.getElementById('tcgZoomModal').style.display = 'none';
+      if (holoStage) holoStage.style.transform = 'rotateX(0deg) rotateY(0deg)';
     }
 
     function toggleCollect() {

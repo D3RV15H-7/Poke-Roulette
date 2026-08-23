@@ -7,7 +7,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="apple-touch-icon" href="icon.svg" />
-  <meta name="theme-color" content="#dc2626" />
+  <meta name="theme-color" content="#0f172a" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <style>
@@ -44,7 +44,7 @@
     body.has-active .center-hub { width: clamp(24px, 3.8dvh, 36px); height: clamp(24px, 3.8dvh, 36px); border-width: 3px; }
     .center-hub::after { content: ''; width: 40%; height: 40%; border-radius: 50%; background: var(--red); border: 2px solid var(--bg); }
 
-    /* Centered Morphing Spin/Close Dock */
+    /* Centered Spin Row */
     .spin-row { 
       display: flex; 
       gap: 0; 
@@ -52,7 +52,6 @@
       justify-content: center; 
       align-items: center; 
       flex-shrink: 0; 
-      transition: gap 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
     body.has-active .spin-row {
       gap: 0.5rem;
@@ -65,29 +64,29 @@
       padding: clamp(0.65rem, 1.6dvh, 0.85rem) clamp(1.8rem, 5vw, 2.5rem); 
       font-size: clamp(0.95rem, 2.3dvh, 1.15rem); 
       font-weight: 800; 
-      letter-spacing: 0.5px;
+      letter-spacing: 0.5px; 
       border-radius: 99px; 
       box-shadow: 0 6px 20px rgba(239,68,68,0.45); 
       cursor: pointer; 
       white-space: nowrap;
-      transition: padding 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.2s;
+      transition: padding 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.2s;
     }
     .btn-spin:active { transform: scale(0.96); }
     .btn-spin:disabled { opacity: 0.55; cursor: not-allowed; }
     
     body.has-active .btn-spin {
-      padding: clamp(0.65rem, 1.6dvh, 0.85rem) clamp(1.1rem, 3.2vw, 1.6rem);
+      padding: clamp(0.65rem, 1.6dvh, 0.85rem) clamp(1.2rem, 3.5vw, 1.7rem);
     }
 
-    /* Spring Pop-in Close (X) Button */
+    /* Pop-In Close Button */
     .btn-close { 
       background: linear-gradient(135deg, var(--red), #dc2626); 
       color: #fff; 
       border: none; 
-      width: 0;
-      height: 0;
+      width: clamp(38px, 4.8dvh, 44px); 
+      height: clamp(38px, 4.8dvh, 44px); 
       border-radius: 50%; 
-      display: inline-flex; 
+      display: none; 
       align-items: center; 
       justify-content: center; 
       font-size: 1.15rem; 
@@ -95,22 +94,15 @@
       box-shadow: 0 6px 20px rgba(239,68,68,0.45); 
       cursor: pointer; 
       flex-shrink: 0;
-      opacity: 0;
-      pointer-events: none;
-      transform: scale(0) rotate(-90deg);
-      transition: width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), 
-                  height 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), 
-                  transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), 
-                  opacity 0.25s ease;
+      animation: springPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
-    .btn-close:active { transform: scale(0.92) rotate(0deg); }
-    
+    .btn-close:active { transform: scale(0.92); }
     body.has-active .btn-close {
-      width: clamp(38px, 4.8dvh, 44px); 
-      height: clamp(38px, 4.8dvh, 44px);
-      opacity: 1;
-      pointer-events: auto;
-      transform: scale(1) rotate(0deg);
+      display: flex;
+    }
+    @keyframes springPop {
+      0% { opacity: 0; transform: scale(0.3) rotate(-90deg); }
+      100% { opacity: 1; transform: scale(1) rotate(0deg); }
     }
 
     .hub { display: flex; justify-content: center; gap: 0.75rem; margin: 0.05rem 0; flex-shrink: 0; }
@@ -177,7 +169,7 @@
       <div class="center-hub"></div>
     </div>
 
-    <!-- Centered Morphing Spin/Close Row -->
+    <!-- Centered Spin Row -->
     <div class="spin-row">
       <button class="btn-spin" id="spinBtn" onclick="spinAndPick()">SPIN & GENERATE</button>
       <button class="btn-close" id="closeBtn" onclick="hideActive()" title="Hide Pokémon View">✕</button>

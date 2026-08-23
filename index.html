@@ -806,27 +806,33 @@
       evoBox.style.display = 'flex';
     }
 
-    // Comprehensive Verification: Captures V, VMAX, VSTAR, ex, Megas & Character Rares
+    // High Precision Multi-Tier Full-Art & Secret Art Filter
     function isStrictPremium(card) {
       const r = (card.rarity || '').toLowerCase().trim();
       const subtypes = (card.subtypes || []).map(s => s.toLowerCase().trim());
-      const number = String(card.number || '').toLowerCase();
+      const number = String(card.number || '').toLowerCase().trim();
+      const printedTotal = card.set?.printedTotal || 0;
 
-      // Mega Cards
+      // Mega Pokémon Cards
       const isMega = subtypes.includes('mega') || (card.name || '').toLowerCase().startsWith('m ') || (card.name || '').toLowerCase().startsWith('m-');
       if (isMega) return true;
 
-      // Trainer Gallery / Galarian Gallery / Special subsets
-      const isSubset = number.startsWith('tg') || number.startsWith('gg') || number.startsWith('sv') || number.startsWith('rc');
+      // Special Subsets (Trainer Gallery, Galarian Gallery, Shiny Vault, Radiant, Classic Collections)
+      const isSubset = number.startsWith('tg') || number.startsWith('gg') || number.startsWith('sv') || number.startsWith('rc') || number.startsWith('svp');
       const isTrainerGallery = r.includes('trainer gallery') || r.includes('character');
       if (isSubset || isTrainerGallery) return true;
 
-      // Illustration / Secret / Hyper / Full-Art Tiers
+      // Explicit Illustration / Secret / Full Art Labels
       const isIllustration = r.includes('illustration') || subtypes.includes('special illustration rare') || subtypes.includes('illustration rare');
       const isSecretOrHyper = r.includes('secret') || r.includes('hyper') || r.includes('rainbow') || r.includes('crown') || r.includes('gold') || r.includes('shining') || r.includes('star');
       const isFullArt = subtypes.includes('full art') || r.includes('shiny ultra rare') || r.includes('shiny super rare');
+      if (isIllustration || isSecretOrHyper || isFullArt) return true;
 
-      return isIllustration || isSecretOrHyper || isFullArt;
+      // Mathematical Secret/Full-Art check (Card number > Printed Total) e.g., Zapdos ex 192/165 or 202/165
+      const numVal = parseInt(number.replace(/\D/g, ''));
+      if (printedTotal > 0 && numVal > printedTotal) return true;
+
+      return false;
     }
 
     async function fetchTcgCards(pokeName, speciesName) {
@@ -835,7 +841,7 @@
       const sectionTitle = document.getElementById('tcgSectionTitle');
       
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_strict_exclusive_v10_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_strict_exclusive_v15_${cleanName.toLowerCase()}`;
       
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
@@ -857,9 +863,9 @@
       currentFetchController = new AbortController();
 
       try {
-        // Query base name and all variants (V, VMAX, VSTAR, ex, Mega)
+        // Query base term with wildcards to catch regional forms (Galarian/Hisuian/Alolan/Rocket's/ex/V/VMAX/Megas)
         const primaryTerm = cleanName.split(' ')[0];
-        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:${encodeURIComponent(primaryTerm)}*&select=id,name,images,set,number,rarity,subtypes&pageSize=100&orderBy=-set.releaseDate`;
+        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:*${encodeURIComponent(primaryTerm)}*&select=id,name,images,set,number,rarity,subtypes&pageSize=150&orderBy=-set.releaseDate`;
         
         let res = await fetch(queryUrl, { signal: currentFetchController.signal });
         let data = await res.json();
@@ -869,7 +875,7 @@
         const validCards = allCards.filter(c => {
           const cardName = (c.name || '').toLowerCase();
           const target = cleanName.toLowerCase();
-          return cardName === target || cardName.startsWith(target + ' ') || cardName.startsWith('m ' + target) || cardName.startsWith('mega ' + target);
+          return cardName.includes(target);
         });
 
         // 1. Separate full arts, Megas, and illustration rares

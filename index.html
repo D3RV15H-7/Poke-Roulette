@@ -345,7 +345,6 @@
     .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.04rem 0.7rem; text-align: left; background: var(--bg); padding: clamp(0.15rem, 0.35dvh, 0.22rem) 0.65rem; border-radius: 8px; font-size: clamp(0.58rem, 1.05dvh, 0.65rem); }
     .stats span:last-child { font-weight: 700; float: right; }
 
-    /* Zoom Modal with Swipe / Navigation Arrows */
     .tcg-zoom-modal {
       position: fixed;
       inset: 0;
@@ -380,6 +379,7 @@
       align-items: center;
       justify-content: center;
       width: 100%;
+      touch-action: pan-y;
     }
     .tcg-zoom-img {
       width: 215px;
@@ -387,6 +387,7 @@
       border-radius: 10px;
       object-fit: cover;
       box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      pointer-events: none;
     }
     .tcg-zoom-arrow {
       position: absolute;
@@ -406,6 +407,7 @@
       cursor: pointer;
       z-index: 10;
       box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      transition: opacity 0.2s;
     }
     .tcg-zoom-arrow:active { transform: translateY(-50%) scale(0.92); }
     .tcg-zoom-arrow.left { left: -4px; }
@@ -534,13 +536,12 @@
     </div>
   </div>
 
-  <!-- Swipeable Zoom Modal -->
   <div class="tcg-zoom-modal" id="tcgZoomModal" onclick="closeTcgZoom()">
     <div class="tcg-zoom-content" onclick="event.stopPropagation()">
-      <div class="tcg-zoom-view-area">
-        <button class="tcg-zoom-arrow left" onclick="navigateZoomCard(-1)">‹</button>
+      <div class="tcg-zoom-view-area" id="zoomViewArea">
+        <button class="tcg-zoom-arrow left" id="zoomLeftArrow" onclick="navigateZoomCard(-1)">‹</button>
         <img class="tcg-zoom-img" id="tcgZoomImg" src="" alt="Card HD" />
-        <button class="tcg-zoom-arrow right" onclick="navigateZoomCard(1)">›</button>
+        <button class="tcg-zoom-arrow right" id="zoomRightArrow" onclick="navigateZoomCard(1)">›</button>
       </div>
       <div class="tcg-zoom-title" id="tcgZoomTitle">Card Title</div>
       <div class="tcg-zoom-meta" id="tcgZoomMeta">Set · Number · Rarity</div>
@@ -647,6 +648,12 @@
       if (speciesName) return speciesName.replace(/-/g, ' ');
       if (!pokeName) return '';
       
+      const lower = pokeName.toLowerCase();
+      const preservedHyphenNames = new Set(['chi-yu', 'ting-lu', 'wo-chien', 'chien-pao', 'porygon-z', 'tapu-koko', 'tapu-lele', 'tapu-bulu', 'tapu-fini', 'jangmo-o', 'hakamo-o', 'kommo-o', 'ho-oh', 'porygon2']);
+      if (preservedHyphenNames.has(lower)) {
+        return pokeName.replace(/-/g, ' ');
+      }
+
       const parts = pokeName.split('-');
       const suffixes = new Set(['male', 'female', 'average', 'small', 'large', 'super', 'red', 'blue', 'yellow', 'white', 'standard', 'incarnate', 'ordinary', 'aria', 'midday', 'midnight', 'dusk', 'solo', 'shield', 'disguised', 'plant', 'sandy', 'trash', 'overcast', 'sunshine', 'east', 'west']);
       if (parts.length > 1 && suffixes.has(parts[parts.length - 1].toLowerCase())) {
@@ -958,7 +965,7 @@
       const countText = document.getElementById('tcgCountText');
       
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_all_variations_v190_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_all_variations_v210_${cleanName.toLowerCase()}`;
       
       if (memoryTcgCache.has(cacheKey)) {
         currentCardsList = memoryTcgCache.get(cacheKey);
@@ -1113,12 +1120,41 @@
       document.getElementById('tcgZoomImg').src = card.largeImg || card.smallImg;
       document.getElementById('tcgZoomTitle').innerText = card.name;
       document.getElementById('tcgZoomMeta').innerText = `${card.setName} · #${card.number} · ${card.rarity}`;
+
+      const leftArrow = document.getElementById('zoomLeftArrow');
+      const rightArrow = document.getElementById('zoomRightArrow');
+
+      if (leftArrow) leftArrow.style.display = currentZoomIndex > 0 ? 'flex' : 'none';
+      if (rightArrow) rightArrow.style.display = currentZoomIndex < currentCardsList.length - 1 ? 'flex' : 'none';
     }
 
     function navigateZoomCard(dir) {
       if (!currentCardsList.length) return;
-      currentZoomIndex = (currentZoomIndex + dir + currentCardsList.length) % currentCardsList.length;
-      updateZoomModalContent();
+      const newIndex = currentZoomIndex + dir;
+      if (newIndex >= 0 && newIndex < currentCardsList.length) {
+        currentZoomIndex = newIndex;
+        updateZoomModalContent();
+      }
+    }
+
+    // Touch swipe support for zoom modal
+    let zoomTouchX = 0;
+    const zoomViewArea = document.getElementById('zoomViewArea');
+    if (zoomViewArea) {
+      zoomViewArea.addEventListener('touchstart', e => {
+        zoomTouchX = e.changedTouches[0].screenX;
+      }, { passive: true });
+
+      zoomViewArea.addEventListener('touchend', e => {
+        const dX = e.changedTouches[0].screenX - zoomTouchX;
+        if (Math.abs(dX) > 40) {
+          if (dX < 0) {
+            navigateZoomCard(1); // Swipe left -> next card
+          } else {
+            navigateZoomCard(-1); // Swipe right -> prev card
+          }
+        }
+      }, { passive: true });
     }
 
     function closeTcgZoom() {

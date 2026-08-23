@@ -833,6 +833,7 @@
       return false;
     }
 
+    // High-Resilience Dual-Tier TCG Fetch Engine
     async function fetchTcgCards(pokeName, speciesName) {
       const requestId = ++activeTcgRequestId;
       const strip = document.getElementById('tcgStrip');
@@ -840,7 +841,7 @@
       const sectionTitle = document.getElementById('tcgSectionTitle');
       
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_fullart_guarantee_v40_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_fullart_guarantee_v45_${cleanName.toLowerCase()}`;
       
       const cached = localStorage.getItem(cacheKey);
       if (cached) {

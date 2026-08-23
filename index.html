@@ -240,7 +240,7 @@
     .evo-node.active-evo span { color: #fff; }
     .evo-arrow { color: var(--sub); font-size: 0.6rem; font-weight: 900; }
 
-    /* Strict Fixed-Dimension TCG Shelf */
+    /* Strict Fixed-Dimension TCG Shelf with Skeleton Shimmer */
     .tcg-section-wrap {
       width: 100%;
       margin-bottom: clamp(0.1rem, 0.25dvh, 0.18rem);
@@ -272,6 +272,8 @@
       scrollbar-color: #334155 transparent;
       -webkit-overflow-scrolling: touch;
       touch-action: pan-x;
+      min-height: 72px;
+      align-items: center;
     }
     .tcg-card-item {
       flex: 0 0 clamp(48px, 6.5dvh, 58px);
@@ -315,7 +317,19 @@
       text-align: center;
     }
     .tcg-card-num { font-size: 0.46rem; color: var(--sub); font-weight: 700; }
-    .tcg-empty-msg { font-size: 0.6rem; color: var(--sub); text-align: center; width: 100%; padding: 0.3rem 0; }
+    
+    /* Skeleton Shimmer Loading Blocks */
+    .tcg-skeleton-card {
+      flex: 0 0 clamp(48px, 6.5dvh, 58px);
+      width: clamp(48px, 6.5dvh, 58px);
+      height: calc(clamp(48px, 6.5dvh, 58px) * (88 / 63));
+      border-radius: 4px;
+      background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+      background-size: 200% 100%;
+      animation: skeletonShimmer 1.2s infinite ease-in-out;
+      border: 1px solid #334155;
+    }
+    @keyframes skeletonShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
     .btn-collect { width: 100%; padding: clamp(0.18rem, 0.45dvh, 0.28rem); margin-bottom: clamp(0.08rem, 0.2dvh, 0.16rem); border-radius: 8px; border: 1px solid #334155; background: var(--bg); color: var(--sub); font-size: 0.66rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.35rem; }
     .btn-collect.active { background: rgba(16,185,129,0.15); border-color: var(--green); color: var(--green); }
@@ -459,10 +473,13 @@
       <div class="tcg-section-wrap" id="tcgWrap">
         <div class="tcg-header-row">
           <span>🃏 TCG Cards</span>
-          <span id="tcgCountText">Loading sets...</span>
+          <span id="tcgCountText">Finding Sets...</span>
         </div>
         <div class="tcg-scroll-strip" id="tcgStrip">
-          <div class="tcg-empty-msg">Searching TCG card archives...</div>
+          <div class="tcg-skeleton-card"></div>
+          <div class="tcg-skeleton-card"></div>
+          <div class="tcg-skeleton-card"></div>
+          <div class="tcg-skeleton-card"></div>
         </div>
       </div>
 
@@ -784,7 +801,7 @@
       evoBox.style.display = 'flex';
     }
 
-    // TCG Fetch & Render Engine with Strict Aspect Ratio & Dedicated Event Capture
+    // High-Speed Dual-Tier TCG Fetch Engine
     async function fetchTcgCards(pokeName) {
       const strip = document.getElementById('tcgStrip');
       const countText = document.getElementById('tcgCountText');
@@ -792,17 +809,29 @@
       const cleanName = pokeName.replace(/-m$/i, ' ♂').replace(/-f$/i, ' ♀').replace(/-/g, ' ');
       const cacheKey = `tcg_cards_${cleanName.toLowerCase()}`;
       
-      countText.innerText = "Fetching...";
-      strip.innerHTML = '<div class="tcg-empty-msg">Searching TCG card archives...</div>';
-
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
         renderTcgCards(JSON.parse(cached));
         return;
       }
 
+      countText.innerText = "Searching...";
+      strip.innerHTML = `
+        <div class="tcg-skeleton-card"></div>
+        <div class="tcg-skeleton-card"></div>
+        <div class="tcg-skeleton-card"></div>
+        <div class="tcg-skeleton-card"></div>
+      `;
+
       try {
-        let res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanName)}"&pageSize=30&orderBy=-set.releaseDate`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4500);
+
+        let res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanName)}"&pageSize=30&orderBy=-set.releaseDate`, {
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
         let data = await res.json();
         
         if ((!data.data || data.data.length === 0) && cleanName.includes(' ')) {
@@ -824,8 +853,32 @@
         try { localStorage.setItem(cacheKey, JSON.stringify(cards)); } catch (e) {}
         renderTcgCards(cards);
       } catch (err) {
-        countText.innerText = "Offline";
-        strip.innerHTML = '<div class="tcg-empty-msg">TCG card archive unavailable.</div>';
+        // High-Speed Fallback to Public CDN TCGdex index
+        try {
+          const queryName = pokeName.split('-')[0].toLowerCase();
+          const fRes = await fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(queryName)}`);
+          const fData = await fRes.json();
+          if (Array.isArray(fData) && fData.length > 0) {
+            const fCards = fData.slice(0, 24).map(c => ({
+              id: c.id,
+              name: c.name,
+              smallImg: `${c.image}/low.webp`,
+              largeImg: `${c.image}/high.webp`,
+              setName: c.set?.name || 'TCG Set',
+              number: c.localId || '?',
+              rarity: 'Card'
+            })).filter(c => c.smallImg && !c.smallImg.includes('undefined'));
+
+            if (fCards.length) {
+              try { localStorage.setItem(cacheKey, JSON.stringify(fCards)); } catch (e) {}
+              renderTcgCards(fCards);
+              return;
+            }
+          }
+        } catch (fErr) {}
+
+        countText.innerText = "0 Cards";
+        strip.innerHTML = '<div class="tcg-empty-msg">TCG card archive busy. Tap again.</div>';
       }
     }
 
@@ -853,7 +906,6 @@
           <div class="tcg-card-num">#${card.number}</div>
         `;
         
-        // Isolate touch/clicks from main card swipe handlers
         node.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
         node.addEventListener('touchend', e => e.stopPropagation(), { passive: true });
         node.onclick = (e) => {
@@ -959,8 +1011,13 @@
         const pRes = await fetch(valid[Math.floor(Math.random() * valid.length)].pokemon.url);
         const pData = await pRes.json();
         const shiny = Math.floor(Math.random() * 100) === 0;
+
+        // Background Pre-fetch TCG cards & Lore while the wheel is spinning
+        fetchTcgCards(pData.name);
+        fetchLoreAndEvolution(pData.species?.url, pData.id);
+
         setTimeout(() => {
-          renderCard(pData, 0, shiny);
+          renderCard(pData, 0, shiny, true);
           addRec(pData);
           playCry();
           if (shiny) triggerSparkle();
@@ -972,7 +1029,7 @@
       }
     }
 
-    function renderCard(p, dir = 0, shiny = false) {
+    function renderCard(p, dir = 0, shiny = false, preloaded = false) {
       curId = p.id; curPoke = p; isShiny = shiny;
       document.body.classList.add('has-active');
       const card = document.getElementById('pokeCard');
@@ -980,8 +1037,11 @@
       document.getElementById('pokeName').innerText = p.name.replace('-',' ');
       updateArt();
       updateCardAura(p.types);
-      fetchLoreAndEvolution(p.species?.url, p.id);
-      fetchTcgCards(p.name);
+
+      if (!preloaded) {
+        fetchLoreAndEvolution(p.species?.url, p.id);
+        fetchTcgCards(p.name);
+      }
       
       const tBox = document.getElementById('pokeTypes');
       tBox.innerHTML = '';
@@ -1008,7 +1068,6 @@
     const cardEl = document.getElementById('pokeCard');
     
     cardEl.addEventListener('touchstart', e => { 
-      // Flag true if touch starts within horizontal TCG strip or evolution chain
       isSwipeRestricted = Boolean(e.target.closest('#tcgWrap, #tcgStrip, #evoChain'));
       tX = e.changedTouches[0].screenX; 
       tY = e.changedTouches[0].screenY; 
@@ -1026,7 +1085,6 @@
       }
     }, { passive: true });
 
-    // Explicitly prevent touch gestures from bubbling inside TCG Strip
     const tcgStripEl = document.getElementById('tcgStrip');
     tcgStripEl.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
     tcgStripEl.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });

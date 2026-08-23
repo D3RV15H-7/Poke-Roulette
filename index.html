@@ -428,7 +428,6 @@
     .tcg-zoom-meta { font-size: 0.7rem; color: var(--sub); font-weight: 700; text-align: center; }
     .tcg-zoom-close { background: var(--red); color: white; border: none; padding: 0.35rem 1.1rem; border-radius: 99px; font-size: 0.72rem; font-weight: 800; cursor: pointer; }
 
-    /* Modal Styling */
     .modal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.78); backdrop-filter: blur(6px); z-index: 100; display: none; align-items: flex-end; justify-content: center; }
     .modal-body { background: var(--card); width: 100vw; max-width: 500px; max-height: 85vh; border-radius: 28px 28px 0 0; border: 1px solid #334155; border-bottom: none; display: flex; flex-direction: column; padding: 1.1rem 0.75rem 1rem 0.75rem; }
     .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid #334155; }
@@ -458,7 +457,6 @@
     .recent-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.55rem; border-radius: 12px; cursor: pointer; }
     .recent-item img { width: 44px; height: 44px; object-fit: contain; }
 
-    /* 3x3 Card Preview Modal Styles */
     .dex-cards-modal {
       position: fixed;
       inset: 0;
@@ -620,7 +618,6 @@
     </div>
   </div>
 
-  <!-- Hold-to-View 3x3 Card Grid Modal -->
   <div class="dex-cards-modal" id="dexCardsModal" onclick="closeDexCardsModal()">
     <div class="dex-cards-content" onclick="event.stopPropagation()">
       <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:0.4rem;">
@@ -691,34 +688,35 @@
     };
 
     const KNOWN_SETS = {
-      'sv03.5': '151', 'sv06': 'Twilight Masquerade', 'sv04': 'Paradox Rift', 'sv01': 'Scarlet & Violet',
-      'sv02': 'Paldea Evolved', 'sv03': 'Obsidian Flames', 'sv05': 'Temporal Forces', 'sv07': 'Stellar Crown',
-      'sv04.5': 'Paldean Fates', 'sv06.5': 'Shrouded Fable', 'sv08': 'Surging Sparks', 'sv08.5': 'Prismatic Evolutions',
-      'swsh12pt5': 'Crown Zenith', 'swsh12': 'Silver Tempest', 'swsh11': 'Lost Origin', 'swsh10': 'Astral Radiance',
-      'swsh09': 'Brilliant Stars', 'swsh08': 'Fusion Strike', 'swsh07': 'Evolving Skies', 'swsh06': 'Chilling Reign',
-      'swsh05': 'Battle Styles', 'swsh045': 'Shining Fates', 'swsh04': 'Vivid Voltage', 'swsh035': 'Champion\'s Path',
-      'swsh03': 'Darkness Ablaze', 'swsh02': 'Rebel Clash', 'swsh01': 'Sword & Shield', 'cel25': 'Celebrations',
-      'sm12': 'Cosmic Eclipse', 'sm115': 'Hidden Fates', 'sm11': 'Unified Minds', 'sm10': 'Unbroken Bonds',
-      'sm09': 'Team Up', 'sm08': 'Lost Thunder', 'sm075': 'Dragon Majesty', 'sm07': 'Celestial Storm',
-      'sm06': 'Forbidden Light', 'sm05': 'Ultra Prism', 'sm04': 'Crimson Invasion', 'sm035': 'Shining Legends',
-      'sm03': 'Burning Shadows', 'sm02': 'Guardians Rising', 'sm01': 'Sun & Moon',
-      'xy12': 'Evolutions', 'xy11': 'Steam Siege', 'xy10': 'Fates Collide', 'xy09': 'BREAKpoint',
-      'xy08': 'BREAKthrough', 'xy07': 'Ancient Origins', 'xy06': 'Roaring Skies', 'xy05': 'Primal Clash',
-      'xy04': 'Phantom Forces', 'xy03': 'Furious Fists', 'xy02': 'Flashfire', 'xy01': 'XY Base',
-      'bw11': 'Legendary Treasures', 'bw10': 'Plasma Blast', 'bw09': 'Plasma Freeze', 'bw08': 'Plasma Storm',
-      'bw07': 'Boundaries Crossed', 'bw06': 'Dragons Exalted', 'bw05': 'Dark Explorers', 'bw04': 'Next Destinies',
-      'bw03': 'Noble Victories', 'bw02': 'Emerging Powers', 'bw01': 'Black & White',
-      'col1': 'Call of Legends', 'hgss04': 'Triumphant', 'hgss03': 'Undaunted', 'hgss02': 'Unleashed', 'hgss01': 'HeartGold & SoulSilver',
-      'pl4': 'Arceus', 'pl3': 'Supreme Victors', 'pl2': 'Rising Rivals', 'pl1': 'Platinum',
-      'dp07': 'Stormfront', 'dp06': 'Legends Awakened', 'dp05': 'Majestic Dawn', 'dp04': 'Great Encounters',
-      'dp03': 'Secret Wonders', 'dp02': 'Mysterious Treasures', 'dp01': 'Diamond & Pearl',
-      'ex16': 'Power Keepers', 'ex15': 'Dragon Frontiers', 'ex14': 'Crystal Guardians', 'ex13': 'Holon Phantoms',
-      'ex12': 'Legend Maker', 'ex11': 'Delta Species', 'ex10': 'Unseen Forces', 'ex09': 'Emerald',
-      'ex08': 'Deoxys', 'ex07': 'Team Rocket Returns', 'ex06': 'FireRed & LeafGreen', 'ex05': 'Hidden Legends',
-      'ex04': 'Team Magma vs Aqua', 'ex03': 'Dragon', 'ex02': 'Sandstorm', 'ex01': 'Ruby & Sapphire',
       'base1': 'Base Set', 'base2': 'Jungle', 'base3': 'Fossil', 'base4': 'Base Set 2', 'base5': 'Team Rocket',
       'gym1': 'Gym Heroes', 'gym2': 'Gym Challenge', 'neo1': 'Neo Genesis', 'neo2': 'Neo Discovery',
       'neo3': 'Neo Revelation', 'neo4': 'Neo Destiny', 'si1': 'Southern Islands', 'base6': 'Legendary Collection',
+      'ecard1': 'Expedition Base Set', 'ecard2': 'Aquapolis', 'ecard3': 'Skyridge',
+      'ex1': 'Ruby & Sapphire', 'ex2': 'Sandstorm', 'ex3': 'Dragon', 'ex4': 'Team Magma vs Team Aqua',
+      'ex5': 'Hidden Legends', 'ex6': 'FireRed & LeafGreen', 'ex7': 'Team Rocket Returns', 'ex8': 'Deoxys',
+      'ex9': 'Emerald', 'ex10': 'Unseen Forces', 'ex11': 'Delta Species', 'ex12': 'Legend Maker',
+      'ex13': 'Holon Phantoms', 'ex14': 'Crystal Guardians', 'ex15': 'Dragon Frontiers', 'ex16': 'Power Keepers',
+      'dp1': 'Diamond & Pearl', 'dp2': 'Mysterious Treasures', 'dp3': 'Secret Wonders', 'dp4': 'Great Encounters',
+      'dp5': 'Majestic Dawn', 'dp6': 'Legends Awakened', 'dp7': 'Stormfront', 'pl1': 'Platinum',
+      'pl2': 'Rising Rivals', 'pl3': 'Supreme Victors', 'pl4': 'Arceus', 'col1': 'Call of Legends',
+      'hgss1': 'HeartGold & SoulSilver', 'hgss2': 'Unleashed', 'hgss3': 'Undaunted', 'hgss4': 'Triumphant',
+      'bw1': 'Black & White', 'bw2': 'Emerging Powers', 'bw3': 'Noble Victories', 'bw4': 'Next Destinies',
+      'bw5': 'Dark Explorers', 'bw6': 'Dragons Exalted', 'bw7': 'Boundaries Crossed', 'bw8': 'Plasma Storm',
+      'bw9': 'Plasma Freeze', 'bw10': 'Plasma Blast', 'bw11': 'Legendary Treasures',
+      'xy1': 'XY Base', 'xy2': 'Flashfire', 'xy3': 'Furious Fists', 'xy4': 'Phantom Forces',
+      'xy5': 'Primal Clash', 'xy6': 'Roaring Skies', 'xy7': 'Ancient Origins', 'xy8': 'BREAKthrough',
+      'xy9': 'BREAKpoint', 'xy10': 'Fates Collide', 'xy11': 'Steam Siege', 'xy12': 'Evolutions',
+      'sm1': 'Sun & Moon', 'sm2': 'Guardians Rising', 'sm3': 'Burning Shadows', 'sm35': 'Shining Legends',
+      'sm4': 'Crimson Invasion', 'sm5': 'Ultra Prism', 'sm6': 'Forbidden Light', 'sm7': 'Celestial Storm',
+      'sm75': 'Dragon Majesty', 'sm8': 'Lost Thunder', 'sm9': 'Team Up', 'sm10': 'Unbroken Bonds',
+      'sm11': 'Unified Minds', 'sm115': 'Hidden Fates', 'sm12': 'Cosmic Eclipse', 'cel25': 'Celebrations',
+      'swsh1': 'Sword & Shield', 'swsh2': 'Rebel Clash', 'swsh3': 'Darkness Ablaze', 'swsh35': 'Champion\'s Path',
+      'swsh4': 'Vivid Voltage', 'swsh45': 'Shining Fates', 'swsh5': 'Battle Styles', 'swsh6': 'Chilling Reign',
+      'swsh7': 'Evolving Skies', 'swsh8': 'Fusion Strike', 'swsh9': 'Brilliant Stars', 'swsh10': 'Astral Radiance',
+      'swsh11': 'Lost Origin', 'swsh12': 'Silver Tempest', 'swsh12pt5': 'Crown Zenith',
+      'sv1': 'Scarlet & Violet', 'sv2': 'Paldea Evolved', 'sv3': 'Obsidian Flames', 'sv03.5': '151',
+      'sv4': 'Paradox Rift', 'sv04.5': 'Paldean Fates', 'sv5': 'Temporal Forces', 'sv6': 'Twilight Masquerade',
+      'sv06.5': 'Shrouded Fable', 'sv7': 'Stellar Crown', 'sv8': 'Surging Sparks', 'sv08.5': 'Prismatic Evolutions',
       'smp': 'SM Promos', 'swshp': 'SWSH Promos', 'svp': 'SV Promos', 'xyp': 'XY Promos',
       'bwp': 'BW Promos', 'dpp': 'DP Promos', 'np': 'Nintendo Promos', 'pop': 'POP Series'
     };
@@ -750,6 +748,7 @@
       if (!setObj) return 'Promo';
       if (typeof setObj === 'string') {
         const clean = setObj.trim();
+        if (KNOWN_SETS[clean.toLowerCase()]) return KNOWN_SETS[clean.toLowerCase()];
         if (clean && clean !== 'Set' && clean !== 'TCG Set') return clean;
         return 'Promo';
       }
@@ -848,19 +847,14 @@
         d.className = `dex-item ${owned ? 'owned' : 'unowned'}`;
         d.innerHTML = `${owned ? '<div style="position:absolute;top:3px;right:3px;background:var(--green);color:#fff;font-size:0.52rem;font-weight:900;width:13px;height:13px;border-radius:50%;display:flex;align-items:center;justify-content:center;">✓</div>' : ''}<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png" loading="lazy"/><div style="font-size:0.62rem;font-weight:800;color:var(--sub)">#${String(p.id).padStart(4,'0')}</div><div style="font-size:0.65rem;font-weight:700;text-transform:capitalize;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name.replace('-',' ')}</div>`;
         
-        // Hold-to-View 3x3 Cards Preview with Long Press
         let holdTimer = null;
-        d.addEventListener('touchstart', (e) => {
-          holdTimer = setTimeout(() => {
-            openDexCardsModal(p);
-          }, 500);
+        d.addEventListener('touchstart', () => {
+          holdTimer = setTimeout(() => openDexCardsModal(p), 500);
         }, { passive: true });
         d.addEventListener('touchend', () => clearTimeout(holdTimer), { passive: true });
         d.addEventListener('touchmove', () => clearTimeout(holdTimer), { passive: true });
         d.addEventListener('mousedown', () => {
-          holdTimer = setTimeout(() => {
-            openDexCardsModal(p);
-          }, 500);
+          holdTimer = setTimeout(() => openDexCardsModal(p), 500);
         });
         d.addEventListener('mouseup', () => clearTimeout(holdTimer));
         d.addEventListener('mouseleave', () => clearTimeout(holdTimer));
@@ -1089,7 +1083,6 @@
       evoBox.style.display = 'flex';
     }
 
-    // Exact Rarity Sequence Ranking (1 to 24)
     function evaluateCardRank(card) {
       const r = (card.rarity || '').toLowerCase().trim();
       const name = (card.name || '').toLowerCase().trim();
@@ -1128,7 +1121,7 @@
       const countText = document.getElementById('tcgCountText');
       
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_all_variations_v240_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_all_variations_v250_${cleanName.toLowerCase()}`;
       
       if (memoryTcgCache.has(cacheKey)) {
         currentCardsList = memoryTcgCache.get(cacheKey);
@@ -1312,9 +1305,9 @@
         const dX = e.changedTouches[0].screenX - zoomTouchX;
         if (Math.abs(dX) > 40) {
           if (dX < 0) {
-            navigateZoomCard(1); // Swipe left -> next card
+            navigateZoomCard(1);
           } else {
-            navigateZoomCard(-1); // Swipe right -> prev card
+            navigateZoomCard(-1);
           }
         }
       }, { passive: true });

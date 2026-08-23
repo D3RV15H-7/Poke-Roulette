@@ -457,7 +457,6 @@
     .recent-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.55rem; border-radius: 12px; cursor: pointer; }
     .recent-item img { width: 44px; height: 44px; object-fit: contain; }
 
-    /* Enlarged 3x3 Card Grid Modal matching Zoom sizing */
     .dex-cards-modal {
       position: fixed;
       inset: 0;
@@ -850,13 +849,14 @@
         d.innerHTML = `${owned ? '<div style="position:absolute;top:3px;right:3px;background:var(--green);color:#fff;font-size:0.52rem;font-weight:900;width:13px;height:13px;border-radius:50%;display:flex;align-items:center;justify-content:center;">✓</div>' : ''}<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png" loading="lazy"/><div style="font-size:0.62rem;font-weight:800;color:var(--sub)">#${String(p.id).padStart(4,'0')}</div><div style="font-size:0.65rem;font-weight:700;text-transform:capitalize;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name.replace('-',' ')}</div>`;
         
         let holdTimer = null;
-        d.addEventListener('touchstart', () => {
-          holdTimer = setTimeout(() => openDexCardsModal(p), 500);
+        d.addEventListener('touchstart', (e) => {
+          holdTimer = setTimeout(() => openDexCardsModal(p), 450);
         }, { passive: true });
         d.addEventListener('touchend', () => clearTimeout(holdTimer), { passive: true });
         d.addEventListener('touchmove', () => clearTimeout(holdTimer), { passive: true });
+        d.addEventListener('contextmenu', (e) => e.preventDefault());
         d.addEventListener('mousedown', () => {
-          holdTimer = setTimeout(() => openDexCardsModal(p), 500);
+          holdTimer = setTimeout(() => openDexCardsModal(p), 450);
         });
         d.addEventListener('mouseup', () => clearTimeout(holdTimer));
         d.addEventListener('mouseleave', () => clearTimeout(holdTimer));
@@ -882,31 +882,7 @@
       modal.style.display = 'flex';
 
       try {
-        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:*${encodeURIComponent(cleanName.split(' ')[0])}*&select=id,name,images,set,number,rarity,subtypes&pageSize=200&orderBy=-set.releaseDate`;
-        const res = await fetch(queryUrl);
-        if (!res.ok) throw new Error("API error");
-        const json = await res.json();
-        const allCards = json.data || [];
-
-        const speciesCards = allCards.filter(c => {
-          const cardName = (c.name || '').toLowerCase();
-          const target = cleanName.toLowerCase();
-          return cardName.includes(target);
-        });
-
-        const cardsList = speciesCards.map(c => ({
-          id: c.id,
-          name: c.name,
-          smallImg: c.images?.small || '',
-          largeImg: c.images?.large || c.images?.small || '',
-          setName: resolveSetName(c.set),
-          number: c.number || '?',
-          rarity: c.rarity || 'Card',
-          rank: evaluateCardRank(c)
-        })).filter(c => c.smallImg);
-
-        cardsList.sort((a, b) => a.rank - b.rank);
-
+        const cardsList = await fetchTcgCardsData(p.name, p.species?.name);
         grid.innerHTML = cardsList.length ? '' : '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">No cards found</div>';
         cardsList.forEach((card, index) => {
           const cell = document.createElement('div');
@@ -1085,7 +1061,6 @@
       evoBox.style.display = 'flex';
     }
 
-    // Exact Rarity Sequence Ranking (1 to 24)
     function evaluateCardRank(card) {
       const r = (card.rarity || '').toLowerCase().trim();
       const name = (card.name || '').toLowerCase().trim();
@@ -1118,52 +1093,32 @@
       return 25;
     }
 
-    async function fetchTcgCards(pokeName, speciesName) {
-      const requestId = ++activeTcgRequestId;
-      const strip = document.getElementById('tcgStrip');
-      const countText = document.getElementById('tcgCountText');
-      
+    // Unified Reliable Multi-Source Card Fetcher
+    async function fetchTcgCardsData(pokeName, speciesName) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_all_variations_v270_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_all_variations_v280_${cleanName.toLowerCase()}`;
       
       if (memoryTcgCache.has(cacheKey)) {
-        currentCardsList = memoryTcgCache.get(cacheKey);
-        if (!isSpinning && requestId === activeTcgRequestId) {
-          renderTcgCards(currentCardsList);
-        }
-        return;
+        return memoryTcgCache.get(cacheKey);
       }
 
       const stored = localStorage.getItem(cacheKey);
       if (stored) {
-        currentCardsList = JSON.parse(stored);
-        memoryTcgCache.set(cacheKey, currentCardsList);
-        if (!isSpinning && requestId === activeTcgRequestId) {
-          renderTcgCards(currentCardsList);
-        }
-        return;
-      }
-
-      if (!isSpinning) {
-        countText.innerText = "Loading cards...";
-        strip.innerHTML = `
-          <div class="tcg-skeleton-card"></div>
-          <div class="tcg-skeleton-card"></div>
-          <div class="tcg-skeleton-card"></div>
-          <div class="tcg-skeleton-card"></div>
-        `;
+        const cached = JSON.parse(stored);
+        memoryTcgCache.set(cacheKey, cached);
+        return cached;
       }
 
       const primaryTerm = cleanName.split(' ')[0];
 
-      const fetchWithRetry = async (url, retries = 3, delay = 500) => {
+      const fetchWithRetry = async (url, retries = 2, delay = 400) => {
         for (let i = 0; i < retries; i++) {
           try {
             const res = await fetch(url);
             if (res.ok) return await res.json();
           } catch (e) {
             if (i === retries - 1) throw e;
-            await new Promise(r => setTimeout(r, delay * Math.pow(1.5, i)));
+            await new Promise(r => setTimeout(r, delay));
           }
         }
         throw new Error("Failed to fetch");
@@ -1191,36 +1146,60 @@
         })).filter(c => c.images.small && !c.images.small.includes('undefined'));
       };
 
+      let allCards = [];
       try {
-        let allCards = [];
-        try {
-          allCards = await pokemontcgPromise();
-        } catch (e) {
-          allCards = await tcgdexPromise().catch(() => []);
+        allCards = await Promise.race([
+          pokemontcgPromise(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 2600))
+        ]);
+      } catch (e) {
+        allCards = await tcgdexPromise().catch(() => []);
+        if (!allCards.length) {
+          allCards = await pokemontcgPromise().catch(() => []);
         }
+      }
 
-        const speciesCards = allCards.filter(c => {
-          const cardName = (c.name || '').toLowerCase();
-          const target = cleanName.toLowerCase();
-          return cardName.includes(target);
-        });
+      const speciesCards = allCards.filter(c => {
+        const cardName = (c.name || '').toLowerCase();
+        const target = cleanName.toLowerCase();
+        return cardName.includes(target);
+      });
 
-        currentCardsList = speciesCards.map(c => ({
-          id: c.id,
-          name: c.name,
-          smallImg: c.images?.small || '',
-          largeImg: c.images?.large || c.images?.small || '',
-          setName: resolveSetName(c.set),
-          number: c.number || '?',
-          rarity: c.rarity || 'Card',
-          rank: evaluateCardRank(c)
-        })).filter(c => c.smallImg);
+      const formattedCards = speciesCards.map(c => ({
+        id: c.id,
+        name: c.name,
+        smallImg: c.images?.small || '',
+        largeImg: c.images?.large || c.images?.small || '',
+        setName: resolveSetName(c.set),
+        number: c.number || '?',
+        rarity: c.rarity || 'Card',
+        rank: evaluateCardRank(c)
+      })).filter(c => c.smallImg);
 
-        currentCardsList.sort((a, b) => a.rank - b.rank);
+      formattedCards.sort((a, b) => a.rank - b.rank);
 
-        memoryTcgCache.set(cacheKey, currentCardsList);
-        try { localStorage.setItem(cacheKey, JSON.stringify(currentCardsList)); } catch (e) {}
-        
+      memoryTcgCache.set(cacheKey, formattedCards);
+      try { localStorage.setItem(cacheKey, JSON.stringify(formattedCards)); } catch (e) {}
+      return formattedCards;
+    }
+
+    async function fetchTcgCards(pokeName, speciesName) {
+      const requestId = ++activeTcgRequestId;
+      const strip = document.getElementById('tcgStrip');
+      const countText = document.getElementById('tcgCountText');
+
+      if (!isSpinning) {
+        countText.innerText = "Loading cards...";
+        strip.innerHTML = `
+          <div class="tcg-skeleton-card"></div>
+          <div class="tcg-skeleton-card"></div>
+          <div class="tcg-skeleton-card"></div>
+          <div class="tcg-skeleton-card"></div>
+        `;
+      }
+
+      try {
+        currentCardsList = await fetchTcgCardsData(pokeName, speciesName);
         if (!isSpinning && requestId === activeTcgRequestId) {
           renderTcgCards(currentCardsList);
         }

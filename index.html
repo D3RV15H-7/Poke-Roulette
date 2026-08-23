@@ -250,6 +250,7 @@
       border-radius: 9px;
       padding: 0.25rem 0.4rem;
       text-align: left;
+      touch-action: pan-x pan-y;
     }
     .tcg-header-row {
       display: flex;
@@ -267,10 +268,12 @@
       display: flex;
       gap: 0.45rem;
       overflow-x: auto;
+      overflow-y: hidden;
       padding-bottom: 0.2rem;
       scrollbar-width: thin;
       scrollbar-color: #334155 transparent;
       -webkit-overflow-scrolling: touch;
+      touch-action: pan-x;
     }
     .tcg-card-item {
       flex: 0 0 clamp(46px, 6.2dvh, 58px);
@@ -771,11 +774,14 @@
       evoBox.style.display = 'flex';
     }
 
-    // Pokémon TCG Gallery Fetch & Render Engine
+    // Pokémon TCG Gallery Fetch & Render Engine with Robust Fallbacks
     async function fetchTcgCards(pokeName) {
       const strip = document.getElementById('tcgStrip');
       const countText = document.getElementById('tcgCountText');
-      const cacheKey = `tcg_cards_${pokeName.toLowerCase()}`;
+      
+      // Clean query name (e.g., 'tapu-koko' -> 'Tapu Koko', 'nidoran-m' -> 'Nidoran')
+      const cleanName = pokeName.replace(/-m$/i, ' ♂').replace(/-f$/i, ' ♀').replace(/-/g, ' ');
+      const cacheKey = `tcg_cards_${cleanName.toLowerCase()}`;
       
       countText.innerText = "Fetching...";
       strip.innerHTML = '<div class="tcg-empty-msg">Searching TCG card archives...</div>';
@@ -787,19 +793,25 @@
       }
 
       try {
-        const queryName = pokeName.split('-')[0];
-        const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(queryName)}"&pageSize=30&orderBy=-set.releaseDate`);
-        if (!res.ok) throw new Error("TCG API Error");
-        const data = await res.json();
+        // Query primary exact name, with fallback to first term
+        let res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanName)}"&pageSize=30&orderBy=-set.releaseDate`);
+        let data = await res.json();
+        
+        if ((!data.data || data.data.length === 0) && cleanName.includes(' ')) {
+          const rootName = cleanName.split(' ')[0];
+          res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(rootName)}"&pageSize=30&orderBy=-set.releaseDate`);
+          data = await res.json();
+        }
+
         const cards = (data.data || []).map(c => ({
           id: c.id,
           name: c.name,
-          smallImg: c.images.small,
-          largeImg: c.images.large,
-          setName: c.set.name,
-          number: c.number,
-          rarity: c.rarity || 'Common'
-        }));
+          smallImg: c.images?.small || '',
+          largeImg: c.images?.large || c.images?.small || '',
+          setName: c.set?.name || 'Promo',
+          number: c.number || '?',
+          rarity: c.rarity || 'Card'
+        })).filter(c => c.smallImg);
 
         try { localStorage.setItem(cacheKey, JSON.stringify(cards)); } catch (e) {}
         renderTcgCards(cards);
@@ -830,7 +842,10 @@
           <div class="tcg-card-set" title="${card.setName}">${card.setName}</div>
           <div class="tcg-card-num">#${card.number}</div>
         `;
-        node.onclick = () => openTcgZoom(card);
+        node.onclick = (e) => {
+          e.stopPropagation();
+          openTcgZoom(card);
+        };
         strip.appendChild(node);
       });
     }
@@ -973,12 +988,27 @@
       card.style.display = 'block';
     }
 
-    let tX = 0, tY = 0;
+    // Touch Navigation with Protected TCG/Evolution Strip zones
+    let tX = 0, tY = 0, touchTarget = null;
     const cardEl = document.getElementById('pokeCard');
-    cardEl.addEventListener('touchstart', e => { tX = e.changedTouches[0].screenX; tY = e.changedTouches[0].screenY; }, { passive: true });
+    
+    cardEl.addEventListener('touchstart', e => { 
+      touchTarget = e.target;
+      tX = e.changedTouches[0].screenX; 
+      tY = e.changedTouches[0].screenY; 
+    }, { passive: true });
+
     cardEl.addEventListener('touchend', e => {
-      const dX = e.changedTouches[0].screenX - tX, dY = e.changedTouches[0].screenY - tY;
-      if (Math.abs(dX) > 40 && Math.abs(dX) > Math.abs(dY) * 1.3) navigateDex(dX < 0 ? 1 : -1);
+      // Ignore card swipes if user was interacting with horizontal TCG strip or Evolution chain
+      if (touchTarget && (touchTarget.closest('#tcgWrap') || touchTarget.closest('#evoChain'))) {
+        return;
+      }
+
+      const dX = e.changedTouches[0].screenX - tX;
+      const dY = e.changedTouches[0].screenY - tY;
+      if (Math.abs(dX) > 40 && Math.abs(dX) > Math.abs(dY) * 1.3) {
+        navigateDex(dX < 0 ? 1 : -1);
+      }
     }, { passive: true });
 
     document.addEventListener('click', e => { if (!e.target.closest('.search-wrap')) document.getElementById('sList').style.display = 'none'; });

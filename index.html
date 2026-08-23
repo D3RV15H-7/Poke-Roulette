@@ -35,7 +35,6 @@
     .badge { display: inline-block; margin-top: 0.02rem; background: var(--card); border: 1px solid #334155; color: var(--sub); font-size: 0.64rem; font-weight: 700; padding: 0.04rem 0.4rem; border-radius: 99px; }
     .badge strong { color: var(--green); }
 
-    /* Enlarged Main Search Bar */
     .search-wrap { position: relative; width: 100%; max-width: 360px; flex-shrink: 0; z-index: 20; }
     .search-box { display: flex; gap: 0.4rem; width: 100%; }
     .search-box input { flex: 1; background: var(--card); border: 1.5px solid #334155; color: #fff; padding: clamp(0.45rem, 1dvh, 0.6rem) 1rem; border-radius: 99px; font-size: 0.88rem; outline: none; transition: border-color 0.2s; }
@@ -429,6 +428,7 @@
     .tcg-zoom-meta { font-size: 0.7rem; color: var(--sub); font-weight: 700; text-align: center; }
     .tcg-zoom-close { background: var(--red); color: white; border: none; padding: 0.35rem 1.1rem; border-radius: 99px; font-size: 0.72rem; font-weight: 800; cursor: pointer; }
 
+    /* Modal Styling */
     .modal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.78); backdrop-filter: blur(6px); z-index: 100; display: none; align-items: flex-end; justify-content: center; }
     .modal-body { background: var(--card); width: 100vw; max-width: 500px; max-height: 85vh; border-radius: 28px 28px 0 0; border: 1px solid #334155; border-bottom: none; display: flex; flex-direction: column; padding: 1.1rem 0.75rem 1rem 0.75rem; }
     .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid #334155; }
@@ -457,6 +457,64 @@
     .dex-item.unowned img { filter: grayscale(1) opacity(0.28); }
     .recent-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.55rem; border-radius: 12px; cursor: pointer; }
     .recent-item img { width: 44px; height: 44px; object-fit: contain; }
+
+    /* 3x3 Card Preview Modal Styles */
+    .dex-cards-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(8px);
+      z-index: 250;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .dex-cards-content {
+      background: var(--card);
+      border: 1px solid #334155;
+      border-radius: 20px;
+      padding: 1rem 0.8rem;
+      max-width: 360px;
+      width: 100%;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.75);
+      animation: zoomIn 0.2s ease-out;
+    }
+    .dex-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.45rem;
+      overflow-y: auto;
+      max-height: calc(75vh - 70px);
+      padding: 0.2rem;
+      scrollbar-width: thin;
+      scrollbar-color: #334155 transparent;
+    }
+    .dex-card-thumb-cell {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 0.3rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .dex-card-thumb-cell:active { transform: scale(0.94); }
+    .dex-card-thumb-cell img {
+      width: 100%;
+      aspect-ratio: 63 / 88;
+      object-fit: fill;
+      border-radius: 4px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    }
+    .dex-cell-set { font-size: 0.48rem; font-weight: 700; color: #fff; margin-top: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; text-align: center; }
+    .dex-cell-num { font-size: 0.44rem; color: var(--sub); font-weight: 700; }
   </style>
 </head>
 <body>
@@ -559,6 +617,19 @@
       <div class="tcg-zoom-title" id="tcgZoomTitle">Card Title</div>
       <div class="tcg-zoom-meta" id="tcgZoomMeta">Set · Number · Rarity</div>
       <button class="tcg-zoom-close" onclick="closeTcgZoom()">Close Preview</button>
+    </div>
+  </div>
+
+  <!-- Hold-to-View 3x3 Card Grid Modal -->
+  <div class="dex-cards-modal" id="dexCardsModal" onclick="closeDexCardsModal()">
+    <div class="dex-cards-content" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:0.4rem;">
+        <h3 id="dexCardsTitle" style="font-size:0.95rem;font-weight:800;text-transform:capitalize;">Card Variations</h3>
+        <button style="background:#334155;color:#fff;border:none;width:24px;height:24px;border-radius:50%;cursor:pointer;font-weight:900;" onclick="closeDexCardsModal()">✕</button>
+      </div>
+      <div class="dex-cards-grid" id="dexCardsGrid">
+        <div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.75rem;">Loading cards...</div>
+      </div>
     </div>
   </div>
 
@@ -776,6 +847,24 @@
         const owned = s.has(p.id), d = document.createElement('div');
         d.className = `dex-item ${owned ? 'owned' : 'unowned'}`;
         d.innerHTML = `${owned ? '<div style="position:absolute;top:3px;right:3px;background:var(--green);color:#fff;font-size:0.52rem;font-weight:900;width:13px;height:13px;border-radius:50%;display:flex;align-items:center;justify-content:center;">✓</div>' : ''}<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png" loading="lazy"/><div style="font-size:0.62rem;font-weight:800;color:var(--sub)">#${String(p.id).padStart(4,'0')}</div><div style="font-size:0.65rem;font-weight:700;text-transform:capitalize;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name.replace('-',' ')}</div>`;
+        
+        // Hold-to-View 3x3 Cards Preview with Long Press
+        let holdTimer = null;
+        d.addEventListener('touchstart', (e) => {
+          holdTimer = setTimeout(() => {
+            openDexCardsModal(p);
+          }, 500);
+        }, { passive: true });
+        d.addEventListener('touchend', () => clearTimeout(holdTimer), { passive: true });
+        d.addEventListener('touchmove', () => clearTimeout(holdTimer), { passive: true });
+        d.addEventListener('mousedown', () => {
+          holdTimer = setTimeout(() => {
+            openDexCardsModal(p);
+          }, 500);
+        });
+        d.addEventListener('mouseup', () => clearTimeout(holdTimer));
+        d.addEventListener('mouseleave', () => clearTimeout(holdTimer));
+
         d.onclick = () => {
           initAudio();
           s.has(p.id) ? s.delete(p.id) : (s.add(p.id), playTick());
@@ -784,6 +873,67 @@
         };
         g.appendChild(d);
       });
+    }
+
+    async function openDexCardsModal(p) {
+      const modal = document.getElementById('dexCardsModal');
+      const grid = document.getElementById('dexCardsGrid');
+      const title = document.getElementById('dexCardsTitle');
+      
+      const cleanName = getCleanNationalDexName(p.name, p.species?.name);
+      title.innerText = `${cleanName} Cards`;
+      grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:2rem 0;font-size:0.75rem;">Loading variations...</div>';
+      modal.style.display = 'flex';
+
+      try {
+        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:*${encodeURIComponent(cleanName.split(' ')[0])}*&select=id,name,images,set,number,rarity,subtypes&pageSize=200&orderBy=-set.releaseDate`;
+        const res = await fetch(queryUrl);
+        if (!res.ok) throw new Error("API error");
+        const json = await res.json();
+        const allCards = json.data || [];
+
+        const speciesCards = allCards.filter(c => {
+          const cardName = (c.name || '').toLowerCase();
+          const target = cleanName.toLowerCase();
+          return cardName.includes(target);
+        });
+
+        const cardsList = speciesCards.map(c => ({
+          id: c.id,
+          name: c.name,
+          smallImg: c.images?.small || '',
+          largeImg: c.images?.large || c.images?.small || '',
+          setName: resolveSetName(c.set),
+          number: c.number || '?',
+          rarity: c.rarity || 'Card',
+          rank: evaluateCardRank(c)
+        })).filter(c => c.smallImg);
+
+        cardsList.sort((a, b) => a.rank - b.rank);
+
+        grid.innerHTML = cardsList.length ? '' : '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.75rem;">No cards found</div>';
+        cardsList.forEach((card, index) => {
+          const cell = document.createElement('div');
+          cell.className = 'dex-card-thumb-cell';
+          cell.innerHTML = `
+            <img src="${card.smallImg}" loading="lazy" alt="${card.name}" />
+            <div class="dex-cell-set" title="${card.setName}">${card.setName}</div>
+            <div class="dex-cell-num">#${card.number}</div>
+          `;
+          cell.onclick = () => {
+            closeDexCardsModal();
+            currentCardsList = cardsList;
+            openTcgZoom(index);
+          };
+          grid.appendChild(cell);
+        });
+      } catch (e) {
+        grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.75rem;">Failed to load cards</div>';
+      }
+    }
+
+    function closeDexCardsModal() {
+      document.getElementById('dexCardsModal').style.display = 'none';
     }
 
     function renderRecents() {
@@ -978,7 +1128,7 @@
       const countText = document.getElementById('tcgCountText');
       
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_all_variations_v230_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_all_variations_v240_${cleanName.toLowerCase()}`;
       
       if (memoryTcgCache.has(cacheKey)) {
         currentCardsList = memoryTcgCache.get(cacheKey);

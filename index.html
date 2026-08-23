@@ -565,7 +565,7 @@
       fairy: '<svg viewBox="0 0 24 24"><path fill="#5e1538" d="M12 2.5C10 6 7 9 7 13c0 3.5 2.5 6 5 8.5 2.5-2.5 5-5 5-8.5 0-4-3-7-5-10.5zm0 10a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>'
     };
 
-    let dir = [], rot = 0, audioCtx = null, curPoke = null, isShiny = false, curId = null, tabFilter = 'all', dexQuery = '';
+    let dir = [], rot = 0, audioCtx = null, curPoke = null, isShiny = false, curId = null, tabFilter = 'all', dexQuery = '', currentFetchController = null;
 
     function buildIcons() {
       const wheel = document.getElementById('wheel');
@@ -800,13 +800,28 @@
       evoBox.style.display = 'flex';
     }
 
-    // Fast-Lane Illustration & Full Art TCG Engine
+    // Precise Full-Art & Illustration Rare Query Engine
+    const STRICT_RARITIES = new Set([
+      'Illustration Rare',
+      'Special Illustration Rare',
+      'Rare Ultra',
+      'Rare Secret',
+      'Rare Rainbow',
+      'Trainer Gallery Rare Holo',
+      'Shiny Ultra Rare',
+      'Shiny Super Rare',
+      'Hyper Rare',
+      'Crown Rare',
+      'Rare Holo Star',
+      'Rare Shining'
+    ]);
+
     async function fetchTcgCards(pokeName) {
       const strip = document.getElementById('tcgStrip');
       const countText = document.getElementById('tcgCountText');
       
       const cleanName = pokeName.replace(/-m$/i, ' ♂').replace(/-f$/i, ' ♀').replace(/-/g, ' ');
-      const cacheKey = `tcg_art_cards_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_strict_arts_${cleanName.toLowerCase()}`;
       
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
@@ -814,7 +829,8 @@
         return;
       }
 
-      countText.innerText = "Searching...";
+      // Keep showing active shimmering skeleton while querying
+      countText.innerText = "Finding Arts...";
       strip.innerHTML = `
         <div class="tcg-skeleton-card"></div>
         <div class="tcg-skeleton-card"></div>
@@ -822,48 +838,57 @@
         <div class="tcg-skeleton-card"></div>
       `;
 
+      if (currentFetchController) currentFetchController.abort();
+      currentFetchController = new AbortController();
+
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const rarityQuery = '(rarity:"Illustration Rare" OR rarity:"Special Illustration Rare" OR rarity:"Rare Ultra" OR rarity:"Rare Secret" OR rarity:"Rare Rainbow" OR rarity:"Trainer Gallery Rare Holo" OR rarity:"Shiny Ultra Rare" OR rarity:"Hyper Rare" OR rarity:"Crown Rare" OR rarity:"Rare Shining" OR rarity:"Rare Holo Star")';
+        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanName)}" ${rarityQuery}&select=id,name,images,set,number,rarity,subtypes&pageSize=40&orderBy=-set.releaseDate`;
 
-        // Targeted query for Full Art, Illustration Rare, Secret, and Ultra rarities only
-        const rarityQuery = '(rarity:"Illustration Rare" OR rarity:"Special Illustration Rare" OR rarity:"Rare Ultra" OR rarity:"Rare Secret" OR rarity:"Rare Rainbow" OR rarity:"Trainer Gallery Rare Holo" OR rarity:"Shiny Ultra Rare" OR rarity:"Hyper Rare" OR rarity:"Rare Holo EX" OR rarity:"Rare Holo GX" OR rarity:"Rare Holo VMAX" OR rarity:"Rare Holo V")';
-        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanName)}" ${rarityQuery}&select=id,name,images,set,number,rarity&pageSize=30&orderBy=-set.releaseDate`;
-
-        let res = await fetch(queryUrl, { signal: controller.signal });
-        clearTimeout(timeoutId);
-
+        let res = await fetch(queryUrl, { signal: currentFetchController.signal });
         let data = await res.json();
         let cards = data.data || [];
 
-        // Fallback: If no special full art prints are found, query general Holo/Rare prints
-        if (!cards.length) {
-          const fallbackRes = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanName)}" -rarity:Common -rarity:Uncommon&select=id,name,images,set,number,rarity&pageSize=20&orderBy=-set.releaseDate`);
-          const fallbackData = await fallbackRes.json();
-          cards = fallbackData.data || [];
+        // Secondary query if specific variant (e.g. Charizard-ex or base name)
+        if (!cards.length && cleanName.includes(' ')) {
+          const root = cleanName.split(' ')[0];
+          const rootUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(root)}" ${rarityQuery}&select=id,name,images,set,number,rarity,subtypes&pageSize=30&orderBy=-set.releaseDate`;
+          const rootRes = await fetch(rootUrl, { signal: currentFetchController.signal });
+          const rootData = await rootRes.json();
+          cards = rootData.data || [];
         }
 
-        const formattedCards = cards.map(c => ({
-          id: c.id,
-          name: c.name,
-          smallImg: c.images?.small || '',
-          largeImg: c.images?.large || c.images?.small || '',
-          setName: c.set?.name || 'Promo',
-          number: c.number || '?',
-          rarity: c.rarity || 'Full Art'
-        })).filter(c => c.smallImg);
+        // Strict client-side filter to eliminate standard non-full art regular cards
+        const filteredCards = cards
+          .filter(c => {
+            const r = c.rarity || '';
+            const isFullArtSubtype = c.subtypes && c.subtypes.some(s => s.includes('Full') || s.includes('Special'));
+            return STRICT_RARITIES.has(r) || isFullArtSubtype || r.includes('Illustration') || r.includes('Secret') || r.includes('Rainbow') || r.includes('Hyper') || r.includes('Gold');
+          })
+          .map(c => ({
+            id: c.id,
+            name: c.name,
+            smallImg: c.images?.small || '',
+            largeImg: c.images?.large || c.images?.small || '',
+            setName: c.set?.name || 'Promo',
+            number: c.number || '?',
+            rarity: c.rarity || 'Special Art'
+          }))
+          .filter(c => c.smallImg);
 
-        try { localStorage.setItem(cacheKey, JSON.stringify(formattedCards)); } catch (e) {}
-        renderTcgCards(formattedCards);
+        try { localStorage.setItem(cacheKey, JSON.stringify(filteredCards)); } catch (e) {}
+        renderTcgCards(filteredCards);
       } catch (err) {
-        // High-Speed Fallback to TCGdex
+        if (err.name === 'AbortError') return;
+
+        // Fallback to TCGdex filtered for High Rarity Art only
         try {
           const queryName = pokeName.split('-')[0].toLowerCase();
           const fRes = await fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(queryName)}`);
           const fData = await fRes.json();
           if (Array.isArray(fData) && fData.length > 0) {
             const fCards = fData
-              .filter(c => c.rarity && !['Common', 'Uncommon'].includes(c.rarity))
+              .filter(c => c.rarity && STRICT_RARITIES.has(c.rarity))
               .slice(0, 20)
               .map(c => ({
                 id: c.id,
@@ -872,8 +897,9 @@
                 largeImg: `${c.image}/high.webp`,
                 setName: c.set?.name || 'TCG Set',
                 number: c.localId || '?',
-                rarity: c.rarity || 'Special Art'
-              })).filter(c => c.smallImg && !c.smallImg.includes('undefined'));
+                rarity: c.rarity || 'Illustration Art'
+              }))
+              .filter(c => c.smallImg && !c.smallImg.includes('undefined'));
 
             if (fCards.length) {
               try { localStorage.setItem(cacheKey, JSON.stringify(fCards)); } catch (e) {}
@@ -883,8 +909,7 @@
           }
         } catch (fErr) {}
 
-        countText.innerText = "0 Arts";
-        strip.innerHTML = '<div class="tcg-empty-msg">No special art cards found.</div>';
+        renderTcgCards([]);
       }
     }
 
@@ -894,7 +919,7 @@
 
       if (!cards || !cards.length) {
         countText.innerText = "0 Arts";
-        strip.innerHTML = '<div class="tcg-empty-msg">No illustration rare cards found.</div>';
+        strip.innerHTML = '<div class="tcg-empty-msg">No Illustration Rare / Full Art cards recorded.</div>';
         return;
       }
 
@@ -1018,7 +1043,6 @@
         const pData = await pRes.json();
         const shiny = Math.floor(Math.random() * 100) === 0;
 
-        // Background Pre-fetch high-rarity TCG cards & Lore during spin
         fetchTcgCards(pData.name);
         fetchLoreAndEvolution(pData.species?.url, pData.id);
 
@@ -1069,6 +1093,7 @@
       card.style.display = 'block';
     }
 
+    // Touch Navigation with Protected TCG/Evolution Strip zones
     let tX = 0, tY = 0, isSwipeRestricted = false;
     const cardEl = document.getElementById('pokeCard');
     

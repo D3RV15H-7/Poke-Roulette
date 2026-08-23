@@ -320,8 +320,8 @@
       position: absolute;
       bottom: 2px;
       right: 2px;
-      background: rgba(15, 23, 42, 0.85);
-      border: 1px solid rgba(16, 185, 129, 0.4);
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(16, 185, 129, 0.5);
       color: var(--green);
       font-size: 0.48rem;
       font-weight: 800;
@@ -360,7 +360,7 @@
     .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.04rem 0.7rem; text-align: left; background: var(--bg); padding: clamp(0.15rem, 0.35dvh, 0.22rem) 0.65rem; border-radius: 8px; font-size: clamp(0.58rem, 1.05dvh, 0.65rem); }
     .stats span:last-child { font-weight: 700; float: right; }
 
-    /* Zoom Modal - Flat 2D Frame (No 3D Tilting) */
+    /* Flat 2D Zoom Modal - Completely Removed 3D Tilting */
     .tcg-zoom-modal {
       position: fixed;
       inset: 0;
@@ -407,13 +407,14 @@
       width: 100%;
       touch-action: pan-y;
     }
-    .holo-card-stage {
+    .flat-card-container {
       position: relative;
       width: 220px;
       aspect-ratio: 63 / 88;
       border-radius: 12px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.7);
       overflow: hidden;
+      transform: none !important;
     }
     .tcg-zoom-img {
       width: 100%;
@@ -422,26 +423,7 @@
       object-fit: cover;
       display: block;
       pointer-events: none;
-    }
-    .holo-shader {
-      position: absolute;
-      inset: 0;
-      border-radius: 12px;
-      pointer-events: none;
-      mix-blend-mode: color-dodge;
-      opacity: 0.45;
-      background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.35) 45%, rgba(255, 0, 128, 0.25) 50%, rgba(0, 255, 255, 0.25) 55%, transparent 80%);
-      background-size: 200% 200%;
-      transition: opacity 0.2s;
-    }
-    .holo-glitter {
-      position: absolute;
-      inset: 0;
-      border-radius: 12px;
-      pointer-events: none;
-      mix-blend-mode: overlay;
-      opacity: 0.35;
-      background-image: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.7) 0%, transparent 60%);
+      transform: none !important;
     }
 
     .tcg-zoom-arrow {
@@ -685,10 +667,8 @@
       
       <div class="tcg-zoom-view-area" id="zoomViewArea">
         <button class="tcg-zoom-arrow left" id="zoomLeftArrow" onclick="navigateZoomCard(-1)">‹</button>
-        <div class="holo-card-stage" id="holoStage">
+        <div class="flat-card-container">
           <img class="tcg-zoom-img" id="tcgZoomImg" src="" alt="Card HD" />
-          <div class="holo-shader" id="holoShader"></div>
-          <div class="holo-glitter" id="holoGlitter"></div>
         </div>
         <button class="tcg-zoom-arrow right" id="zoomRightArrow" onclick="navigateZoomCard(1)">›</button>
       </div>
@@ -1215,14 +1195,32 @@
       return 25;
     }
 
+    // Comprehensive Pricing Extractor (TCGplayer & Cardmarket in GBP)
     function extractCardPriceGBP(card) {
       if (card.tcgplayer?.prices) {
-        const prices = card.tcgplayer.prices;
-        const market = prices.holofoil?.market || prices.normal?.market || prices.unlimitedHolofoil?.market || prices['1stEditionHolofoil']?.market;
-        if (market) return (market * USD_TO_GBP).toFixed(2);
+        const p = card.tcgplayer.prices;
+        const candidates = [
+          p.holofoil?.market, p.reverseHolofoil?.market, p.normal?.market,
+          p.unlimitedHolofoil?.market, p['1stEditionHolofoil']?.market,
+          p.holofoil?.mid, p.normal?.mid, p.reverseHolofoil?.mid
+        ];
+        for (const price of candidates) {
+          if (price && typeof price === 'number' && price > 0) {
+            return (price * USD_TO_GBP).toFixed(2);
+          }
+        }
       }
-      if (card.cardmarket?.prices?.averageSellPrice) {
-        return (card.cardmarket.prices.averageSellPrice * 0.86).toFixed(2);
+      
+      if (card.cardmarket?.prices) {
+        const cp = card.cardmarket.prices;
+        const candidates = [
+          cp.averageSellPrice, cp.trendPrice, cp.avg1, cp.avg7, cp.avg30, cp.lowPrice
+        ];
+        for (const price of candidates) {
+          if (price && typeof price === 'number' && price > 0) {
+            return (price * 0.86).toFixed(2);
+          }
+        }
       }
       return null;
     }
@@ -1235,9 +1233,10 @@
       return regex.test(c);
     }
 
+    // High-Resiliency Multi-Threaded Card Fetcher
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_all_variations_v340_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_all_variations_v350_${cleanName.toLowerCase()}`;
       
       if (!bypassCache) {
         if (memoryTcgCache.has(cacheKey)) {
@@ -1425,17 +1424,6 @@
 
       if (leftArrow) leftArrow.style.display = currentZoomIndex > 0 ? 'flex' : 'none';
       if (rightArrow) rightArrow.style.display = currentZoomIndex < currentCardsList.length - 1 ? 'flex' : 'none';
-
-      const shader = document.getElementById('holoShader');
-      if (shader) {
-        if (card.rank <= 5) {
-          shader.style.opacity = '0.75';
-        } else if (card.rank <= 13) {
-          shader.style.opacity = '0.5';
-        } else {
-          shader.style.opacity = '0.15';
-        }
-      }
     }
 
     function navigateZoomCard(dir) {

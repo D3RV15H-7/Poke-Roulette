@@ -135,7 +135,6 @@
     .btn-hub svg { width: 14px; height: 14px; fill: none; stroke: #f8fafc; stroke-width: 2; }
     .hub-badge { position: absolute; top: -4px; right: -4px; background: var(--red); color: #fff; font-size: 0.55rem; font-weight: 800; width: 14px; height: 14px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid var(--bg); }
 
-    /* Display Card Container */
     .card { 
       width: 100%; 
       background: var(--card); 
@@ -212,7 +211,6 @@
       white-space: normal;
     }
 
-    /* Evolution Mini Chain */
     .evo-chain-wrap {
       display: none;
       align-items: center;
@@ -240,7 +238,6 @@
     .evo-node.active-evo span { color: #fff; }
     .evo-arrow { color: var(--sub); font-size: 0.6rem; font-weight: 900; }
 
-    /* Dynamic TCG Shelf */
     .tcg-section-wrap {
       width: 100%;
       margin-bottom: clamp(0.1rem, 0.25dvh, 0.18rem);
@@ -336,7 +333,6 @@
     .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.04rem 0.7rem; text-align: left; background: var(--bg); padding: clamp(0.16rem, 0.35dvh, 0.24rem) 0.65rem; border-radius: 8px; font-size: clamp(0.58rem, 1.05dvh, 0.65rem); }
     .stats span:last-child { font-weight: 700; float: right; }
 
-    /* TCG Zoom Modal */
     .tcg-zoom-modal {
       position: fixed;
       inset: 0;
@@ -374,7 +370,6 @@
     .tcg-zoom-meta { font-size: 0.72rem; color: var(--sub); font-weight: 700; text-align: center; }
     .tcg-zoom-close { background: var(--red); color: white; border: none; padding: 0.4rem 1.2rem; border-radius: 99px; font-size: 0.75rem; font-weight: 800; cursor: pointer; }
 
-    /* Modals & Dex Search */
     .modal { position: fixed; inset: 0; background: rgba(15,23,42,0.78); backdrop-filter: blur(6px); z-index: 100; display: none; align-items: flex-end; justify-content: center; }
     .modal-body { background: var(--card); width: 100vw; max-width: 500px; max-height: 85vh; border-radius: 28px 28px 0 0; border: 1px solid #334155; border-bottom: none; display: flex; flex-direction: column; padding: 1.1rem 0.75rem 1rem 0.75rem; }
     .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid #334155; }
@@ -442,7 +437,6 @@
       </button>
     </div>
 
-    <!-- Pokémon Result Card -->
     <div class="card" id="pokeCard">
       <div class="card-nav">
         <button onclick="navigateDex(-1)">‹</button>
@@ -463,13 +457,10 @@
         <button class="btn-icon" id="shinyBtn" onclick="toggleShiny()">★</button>
       </div>
 
-      <!-- Auto-Fitting Lore Text Box -->
       <div class="lore-box" id="pokeLore">Accessing Pokédex lore...</div>
 
-      <!-- Interactive Evolution Mini Chain -->
       <div class="evo-chain-wrap" id="evoChain"></div>
 
-      <!-- Dynamic Full Art / Card Strip -->
       <div class="tcg-section-wrap" id="tcgWrap">
         <div class="tcg-header-row">
           <span id="tcgSectionTitle">✨ Illustration & Full Arts</span>
@@ -498,7 +489,6 @@
     </div>
   </div>
 
-  <!-- TCG Card Zoom Modal -->
   <div class="tcg-zoom-modal" id="tcgZoomModal" onclick="closeTcgZoom()">
     <div class="tcg-zoom-content" onclick="event.stopPropagation()">
       <img class="tcg-zoom-img" id="tcgZoomImg" src="" alt="Card HD" />
@@ -508,7 +498,6 @@
     </div>
   </div>
 
-  <!-- Full Dex Collection Tracker Modal with In-Modal Search Bar -->
   <div class="modal" id="dexModal" onclick="closeModal(event, 'dexModal')">
     <div class="modal-body" onclick="event.stopPropagation()">
       <div class="modal-head">
@@ -817,7 +806,7 @@
       evoBox.style.display = 'flex';
     }
 
-    // Full-Art, Mega & Illustration Rare Verifier
+    // Exclusively Full-Art, Mega & Illustration Rare Verifier
     function isStrictFullArtOrMega(card) {
       const r = (card.rarity || '').toLowerCase();
       const subtypes = (card.subtypes || []).map(s => s.toLowerCase());
@@ -825,7 +814,8 @@
 
       const isMega = subtypes.includes('mega') || name.startsWith('m ') || name.startsWith('m-') || name.includes('mega ');
 
-      if (!isMega && ['common', 'uncommon', 'rare', 'rare holo', 'rare holo v', 'rare holo ex', 'rare holo gx', 'rare holo vmax', 'rare holo vstar', 'double rare', 'shiny rare', 'promo'].includes(r)) {
+      // Strictly discard all non-full-art regular formats
+      if (!isMega && ['common', 'uncommon', 'rare', 'rare holo', 'rare holo v', 'rare holo ex', 'rare holo gx', 'rare holo vmax', 'rare holo vstar', 'double rare', 'shiny rare', 'promo', 'promo rare'].includes(r)) {
         return false;
       }
 
@@ -847,14 +837,14 @@
       );
     }
 
-    // High-Speed TCG Engine with Seamless All-Card Fallback
+    // High-Speed TCG Engine: Strictly Discards Regular Cards if Any Premium Exists
     async function fetchTcgCards(pokeName, speciesName) {
       const strip = document.getElementById('tcgStrip');
       const countText = document.getElementById('tcgCountText');
       const sectionTitle = document.getElementById('tcgSectionTitle');
       
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_mega_fallback_v1_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_strict_exclusive_v1_${cleanName.toLowerCase()}`;
       
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
@@ -890,7 +880,7 @@
           allCards = rData.data || [];
         }
 
-        // Tier 1: Check for Illustration Rares, Megas, and Full Arts
+        // 1. Filter specifically for Illustration Rares, Megas, and Full Arts
         let premiumCards = allCards.filter(isStrictFullArtOrMega).map(c => ({
           id: c.id,
           name: c.name,
@@ -904,11 +894,12 @@
         let finalCards = [];
         let isFallback = false;
 
+        // If even 1 premium art card exists, ONLY show premium arts (discard all normal cards)
         if (premiumCards.length > 0) {
           finalCards = premiumCards;
           isFallback = false;
         } else if (allCards.length > 0) {
-          // Tier 2 Fallback: If no full arts exist, show available cards across all sets
+          // Only if 0 premium cards exist across all sets do we show regular cards
           finalCards = allCards.map(c => ({
             id: c.id,
             name: c.name,
@@ -971,7 +962,7 @@
 
       if (!cards || !cards.length) {
         countText.innerText = "0 Cards";
-        strip.innerHTML = '<div class="tcg-empty-msg">No trading cards found across sets</div>';
+        strip.innerHTML = '<div class="tcg-empty-msg">No cards found</div>';
         return;
       }
 
@@ -1073,6 +1064,7 @@
       loadPoke(next, d, false);
     }
 
+    // Spin Engine: Keeps Result View Hidden Until the Wheel Stops
     async function spinAndPick() {
       initAudio();
       document.getElementById('sList').style.display = 'none';
@@ -1095,11 +1087,14 @@
         const pData = await pRes.json();
         const shiny = Math.floor(Math.random() * 100) === 0;
 
-        fetchTcgCards(pData.name, pData.species?.name);
-        fetchLoreAndEvolution(pData.species?.url, pData.id);
+        // Pre-warm data into cache silently during the spin without touching DOM
+        const cleanName = getCleanNationalDexName(pData.name, pData.species?.name);
+        const nameQuery = `(name:"${cleanName}" OR name:"M ${cleanName}" OR name:"M-${cleanName}" OR name:"Mega ${cleanName}")`;
+        fetch(`https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(nameQuery)}&select=id,name,images,set,number,rarity,subtypes&pageSize=50&orderBy=-set.releaseDate`).catch(() => {});
 
+        // Reveal card ONLY once the 3.2s animation finishes
         setTimeout(() => {
-          renderCard(pData, 0, shiny, true);
+          renderCard(pData, 0, shiny, false);
           addRec(pData);
           playCry();
           if (shiny) triggerSparkle();
@@ -1111,7 +1106,7 @@
       }
     }
 
-    function renderCard(p, dir = 0, shiny = false, preloaded = false) {
+    function renderCard(p, dir = 0, shiny = false) {
       curId = p.id; curPoke = p; isShiny = shiny;
       document.body.classList.add('has-active');
       const card = document.getElementById('pokeCard');
@@ -1122,10 +1117,8 @@
       updateArt();
       updateCardAura(p.types);
 
-      if (!preloaded) {
-        fetchLoreAndEvolution(p.species?.url, p.id);
-        fetchTcgCards(p.name, p.species?.name);
-      }
+      fetchLoreAndEvolution(p.species?.url, p.id);
+      fetchTcgCards(p.name, p.species?.name);
       
       const tBox = document.getElementById('pokeTypes');
       tBox.innerHTML = '';

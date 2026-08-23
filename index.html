@@ -468,10 +468,10 @@
       <!-- Interactive Evolution Mini Chain -->
       <div class="evo-chain-wrap" id="evoChain"></div>
 
-      <!-- Full Art / Illustration Rare TCG Strip -->
+      <!-- Full Art / Mega & Illustration Rare TCG Strip -->
       <div class="tcg-section-wrap" id="tcgWrap">
         <div class="tcg-header-row">
-          <span>✨ Illustration & Full Arts</span>
+          <span>✨ Illustration, Mega & Full Arts</span>
           <span id="tcgCountText">Loading cards...</span>
         </div>
         <div class="tcg-scroll-strip" id="tcgStrip">
@@ -567,6 +567,18 @@
 
     let dir = [], rot = 0, audioCtx = null, curPoke = null, isShiny = false, curId = null, tabFilter = 'all', dexQuery = '', currentFetchController = null;
 
+    function getCleanNationalDexName(pokeName, speciesName) {
+      if (speciesName) return speciesName.replace(/-/g, ' ');
+      if (!pokeName) return '';
+      
+      const parts = pokeName.split('-');
+      const suffixes = new Set(['male', 'female', 'average', 'small', 'large', 'super', 'red', 'blue', 'yellow', 'white', 'standard', 'incarnate', 'ordinary', 'aria', 'midday', 'midnight', 'dusk', 'solo', 'shield', 'disguised', 'plant', 'sandy', 'trash', 'overcast', 'sunshine', 'east', 'west']);
+      if (parts.length > 1 && suffixes.has(parts[parts.length - 1].toLowerCase())) {
+        return parts.slice(0, parts.length - 1).join(' ');
+      }
+      return pokeName.replace(/-/g, ' ');
+    }
+
     function buildIcons() {
       const wheel = document.getElementById('wheel');
       const layer = document.createElement('div');
@@ -590,7 +602,8 @@
     
     function addRec(p) {
       let r = getRec().filter(x => x.id !== p.id);
-      r.unshift({ id: p.id, name: p.name, type: p.types[0].type.name, sprite: p.sprites.other?.home?.front_default || p.sprites.other?.['official-artwork']?.front_default || p.sprites.front_default });
+      const cleanName = getCleanNationalDexName(p.name, p.species?.name);
+      r.unshift({ id: p.id, name: cleanName, type: p.types[0].type.name, sprite: p.sprites.other?.home?.front_default || p.sprites.other?.['official-artwork']?.front_default || p.sprites.front_default });
       localStorage.setItem('p_rec', JSON.stringify(r.slice(0, 20)));
       updateCounts();
     }
@@ -747,6 +760,9 @@
         if (!res.ok) throw new Error("Species error");
         const data = await res.json();
         
+        const cleanSpeciesName = (data.names && data.names.find(n => n.language.name === 'en')?.name) || data.name.replace(/-/g, ' ');
+        document.getElementById('pokeName').innerText = cleanSpeciesName;
+
         const enEntry = data.flavor_text_entries ? data.flavor_text_entries.find(e => e.language.name === 'en') : null;
         loreBox.innerText = enEntry ? enEntry.flavor_text.replace(/[\n\f\r]/g, ' ').replace(/\s+/g, ' ').trim() : "No Pokédex lore entry recorded.";
 
@@ -800,38 +816,45 @@
       evoBox.style.display = 'flex';
     }
 
-    // Strict Full-Art & Illustration Rare Engine
-    function isStrictFullArt(card) {
+    // Exclusively Full-Art, Mega & Illustration Rare Verifier
+    function isStrictFullArtOrMega(card) {
       const r = (card.rarity || '').toLowerCase();
       const subtypes = (card.subtypes || []).map(s => s.toLowerCase());
+      const name = (card.name || '').toLowerCase();
 
-      // Blacklist regular non-full art formats
-      if (r === 'common' || r === 'uncommon' || r === 'rare' || r === 'rare holo' || r === 'rare holo v' || r === 'rare holo ex' || r === 'rare holo gx' || r === 'rare holo vmax' || r === 'rare holo vstar') {
+      // Explicit support for Mega Pokémon Cards (e.g. M Charizard EX, Mega Rayquaza EX)
+      const isMega = subtypes.includes('mega') || name.startsWith('m ') || name.startsWith('m-') || name.includes('mega ');
+
+      // Reject non-full-art standard baseline formats (unless it is a Mega card)
+      if (!isMega && ['common', 'uncommon', 'rare', 'rare holo', 'rare holo v', 'rare holo ex', 'rare holo gx', 'rare holo vmax', 'rare holo vstar', 'double rare', 'shiny rare', 'promo'].includes(r)) {
         return false;
       }
 
-      // Explicit whitelist for true full-art / illustration / secret rares
+      // Explicit whitelist for true full-card artwork & Mega cards
       return (
-        r.includes('illustration') || // Illustration Rare, Special Illustration Rare
-        r.includes('secret') ||       // Secret Rare
-        r.includes('rainbow') ||      // Rainbow Rare
-        r.includes('hyper') ||        // Hyper Rare
-        r.includes('ultra') ||        // Ultra Rare (Full Art)
-        r.includes('trainer gallery') || // Character Super Rare
-        r.includes('shining') ||
-        r.includes('star') ||
-        subtypes.includes('special illustration rare') || //
-        subtypes.includes('illustration rare') || //
-        subtypes.includes('full art')
+        isMega ||
+        r.includes('illustration rare') || 
+        r.includes('special illustration rare') ||
+        r.includes('hyper rare') || 
+        r.includes('secret rare') || 
+        r.includes('rainbow rare') || 
+        r.includes('trainer gallery') ||
+        r.includes('crown rare') ||
+        r.includes('shiny ultra rare') ||
+        r.includes('shiny super rare') ||
+        subtypes.includes('special illustration rare') ||
+        subtypes.includes('illustration rare') ||
+        subtypes.includes('full art') ||
+        (r.includes('ultra rare') && subtypes.includes('full art'))
       );
     }
 
-    async function fetchTcgCards(pokeName) {
+    async function fetchTcgCards(pokeName, speciesName) {
       const strip = document.getElementById('tcgStrip');
       const countText = document.getElementById('tcgCountText');
       
-      const cleanName = pokeName.replace(/-m$/i, ' ♂').replace(/-f$/i, ' ♀').replace(/-/g, ' ');
-      const cacheKey = `tcg_strict_fullarts_${cleanName.toLowerCase()}`;
+      const cleanName = getCleanNationalDexName(pokeName, speciesName);
+      const cacheKey = `tcg_mega_fullarts_v1_${cleanName.toLowerCase()}`;
       
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
@@ -839,7 +862,6 @@
         return;
       }
 
-      // Continuous animated shimmer during loading
       countText.innerText = "Loading cards...";
       strip.innerHTML = `
         <div class="tcg-skeleton-card"></div>
@@ -852,34 +874,37 @@
       currentFetchController = new AbortController();
 
       try {
-        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanName)}"&select=id,name,images,set,number,rarity,subtypes&pageSize=40&orderBy=-set.releaseDate`;
+        // Query base Pokémon as well as its Mega variants (e.g. "Charizard" OR "M Charizard" OR "Mega Charizard")
+        const nameQuery = `(name:"${cleanName}" OR name:"M ${cleanName}" OR name:"M-${cleanName}" OR name:"Mega ${cleanName}")`;
+        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(nameQuery)}&select=id,name,images,set,number,rarity,subtypes&pageSize=50&orderBy=-set.releaseDate`;
+        
         let res = await fetch(queryUrl, { signal: currentFetchController.signal });
         let data = await res.json();
         let cards = data.data || [];
 
-        let filteredCards = cards.filter(isStrictFullArt).map(c => ({
+        let filteredCards = cards.filter(isStrictFullArtOrMega).map(c => ({
           id: c.id,
           name: c.name,
           smallImg: c.images?.small || '',
           largeImg: c.images?.large || c.images?.small || '',
           setName: c.set?.name || 'Set',
           number: c.number || '?',
-          rarity: c.rarity || 'Full Art'
+          rarity: c.rarity || 'Special Art'
         })).filter(c => c.smallImg);
 
-        // Try primary term if multi-word failed
+        // Fallback root query if initial query returned empty on multi-part names
         if (!filteredCards.length && cleanName.includes(' ')) {
           const root = cleanName.split(' ')[0];
-          const rRes = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(root)}"&select=id,name,images,set,number,rarity,subtypes&pageSize=40&orderBy=-set.releaseDate`, { signal: currentFetchController.signal });
+          const rRes = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(root)}"&select=id,name,images,set,number,rarity,subtypes&pageSize=50&orderBy=-set.releaseDate`, { signal: currentFetchController.signal });
           const rData = await rRes.json();
-          filteredCards = (rData.data || []).filter(isStrictFullArt).map(c => ({
+          filteredCards = (rData.data || []).filter(isStrictFullArtOrMega).map(c => ({
             id: c.id,
             name: c.name,
             smallImg: c.images?.small || '',
             largeImg: c.images?.large || c.images?.small || '',
             setName: c.set?.name || 'Set',
             number: c.number || '?',
-            rarity: c.rarity || 'Full Art'
+            rarity: c.rarity || 'Special Art'
           })).filter(c => c.smallImg);
         }
 
@@ -888,14 +913,14 @@
       } catch (err) {
         if (err.name === 'AbortError') return;
 
-        // CDN fallback strictly filtered for Illustration / Full Art tiers
+        // Fallback to TCGdex filtered strictly for Illustration, Mega & Full Arts
         try {
-          const queryName = pokeName.split('-')[0].toLowerCase();
+          const queryName = cleanName.split(' ')[0].toLowerCase();
           const fRes = await fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(queryName)}`);
           const fData = await fRes.json();
           if (Array.isArray(fData)) {
             const fCards = fData
-              .filter(isStrictFullArt)
+              .filter(isStrictFullArtOrMega)
               .map(c => ({
                 id: c.id,
                 name: c.name,
@@ -1048,7 +1073,7 @@
         const pData = await pRes.json();
         const shiny = Math.floor(Math.random() * 100) === 0;
 
-        fetchTcgCards(pData.name);
+        fetchTcgCards(pData.name, pData.species?.name);
         fetchLoreAndEvolution(pData.species?.url, pData.id);
 
         setTimeout(() => {
@@ -1069,13 +1094,15 @@
       document.body.classList.add('has-active');
       const card = document.getElementById('pokeCard');
       document.getElementById('dexNum').innerText = `#${String(p.id).padStart(4,'0')}`;
-      document.getElementById('pokeName').innerText = p.name.replace('-',' ');
+      
+      const cleanName = getCleanNationalDexName(p.name, p.species?.name);
+      document.getElementById('pokeName').innerText = cleanName;
       updateArt();
       updateCardAura(p.types);
 
       if (!preloaded) {
         fetchLoreAndEvolution(p.species?.url, p.id);
-        fetchTcgCards(p.name);
+        fetchTcgCards(p.name, p.species?.name);
       }
       
       const tBox = document.getElementById('pokeTypes');

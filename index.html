@@ -107,13 +107,13 @@
     .btn-hub svg { width: 16px; height: 16px; fill: none; stroke: #f8fafc; stroke-width: 2; }
     .hub-badge { position: absolute; top: -4px; right: -4px; background: var(--red); color: #fff; font-size: 0.6rem; font-weight: 800; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid var(--bg); }
 
-    /* Dynamic Card with Ambient Type Aura Glow */
+    /* Dynamic Card with Ambient Aura Glow */
     .card { 
       width: 100%; 
       background: var(--card); 
       border-radius: 20px; 
       padding: clamp(0.35rem, 0.9dvh, 0.65rem) clamp(0.65rem, 2vw, 0.95rem); 
-      border: 1px solid #334155; 
+      border: 2px solid #334155; 
       box-shadow: 0 12px 28px rgba(0,0,0,0.4); 
       display: none; 
       text-align: center; 
@@ -257,7 +257,7 @@
       </div>
 
       <!-- Lore Flavor Text Section -->
-      <div class="lore-box" id="pokeLore">Loading Dex flavor text...</div>
+      <div class="lore-box" id="pokeLore">Accessing Pokédex lore...</div>
 
       <button class="btn-collect" id="colBtn" onclick="toggleCollect()">
         <span id="colIcon">+</span> <span id="colTxt">Add to Collection</span>
@@ -463,30 +463,42 @@
     }
 
     // Dynamic Card Aura Glow Engine
+    function hexToRgb(hex) {
+      hex = hex.replace('#', '');
+      if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+      const num = parseInt(hex, 16);
+      return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
+    }
+
     function updateCardAura(types) {
       const card = document.getElementById('pokeCard');
-      const primaryColor = COLORS[types[0]?.type?.name] || '#334155';
-      const secondaryColor = types[1] ? (COLORS[types[1].type.name] || primaryColor) : primaryColor;
+      const primaryHex = COLORS[types[0]?.type?.name] || '#ef4444';
+      const secondaryHex = types[1] ? (COLORS[types[1].type.name] || primaryHex) : primaryHex;
       
-      card.style.borderColor = primaryColor;
-      card.style.boxShadow = `0 14px 32px rgba(0,0,0,0.5), 0 0 20px ${primaryColor}40, inset 0 0 15px ${secondaryColor}20`;
+      const pRgb = hexToRgb(primaryHex);
+      const sRgb = hexToRgb(secondaryHex);
+
+      card.style.borderColor = primaryHex;
+      card.style.boxShadow = `0 14px 32px rgba(0,0,0,0.55), 0 0 24px rgba(${pRgb}, 0.45), inset 0 0 16px rgba(${sRgb}, 0.25)`;
     }
 
     // Lore Flavor Text Engine
-    async function fetchLoreText(id) {
+    async function fetchLoreText(speciesUrl, fallbackId) {
       const loreBox = document.getElementById('pokeLore');
       loreBox.innerText = "Accessing Pokédex lore...";
       try {
-        const res = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}`);
+        const url = speciesUrl || `https://pokeapi.co/api/v2/pokemon-species/${fallbackId}/`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Species not found");
         const data = await res.json();
-        const enEntry = data.flavor_text_entries.find(e => e.language.name === 'en');
+        const enEntry = data.flavor_text_entries ? data.flavor_text_entries.find(e => e.language.name === 'en') : null;
         if (enEntry) {
           loreBox.innerText = enEntry.flavor_text.replace(/[\n\f]/g, ' ');
         } else {
-          loreBox.innerText = "No Pokédex lore entry available for this species.";
+          loreBox.innerText = "No Pokédex lore entry recorded for this species.";
         }
       } catch (err) {
-        loreBox.innerText = "PokéRoulette analyzer online.";
+        loreBox.innerText = "PokéRoulette analyzer entry synchronized.";
       }
     }
 
@@ -569,7 +581,10 @@
       try {
         const tRes = await fetch(`https://pokeapi.co/api/v2/type/${TYPES[idx]}`);
         const tData = await tRes.json();
-        const valid = tData.pokemon.filter(p => parseInt(p.pokemon.url.split('/').filter(Boolean).pop()) <= TOTAL);
+        const valid = tData.pokemon.filter(p => {
+          const id = parseInt(p.pokemon.url.split('/').filter(Boolean).pop());
+          return id <= TOTAL;
+        });
         const pRes = await fetch(valid[Math.floor(Math.random() * valid.length)].pokemon.url);
         const pData = await pRes.json();
         const shiny = Math.floor(Math.random() * 100) === 0;
@@ -580,7 +595,10 @@
           if (shiny) triggerSparkle();
           btn.disabled = false;
         }, 3200);
-      } catch (e) { btn.disabled = false; }
+      } catch (e) { 
+        console.error(e);
+        btn.disabled = false; 
+      }
     }
 
     function renderCard(p, dir = 0, shiny = false) {
@@ -591,7 +609,7 @@
       document.getElementById('pokeName').innerText = p.name.replace('-',' ');
       updateArt();
       updateCardAura(p.types);
-      fetchLoreText(p.id);
+      fetchLoreText(p.species?.url, p.id);
       
       const tBox = document.getElementById('pokeTypes');
       tBox.innerHTML = '';

@@ -247,19 +247,61 @@
       padding: 0.25rem 0.4rem;
       text-align: left;
     }
+    
     .tcg-header-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 0.25rem;
+      gap: 0.3rem;
+    }
+    
+    .tcg-title-area {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .tcg-title-text {
       font-size: 0.62rem;
       font-weight: 800;
-      color: var(--sub);
+      color: #f8fafc;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    .tcg-header-row span:first-child { color: #f8fafc; font-weight: 800; }
-    .tcg-header-row span:last-child { color: var(--gold); font-size: 0.58rem; }
+
+    /* Filter Toggle */
+    .tcg-toggle-btn {
+      background: #334155;
+      border: 1px solid #475569;
+      color: #cbd5e1;
+      font-size: 0.55rem;
+      font-weight: 800;
+      padding: 0.15rem 0.45rem;
+      border-radius: 99px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .tcg-toggle-btn:active { transform: scale(0.94); }
+    .tcg-toggle-btn.active-all {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+    
+    .tcg-count-text {
+      color: var(--gold);
+      font-size: 0.58rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
     .tcg-scroll-strip {
       display: flex;
       gap: 0.45rem;
@@ -463,8 +505,11 @@
 
       <div class="tcg-section-wrap" id="tcgWrap">
         <div class="tcg-header-row">
-          <span id="tcgSectionTitle">✨ Illustration & Full Arts</span>
-          <span id="tcgCountText">Loading cards...</span>
+          <div class="tcg-title-area">
+            <span class="tcg-title-text" id="tcgSectionTitle">✨ Illustration & Full Arts</span>
+            <button class="tcg-toggle-btn" id="tcgModeToggle" onclick="toggleTcgViewMode()">Show All</button>
+          </div>
+          <span class="tcg-count-text" id="tcgCountText">Loading cards...</span>
         </div>
         <div class="tcg-scroll-strip" id="tcgStrip">
           <div class="tcg-skeleton-card"></div>
@@ -555,7 +600,40 @@
       fairy: '<svg viewBox="0 0 24 24"><path fill="#5e1538" d="M12 2.5C10 6 7 9 7 13c0 3.5 2.5 6 5 8.5 2.5-2.5 5-5 5-8.5 0-4-3-7-5-10.5zm0 10a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>'
     };
 
+    const KNOWN_SETS = {
+      'sv03.5': '151', 'sv06': 'Twilight Masquerade', 'sv04': 'Paradox Rift', 'sv01': 'Scarlet & Violet',
+      'sv02': 'Paldea Evolved', 'sv03': 'Obsidian Flames', 'sv05': 'Temporal Forces', 'sv07': 'Stellar Crown',
+      'sv04.5': 'Paldean Fates', 'sv06.5': 'Shrouded Fable', 'sv08': 'Surging Sparks', 'sv08.5': 'Prismatic Evolutions',
+      'swsh12pt5': 'Crown Zenith', 'swsh12': 'Silver Tempest', 'swsh11': 'Lost Origin', 'swsh10': 'Astral Radiance',
+      'swsh09': 'Brilliant Stars', 'swsh08': 'Fusion Strike', 'swsh07': 'Evolving Skies', 'swsh06': 'Chilling Reign',
+      'swsh05': 'Battle Styles', 'swsh045': 'Shining Fates', 'swsh04': 'Vivid Voltage', 'swsh035': 'Champion\'s Path',
+      'swsh03': 'Darkness Ablaze', 'swsh02': 'Rebel Clash', 'swsh01': 'Sword & Shield', 'cel25': 'Celebrations',
+      'sm12': 'Cosmic Eclipse', 'sm115': 'Hidden Fates', 'sm11': 'Unified Minds', 'sm10': 'Unbroken Bonds',
+      'sm09': 'Team Up', 'sm08': 'Lost Thunder', 'sm075': 'Dragon Majesty', 'sm07': 'Celestial Storm',
+      'sm06': 'Forbidden Light', 'sm05': 'Ultra Prism', 'sm04': 'Crimson Invasion', 'sm035': 'Shining Legends',
+      'sm03': 'Burning Shadows', 'sm02': 'Guardians Rising', 'sm01': 'Sun & Moon',
+      'xy12': 'Evolutions', 'xy11': 'Steam Siege', 'xy10': 'Fates Collide', 'xy09': 'BREAKpoint',
+      'xy08': 'BREAKthrough', 'xy07': 'Ancient Origins', 'xy06': 'Roaring Skies', 'xy05': 'Primal Clash',
+      'xy04': 'Phantom Forces', 'xy03': 'Furious Fists', 'xy02': 'Flashfire', 'xy01': 'XY Base',
+      'bw11': 'Legendary Treasures', 'bw10': 'Plasma Blast', 'bw09': 'Plasma Freeze', 'bw08': 'Plasma Storm',
+      'bw07': 'Boundaries Crossed', 'bw06': 'Dragons Exalted', 'bw05': 'Dark Explorers', 'bw04': 'Next Destinies',
+      'bw03': 'Noble Victories', 'bw02': 'Emerging Powers', 'bw01': 'Black & White',
+      'col1': 'Call of Legends', 'hgss04': 'Triumphant', 'hgss03': 'Undaunted', 'hgss02': 'Unleashed', 'hgss01': 'HeartGold & SoulSilver',
+      'pl4': 'Arceus', 'pl3': 'Supreme Victors', 'pl2': 'Rising Rivals', 'pl1': 'Platinum',
+      'dp07': 'Stormfront', 'dp06': 'Legends Awakened', 'dp05': 'Majestic Dawn', 'dp04': 'Great Encounters',
+      'dp03': 'Secret Wonders', 'dp02': 'Mysterious Treasures', 'dp01': 'Diamond & Pearl',
+      'ex16': 'Power Keepers', 'ex15': 'Dragon Frontiers', 'ex14': 'Crystal Guardians', 'ex13': 'Holon Phantoms',
+      'ex12': 'Legend Maker', 'ex11': 'Delta Species', 'ex10': 'Unseen Forces', 'ex09': 'Emerald',
+      'ex08': 'Deoxys', 'ex07': 'Team Rocket Returns', 'ex06': 'FireRed & LeafGreen', 'ex05': 'Hidden Legends',
+      'ex04': 'Team Magma vs Aqua', 'ex03': 'Dragon', 'ex02': 'Sandstorm', 'ex01': 'Ruby & Sapphire',
+      'base1': 'Base Set', 'base2': 'Jungle', 'base3': 'Fossil', 'base4': 'Base Set 2', 'base5': 'Team Rocket',
+      'gym1': 'Gym Heroes', 'gym2': 'Gym Challenge', 'neo1': 'Neo Genesis', 'neo2': 'Neo Discovery',
+      'neo3': 'Neo Revelation', 'neo4': 'Neo Destiny', 'si1': 'Southern Islands', 'base6': 'Legendary Collection'
+    };
+
     let dir = [], rot = 0, audioCtx = null, curPoke = null, isShiny = false, curId = null, tabFilter = 'all', dexQuery = '', activeTcgRequestId = 0, isSpinning = false;
+    let tcgShowAllMode = false;
+    let currentTcgDataSet = { premium: [], all: [] };
     const memoryTcgCache = new Map();
 
     function getCleanNationalDexName(pokeName, speciesName) {
@@ -568,6 +646,18 @@
         return parts.slice(0, parts.length - 1).join(' ');
       }
       return pokeName.replace(/-/g, ' ');
+    }
+
+    function resolveSetName(setObj) {
+      if (!setObj) return 'Promo';
+      if (typeof setObj === 'string') {
+        const clean = setObj.trim();
+        if (clean && clean !== 'Set' && clean !== 'TCG Set') return clean;
+        return 'Promo';
+      }
+      if (setObj.name && setObj.name !== 'Set' && setObj.name !== 'TCG Set') return setObj.name;
+      if (setObj.id && KNOWN_SETS[setObj.id.toLowerCase()]) return KNOWN_SETS[setObj.id.toLowerCase()];
+      return 'Expansion';
     }
 
     function buildIcons() {
@@ -811,7 +901,6 @@
       evoBox.style.display = 'flex';
     }
 
-    // High Precision Multi-Tier Full-Art & Secret Art Filter
     function isStrictPremium(card) {
       const r = (card.rarity || '').toLowerCase().trim();
       const subtypes = (card.subtypes || []).map(s => s.toLowerCase().trim());
@@ -827,19 +916,38 @@
       const isTrainerGallery = r.includes('trainer gallery') || r.includes('character');
       if (isSubset || isTrainerGallery) return true;
 
-      // 3. Explicit Full Art / Secret / Ultra / Illustration Identifiers
+      // 3. Full Art / Secret / Ultra / Illustration Identifiers
       const isIllustration = r.includes('illustration') || subtypes.includes('special illustration rare') || subtypes.includes('illustration rare');
       const isSecretOrHyper = r.includes('secret') || r.includes('hyper') || r.includes('rainbow') || r.includes('crown') || r.includes('gold') || r.includes('shining') || r.includes('star');
       const isFullArtUltra = subtypes.includes('full art') || r.includes('ultra rare') || r.includes('rare ultra') || r.includes('shiny ultra rare') || r.includes('shiny super rare');
       if (isIllustration || isSecretOrHyper || isFullArtUltra) return true;
 
-      // 4. Mathematical Secret Check (Handles sets like Twilight Masquerade Throh 170/167, 151 Zapdos 192/165)
+      // 4. Mathematical Secret Check
       const numVal = parseInt(number.replace(/\D/g, ''));
       if (setTotal > 0 && numVal > setTotal && !r.includes('common') && !r.includes('uncommon')) {
         return true;
       }
 
       return false;
+    }
+
+    function toggleTcgViewMode() {
+      tcgShowAllMode = !tcgShowAllMode;
+      const toggleBtn = document.getElementById('tcgModeToggle');
+      if (tcgShowAllMode) {
+        toggleBtn.innerText = 'Full/IR Only';
+        toggleBtn.classList.add('active-all');
+      } else {
+        toggleBtn.innerText = 'Show All';
+        toggleBtn.classList.remove('active-all');
+      }
+      renderActiveTcgDisplay();
+    }
+
+    function renderActiveTcgDisplay() {
+      const displayCards = tcgShowAllMode ? (currentTcgDataSet.all.length ? currentTcgDataSet.all : currentTcgDataSet.premium) : (currentTcgDataSet.premium.length ? currentTcgDataSet.premium : currentTcgDataSet.all);
+      const isShowingAll = tcgShowAllMode || (currentTcgDataSet.premium.length === 0);
+      renderTcgCards(displayCards, isShowingAll);
     }
 
     async function fetchTcgCards(pokeName, speciesName) {
@@ -849,12 +957,13 @@
       const sectionTitle = document.getElementById('tcgSectionTitle');
       
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_strict_exclusive_v60_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_strict_exclusive_v75_${cleanName.toLowerCase()}`;
       
       if (memoryTcgCache.has(cacheKey)) {
         const cached = memoryTcgCache.get(cacheKey);
+        currentTcgDataSet = cached;
         if (!isSpinning && requestId === activeTcgRequestId) {
-          renderTcgCards(cached.cards, cached.isFallback);
+          renderActiveTcgDisplay();
         }
         return;
       }
@@ -863,8 +972,9 @@
       if (stored) {
         const cached = JSON.parse(stored);
         memoryTcgCache.set(cacheKey, cached);
+        currentTcgDataSet = cached;
         if (!isSpinning && requestId === activeTcgRequestId) {
-          renderTcgCards(cached.cards, cached.isFallback);
+          renderActiveTcgDisplay();
         }
         return;
       }
@@ -899,7 +1009,7 @@
           id: c.id,
           name: c.name,
           images: { small: `${c.image}/low.webp`, large: `${c.image}/high.webp` },
-          set: { name: c.set?.name || 'Set', printedTotal: c.set?.cardCount?.official || 0 },
+          set: { name: resolveSetName(c.set?.name || c.set?.id), id: c.set?.id || '', printedTotal: c.set?.cardCount?.official || 0 },
           number: c.localId || '?',
           rarity: c.rarity || 'Card',
           subtypes: []
@@ -926,58 +1036,47 @@
           return cardName.includes(target);
         });
 
-        // 1. Separate full arts, Megas, and illustration rares
         let premiumCards = speciesCards.filter(isStrictPremium).map(c => ({
           id: c.id,
           name: c.name,
           smallImg: c.images?.small || '',
           largeImg: c.images?.large || c.images?.small || '',
-          setName: c.set?.name || 'Set',
+          setName: resolveSetName(c.set),
           number: c.number || '?',
           rarity: c.rarity || 'Special Art'
         })).filter(c => c.smallImg);
 
-        let finalCards = [];
-        let isFallback = false;
+        let allSpeciesFormatted = speciesCards.map(c => ({
+          id: c.id,
+          name: c.name,
+          smallImg: c.images?.small || '',
+          largeImg: c.images?.large || c.images?.small || '',
+          setName: resolveSetName(c.set),
+          number: c.number || '?',
+          rarity: c.rarity || 'Card'
+        })).filter(c => c.smallImg);
 
-        // If even 1 premium card exists, show ONLY premium cards
-        if (premiumCards.length > 0) {
-          finalCards = premiumCards;
-          isFallback = false;
-        } else if (speciesCards.length > 0) {
-          // Fallback: If 0 premium cards exist across all sets, show standard cards
-          finalCards = speciesCards.map(c => ({
-            id: c.id,
-            name: c.name,
-            smallImg: c.images?.small || '',
-            largeImg: c.images?.large || c.images?.small || '',
-            setName: c.set?.name || 'Set',
-            number: c.number || '?',
-            rarity: c.rarity || 'Card'
-          })).filter(c => c.smallImg);
-          isFallback = true;
-        }
-
-        const payload = { cards: finalCards, isFallback };
-        memoryTcgCache.set(cacheKey, payload);
-        try { localStorage.setItem(cacheKey, JSON.stringify(payload)); } catch (e) {}
+        currentTcgDataSet = { premium: premiumCards, all: allSpeciesFormatted };
+        memoryTcgCache.set(cacheKey, currentTcgDataSet);
+        try { localStorage.setItem(cacheKey, JSON.stringify(currentTcgDataSet)); } catch (e) {}
         
         if (!isSpinning && requestId === activeTcgRequestId) {
-          renderTcgCards(finalCards, isFallback);
+          renderActiveTcgDisplay();
         }
       } catch (err) {
         if (!isSpinning && requestId === activeTcgRequestId) {
+          currentTcgDataSet = { premium: [], all: [] };
           renderTcgCards([], false);
         }
       }
     }
 
-    function renderTcgCards(cards, isFallback = false) {
+    function renderTcgCards(cards, isShowingAll = false) {
       const strip = document.getElementById('tcgStrip');
       const countText = document.getElementById('tcgCountText');
       const sectionTitle = document.getElementById('tcgSectionTitle');
 
-      if (isFallback) {
+      if (isShowingAll) {
         sectionTitle.innerText = "🃏 All TCG Card Releases";
       } else {
         sectionTitle.innerText = "✨ Illustration & Full Arts";
@@ -1094,7 +1193,6 @@
       btn.disabled = true;
       isSpinning = true;
 
-      // Conceal previous card during spin
       hideActive();
 
       const idx = Math.floor(Math.random() * TYPES.length);
@@ -1114,7 +1212,6 @@
         const pData = await pRes.json();
         const shiny = Math.floor(Math.random() * 100) === 0;
 
-        // Pre-fetch in background silently without touching DOM
         fetchTcgCards(pData.name, pData.species?.name);
         fetchLoreAndEvolution(pData.species?.url, pData.id);
 

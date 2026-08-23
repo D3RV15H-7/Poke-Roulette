@@ -370,7 +370,7 @@
     .tcg-zoom-meta { font-size: 0.72rem; color: var(--sub); font-weight: 700; text-align: center; }
     .tcg-zoom-close { background: var(--red); color: white; border: none; padding: 0.4rem 1.2rem; border-radius: 99px; font-size: 0.75rem; font-weight: 800; cursor: pointer; }
 
-    .modal { position: fixed; inset: 0; background: rgba(15,23,42,0.78); backdrop-filter: blur(6px); z-index: 100; display: none; align-items: flex-end; justify-content: center; }
+    .modal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.78); backdrop-filter: blur(6px); z-index: 100; display: none; align-items: flex-end; justify-content: center; }
     .modal-body { background: var(--card); width: 100vw; max-width: 500px; max-height: 85vh; border-radius: 28px 28px 0 0; border: 1px solid #334155; border-bottom: none; display: flex; flex-direction: column; padding: 1.1rem 0.75rem 1rem 0.75rem; }
     .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid #334155; }
     
@@ -806,29 +806,34 @@
       evoBox.style.display = 'flex';
     }
 
-    // Explicit Full-Page Artwork Verifier (Filters out regular boxed-art cards)
+    // Comprehensive Full-Art & Illustration Rare Verifier
     function isStrictFullArtCard(card) {
       const r = (card.rarity || '').toLowerCase().trim();
       const subtypes = (card.subtypes || []).map(s => s.toLowerCase().trim());
       const number = String(card.number || '').toLowerCase().trim();
       const setTotal = card.set?.printedTotal || 0;
 
-      // 1. True Full-Art Subtypes & Rarities
-      const isIllustration = r.includes('illustration') || subtypes.includes('illustration rare') || subtypes.includes('special illustration rare');
-      const isSecretOrHyper = r.includes('secret') || r.includes('hyper') || r.includes('rainbow') || r.includes('crown') || r.includes('gold') || r.includes('shining') || r.includes('star');
-      const isFullArtUltra = subtypes.includes('full art') || r.includes('shiny ultra rare') || r.includes('shiny super rare');
-      const isTrainerGallery = (r.includes('trainer gallery') || r.includes('character')) && (number.startsWith('tg') || number.startsWith('gg'));
-      const isMega = subtypes.includes('mega') || (card.name || '').toLowerCase().startsWith('m ');
+      // Filter out standard boxed non-full-art cards
+      if (['common', 'uncommon', 'rare', 'rare holo', 'rare holo v', 'rare holo ex', 'rare holo gx', 'rare holo vmax', 'rare holo vstar', 'double rare', 'shiny rare', 'promo', 'promo rare'].includes(r)) {
+        // Only pass if it has an explicit full-art flag or subset number
+        const isExempt = subtypes.includes('full art') || subtypes.includes('illustration rare') || subtypes.includes('special illustration rare') || number.startsWith('tg') || number.startsWith('gg');
+        if (!isExempt) return false;
+      }
 
-      if (isIllustration || isSecretOrHyper || isFullArtUltra || isTrainerGallery || isMega) {
+      // True Full-Art / Special Illustration Rarity Types
+      const isUltraOrSecret = r.includes('ultra') || r.includes('secret') || r.includes('hyper') || r.includes('rainbow') || r.includes('crown') || r.includes('gold') || r.includes('shining') || r.includes('star');
+      const isIllustration = r.includes('illustration') || subtypes.includes('special illustration rare') || subtypes.includes('illustration rare');
+      const isFullArt = subtypes.includes('full art') || r.includes('shiny ultra rare') || r.includes('shiny super rare');
+      const isTrainerGallery = (r.includes('trainer gallery') || r.includes('character')) || number.startsWith('tg') || number.startsWith('gg');
+      const isMega = subtypes.includes('mega') || (card.name || '').toLowerCase().startsWith('m ') || (card.name || '').toLowerCase().startsWith('m-');
+
+      if (isUltraOrSecret || isIllustration || isFullArt || isTrainerGallery || isMega) {
         return true;
       }
 
-      // 2. Mathematically verify secret full arts (e.g. 192/165, 202/165)
+      // Mathematical Secret Card Check
       const numVal = parseInt(number.replace(/\D/g, ''));
-      if (setTotal > 0 && numVal > setTotal && !r.includes('common') && !r.includes('uncommon')) {
-        return true;
-      }
+      if (setTotal > 0 && numVal > setTotal) return true;
 
       return false;
     }
@@ -839,7 +844,7 @@
       const sectionTitle = document.getElementById('tcgSectionTitle');
       
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_fullart_guarantee_v20_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_fullart_guarantee_v25_${cleanName.toLowerCase()}`;
       
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
@@ -862,21 +867,19 @@
 
       try {
         const primaryTerm = cleanName.split(' ')[0];
-        // Query both prefix and exact phrases to match Galarian, Hisuian, Megas, ex, and V
         const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:*${encodeURIComponent(primaryTerm)}*&select=id,name,images,set,number,rarity,subtypes&pageSize=175&orderBy=-set.releaseDate`;
         
         let res = await fetch(queryUrl, { signal: currentFetchController.signal });
         let data = await res.json();
         let allCards = data.data || [];
 
-        // Retain only cards that belong to this species (including forms like Galarian, Alolan, M, Mega, V, ex)
         const speciesCards = allCards.filter(c => {
           const cardName = (c.name || '').toLowerCase();
           const target = cleanName.toLowerCase();
           return cardName.includes(target);
         });
 
-        // 1. Check for genuine full-card artwork
+        // 1. Separate genuine full-art cards
         let fullArtCards = speciesCards.filter(isStrictFullArtCard).map(c => ({
           id: c.id,
           name: c.name,
@@ -895,7 +898,7 @@
           finalCards = fullArtCards;
           isFallback = false;
         } else if (speciesCards.length > 0) {
-          // If 0 full art prints exist across all sets, fallback to standard cards
+          // If 0 full arts exist, fallback to standard cards
           finalCards = speciesCards.map(c => ({
             id: c.id,
             name: c.name,

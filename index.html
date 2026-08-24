@@ -798,9 +798,16 @@
       'bwp': 'BW Promos', 'dpp': 'DP Promos', 'np': 'Nintendo Promos', 'pop': 'POP Series'
     };
 
+    // Full Blacklist of All TCG Pocket / Digital Series
     const DIGITAL_SET_BLACKLIST = new Set([
-      'a1', 'a1a', 'a2', 'a2a', 'p-a', 'tcgp', 'tcg-pocket', 'pocket', 'tcglive', 'digital'
+      'a1', 'a1a', 'a2', 'a2a', 'b1', 'b1a', 'b2', 'b2a', 
+      'p-a', 'p-b', 'promo-a', 'promo-b', 'tcgp', 'tcg-pocket', 'pocket', 'tcglive', 'digital'
     ]);
+
+    const DIGITAL_EXPANSION_NAMES = [
+      'genetic apex', 'mythical island', 'space-time smackdown', 'triumphant light',
+      'fantastical parade', 'crimson blaze', 'eevee grove', 'mega rising', 'wisdom of sea and sky'
+    ];
 
     let dir = [], rot = 0, audioCtx = null, curPoke = null, isShiny = false, curId = null, tabFilter = 'all', dexQuery = '', activeTcgRequestId = 0, isSpinning = false;
     let currentCardsList = [];
@@ -860,10 +867,11 @@
       const setId = String(card.set?.id || '').toLowerCase().trim();
       const cardId = String(card.id || '').toLowerCase().trim();
       const setName = String(card.set?.name || '').toLowerCase().trim();
+      const prefix = cardId.includes('-') ? cardId.split('-')[0] : cardId;
 
       if (DIGITAL_SET_BLACKLIST.has(setId)) return true;
-      if (DIGITAL_SET_BLACKLIST.has(cardId.split('-')[0])) return true;
-      if (setName.includes('genetic apex') || setName.includes('mythical island') || setName.includes('pocket')) return true;
+      if (DIGITAL_SET_BLACKLIST.has(prefix)) return true;
+      if (DIGITAL_EXPANSION_NAMES.some(n => setName.includes(n))) return true;
       return false;
     }
 
@@ -1172,12 +1180,12 @@
       evoBox.style.display = 'flex';
     }
 
-    // Comprehensive 24-Rank Rarity Normalizer
+    // 100% Strict Physical Rarity Classifier
     function evaluateCardTier(card) {
       const r = (card.rarity || '').toLowerCase().trim();
       const subtypes = (card.subtypes || []).map(s => s.toLowerCase().trim());
       const number = String(card.number || card.localId || '').toLowerCase().trim();
-      const setTotal = card.set?.printedTotal || card.set?.cardCount?.official || card.set?.total || 0;
+      const setTotal = card.set?.printedTotal || card.set?.total || 0;
       const numVal = parseInt(number.replace(/\D/g, '')) || 0;
       const name = (card.name || '').toLowerCase().trim();
 
@@ -1311,10 +1319,10 @@
       return regex.test(c);
     }
 
-    // Primary Authoritative Card Fetcher
+    // Authoritative Card Fetcher
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_clean_v500_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_authoritative_v600_${cleanName.toLowerCase()}`;
       
       if (!bypassCache) {
         if (memoryTcgCache.has(cacheKey)) {
@@ -1375,6 +1383,7 @@
         } catch (err) {}
       }
 
+      // Filter out all Digital Cards + strictly match exact name
       const physicalSpeciesCards = allCards
         .filter(c => !isDigitalOnlyCard(c))
         .filter(c => matchesExactPokemonName(c.name, cleanName))

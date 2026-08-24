@@ -1,3 +1,6 @@
+Card Zoom View Enhancements
+ * Maximized Card Dimensions: Enlarged the card viewport container (max-width: 400px) and increased the card artwork display size to clamp(270px, 42dvh, 320px).
+ * Adaptive Full-Viewport Framing: Adjusted padding, metadata spacing, and floating directional controls so that the card takes full visual focus on all mobile screen heights without requiring vertical scrolling.
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -360,41 +363,43 @@
     .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.04rem 0.7rem; text-align: left; background: var(--bg); padding: clamp(0.15rem, 0.35dvh, 0.22rem) 0.65rem; border-radius: 8px; font-size: clamp(0.58rem, 1.05dvh, 0.65rem); }
     .stats span:last-child { font-weight: 700; float: right; }
 
+    /* Enlarged Flat 2D Zoom Modal */
     .tcg-zoom-modal {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.92);
-      backdrop-filter: blur(10px);
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(12px);
       z-index: 200;
       display: none;
       align-items: center;
       justify-content: center;
-      padding: 1rem;
+      padding: clamp(0.4rem, 1.5vh, 1rem);
     }
     .tcg-zoom-content {
       background: var(--card);
       border: 1px solid #334155;
-      border-radius: 20px;
-      padding: 1rem;
-      max-width: 340px;
+      border-radius: 24px;
+      padding: clamp(0.65rem, 1.4dvh, 1rem) clamp(0.75rem, 2vw, 1.2rem);
+      max-width: 400px;
       width: 100%;
+      max-height: 94dvh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.45rem;
-      box-shadow: 0 16px 40px rgba(0,0,0,0.85);
+      gap: clamp(0.25rem, 0.6dvh, 0.45rem);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.9);
       animation: zoomIn 0.2s ease-out;
       position: relative;
     }
-    @keyframes zoomIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    @keyframes zoomIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     
     .tcg-zoom-counter {
-      font-size: 0.75rem;
+      font-size: clamp(0.72rem, 1.3dvh, 0.8rem);
       font-weight: 900;
       color: var(--gold);
       background: rgba(245, 158, 11, 0.12);
       border: 1px solid rgba(245, 158, 11, 0.3);
-      padding: 0.1rem 0.6rem;
+      padding: 0.1rem 0.65rem;
       border-radius: 99px;
     }
 
@@ -405,20 +410,21 @@
       justify-content: center;
       width: 100%;
       touch-action: pan-y;
+      margin: clamp(0.1rem, 0.4dvh, 0.25rem) 0;
     }
     .flat-card-container {
       position: relative;
-      width: 220px;
+      width: clamp(270px, 42dvh, 320px);
       aspect-ratio: 63 / 88;
-      border-radius: 12px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+      border-radius: 14px;
+      box-shadow: 0 14px 36px rgba(0,0,0,0.75);
       overflow: hidden;
       transform: none !important;
     }
     .tcg-zoom-img {
       width: 100%;
       height: 100%;
-      border-radius: 12px;
+      border-radius: 14px;
       object-fit: cover;
       display: block;
       pointer-events: none;
@@ -429,42 +435,42 @@
       position: absolute;
       top: 50%;
       transform: translateY(-50%);
-      background: rgba(30, 41, 59, 0.85);
+      background: rgba(30, 41, 59, 0.9);
       border: 1px solid #475569;
       color: #fff;
-      width: 34px;
-      height: 34px;
+      width: 38px;
+      height: 38px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.1rem;
+      font-size: 1.25rem;
       font-weight: 900;
       cursor: pointer;
       z-index: 10;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-      transition: opacity 0.2s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      transition: transform 0.15s, background 0.15s;
     }
-    .tcg-zoom-arrow:active { transform: translateY(-50%) scale(0.92); }
-    .tcg-zoom-arrow.left { left: -4px; }
-    .tcg-zoom-arrow.right { right: -4px; }
+    .tcg-zoom-arrow:active { transform: translateY(-50%) scale(0.9); background: #475569; }
+    .tcg-zoom-arrow.left { left: -8px; }
+    .tcg-zoom-arrow.right { right: -8px; }
 
-    .tcg-zoom-title { font-size: 0.9rem; font-weight: 800; text-align: center; }
-    .tcg-zoom-meta { font-size: 0.7rem; color: var(--sub); font-weight: 700; text-align: center; }
+    .tcg-zoom-title { font-size: clamp(0.95rem, 1.8dvh, 1.15rem); font-weight: 800; text-align: center; }
+    .tcg-zoom-meta { font-size: clamp(0.72rem, 1.3dvh, 0.8rem); color: var(--sub); font-weight: 700; text-align: center; }
     .tcg-zoom-price-row {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 0.4rem;
       background: rgba(16, 185, 129, 0.12);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      padding: 0.2rem 0.8rem;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      padding: 0.2rem 0.85rem;
       border-radius: 99px;
       color: var(--green);
-      font-size: 0.75rem;
+      font-size: clamp(0.75rem, 1.4dvh, 0.82rem);
       font-weight: 800;
     }
-    .tcg-zoom-close { background: var(--red); color: white; border: none; padding: 0.35rem 1.1rem; border-radius: 99px; font-size: 0.72rem; font-weight: 800; cursor: pointer; }
+    .tcg-zoom-close { background: var(--red); color: white; border: none; padding: 0.38rem 1.25rem; border-radius: 99px; font-size: clamp(0.74rem, 1.3dvh, 0.8rem); font-weight: 800; cursor: pointer; }
 
     .modal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.78); backdrop-filter: blur(6px); z-index: 100; display: none; align-items: flex-end; justify-content: center; }
     .modal-body { background: var(--card); width: 100vw; max-width: 500px; max-height: 85vh; border-radius: 28px 28px 0 0; border: 1px solid #334155; border-bottom: none; display: flex; flex-direction: column; padding: 1.1rem 0.75rem 1rem 0.75rem; }
@@ -826,7 +832,7 @@
       'bwp': 'BW Promos', 'dpp': 'DP Promos', 'np': 'Nintendo Promos', 'pop': 'POP Series'
     };
 
-    // Digital-Only Sets Blacklist (TCG Pocket & Live Exclusive)
+    // Digital-Only Sets Blacklist
     const DIGITAL_SET_BLACKLIST = new Set([
       'a1', 'a1a', 'a2', 'a2a', 'b1', 'b1a', 'b2', 'b2a',
       'p-a', 'p-b', 'promo-a', 'promo-b', 'tcgp', 'tcg-pocket', 'pocket', 'tcglive'
@@ -1542,6 +1548,7 @@
       }
     }
 
+    // Touch Swipe Navigation (Strict 2D Horizontal)
     let zoomTouchX = 0;
     const zoomViewArea = document.getElementById('zoomViewArea');
     

@@ -1,6 +1,3 @@
-Card Zoom View Enhancements
- * Maximized Card Dimensions: Enlarged the card viewport container (max-width: 400px) and increased the card artwork display size to clamp(270px, 42dvh, 320px).
- * Adaptive Full-Viewport Framing: Adjusted padding, metadata spacing, and floating directional controls so that the card takes full visual focus on all mobile screen heights without requiring vertical scrolling.
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -363,7 +360,7 @@ Card Zoom View Enhancements
     .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.04rem 0.7rem; text-align: left; background: var(--bg); padding: clamp(0.15rem, 0.35dvh, 0.22rem) 0.65rem; border-radius: 8px; font-size: clamp(0.58rem, 1.05dvh, 0.65rem); }
     .stats span:last-child { font-weight: 700; float: right; }
 
-    /* Enlarged Flat 2D Zoom Modal */
+    /* Maximized Flat 2D Zoom Modal */
     .tcg-zoom-modal {
       position: fixed;
       inset: 0;
@@ -868,11 +865,6 @@ Card Zoom View Enhancements
     }
 
     function resolveSetName(setObj, cardId = '') {
-      if (setObj?.id) {
-        const idLower = String(setObj.id).toLowerCase().trim();
-        if (KNOWN_SETS[idLower]) return KNOWN_SETS[idLower];
-      }
-
       if (setObj?.name) {
         const nameClean = String(setObj.name).trim();
         const lowerName = nameClean.toLowerCase();
@@ -880,6 +872,11 @@ Card Zoom View Enhancements
         if (nameClean && !['promo', 'expansion', 'set', 'tcg set'].includes(lowerName)) {
           return nameClean;
         }
+      }
+
+      if (setObj?.id) {
+        const idLower = String(setObj.id).toLowerCase().trim();
+        if (KNOWN_SETS[idLower]) return KNOWN_SETS[idLower];
       }
 
       if (cardId && typeof cardId === 'string' && cardId.includes('-')) {
@@ -1226,6 +1223,7 @@ Card Zoom View Enhancements
       const isSecretMath = (setTotal > 0 && numVal > setTotal);
       const isTrainerGallery = number.startsWith('tg') || number.startsWith('gg') || number.startsWith('rc');
       const isShinyVault = number.startsWith('sv') && !number.startsWith('svp');
+      const isCharacterRare = r.includes('character') || subtypes.includes('character rare');
 
       // Rank 1: Mega Attack Rare
       if (r.includes('mega attack')) return { rank: 1, label: 'Mega Attack Rare' };
@@ -1251,8 +1249,8 @@ Card Zoom View Enhancements
         return { rank: 6, label: 'Special Illustration Rare' };
       }
       
-      // Rank 7: Illustration Rare (IR)
-      if (r.includes('illustration rare') || subtypes.includes('illustration rare') || r.includes('art rare') || isTrainerGallery || (isSecretMath && !r.includes('ultra') && !r.includes('hyper') && !r.includes('gold') && !r.includes('shiny ultra') && !r.includes('ace spec'))) {
+      // Rank 7: Illustration Rare (IR) / Character Rare (CHR)
+      if (r.includes('illustration rare') || subtypes.includes('illustration rare') || isCharacterRare || r.includes('art rare') || isTrainerGallery || (isSecretMath && !r.includes('ultra') && !r.includes('hyper') && !r.includes('gold') && !r.includes('shiny ultra') && !r.includes('ace spec'))) {
         return { rank: 7, label: 'Illustration Rare' };
       }
       
@@ -1358,7 +1356,7 @@ Card Zoom View Enhancements
     // High-Accuracy Authoritative Fetcher
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_authoritative_v800_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_authoritative_v900_${cleanName.toLowerCase()}`;
       
       if (!bypassCache) {
         if (memoryTcgCache.has(cacheKey)) {

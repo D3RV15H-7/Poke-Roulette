@@ -782,9 +782,13 @@
       'swsh4': 'Vivid Voltage', 'swsh45': 'Shining Fates', 'swsh5': 'Battle Styles', 'swsh6': 'Chilling Reign',
       'swsh7': 'Evolving Skies', 'swsh8': 'Fusion Strike', 'swsh9': 'Brilliant Stars', 'swsh10': 'Astral Radiance',
       'swsh11': 'Lost Origin', 'swsh12': 'Silver Tempest', 'swsh12pt5': 'Crown Zenith',
-      'sv1': 'Scarlet & Violet', 'sv2': 'Paldea Evolved', 'sv3': 'Obsidian Flames', 'sv03.5': '151',
-      'sv4': 'Paradox Rift', 'sv04.5': 'Paldean Fates', 'sv5': 'Temporal Forces', 'sv6': 'Twilight Masquerade',
-      'sv06.5': 'Shrouded Fable', 'sv7': 'Stellar Crown', 'sv8': 'Surging Sparks', 'sv08.5': 'Prismatic Evolutions',
+      'sv1': 'Scarlet & Violet', 'sv2': 'Paldea Evolved', 'sv3': 'Obsidian Flames', 'sv03': 'Obsidian Flames', 'obf': 'Obsidian Flames',
+      'sv03.5': '151', 'mew': '151', 'sv4': 'Paradox Rift', 'sv04': 'Paradox Rift', 'par': 'Paradox Rift',
+      'sv04.5': 'Paldean Fates', 'paf': 'Paldean Fates', 'sv5': 'Temporal Forces', 'sv05': 'Temporal Forces', 'tef': 'Temporal Forces',
+      'sv6': 'Twilight Masquerade', 'sv06': 'Twilight Masquerade', 'twm': 'Twilight Masquerade',
+      'sv06.5': 'Shrouded Fable', 'sfa': 'Shrouded Fable', 'sv7': 'Stellar Crown', 'sv07': 'Stellar Crown', 'scr': 'Stellar Crown',
+      'sv8': 'Surging Sparks', 'sv08': 'Surging Sparks', 'ssp': 'Surging Sparks',
+      'sv08.5': 'Prismatic Evolutions', 'pre': 'Prismatic Evolutions',
       'smp': 'SM Promos', 'swshp': 'SWSH Promos', 'svp': 'SV Promos', 'xyp': 'XY Promos',
       'bwp': 'BW Promos', 'dpp': 'DP Promos', 'np': 'Nintendo Promos', 'pop': 'POP Series'
     };
@@ -1163,36 +1167,41 @@
       evoBox.style.display = 'flex';
     }
 
-    function evaluateCardRank(card) {
+    function evaluateCardTier(card) {
       const r = (card.rarity || '').toLowerCase().trim();
-      const name = (card.name || '').toLowerCase().trim();
+      const subtypes = (card.subtypes || []).map(s => s.toLowerCase().trim());
+      const number = String(card.number || '').toLowerCase().trim();
+      const setTotal = card.set?.printedTotal || card.set?.total || 0;
+      const numVal = parseInt(number.replace(/\D/g, ''));
+      const isSecretMath = (setTotal > 0 && numVal > setTotal && !r.includes('common') && !r.includes('uncommon'));
+      const isIllustrationRare = r.includes('illustration rare') || subtypes.includes('illustration rare') || isSecretMath;
 
-      if (r.includes('mega attack')) return 1;
-      if (r.includes('mega hyper')) return 2;
-      if (r.includes('black white') || r.includes('black & white')) return 3;
-      if (r.includes('hyper rare') || r.includes('rainbow') || r.includes('crown') || r.includes('gold')) return 4;
-      if (r.includes('shiny ultra rare') || r.includes('shiny super rare')) return 5;
-      if (r.includes('special illustration')) return 6;
-      if (r.includes('illustration rare')) return 7;
-      if (r.includes('break')) return 8;
-      if (r.includes('ultra rare') || r.includes('rare ultra')) return 9;
-      if (r.includes('rare holo gx') || r.includes('gx') || name.includes(' gx')) return 10;
-      if (r.includes('rare holo ex') || r.includes('ex') || name.includes(' ex')) return 11;
-      if (r.includes('shiny rare') || r.includes('shining')) return 12;
-      if (r.includes('promo')) return 13;
-      if (r.includes('radiant')) return 14;
-      if (r.includes('amazing')) return 15;
-      if (r.includes('ace spec')) return 16;
-      if (r.includes('double rare')) return 17;
-      if (r.includes('legend')) return 18;
-      if (r.includes('prime')) return 19;
-      if (r.includes('lv.x')) return 20;
-      if (r.includes('rare holo')) return 21;
-      if (r.includes('rare')) return 22;
-      if (r.includes('uncommon')) return 23;
-      if (r.includes('common')) return 24;
+      if (r.includes('mega attack')) return { rank: 1, label: 'Mega Attack Rare' };
+      if (r.includes('mega hyper')) return { rank: 2, label: 'Mega Hyper Rare' };
+      if (r.includes('black white') || r.includes('black & white')) return { rank: 3, label: 'Black White Rare' };
+      if (r.includes('hyper rare') || r.includes('rainbow') || r.includes('crown') || r.includes('gold')) return { rank: 4, label: 'Hyper Rare' };
+      if (r.includes('shiny ultra rare') || r.includes('shiny super rare')) return { rank: 5, label: 'Shiny Ultra Rare' };
+      if (r.includes('special illustration')) return { rank: 6, label: 'Special Illustration Rare' };
+      if (isIllustrationRare) return { rank: 7, label: 'Illustration Rare' };
+      if (r.includes('break')) return { rank: 8, label: 'Rare BREAK' };
+      if (r.includes('ultra rare') || r.includes('rare ultra')) return { rank: 9, label: 'Ultra Rare' };
+      if (r.includes('rare holo gx') || r.includes('gx')) return { rank: 10, label: 'Rare Holo GX' };
+      if (r.includes('rare holo ex') || r.includes('ex')) return { rank: 11, label: 'Rare Holo EX' };
+      if (r.includes('shiny rare') || r.includes('shining')) return { rank: 12, label: 'Shiny Rare' };
+      if (r.includes('promo')) return { rank: 13, label: 'Promo' };
+      if (r.includes('radiant')) return { rank: 14, label: 'Radiant Rare' };
+      if (r.includes('amazing')) return { rank: 15, label: 'Amazing' };
+      if (r.includes('ace spec')) return { rank: 16, label: 'ACE SPEC Rare' };
+      if (r.includes('double rare')) return { rank: 17, label: 'Double Rare' };
+      if (r.includes('legend')) return { rank: 18, label: 'LEGEND' };
+      if (r.includes('prime')) return { rank: 19, label: 'Rare Prime' };
+      if (r.includes('lv.x')) return { rank: 20, label: 'Rare Holo Lv.X' };
+      if (r.includes('rare holo')) return { rank: 21, label: 'Rare Holo' };
+      if (r.includes('rare')) return { rank: 22, label: 'Rare' };
+      if (r.includes('uncommon')) return { rank: 23, label: 'Uncommon' };
+      if (r.includes('common')) return { rank: 24, label: 'Common' };
 
-      return 25;
+      return { rank: 25, label: card.rarity || 'Card' };
     }
 
     function extractCardPriceGBP(card) {
@@ -1201,7 +1210,8 @@
         const candidates = [
           p.holofoil?.market, p.reverseHolofoil?.market, p.normal?.market,
           p.unlimitedHolofoil?.market, p['1stEditionHolofoil']?.market,
-          p.holofoil?.mid, p.normal?.mid, p.reverseHolofoil?.mid
+          p.holofoil?.mid, p.normal?.mid, p.reverseHolofoil?.mid,
+          p.holofoil?.directLow, p.normal?.directLow
         ];
         for (const price of candidates) {
           if (price && typeof price === 'number' && price > 0) {
@@ -1234,7 +1244,7 @@
 
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_all_variations_v360_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_all_variations_v370_${cleanName.toLowerCase()}`;
       
       if (!bypassCache) {
         if (memoryTcgCache.has(cacheKey)) {
@@ -1314,17 +1324,20 @@
         .filter(c => matchesExactPokemonName(c.name, cleanName))
         .filter(c => c.images?.small && typeof c.images.small === 'string' && !c.images.small.includes('undefined'));
 
-      const formattedCards = physicalSpeciesCards.map(c => ({
-        id: c.id,
-        name: c.name,
-        smallImg: c.images?.small || '',
-        largeImg: c.images?.large || c.images?.small || '',
-        setName: resolveSetName(c.set, c.id),
-        number: c.number || '?',
-        rarity: c.rarity || 'Card',
-        priceGBP: extractCardPriceGBP(c),
-        rank: evaluateCardRank(c)
-      }));
+      const formattedCards = physicalSpeciesCards.map(c => {
+        const tier = evaluateCardTier(c);
+        return {
+          id: c.id,
+          name: c.name,
+          smallImg: c.images?.small || '',
+          largeImg: c.images?.large || c.images?.small || '',
+          setName: resolveSetName(c.set, c.id),
+          number: c.number || '?',
+          rarity: tier.label,
+          priceGBP: extractCardPriceGBP(c),
+          rank: tier.rank
+        };
+      });
 
       formattedCards.sort((a, b) => a.rank - b.rank);
 
@@ -1434,7 +1447,6 @@
       }
     }
 
-    // Touch Swipe Navigation (Strict 2D Horizontal)
     let zoomTouchX = 0;
     const zoomViewArea = document.getElementById('zoomViewArea');
     

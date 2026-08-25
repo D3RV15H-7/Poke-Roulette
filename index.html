@@ -73,7 +73,7 @@
       padding-top: 0.1rem;
     }
 
-    /* Thinned Shadows on Pokémon Title */
+    /* Authentic Pokémon Game Title Styling */
     header h1 { 
       font-family: 'Russo One', sans-serif;
       font-size: clamp(2.1rem, 4.6dvh, 2.6rem); 
@@ -874,15 +874,15 @@
       </div>
     </header>
 
-    <div class="center-content-area">
-      <div class="search-wrap">
-        <form class="search-box" onsubmit="event.preventDefault(); submitSearch();">
-          <input type="text" id="sInput" placeholder="Type Pokémon Name or Dex #" autocomplete="off" oninput="handleSearch(this.value)" />
-          <button type="submit">Search</button>
-        </form>
-        <ul class="suggestions" id="sList"></ul>
-      </div>
+    <div class="search-wrap">
+      <form class="search-box" onsubmit="event.preventDefault(); submitSearch();">
+        <input type="text" id="sInput" placeholder="Type Pokémon Name or Dex #" autocomplete="off" oninput="handleSearch(this.value)" />
+        <button type="submit">Search</button>
+      </form>
+      <ul class="suggestions" id="sList"></ul>
+    </div>
 
+    <div class="center-content-area">
       <div class="wheel-wrap">
         <div class="pointer"></div>
         <div class="wheel" id="wheel"></div>
@@ -892,32 +892,6 @@
       <div class="spin-row">
         <button class="btn-spin" id="spinBtn" onclick="handleSpinButtonClick()">SPIN & GENERATE</button>
         <button class="btn-close" id="closeBtn" onclick="hideActive()" title="Hide Pokémon View">✕</button>
-      </div>
-
-      <!-- Navigation Hub & Collection Count (Idle position: right below spin row) -->
-      <div class="hub-outer-wrap" id="persistentHub">
-        <div class="hub">
-          <div class="hub-item-wrap">
-            <button class="btn-hub" onclick="openModal('dexModal')" title="Collection">
-              <svg viewBox="0 0 24 24"><path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-9Z"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M8 10h8v4H8z"/></svg>
-              <div class="hub-badge" id="bagBadge">0</div>
-            </button>
-            <span class="hub-item-label">Dex</span>
-          </div>
-          <div class="hub-item-wrap">
-            <button class="btn-hub" onclick="openModal('recentModal')" title="History">
-              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><polyline points="3 3 3 8 8 8"/></svg>
-            </button>
-            <span class="hub-item-label">History</span>
-          </div>
-          <div class="hub-item-wrap">
-            <button class="btn-hub" onclick="openModal('accountModal')" title="Account Sync" id="btnAccount">
-              <svg viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            </button>
-            <span class="hub-item-label" id="accountLabel">Account</span>
-          </div>
-        </div>
-        <div class="badge">Collected: <strong id="tCount">0</strong> / 1025</div>
       </div>
 
       <!-- Active Pokémon Details & TCG Card Variation Strip -->
@@ -973,6 +947,31 @@
       </div>
     </div>
 
+    <!-- Navigation Hub & Collection Count (Stays stable directly below spin row or card) -->
+    <div class="hub-outer-wrap" id="persistentHub">
+      <div class="hub">
+        <div class="hub-item-wrap">
+          <button class="btn-hub" onclick="openModal('dexModal')" title="Collection">
+            <svg viewBox="0 0 24 24"><path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-9Z"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M8 10h8v4H8z"/></svg>
+            <div class="hub-badge" id="bagBadge">0</div>
+          </button>
+          <span class="hub-item-label">Dex</span>
+        </div>
+        <div class="hub-item-wrap">
+          <button class="btn-hub" onclick="openModal('recentModal')" title="History">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><polyline points="3 3 3 8 8 8"/></svg>
+          </button>
+          <span class="hub-item-label">History</span>
+        </div>
+        <div class="hub-item-wrap">
+          <button class="btn-hub" onclick="openModal('accountModal')" title="Account Sync" id="btnAccount">
+            <svg viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </button>
+          <span class="hub-item-label" id="accountLabel">Account</span>
+        </div>
+      </div>
+      <div class="badge">Collected: <strong id="tCount">0</strong> / 1025</div>
+    </div>
   </div>
 
   <div class="tcg-zoom-modal" id="tcgZoomModal" onclick="closeTcgZoom()">
@@ -2089,7 +2088,7 @@
       document.getElementById('pokeCard').style.display = 'none'; 
       document.getElementById('spinBtn').innerText = "SPIN AGAIN";
       
-      // Return hub back to directly under the spin row when card is hidden
+      // Move Hub back to the center stack below spin button when closing card view
       document.querySelector('.spin-row').after(document.getElementById('persistentHub'));
 
       curId = curPoke = null; 
@@ -2223,7 +2222,7 @@
       document.getElementById('sSpd').innerText = st.speed || '-';
       updateBtn(getCol().has(p.id));
 
-      // Move hub/badge to sit immediately OUTSIDE (below) the active Pokémon card box
+      // Move Hub/Badge to sit immediately outside (below) the active Pokémon card box
       card.after(document.getElementById('persistentHub'));
       card.style.display = 'block';
     }

@@ -433,7 +433,7 @@
     }
     .tcg-thumb-frame.card-owned {
       border-color: var(--green);
-      box-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
     }
     .tcg-card-thumb {
       width: 100%;
@@ -463,12 +463,12 @@
       width: 20px;
       height: 20px;
       border-radius: 50%;
-      background: rgba(15, 23, 42, 0.85);
+      background: rgba(15, 23, 42, 0.8);
       border: 1.5px solid #64748b;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.6rem;
+      font-size: 0.55rem;
       font-weight: 900;
       color: transparent;
       z-index: 10;
@@ -1544,7 +1544,7 @@
             holdTimer = setTimeout(() => {
               closeDexCardsModal();
               currentCardsList = cardsList;
-              openTcgZoom(index);
+              openTcgZoom(index, true);
             }, 450);
           }, { passive: true });
           cell.addEventListener('touchend', () => clearTimeout(holdTimer), { passive: true });
@@ -1554,7 +1554,7 @@
             holdTimer = setTimeout(() => {
               closeDexCardsModal();
               currentCardsList = cardsList;
-              openTcgZoom(index);
+              openTcgZoom(index, true);
             }, 450);
           });
           cell.addEventListener('mouseup', () => clearTimeout(holdTimer));

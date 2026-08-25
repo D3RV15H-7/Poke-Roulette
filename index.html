@@ -1,16 +1,3 @@
-Why This Was Happening
- * Stale Local Storage Sharing:
-   The application was pulling and writing from a single shared browser key (p_col). If User A logged in, added cards, and logged out, their collection remained sitting in the browser's localStorage. When User B (or an anonymous user) opened the same browser link, the app read User A's leftover cards.
- * Aggressive Offline Merging:
-   On login, the code did new Set([...cloudSet, ...localSet]). This caused whatever unsynced cards happened to be sitting on the shared device to merge into whoever logged in next.
-What Was Fixed
- * User-Specific Local Storage Keying:
-   Collections are now stored per user account (p_col_USERID). Guest/unauthenticated users have their own isolated p_col_guest pool.
- * Strict Account Separation on Sign-In / Sign-Out:
-   * When a user logs in, the app strictly loads only that user's cloud document from Firestore.
-   * When a user signs out, the active collection in memory is cleared immediately so the next person on that device starts completely fresh.
- * Real-Time Cloud Synchronization:
-   Firestore snapshot listeners now bind directly to the signed-in user's document (users/{uid}), ensuring no cross-contamination between different accounts.
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1558,7 +1545,7 @@ What Was Fixed
     // High-Accuracy Authoritative Fetcher
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_authoritative_v2000_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_authoritative_v2100_${cleanName.toLowerCase()}`;
       
       if (!bypassCache) {
         if (memoryTcgCache.has(cacheKey)) {
@@ -1948,4 +1935,3 @@ What Was Fixed
   </script>
 </body>
 </html>
-

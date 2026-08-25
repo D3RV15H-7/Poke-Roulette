@@ -1508,7 +1508,7 @@
           const cell = document.createElement('div');
           cell.className = 'dex-card-thumb-cell';
           cell.innerHTML = `
-            <div class="tcg-thumb-frame ${isOwnedCard ? 'card-owned' : ''}">
+            <div class="tcg-thumb-frame ${isOwnedCard ? 'card-owned' : ''}" id="modal_frame_${card.id}">
               <div class="card-check-circle ${isOwnedCard ? 'checked' : ''}" id="modal_chk_${card.id}">✓</div>
               <img class="tcg-card-thumb" src="${card.smallImg}" loading="lazy" alt="${card.name}" onerror="this.closest('.dex-card-thumb-cell')?.remove()" />
               ${card.priceGBP ? `<div class="tcg-card-price-badge">£${card.priceGBP}</div>` : ''}
@@ -1538,10 +1538,27 @@
             syncBasePokemonFromCards();
           };
 
-          cell.onclick = () => {
-            currentCardsList = cardsList;
-            openTcgZoom(index);
-          };
+          // Long press (hold) opens zoom preview
+          let holdTimer = null;
+          cell.addEventListener('touchstart', () => {
+            holdTimer = setTimeout(() => {
+              closeDexCardsModal();
+              currentCardsList = cardsList;
+              openTcgZoom(index);
+            }, 450);
+          }, { passive: true });
+          cell.addEventListener('touchend', () => clearTimeout(holdTimer), { passive: true });
+          cell.addEventListener('touchmove', () => clearTimeout(holdTimer), { passive: true });
+          
+          cell.addEventListener('mousedown', () => {
+            holdTimer = setTimeout(() => {
+              closeDexCardsModal();
+              currentCardsList = cardsList;
+              openTcgZoom(index);
+            }, 450);
+          });
+          cell.addEventListener('mouseup', () => clearTimeout(holdTimer));
+          cell.addEventListener('mouseleave', () => clearTimeout(holdTimer));
 
           grid.appendChild(cell);
         });

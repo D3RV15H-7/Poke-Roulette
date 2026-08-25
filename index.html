@@ -829,7 +829,6 @@
       'bwp': 'BW Promos', 'dpp': 'DP Promos', 'np': 'Nintendo Promos', 'pop': 'POP Series'
     };
 
-    // Hardcoded Official Printed Totals Registry to solve missing API set count fields
     const SET_PRINTED_TOTALS = {
       'sm12': 236, 'cosmic eclipse': 236,
       'sm115': 68, 'hidden fates': 68,
@@ -1253,7 +1252,7 @@
       evoBox.style.display = 'flex';
     }
 
-    // 100% Deterministic Rarity Classifier for Physical Cards
+    // Comprehensive Deterministic Rarity Classifier for Physical Cards
     function evaluateCardTier(card) {
       const r = (card.rarity || '').toLowerCase().trim();
       const subtypes = (card.subtypes || []).map(s => s.toLowerCase().trim());
@@ -1269,12 +1268,18 @@
         setTotal = SET_PRINTED_TOTALS[setId] || SET_PRINTED_TOTALS[setName] || 0;
       }
 
-      const isExplicitCommon = r === 'common';
-      const isExplicitUncommon = r === 'uncommon';
+      // Priority 1: Direct Official Printed Tier Overrides
+      if (r === 'uncommon' || r === 'rare uncommon') {
+        return { rank: 23, label: 'Uncommon' };
+      }
+      if (r === 'common' || r === 'rare common') {
+        return { rank: 24, label: 'Common' };
+      }
+
       const isSecretMath = (setTotal > 0 && numVal > setTotal);
-      const isTrainerGallery = (number.startsWith('tg') || number.startsWith('gg')) && !isExplicitCommon && !isExplicitUncommon;
-      const isShinyVault = number.startsWith('sv') && !number.startsWith('svp') && !isExplicitCommon && !isExplicitUncommon;
-      const isCharacterRare = (r.includes('character') || subtypes.includes('character rare')) && !isExplicitCommon && !isExplicitUncommon;
+      const isTrainerGallery = (number.startsWith('tg') || number.startsWith('gg')) && r !== 'common' && r !== 'uncommon';
+      const isShinyVault = number.startsWith('sv') && !number.startsWith('svp') && r !== 'common' && r !== 'uncommon';
+      const isCharacterRare = (r.includes('character') || subtypes.includes('character rare')) && r !== 'common' && r !== 'uncommon';
 
       // Rank 1: Mega Attack Rare
       if (r.includes('mega attack')) return { rank: 1, label: 'Mega Attack Rare' };
@@ -1301,7 +1306,7 @@
       }
       
       // Rank 7: Illustration Rare (IR) / Character Rare (CHR) / Secret Rare Pokémon Art
-      if (r.includes('illustration rare') || subtypes.includes('illustration rare') || isCharacterRare || r.includes('art rare') || isTrainerGallery || (isSecretMath && !r.includes('ultra') && !r.includes('hyper') && !r.includes('gold') && !r.includes('shiny ultra') && !r.includes('ace spec') && !isExplicitCommon && !isExplicitUncommon)) {
+      if (r.includes('illustration rare') || subtypes.includes('illustration rare') || isCharacterRare || r.includes('art rare') || isTrainerGallery || (isSecretMath && !r.includes('ultra') && !r.includes('hyper') && !r.includes('gold') && !r.includes('shiny ultra') && !r.includes('ace spec') && r !== 'common' && r !== 'uncommon')) {
         return { rank: 7, label: 'Illustration Rare' };
       }
       
@@ -1351,11 +1356,11 @@
       }
       
       // Rank 21: Rare Holo
-      if (r.includes('rare holo') || (r.includes('holo') && !r.includes('reverse') && !isExplicitUncommon && !isExplicitCommon)) {
+      if (r.includes('rare holo') || (r.includes('holo') && !r.includes('reverse') && r !== 'uncommon' && r !== 'common')) {
         return { rank: 21, label: 'Rare Holo' };
       }
       
-      // Classic Era Vintage Number Deduction
+      // Classic Era Vintage Number Deduction (Only when rarity string is missing or ambiguous)
       if (setTotal > 0 && numVal > 0 && (!r || r === 'rare')) {
         if (numVal <= Math.min(17, Math.floor(setTotal * 0.15))) {
           return { rank: 21, label: 'Rare Holo' };
@@ -1369,7 +1374,7 @@
       }
 
       // Rank 22: Rare
-      if (r.includes('rare') && !isExplicitUncommon && !isExplicitCommon) return { rank: 22, label: 'Rare' };
+      if (r.includes('rare') && r !== 'uncommon' && r !== 'common') return { rank: 22, label: 'Rare' };
       
       // Rank 23: Uncommon
       if (r.includes('uncommon')) return { rank: 23, label: 'Uncommon' };
@@ -1419,10 +1424,10 @@
       return regex.test(c);
     }
 
-    // High-Accuracy Authoritative Fetcher
+    // Authoritative Data Fetching Pipeline
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_authoritative_v1200_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_authoritative_v1300_${cleanName.toLowerCase()}`;
       
       if (!bypassCache) {
         if (memoryTcgCache.has(cacheKey)) {
@@ -1483,6 +1488,7 @@
         } catch (err) {}
       }
 
+      // Filter out all Digital Cards + strictly match exact name
       const physicalSpeciesCards = allCards
         .filter(c => !isDigitalOnlyCard(c))
         .filter(c => matchesExactPokemonName(c.name, cleanName))

@@ -1,3 +1,16 @@
+Why This Was Happening
+ * Stale Local Storage Sharing:
+   The application was pulling and writing from a single shared browser key (p_col). If User A logged in, added cards, and logged out, their collection remained sitting in the browser's localStorage. When User B (or an anonymous user) opened the same browser link, the app read User A's leftover cards.
+ * Aggressive Offline Merging:
+   On login, the code did new Set([...cloudSet, ...localSet]). This caused whatever unsynced cards happened to be sitting on the shared device to merge into whoever logged in next.
+What Was Fixed
+ * User-Specific Local Storage Keying:
+   Collections are now stored per user account (p_col_USERID). Guest/unauthenticated users have their own isolated p_col_guest pool.
+ * Strict Account Separation on Sign-In / Sign-Out:
+   * When a user logs in, the app strictly loads only that user's cloud document from Firestore.
+   * When a user signs out, the active collection in memory is cleared immediately so the next person on that device starts completely fresh.
+ * Real-Time Cloud Synchronization:
+   Firestore snapshot listeners now bind directly to the signed-in user's document (users/{uid}), ensuring no cross-contamination between different accounts.
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -917,7 +930,7 @@
 
       <div id="authLoggedInView" style="display:none;flex-direction:column;gap:1rem;padding:0.5rem 0;">
         <div style="font-size:0.9rem;font-weight:700;">Signed in as: <span id="authUserEmail" style="color:var(--gold);"></span></div>
-        <div style="font-size:0.75rem;color:var(--sub);">Your collected cards are automatically backed up to the cloud.</div>
+        <div style="font-size:0.75rem;color:var(--sub);">Your collected cards are automatically backed up to your account.</div>
         <button class="btn-auth-primary" onclick="handleSignOut()">Sign Out</button>
       </div>
 
@@ -1122,10 +1135,63 @@
     }
 
     // ----------------------------------------------------
-    // AUTHENTICATION & CLOUD SYNC ENGINE
+    // USER-ISOLATED STORAGE & REALTIME CLOUD SYNC
     // ----------------------------------------------------
+    function getStorageKey() {
+      return currentUser ? `p_col_${currentUser.uid}` : `p_col_guest`;
+    }
+
+    const getCol = () => new Set(JSON.parse(localStorage.getItem(getStorageKey()) || '[]'));
+    
+    const saveCol = (s, skipCloud = false) => { 
+      const arr = [...s];
+      localStorage.setItem(getStorageKey(), JSON.stringify(arr)); 
+      updateCounts(); 
+      renderRecents(); 
+      if (curId) updateBtn(s.has(curId)); 
+      if (!skipCloud) syncCollectionToCloud(arr);
+    };
+
+    const getRec = () => JSON.parse(localStorage.getItem('p_rec') || '[]');
+    
+    function addRec(p) {
+      let r = getRec().filter(x => x.id !== p.id);
+      const cleanName = getCleanNationalDexName(p.name, p.species?.name);
+      r.unshift({ id: p.id, name: cleanName, type: p.types[0].type.name, sprite: p.sprites.other?.home?.front_default || p.sprites.other?.['official-artwork']?.front_default || p.sprites.front_default });
+      localStorage.setItem('p_rec', JSON.stringify(r.slice(0, 20)));
+      updateCounts();
+    }
+
+    function clearHistory() { localStorage.removeItem('p_rec'); updateCounts(); renderRecents(); }
+
+    function updateCounts() {
+      const s = getCol();
+      document.getElementById('tCount').innerText = s.size;
+      document.getElementById('tOwned').innerText = s.size;
+      document.getElementById('tMissing').innerText = TOTAL - s.size;
+      document.getElementById('bagBadge').innerText = s.size;
+    }
+
+    async function syncCollectionToCloud(array) {
+      if (currentUser && db) {
+        try {
+          await db.collection("users").doc(currentUser.uid).set({
+            collection: array,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+        } catch (err) { console.error("Cloud save error:", err); }
+      }
+    }
+
+    let firestoreUnsubscribe = null;
+
     if (auth) {
       auth.onAuthStateChanged(async user => {
+        if (firestoreUnsubscribe) {
+          firestoreUnsubscribe();
+          firestoreUnsubscribe = null;
+        }
+
         currentUser = user;
         const loggedInView = document.getElementById('authLoggedInView');
         const loggedOutView = document.getElementById('authLoggedOutView');
@@ -1139,36 +1205,27 @@
           accountLabel.innerText = 'Profile';
           accountLabel.style.color = 'var(--green)';
 
-          // Pull cloud data and merge
-          try {
-            const doc = await db.collection("users").doc(user.uid).get();
+          // Subscribe to User's private cloud document
+          firestoreUnsubscribe = db.collection("users").doc(user.uid).onSnapshot(doc => {
             if (doc.exists && Array.isArray(doc.data().collection)) {
               const cloudSet = new Set(doc.data().collection);
-              const localSet = getCol();
-              const merged = new Set([...cloudSet, ...localSet]);
-              saveCol(merged, true);
+              saveCol(cloudSet, true);
             } else {
-              syncCollectionToCloud([...getCol()]);
+              saveCol(new Set(), true);
+              syncCollectionToCloud([]);
             }
-          } catch (err) { console.error("Cloud pull error:", err); }
+          }, err => console.error("Snapshot error:", err));
         } else {
           loggedInView.style.display = 'none';
           loggedOutView.style.display = 'flex';
           accountLabel.innerText = 'Account';
           accountLabel.style.color = 'var(--sub)';
+          
+          updateCounts();
+          renderRecents();
+          if (curId) updateBtn(getCol().has(curId));
         }
       });
-    }
-
-    async function syncCollectionToCloud(array) {
-      if (currentUser && db) {
-        try {
-          await db.collection("users").doc(currentUser.uid).set({
-            collection: array,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          }, { merge: true });
-        } catch (err) { console.error("Cloud save error:", err); }
-      }
     }
 
     async function handleEmailAuth(isSignUp) {
@@ -1197,35 +1254,6 @@
       const el = document.getElementById('authErrorMsg');
       el.innerText = msg;
       el.style.display = 'block';
-    }
-
-    const getCol = () => new Set(JSON.parse(localStorage.getItem('p_col') || '[]'));
-    const saveCol = (s, skipCloud = false) => { 
-      const arr = [...s];
-      localStorage.setItem('p_col', JSON.stringify(arr)); 
-      updateCounts(); 
-      renderRecents(); 
-      if (curId) updateBtn(s.has(curId)); 
-      if (!skipCloud) syncCollectionToCloud(arr);
-    };
-    const getRec = () => JSON.parse(localStorage.getItem('p_rec') || '[]');
-    
-    function addRec(p) {
-      let r = getRec().filter(x => x.id !== p.id);
-      const cleanName = getCleanNationalDexName(p.name, p.species?.name);
-      r.unshift({ id: p.id, name: cleanName, type: p.types[0].type.name, sprite: p.sprites.other?.home?.front_default || p.sprites.other?.['official-artwork']?.front_default || p.sprites.front_default });
-      localStorage.setItem('p_rec', JSON.stringify(r.slice(0, 20)));
-      updateCounts();
-    }
-
-    function clearHistory() { localStorage.removeItem('p_rec'); updateCounts(); renderRecents(); }
-
-    function updateCounts() {
-      const s = getCol();
-      document.getElementById('tCount').innerText = s.size;
-      document.getElementById('tOwned').innerText = s.size;
-      document.getElementById('tMissing').innerText = TOTAL - s.size;
-      document.getElementById('bagBadge').innerText = s.size;
     }
 
     function openModal(id) {
@@ -1530,7 +1558,7 @@
     // High-Accuracy Authoritative Fetcher
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_authoritative_v1900_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_authoritative_v2000_${cleanName.toLowerCase()}`;
       
       if (!bypassCache) {
         if (memoryTcgCache.has(cacheKey)) {
@@ -1920,3 +1948,4 @@
   </script>
 </body>
 </html>
+

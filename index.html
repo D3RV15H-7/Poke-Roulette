@@ -7,12 +7,25 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="apple-touch-icon" href="icon.svg" />
-  <meta name="theme-color" content="#0f172a" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Plus+Jakarta+Sans:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#1e293b" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <style>
-    :root { --bg: #0f172a; --card: #1e293b; --red: #ef4444; --text: #f8fafc; --sub: #94a3b8; --green: #10b981; --gold: #ffcb05; --poke-blue: #2a75bb; }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    :root { 
+      --bg: #1e293b; 
+      --card: #0f172a; 
+      --input-bg: #090d16;
+      --red: #ef4444; 
+      --text: #f8fafc; 
+      --sub: #94a3b8; 
+      --green: #10b981; 
+      --gold: #ffcb05; 
+      --poke-blue: #2a75bb; 
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
     html, body { width: 100vw; height: 100dvh; overflow: hidden; background: var(--bg); color: var(--text); }
     body { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: clamp(0.3rem, 1dvh, 0.6rem) clamp(0.5rem, 2vw, 1rem); touch-action: pan-y; }
     
@@ -34,26 +47,38 @@
       width: 100%; 
       text-align: center; 
       flex-shrink: 0; 
-      margin-bottom: clamp(0.2rem, 0.6dvh, 0.4rem);
+      margin-bottom: clamp(0.15rem, 0.5dvh, 0.35rem);
     }
     header h1 { 
-      font-size: clamp(1.8rem, 4.4dvh, 2.35rem); 
-      font-weight: 900; 
-      letter-spacing: 0.5px;
+      font-family: 'Russo One', sans-serif;
+      font-size: clamp(2rem, 4.8dvh, 2.6rem); 
+      letter-spacing: 1px;
       color: var(--gold); 
-      -webkit-text-stroke: 2.5px var(--poke-blue);
-      text-shadow: 0 4px 0 #1b4b79, 0 6px 12px rgba(0,0,0,0.6);
-      font-style: italic;
-      transform: skew(-4deg);
+      -webkit-text-stroke: 2px var(--poke-blue);
+      text-shadow: 
+        -2px -2px 0 var(--poke-blue),  
+         2px -2px 0 var(--poke-blue),
+        -2px  2px 0 var(--poke-blue),
+         2px  2px 0 var(--poke-blue),
+         0 4px 0 #1b4b79,
+         0 6px 14px rgba(0,0,0,0.6);
+      transform: perspective(300px) rotateX(4deg);
+      display: inline-block;
     }
     header h1 span { 
       color: #fff; 
-      -webkit-text-stroke: 2.5px var(--red);
-      text-shadow: 0 4px 0 #991b1b, 0 6px 12px rgba(0,0,0,0.6);
+      -webkit-text-stroke: 2px var(--red);
+      text-shadow: 
+        -2px -2px 0 var(--red),  
+         2px -2px 0 var(--red),
+        -2px  2px 0 var(--red),
+         2px  2px 0 var(--red),
+         0 4px 0 #991b1b,
+         0 6px 14px rgba(0,0,0,0.6);
     }
     .badge { 
       display: inline-block; 
-      margin-top: 0.35rem; 
+      margin-top: 0.25rem; 
       background: var(--card); 
       border: 1px solid #334155; 
       color: var(--sub); 
@@ -61,7 +86,7 @@
       font-weight: 800; 
       padding: 0.12rem 0.65rem; 
       border-radius: 99px; 
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.35);
     }
     .badge strong { color: var(--green); }
 
@@ -69,30 +94,33 @@
     .search-box { display: flex; gap: 0.45rem; width: 100%; }
     .search-box input { 
       flex: 1; 
-      background: var(--card); 
+      background: var(--input-bg); 
       border: 1.5px solid #334155; 
       color: #fff; 
-      padding: clamp(0.55rem, 1.3dvh, 0.75rem) 1.15rem; 
+      padding: clamp(0.58rem, 1.4dvh, 0.78rem) 1.2rem; 
       border-radius: 99px; 
       font-size: 0.95rem; 
+      font-weight: 600;
       outline: none; 
       transition: border-color 0.2s, box-shadow 0.2s; 
-      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.6), 0 4px 14px rgba(0,0,0,0.3);
     }
-    .search-box input:focus { border-color: var(--red); box-shadow: 0 0 16px rgba(239, 68, 68, 0.3); }
+    .search-box input:focus { border-color: var(--red); box-shadow: inset 0 2px 4px rgba(0,0,0,0.6), 0 0 16px rgba(239, 68, 68, 0.35); }
     .search-box button { 
-      background: #334155; 
+      background: var(--card); 
       color: #fff; 
-      border: none; 
-      padding: 0 1.25rem; 
+      border: 1.5px solid #334155; 
+      padding: 0 1.3rem; 
       border-radius: 99px; 
       font-size: 0.88rem; 
       font-weight: 800; 
       cursor: pointer; 
-      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+      transition: background 0.15s, transform 0.15s;
     }
-    .suggestions { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--card); border: 1px solid #334155; border-radius: 14px; max-height: 190px; overflow-y: auto; list-style: none; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-    .suggestions li { padding: 0.55rem 0.85rem; display: flex; justify-content: space-between; font-size: 0.84rem; border-bottom: 1px solid #2d3748; cursor: pointer; text-transform: capitalize; }
+    .search-box button:active { transform: scale(0.95); background: #1e293b; }
+    .suggestions { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--card); border: 1px solid #334155; border-radius: 14px; max-height: 190px; overflow-y: auto; list-style: none; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.6); }
+    .suggestions li { padding: 0.55rem 0.85rem; display: flex; justify-content: space-between; font-size: 0.84rem; border-bottom: 1px solid #1e293b; cursor: pointer; text-transform: capitalize; }
     .suggestions li:last-child { border-bottom: none; }
 
     .wheel-wrap { 
@@ -127,7 +155,7 @@
         #B59030 240deg 260deg, #6B45B5 260deg 280deg, #E5BE00 280deg 300deg, #233544 300deg 320deg,
         #9AA2AC 320deg 340deg, #F469A9 340deg 360deg
       ); 
-      box-shadow: 0 14px 32px rgba(0,0,0,0.6); 
+      box-shadow: 0 16px 36px rgba(0,0,0,0.65); 
     }
     .wheel-icons { position: absolute; inset: 0; pointer-events: none; }
     .slice-icon { position: absolute; width: 11.5%; height: 11.5%; display: flex; align-items: center; justify-content: center; opacity: 0.9; }
@@ -181,7 +209,6 @@
     body.has-active .btn-close { display: flex; }
     @keyframes springPop { 0% { opacity: 0; transform: scale(0.3) rotate(-90deg); } 100% { opacity: 1; transform: scale(1) rotate(0deg); } }
 
-    /* Floating Navigation Hub with Explicit Labels */
     .hub { 
       display: flex; 
       justify-content: center; 
@@ -287,7 +314,7 @@
     .pill { font-size: 0.58rem; font-weight: 800; padding: 0.06rem 0.45rem; border-radius: 99px; text-transform: uppercase; color: #fff; }
 
     .lore-box {
-      background: #0f172a;
+      background: #090d16;
       border: 1px solid #334155;
       border-radius: 8px;
       padding: clamp(0.2rem, 0.45dvh, 0.35rem) 0.6rem;
@@ -309,7 +336,7 @@
       justify-content: center;
       gap: 0.3rem;
       margin-bottom: clamp(0.08rem, 0.25dvh, 0.18rem);
-      background: #0f172a;
+      background: #090d16;
       border: 1px solid #334155;
       border-radius: 8px;
       padding: 0.08rem 0.35rem;
@@ -333,7 +360,7 @@
     .tcg-section-wrap {
       width: 100%;
       margin-bottom: clamp(0.08rem, 0.25dvh, 0.18rem);
-      background: #0f172a;
+      background: #090d16;
       border: 1px solid #334155;
       border-radius: 10px;
       padding: 0.28rem 0.4rem;
@@ -446,16 +473,16 @@
     }
     @keyframes skeletonShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-    .btn-collect { width: 100%; padding: clamp(0.16rem, 0.4dvh, 0.25rem); margin-bottom: clamp(0.06rem, 0.2dvh, 0.14rem); border-radius: 8px; border: 1px solid #334155; background: var(--bg); color: var(--sub); font-size: 0.68rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.35rem; }
+    .btn-collect { width: 100%; padding: clamp(0.16rem, 0.4dvh, 0.25rem); margin-bottom: clamp(0.06rem, 0.2dvh, 0.14rem); border-radius: 8px; border: 1px solid #334155; background: #090d16; color: var(--sub); font-size: 0.68rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.35rem; }
     .btn-collect.active { background: rgba(16,185,129,0.15); border-color: var(--green); color: var(--green); }
-    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.04rem 0.7rem; text-align: left; background: var(--bg); padding: clamp(0.15rem, 0.35dvh, 0.22rem) 0.65rem; border-radius: 8px; font-size: clamp(0.58rem, 1.05dvh, 0.65rem); }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.04rem 0.7rem; text-align: left; background: #090d16; padding: clamp(0.15rem, 0.35dvh, 0.22rem) 0.65rem; border-radius: 8px; font-size: clamp(0.58rem, 1.05dvh, 0.65rem); }
     .stats span:last-child { font-weight: 700; float: right; }
 
     /* Maximized Flat 2D Zoom Modal */
     .tcg-zoom-modal {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.94);
+      background: rgba(9, 13, 22, 0.94);
       backdrop-filter: blur(12px);
       z-index: 200;
       display: none;
@@ -485,8 +512,8 @@
       font-size: clamp(0.72rem, 1.3dvh, 0.8rem);
       font-weight: 900;
       color: var(--gold);
-      background: rgba(245, 158, 11, 0.12);
-      border: 1px solid rgba(245, 158, 11, 0.3);
+      background: rgba(255, 203, 5, 0.12);
+      border: 1px solid rgba(255, 203, 5, 0.3);
       padding: 0.1rem 0.65rem;
       border-radius: 99px;
     }
@@ -560,13 +587,13 @@
     }
     .tcg-zoom-close { background: var(--red); color: white; border: none; padding: 0.38rem 1.25rem; border-radius: 99px; font-size: clamp(0.74rem, 1.3dvh, 0.8rem); font-weight: 800; cursor: pointer; }
 
-    .modal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.78); backdrop-filter: blur(6px); z-index: 100; display: none; align-items: flex-end; justify-content: center; }
+    .modal { position: fixed; inset: 0; background: rgba(9, 13, 22, 0.8); backdrop-filter: blur(6px); z-index: 100; display: none; align-items: flex-end; justify-content: center; }
     .modal-body { background: var(--card); width: 100vw; max-width: 500px; max-height: 85vh; border-radius: 28px 28px 0 0; border: 1px solid #334155; border-bottom: none; display: flex; flex-direction: column; padding: 1.1rem 0.75rem 1rem 0.75rem; }
     .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid #334155; }
     
     .dex-search-input {
       width: 100%;
-      background: var(--bg);
+      background: var(--input-bg);
       border: 1px solid #334155;
       color: #fff;
       padding: 0.45rem 0.85rem;
@@ -592,7 +619,7 @@
     .dex-cards-modal {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.9);
+      background: rgba(9, 13, 22, 0.9);
       backdrop-filter: blur(8px);
       z-index: 250;
       display: none;
@@ -625,7 +652,7 @@
       scrollbar-color: #334155 transparent;
     }
     .dex-card-thumb-cell {
-      background: #0f172a;
+      background: var(--bg);
       border: 1px solid #334155;
       border-radius: 10px;
       padding: 0.4rem;
@@ -670,7 +697,7 @@
   <div class="viewport">
     <header>
       <h1>Poké<span>Roulette</span></h1>
-      <div class="badge">Collected: <strong id="tCount">0</strong> / 1025</div>
+      <div><div class="badge">Collected: <strong id="tCount">0</strong> / 1025</div></div>
     </header>
 
     <div class="search-wrap">
@@ -858,55 +885,39 @@
       // Generation 1 (Kanto)
       'base1': 'Base Set', 'base2': 'Jungle', 'base3': 'Fossil', 'base4': 'Base Set 2', 'base5': 'Team Rocket',
       'gym1': 'Gym Heroes', 'gym2': 'Gym Challenge',
-      
-      // Generation 2 (Johto)
       'neo1': 'Neo Genesis', 'neo2': 'Neo Discovery', 'neo3': 'Neo Revelation', 'neo4': 'Neo Destiny',
       'si1': 'Southern Islands', 'base6': 'Legendary Collection', 'ecard1': 'Expedition Base Set',
       'ecard2': 'Aquapolis', 'ecard3': 'Skyridge',
-      
-      // Generation 3 (Hoenn)
       'ex1': 'EX Ruby & Sapphire', 'ex2': 'EX Sandstorm', 'ex3': 'EX Dragon',
       'ex4': 'EX Team Magma vs Team Aqua', 'ex5': 'EX Hidden Legends', 'ex6': 'EX FireRed & LeafGreen',
       'ex7': 'EX Team Rocket Returns', 'ex8': 'EX Deoxys', 'ex9': 'EX Emerald',
       'ex10': 'EX Unseen Forces', 'ex11': 'EX Delta Species', 'ex12': 'EX Legend Maker',
       'ex13': 'EX Holon Phantoms', 'ex14': 'EX Crystal Guardians', 'ex15': 'EX Dragon Frontiers',
       'ex16': 'EX Power Keepers',
-      
-      // Generation 4 (Sinnoh & HGSS)
       'dp1': 'Diamond & Pearl', 'dp2': 'Mysterious Treasures', 'dp3': 'Secret Wonders',
       'dp4': 'Great Encounters', 'dp5': 'Majestic Dawn', 'dp6': 'Legends Awakened',
       'dp7': 'Stormfront', 'pl1': 'Platinum', 'pl2': 'Rising Rivals', 'pl3': 'Supreme Victors',
       'pl4': 'Arceus', 'col1': 'Call of Legends', 'hgss1': 'HeartGold & SoulSilver',
       'hgss2': 'Unleashed', 'hgss3': 'Undaunted', 'hgss4': 'Triumphant',
-      
-      // Generation 5 (Unova)
       'bw1': 'Black & White', 'bw2': 'Emerging Powers', 'bw3': 'Noble Victories',
       'bw4': 'Next Destinies', 'bw5': 'Dark Explorers', 'bw6': 'Dragons Exalted',
       'bw7': 'Boundaries Crossed', 'bw8': 'Plasma Storm', 'bw9': 'Plasma Freeze',
       'bw10': 'Plasma Blast', 'bw11': 'Legendary Treasures',
-      
-      // Generation 6 (Kalos)
       'xy1': 'XY Base', 'xy2': 'Flashfire', 'xy3': 'Furious Fists', 'xy4': 'Phantom Forces',
       'xy5': 'Primal Clash', 'xy6': 'Roaring Skies', 'xy7': 'Ancient Origins',
       'xy8': 'BREAKthrough', 'xy9': 'BREAKpoint', 'xy10': 'Fates Collide',
       'xy11': 'Steam Siege', 'xy12': 'Evolutions', 'g1': 'Generations',
-      
-      // Generation 7 (Alola)
       'sm1': 'Sun & Moon', 'sm2': 'Guardians Rising', 'sm3': 'Burning Shadows',
       'sm35': 'Shining Legends', 'sm4': 'Crimson Invasion', 'sm5': 'Ultra Prism',
       'sm6': 'Forbidden Light', 'sm7': 'Celestial Storm', 'sm75': 'Dragon Majesty',
       'sm8': 'Lost Thunder', 'sm9': 'Team Up', 'sm10': 'Unbroken Bonds',
       'sm11': 'Unified Minds', 'sm115': 'Hidden Fates', 'sm12': 'Cosmic Eclipse',
-      
-      // Generation 8 (Galar)
       'swsh1': 'Sword & Shield', 'swsh2': 'Rebel Clash', 'swsh3': 'Darkness Ablaze',
       'swsh35': 'Champion\'s Path', 'swsh4': 'Vivid Voltage', 'swsh45': 'Shining Fates',
       'swsh5': 'Battle Styles', 'swsh6': 'Chilling Reign', 'swsh7': 'Evolving Skies',
       'cel25': 'Celebrations', 'swsh8': 'Fusion Strike', 'swsh9': 'Brilliant Stars',
       'swsh10': 'Astral Radiance', 'pgo': 'Pokémon GO', 'swsh11': 'Lost Origin',
       'swsh12': 'Silver Tempest', 'swsh12pt5': 'Crown Zenith',
-      
-      // Generation 9 (Paldea)
       'sv1': 'Scarlet & Violet', 'sv01': 'Scarlet & Violet', 'sve': 'Scarlet & Violet',
       'sv2': 'Paldea Evolved', 'sv02': 'Paldea Evolved', 'pal': 'Paldea Evolved',
       'sv3': 'Obsidian Flames', 'sv03': 'Obsidian Flames', 'obf': 'Obsidian Flames',
@@ -916,12 +927,8 @@
       'sv06.5': 'Shrouded Fable', 'sfa': 'Shrouded Fable', 'sv7': 'Stellar Crown', 'sv07': 'Stellar Crown', 'scr': 'Stellar Crown',
       'sv8': 'Surging Sparks', 'sv08': 'Surging Sparks', 'ssp': 'Surging Sparks',
       'sv08.5': 'Prismatic Evolutions', 'pre': 'Prismatic Evolutions',
-      
-      // Mega Evolution Series
       'me01': 'Phantasmal Flames', 'me02': 'Ascended Heroes', 'me03': 'Perfect Order',
       'me04': 'Chaos Rising', 'me05': 'Pitch Black', 'pbl': 'Pitch Black',
-      
-      // Promos
       'smp': 'SM Promos', 'swshp': 'SWSH Promos', 'svp': 'SV Promos', 'xyp': 'XY Promos',
       'bwp': 'BW Promos', 'dpp': 'DP Promos', 'np': 'Nintendo Promos', 'pop': 'POP Series'
     };
@@ -1307,7 +1314,6 @@
       evoBox.style.display = 'flex';
     }
 
-    // Comprehensive Pricing Extractor (TCGplayer & Cardmarket in GBP)
     function extractCardPriceGBP(card) {
       if (card.tcgplayer?.prices) {
         const p = card.tcgplayer.prices;
@@ -1349,7 +1355,7 @@
     // High-Accuracy Authoritative Fetcher
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_authoritative_v1400_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_authoritative_v1500_${cleanName.toLowerCase()}`;
       
       if (!bypassCache) {
         if (memoryTcgCache.has(cacheKey)) {

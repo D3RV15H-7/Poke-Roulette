@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -203,23 +202,20 @@
     .suggestions li { padding: 0.55rem 0.85rem; display: flex; justify-content: space-between; font-size: 0.84rem; border-bottom: 1px solid #1e293b; cursor: pointer; }
     .suggestions li:last-child { border-bottom: none; }
 
+    /* Roulette Wheel Container */
     .wheel-wrap { 
       position: relative; 
-      width: clamp(190px, 28dvh, 240px); 
-      height: clamp(190px, 28dvh, 240px); 
+      width: clamp(200px, 30dvh, 250px); 
+      height: clamp(200px, 30dvh, 250px); 
       margin: clamp(0.2rem, 0.6dvh, 0.45rem) auto; 
       display: flex; 
       align-items: center; 
       justify-content: center; 
       flex-shrink: 0; 
-      transition: width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), 
-                  height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), 
-                  margin 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); 
+      transition: opacity 0.2s ease;
     }
     body.has-active .wheel-wrap { 
-      width: clamp(44px, 5.5dvh, 60px); 
-      height: clamp(44px, 5.5dvh, 60px); 
-      margin: 0 auto clamp(0.01rem, 0.1dvh, 0.04rem) auto; 
+      display: none !important;
     }
     
     .wheel { 
@@ -241,13 +237,10 @@
     .slice-icon { position: absolute; width: 11.5%; height: 11.5%; display: flex; align-items: center; justify-content: center; opacity: 0.9; }
     .slice-icon svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.45)); }
     .pointer { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 15px solid #fff; z-index: 10; filter: drop-shadow(0 3px 5px rgba(0,0,0,0.6)); transition: all 0.35s; }
-    body.has-active .pointer { top: -5px; border-left-width: 4px; border-right-width: 4px; border-top-width: 8px; }
-    .center-hub { position: absolute; width: clamp(28px, 4.2dvh, 36px); height: clamp(28px, 4.2dvh, 36px); background: #fff; border-radius: 50%; border: 3px solid var(--bg); z-index: 5; display: flex; align-items: center; justify-content: center; transition: all 0.35s; }
-    body.has-active .center-hub { width: clamp(10px, 1.4dvh, 14px); height: clamp(10px, 1.4dvh, 14px); border-width: 2px; }
+    .center-hub { position: absolute; width: clamp(28px, 4.2dvh, 36px); height: clamp(28px, 4.2dvh, 36px); background: #fff; border-radius: 50%; border: 3px solid var(--bg); z-index: 5; display: flex; align-items: center; justify-content: center; }
     .center-hub::after { content: ''; width: 40%; height: 40%; border-radius: 50%; background: var(--red); border: 2px solid var(--bg); }
 
-    .spin-row { display: flex; gap: 0; width: 100%; justify-content: center; align-items: center; flex-shrink: 0; margin-top: 0.1rem; }
-    body.has-active .spin-row { gap: 0.35rem; margin-top: 0; }
+    .spin-row { display: flex; gap: 0.45rem; width: 100%; justify-content: center; align-items: center; flex-shrink: 0; margin-top: 0.1rem; }
 
     .btn-spin { 
       background: linear-gradient(135deg, var(--red), #dc2626); 
@@ -261,31 +254,29 @@
       box-shadow: 0 8px 25px rgba(239,68,68,0.5); 
       cursor: pointer; 
       white-space: nowrap;
-      transition: padding 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.2s;
+      transition: transform 0.2s;
     }
     .btn-spin:active { transform: scale(0.96); }
     .btn-spin:disabled { opacity: 0.55; cursor: not-allowed; }
-    
-    body.has-active .btn-spin { padding: clamp(0.25rem, 0.6dvh, 0.38rem) clamp(0.75rem, 2vw, 1rem); font-size: 0.74rem; }
 
     .btn-close { 
-      background: linear-gradient(135deg, var(--red), #dc2626); 
+      background: #334155; 
       color: #fff; 
       border: none; 
-      width: clamp(22px, 2.8dvh, 28px); 
-      height: clamp(22px, 2.8dvh, 28px); 
+      width: clamp(34px, 4.4dvh, 40px); 
+      height: clamp(34px, 4.4dvh, 40px); 
       border-radius: 50%; 
       display: none; 
       align-items: center; 
       justify-content: center; 
-      font-size: 0.85rem; 
+      font-size: 1rem; 
       font-weight: 900; 
-      box-shadow: 0 6px 20px rgba(239,68,68,0.45); 
+      box-shadow: 0 6px 18px rgba(0,0,0,0.35); 
       cursor: pointer; 
       flex-shrink: 0;
       animation: springPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
-    .btn-close:active { transform: scale(0.92); }
+    .btn-close:active { transform: scale(0.92); background: #475569; }
     body.has-active .btn-close { display: flex; }
     @keyframes springPop { 0% { opacity: 0; transform: scale(0.3) rotate(-90deg); } 100% { opacity: 1; transform: scale(1) rotate(0deg); } }
 
@@ -854,7 +845,7 @@
     </div>
 
     <div class="spin-row">
-      <button class="btn-spin" id="spinBtn" onclick="spinAndPick()">SPIN & GENERATE</button>
+      <button class="btn-spin" id="spinBtn" onclick="handleSpinButtonClick()">SPIN & GENERATE</button>
       <button class="btn-close" id="closeBtn" onclick="hideActive()" title="Hide Pokémon View">✕</button>
     </div>
 
@@ -1048,8 +1039,6 @@
       firebase.initializeApp(firebaseConfig);
       auth = firebase.auth();
       db = firebase.firestore();
-      
-      // Explicitly lock session persistence across reloads
       auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => console.error("Persistence:", e));
     } catch (e) { console.error("Firebase init:", e); }
 
@@ -1305,7 +1294,6 @@
           accountLabel.innerText = 'Profile';
           accountLabel.style.color = 'var(--green)';
 
-          // Real-time bidirectional synchronization
           firestoreUnsubscribe = db.collection("users").doc(user.uid).onSnapshot(doc => {
             if (doc.exists && Array.isArray(doc.data().collection)) {
               const cloudSet = new Set(doc.data().collection);
@@ -1854,6 +1842,7 @@
       }
     }
 
+    // Touch Swipe Navigation (Strict 2D Horizontal)
     let zoomTouchX = 0;
     const zoomViewArea = document.getElementById('zoomViewArea');
     
@@ -1898,6 +1887,13 @@
       document.getElementById('spinBtn').innerText = "SPIN & GENERATE";
       curId = curPoke = null; 
       currentCardsList = [];
+    }
+
+    function handleSpinButtonClick() {
+      if (document.body.classList.contains('has-active')) {
+        hideActive();
+      }
+      spinAndPick();
     }
 
     function handleSearch(val) {

@@ -39,24 +39,22 @@
       overflow: hidden; 
       background: var(--bg); 
       color: var(--text);
-      overscroll-behavior-y: none;
-      position: fixed;
-      inset: 0;
+      overscroll-behavior: none;
     }
     
     body { 
       display: flex; 
       flex-direction: column; 
       align-items: center; 
-      justify-content: center; 
-      padding: clamp(0.3rem, 1dvh, 0.6rem) clamp(0.5rem, 2vw, 1rem); 
+      justify-content: flex-start;
+      padding: clamp(0.2rem, 0.8dvh, 0.4rem) clamp(0.4rem, 2vw, 0.8rem); 
       touch-action: pan-y; 
     }
     
     /* Pull-to-Refresh Floating HUD */
     .ptr-indicator {
       position: fixed;
-      top: 14px;
+      top: 10px;
       left: 50%;
       transform: translate(-50%, -70px);
       display: flex;
@@ -64,7 +62,7 @@
       gap: 0.5rem;
       background: var(--card);
       border: 1.5px solid #334155;
-      padding: 0.4rem 1rem;
+      padding: 0.35rem 0.9rem;
       border-radius: 99px;
       box-shadow: 0 10px 28px rgba(0,0,0,0.7);
       z-index: 1000;
@@ -73,8 +71,8 @@
       transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease;
     }
     .ptr-spinner {
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
       border: 2px solid #334155;
       border-top-color: var(--gold);
       border-radius: 50%;
@@ -84,7 +82,7 @@
       animation: ptrSpin 0.6s linear infinite;
     }
     .ptr-text {
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       font-weight: 800;
       color: var(--sub);
       letter-spacing: 0.3px;
@@ -92,14 +90,14 @@
     @keyframes ptrSpin { 100% { transform: rotate(360deg); } }
 
     .top-refresh-hint {
-      font-size: 0.62rem;
+      font-size: 0.6rem;
       font-weight: 800;
       letter-spacing: 0.4px;
       color: var(--sub);
       opacity: 0.75;
       text-transform: uppercase;
       user-select: none;
-      margin-bottom: -0.1rem;
+      margin-bottom: 0.1rem;
       flex-shrink: 0;
     }
 
@@ -110,26 +108,24 @@
       display: flex; 
       flex-direction: column; 
       align-items: center; 
-      justify-content: space-between;
-      padding: clamp(0.25rem, 0.8dvh, 0.5rem) 0;
-      gap: clamp(0.25rem, 0.7dvh, 0.5rem); 
-      transition: justify-content 0.4s ease;
+      justify-content: flex-start;
+      gap: clamp(0.2rem, 0.6dvh, 0.45rem); 
+      overflow: hidden;
     }
-    body.has-active .viewport { justify-content: flex-start; padding: 0; gap: 0.12rem; }
     
     header { 
       width: 100%; 
       text-align: center; 
       flex-shrink: 0; 
-      margin-bottom: clamp(0.1rem, 0.4dvh, 0.25rem);
+      margin-bottom: clamp(0.05rem, 0.2dvh, 0.15rem);
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.15rem;
+      gap: 0.1rem;
     }
     header h1 { 
       font-family: 'Russo One', sans-serif;
-      font-size: clamp(2rem, 4.8dvh, 2.6rem); 
+      font-size: clamp(1.8rem, 4.2dvh, 2.3rem); 
       letter-spacing: 1px;
       color: var(--gold); 
       -webkit-text-stroke: 2px var(--poke-blue);
@@ -156,13 +152,13 @@
     }
     .badge { 
       display: inline-block; 
-      margin-top: 0.15rem; 
+      margin-top: 0.1rem; 
       background: var(--card); 
       border: 1px solid #334155; 
       color: var(--sub); 
-      font-size: 0.72rem; 
+      font-size: 0.7rem; 
       font-weight: 800; 
-      padding: 0.12rem 0.65rem; 
+      padding: 0.1rem 0.6rem; 
       border-radius: 99px; 
       box-shadow: 0 4px 12px rgba(0,0,0,0.35);
     }
@@ -175,9 +171,9 @@
       background: var(--input-bg); 
       border: 1.5px solid #334155; 
       color: #fff; 
-      padding: clamp(0.58rem, 1.4dvh, 0.78rem) 1.2rem; 
+      padding: clamp(0.5rem, 1.2dvh, 0.65rem) 1.1rem; 
       border-radius: 99px; 
-      font-size: 0.95rem; 
+      font-size: 0.9rem; 
       font-weight: 600;
       outline: none; 
       transition: border-color 0.2s, box-shadow 0.2s; 
@@ -188,9 +184,9 @@
       background: var(--card); 
       color: #fff; 
       border: 1.5px solid #334155; 
-      padding: 0 1.3rem; 
+      padding: 0 1.2rem; 
       border-radius: 99px; 
-      font-size: 0.88rem; 
+      font-size: 0.84rem; 
       font-weight: 800; 
       cursor: pointer; 
       box-shadow: 0 4px 14px rgba(0,0,0,0.35);
@@ -203,20 +199,20 @@
 
     .wheel-wrap { 
       position: relative; 
-      width: clamp(210px, 32dvh, 255px); 
-      height: clamp(210px, 32dvh, 255px); 
-      margin: clamp(0.25rem, 0.8dvh, 0.55rem) auto; 
+      width: clamp(190px, 28dvh, 240px); 
+      height: clamp(190px, 28dvh, 240px); 
+      margin: clamp(0.2rem, 0.6dvh, 0.45rem) auto; 
       display: flex; 
       align-items: center; 
       justify-content: center; 
       flex-shrink: 0; 
-      transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), 
-                  height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), 
-                  margin 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); 
+      transition: width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                  height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                  margin 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); 
     }
     body.has-active .wheel-wrap { 
-      width: clamp(50px, 6.5dvh, 70px); 
-      height: clamp(50px, 6.5dvh, 70px); 
+      width: clamp(44px, 5.5dvh, 60px); 
+      height: clamp(44px, 5.5dvh, 60px); 
       margin: 0 auto clamp(0.01rem, 0.1dvh, 0.04rem) auto; 
     }
     
@@ -240,19 +236,19 @@
     .slice-icon svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.45)); }
     .pointer { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 15px solid #fff; z-index: 10; filter: drop-shadow(0 3px 5px rgba(0,0,0,0.6)); transition: all 0.35s; }
     body.has-active .pointer { top: -5px; border-left-width: 4px; border-right-width: 4px; border-top-width: 8px; }
-    .center-hub { position: absolute; width: clamp(30px, 4.8dvh, 40px); height: clamp(30px, 4.8dvh, 40px); background: #fff; border-radius: 50%; border: 3px solid var(--bg); z-index: 5; display: flex; align-items: center; justify-content: center; transition: all 0.35s; }
-    body.has-active .center-hub { width: clamp(12px, 1.6dvh, 16px); height: clamp(12px, 1.6dvh, 16px); border-width: 2px; }
+    .center-hub { position: absolute; width: clamp(28px, 4.2dvh, 36px); height: clamp(28px, 4.2dvh, 36px); background: #fff; border-radius: 50%; border: 3px solid var(--bg); z-index: 5; display: flex; align-items: center; justify-content: center; transition: all 0.35s; }
+    body.has-active .center-hub { width: clamp(10px, 1.4dvh, 14px); height: clamp(10px, 1.4dvh, 14px); border-width: 2px; }
     .center-hub::after { content: ''; width: 40%; height: 40%; border-radius: 50%; background: var(--red); border: 2px solid var(--bg); }
 
-    .spin-row { display: flex; gap: 0; width: 100%; justify-content: center; align-items: center; flex-shrink: 0; margin-top: 0.15rem; }
+    .spin-row { display: flex; gap: 0; width: 100%; justify-content: center; align-items: center; flex-shrink: 0; margin-top: 0.1rem; }
     body.has-active .spin-row { gap: 0.35rem; margin-top: 0; }
 
     .btn-spin { 
       background: linear-gradient(135deg, var(--red), #dc2626); 
       color: #fff; 
       border: none; 
-      padding: clamp(0.6rem, 1.5dvh, 0.85rem) clamp(1.8rem, 5vw, 2.5rem); 
-      font-size: clamp(0.9rem, 2dvh, 1.05rem); 
+      padding: clamp(0.55rem, 1.3dvh, 0.75rem) clamp(1.6rem, 4.5vw, 2.2rem); 
+      font-size: clamp(0.85rem, 1.8dvh, 1rem); 
       font-weight: 900; 
       letter-spacing: 0.75px; 
       border-radius: 99px; 
@@ -264,19 +260,19 @@
     .btn-spin:active { transform: scale(0.96); }
     .btn-spin:disabled { opacity: 0.55; cursor: not-allowed; }
     
-    body.has-active .btn-spin { padding: clamp(0.28rem, 0.65dvh, 0.4rem) clamp(0.8rem, 2.2vw, 1.1rem); font-size: 0.78rem; }
+    body.has-active .btn-spin { padding: clamp(0.25rem, 0.6dvh, 0.38rem) clamp(0.75rem, 2vw, 1rem); font-size: 0.74rem; }
 
     .btn-close { 
       background: linear-gradient(135deg, var(--red), #dc2626); 
       color: #fff; 
       border: none; 
-      width: clamp(24px, 3dvh, 30px); 
-      height: clamp(24px, 3dvh, 30px); 
+      width: clamp(22px, 2.8dvh, 28px); 
+      height: clamp(22px, 2.8dvh, 28px); 
       border-radius: 50%; 
       display: none; 
       align-items: center; 
       justify-content: center; 
-      font-size: 0.9rem; 
+      font-size: 0.85rem; 
       font-weight: 900; 
       box-shadow: 0 6px 20px rgba(239,68,68,0.45); 
       cursor: pointer; 
@@ -291,28 +287,29 @@
       width: 100%; 
       max-width: 440px; 
       background: var(--card); 
-      border-radius: 20px; 
-      padding: clamp(0.35rem, 0.9dvh, 0.65rem) clamp(0.7rem, 2.2vw, 1rem); 
+      border-radius: 18px; 
+      padding: clamp(0.3rem, 0.8dvh, 0.55rem) clamp(0.6rem, 2vw, 0.9rem); 
       border: 2px solid #334155; 
-      box-shadow: 0 16px 36px rgba(0,0,0,0.5); 
+      box-shadow: 0 14px 32px rgba(0,0,0,0.5); 
       display: none; 
       text-align: center; 
       user-select: none; 
       flex: 1 1 auto;
       min-height: 0; 
       position: relative; 
-      animation: custodySlideUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+      animation: custodySlideUp 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
       transition: border-color 0.4s ease, box-shadow 0.4s ease;
       overflow-y: auto;
-      max-height: calc(100dvh - 165px);
+      scrollbar-width: thin;
+      scrollbar-color: #334155 transparent;
     }
     @keyframes custodySlideUp {
-      from { opacity: 0; transform: translateY(35px); }
+      from { opacity: 0; transform: translateY(25px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
     .card-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.01rem; }
-    .card-nav button { background: none; border: none; color: var(--sub); font-size: 1.2rem; font-weight: 900; padding: 0 0.5rem; cursor: pointer; }
+    .card-nav button { background: none; border: none; color: var(--sub); font-size: 1.1rem; font-weight: 900; padding: 0 0.5rem; cursor: pointer; }
     
     .img-box { 
       position: relative; 
@@ -320,8 +317,8 @@
       align-items: center; 
       justify-content: center; 
       margin: 0 auto;
-      width: clamp(135px, 20dvh, 185px); 
-      height: clamp(135px, 20dvh, 185px); 
+      width: clamp(120px, 17dvh, 165px); 
+      height: clamp(120px, 17dvh, 165px); 
       aspect-ratio: 1 / 1;
     }
     .card img.main-art { 
@@ -334,32 +331,30 @@
       pointer-events: none; 
     }
 
-    .sparkle { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); font-size: 2.6rem; color: var(--gold); pointer-events: none; z-index: 10; }
+    .sparkle { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); font-size: 2.4rem; color: var(--gold); pointer-events: none; z-index: 10; }
     .sparkle.pop { animation: pop 0.8s ease-out forwards; }
     @keyframes pop { 0% { transform: translate(-50%, -50%) scale(0) rotate(0deg); opacity: 0; } 50% { transform: translate(-50%, -50%) scale(1.6) rotate(180deg); opacity: 1; filter: drop-shadow(0 0 12px #f59e0b); } 100% { transform: translate(-50%, -50%) scale(2.2) rotate(360deg); opacity: 0; } }
-    .tick-badge { position: absolute; top: 2px; right: 2px; background: var(--green); color: #fff; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 900; border: 2px solid #fff; opacity: 0; transform: scale(0.5); transition: all 0.25s; }
+    .tick-badge { position: absolute; top: 2px; right: 2px; background: var(--green); color: #fff; width: 19px; height: 19px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 900; border: 2px solid #fff; opacity: 0; transform: scale(0.5); transition: all 0.25s; }
     .tick-badge.active { opacity: 1; transform: scale(1); }
-    .poke-name { font-size: clamp(1.1rem, 2.3dvh, 1.4rem); font-weight: 800; text-transform: capitalize; margin: 0.02rem 0; }
+    .poke-name { font-size: clamp(1.05rem, 2.1dvh, 1.3rem); font-weight: 800; text-transform: capitalize; margin: 0.02rem 0; }
     
-    .card-actions { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: clamp(0.08rem, 0.25dvh, 0.18rem); padding: 0 0.35rem; }
-    .btn-icon { background: none; border: none; font-size: 1.1rem; cursor: pointer; color: var(--sub); }
+    .card-actions { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: clamp(0.06rem, 0.2dvh, 0.15rem); padding: 0 0.3rem; }
+    .btn-icon { background: none; border: none; font-size: 1.05rem; cursor: pointer; color: var(--sub); }
     .btn-icon.active { color: var(--gold); filter: drop-shadow(0 0 6px rgba(245,158,11,0.7)); }
     .types { display: flex; gap: 0.35rem; }
-    .pill { font-size: 0.58rem; font-weight: 800; padding: 0.06rem 0.45rem; border-radius: 99px; text-transform: uppercase; color: #fff; }
+    .pill { font-size: 0.56rem; font-weight: 800; padding: 0.05rem 0.42rem; border-radius: 99px; text-transform: uppercase; color: #fff; }
 
     .lore-box {
       background: #090d16;
       border: 1px solid #334155;
       border-radius: 8px;
-      padding: clamp(0.2rem, 0.45dvh, 0.35rem) 0.6rem;
-      margin-bottom: clamp(0.08rem, 0.25dvh, 0.18rem);
-      font-size: clamp(0.62rem, 1.15dvh, 0.72rem);
+      padding: clamp(0.18rem, 0.4dvh, 0.3rem) 0.55rem;
+      margin-bottom: clamp(0.06rem, 0.2dvh, 0.15rem);
+      font-size: clamp(0.6rem, 1.1dvh, 0.7rem);
       color: #cbd5e1;
       line-height: 1.3;
       text-align: center;
       width: 100%;
-      height: auto;
-      overflow: visible;
       word-wrap: break-word;
       white-space: normal;
     }
@@ -368,12 +363,12 @@
       display: none;
       align-items: center;
       justify-content: center;
-      gap: 0.3rem;
-      margin-bottom: clamp(0.08rem, 0.25dvh, 0.18rem);
+      gap: 0.25rem;
+      margin-bottom: clamp(0.06rem, 0.2dvh, 0.15rem);
       background: #090d16;
       border: 1px solid #334155;
       border-radius: 8px;
-      padding: 0.08rem 0.35rem;
+      padding: 0.06rem 0.3rem;
     }
     .evo-node {
       display: flex;
@@ -386,18 +381,18 @@
     }
     .evo-node:active { background: #334155; }
     .evo-node.active-evo { background: rgba(239, 68, 68, 0.2); border: 1px solid var(--red); }
-    .evo-node img { width: clamp(20px, 2.6dvh, 25px); height: clamp(20px, 2.6dvh, 25px); object-fit: contain; }
-    .evo-node span { font-size: 0.52rem; font-weight: 700; text-transform: capitalize; color: var(--sub); max-width: 50px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .evo-node img { width: clamp(18px, 2.4dvh, 23px); height: clamp(18px, 2.4dvh, 23px); object-fit: contain; }
+    .evo-node span { font-size: 0.5rem; font-weight: 700; text-transform: capitalize; color: var(--sub); max-width: 48px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .evo-node.active-evo span { color: #fff; }
-    .evo-arrow { color: var(--sub); font-size: 0.6rem; font-weight: 900; }
+    .evo-arrow { color: var(--sub); font-size: 0.58rem; font-weight: 900; }
 
     .tcg-section-wrap {
       width: 100%;
-      margin-bottom: clamp(0.08rem, 0.25dvh, 0.18rem);
+      margin-bottom: clamp(0.06rem, 0.2dvh, 0.15rem);
       background: #090d16;
       border: 1px solid #334155;
       border-radius: 10px;
-      padding: 0.28rem 0.4rem;
+      padding: 0.24rem 0.35rem;
       text-align: left;
     }
     
@@ -405,12 +400,12 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 0.25rem;
-      gap: 0.35rem;
+      margin-bottom: 0.2rem;
+      gap: 0.3rem;
     }
     
     .tcg-title-text {
-      font-size: 0.65rem;
+      font-size: 0.62rem;
       font-weight: 800;
       color: #f8fafc;
       text-transform: uppercase;
@@ -419,27 +414,27 @@
     
     .tcg-count-text {
       color: var(--gold);
-      font-size: 0.6rem;
+      font-size: 0.58rem;
       font-weight: 800;
       white-space: nowrap;
     }
 
     .tcg-scroll-strip {
       display: flex;
-      gap: 0.45rem;
+      gap: 0.4rem;
       overflow-x: auto;
       overflow-y: hidden;
-      padding-bottom: 0.2rem;
+      padding-bottom: 0.15rem;
       scrollbar-width: thin;
       scrollbar-color: #334155 transparent;
       -webkit-overflow-scrolling: touch;
       touch-action: pan-x;
-      min-height: 104px;
+      min-height: 98px;
       align-items: center;
     }
     .tcg-card-item {
-      flex: 0 0 clamp(68px, 9.5dvh, 82px);
-      width: clamp(68px, 9.5dvh, 82px);
+      flex: 0 0 clamp(64px, 8.8dvh, 76px);
+      width: clamp(64px, 8.8dvh, 76px);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -449,8 +444,8 @@
     .tcg-card-item:active { transform: scale(0.94); }
     
     .tcg-thumb-frame {
-      width: clamp(68px, 9.5dvh, 82px);
-      height: calc(clamp(68px, 9.5dvh, 82px) * (88 / 63));
+      width: clamp(64px, 8.8dvh, 76px);
+      height: calc(clamp(64px, 8.8dvh, 76px) * (88 / 63));
       border-radius: 5px;
       overflow: hidden;
       box-shadow: 0 3px 10px rgba(0,0,0,0.7);
@@ -475,30 +470,30 @@
       background: rgba(15, 23, 42, 0.88);
       border: 1px solid rgba(16, 185, 129, 0.5);
       color: var(--green);
-      font-size: 0.48rem;
+      font-size: 0.46rem;
       font-weight: 800;
-      padding: 0.02rem 0.25rem;
+      padding: 0.02rem 0.22rem;
       border-radius: 4px;
       backdrop-filter: blur(4px);
     }
 
     .tcg-card-set {
-      font-size: 0.52rem;
+      font-size: 0.5rem;
       font-weight: 700;
       color: #fff;
-      margin-top: 0.15rem;
+      margin-top: 0.12rem;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       max-width: 100%;
       text-align: center;
     }
-    .tcg-card-num { font-size: 0.46rem; color: var(--sub); font-weight: 700; }
+    .tcg-card-num { font-size: 0.44rem; color: var(--sub); font-weight: 700; }
     
     .tcg-skeleton-card {
-      flex: 0 0 clamp(68px, 9.5dvh, 82px);
-      width: clamp(68px, 9.5dvh, 82px);
-      height: calc(clamp(68px, 9.5dvh, 82px) * (88 / 63));
+      flex: 0 0 clamp(64px, 8.8dvh, 76px);
+      width: clamp(64px, 8.8dvh, 76px);
+      height: calc(clamp(64px, 8.8dvh, 76px) * (88 / 63));
       border-radius: 5px;
       background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
       background-size: 200% 100%;
@@ -507,51 +502,51 @@
     }
     @keyframes skeletonShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-    .btn-collect { width: 100%; padding: clamp(0.16rem, 0.4dvh, 0.25rem); margin-bottom: clamp(0.06rem, 0.2dvh, 0.14rem); border-radius: 8px; border: 1px solid #334155; background: #090d16; color: var(--sub); font-size: 0.68rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.35rem; }
+    .btn-collect { width: 100%; padding: clamp(0.14rem, 0.35dvh, 0.22rem); margin-bottom: clamp(0.05rem, 0.18dvh, 0.12rem); border-radius: 8px; border: 1px solid #334155; background: #090d16; color: var(--sub); font-size: 0.65rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.35rem; }
     .btn-collect.active { background: rgba(16,185,129,0.15); border-color: var(--green); color: var(--green); }
-    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.04rem 0.7rem; text-align: left; background: #090d16; padding: clamp(0.15rem, 0.35dvh, 0.22rem) 0.65rem; border-radius: 8px; font-size: clamp(0.58rem, 1.05dvh, 0.65rem); }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.04rem 0.7rem; text-align: left; background: #090d16; padding: clamp(0.14rem, 0.32dvh, 0.2rem) 0.6rem; border-radius: 8px; font-size: clamp(0.56rem, 1dvh, 0.64rem); }
     .stats span:last-child { font-weight: 700; float: right; }
 
-    /* Bottom-Docked Navigation Hub */
+    /* Navigation Hub - Dynamic Under-Card Placement */
     .hub { 
       display: flex; 
       justify-content: center; 
-      gap: 1.3rem; 
-      margin-top: clamp(0.35rem, 1.1dvh, 0.65rem); 
-      margin-bottom: clamp(0.15rem, 0.5dvh, 0.35rem); 
+      gap: 1.4rem; 
+      margin-top: clamp(0.2rem, 0.8dvh, 0.5rem); 
+      margin-bottom: clamp(0.1rem, 0.3dvh, 0.25rem); 
       flex-shrink: 0; 
       width: 100%;
     }
     body.has-active .hub { 
-      margin-top: 0.2rem; 
-      margin-bottom: 0.2rem; 
-      gap: 1.2rem; 
+      margin-top: 0.15rem; 
+      margin-bottom: 0.15rem; 
+      gap: 1.1rem; 
     }
 
     .hub-item-wrap {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.2rem;
+      gap: 0.18rem;
     }
     .hub-item-label {
-      font-size: 0.62rem;
+      font-size: 0.6rem;
       font-weight: 800;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.4px;
       color: var(--sub);
       text-transform: uppercase;
       user-select: none;
     }
     body.has-active .hub-item-label {
-      font-size: 0.58rem;
+      font-size: 0.54rem;
     }
 
     .btn-hub { 
       position: relative; 
       background: var(--card); 
       border: 1.5px solid #334155; 
-      width: clamp(40px, 5.2dvh, 46px); 
-      height: clamp(40px, 5.2dvh, 46px); 
+      width: clamp(38px, 4.8dvh, 44px); 
+      height: clamp(38px, 4.8dvh, 44px); 
       border-radius: 14px; 
       display: flex; 
       align-items: center; 
@@ -561,8 +556,8 @@
       transition: transform 0.15s, border-color 0.15s;
     }
     .btn-hub:active { transform: scale(0.92); border-color: var(--red); }
-    .btn-hub svg { width: 20px; height: 20px; fill: none; stroke: #f8fafc; stroke-width: 2; }
-    .hub-badge { position: absolute; top: -5px; right: -5px; background: var(--green); color: #fff; font-size: 0.62rem; font-weight: 800; min-width: 19px; height: 19px; padding: 0 3px; border-radius: 99px; display: flex; align-items: center; justify-content: center; border: 2px solid var(--bg); }
+    .btn-hub svg { width: 19px; height: 19px; fill: none; stroke: #f8fafc; stroke-width: 2; }
+    .hub-badge { position: absolute; top: -5px; right: -5px; background: var(--green); color: #fff; font-size: 0.6rem; font-weight: 800; min-width: 18px; height: 18px; padding: 0 3px; border-radius: 99px; display: flex; align-items: center; justify-content: center; border: 2px solid var(--bg); }
 
     /* Maximized Flat 2D Zoom Modal */
     .tcg-zoom-modal {
@@ -905,7 +900,7 @@
       </div>
     </div>
 
-    <!-- Navigation Hub (Docked Below Card View) -->
+    <!-- Navigation Hub (Directly below Card or Wheel) -->
     <div class="hub">
       <div class="hub-item-wrap">
         <button class="btn-hub" onclick="openModal('dexModal')" title="Collection">
@@ -1633,7 +1628,7 @@
     // High-Accuracy Authoritative Fetcher
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_authoritative_v2200_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_authoritative_v2300_${cleanName.toLowerCase()}`;
       
       if (!bypassCache) {
         if (memoryTcgCache.has(cacheKey)) {
@@ -2017,7 +2012,7 @@
     let ptrStartY = 0;
     let ptrCurrentY = 0;
     let isPtrActive = false;
-    const PTR_THRESHOLD = 70;
+    const PTR_THRESHOLD = 65;
     const ptrIndicator = document.getElementById('ptrIndicator');
     const ptrSpinner = document.getElementById('ptrSpinner');
     const ptrText = document.getElementById('ptrText');
@@ -2037,12 +2032,12 @@
       const pullDistance = ptrCurrentY - ptrStartY;
 
       if (pullDistance > 10) {
-        const clampedY = Math.min(pullDistance * 0.4, 75);
-        ptrIndicator.style.opacity = Math.min(clampedY / 35, 1);
+        const clampedY = Math.min(pullDistance * 0.38, 70);
+        ptrIndicator.style.opacity = Math.min(clampedY / 30, 1);
         ptrIndicator.style.transform = `translate(-50%, ${clampedY}px)`;
         ptrSpinner.style.transform = `rotate(${clampedY * 4.5}deg)`;
 
-        if (clampedY >= PTR_THRESHOLD * 0.4) {
+        if (clampedY >= PTR_THRESHOLD * 0.38) {
           ptrText.innerText = "Release to reload...";
           ptrText.style.color = "var(--gold)";
         } else {
@@ -2057,11 +2052,11 @@
       const pullDistance = ptrCurrentY - ptrStartY;
       isPtrActive = false;
 
-      if (pullDistance * 0.4 >= PTR_THRESHOLD * 0.4) {
+      if (pullDistance * 0.38 >= PTR_THRESHOLD * 0.38) {
         if (navigator.vibrate) navigator.vibrate(20);
         ptrSpinner.classList.add('spinning');
         ptrText.innerText = "Reloading...";
-        ptrIndicator.style.transform = `translate(-50%, 65px)`;
+        ptrIndicator.style.transform = `translate(-50%, 60px)`;
         
         setTimeout(() => {
           window.location.reload();

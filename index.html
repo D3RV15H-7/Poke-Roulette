@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Plus+Jakarta+Sans:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@900&family=Plus+Jakarta+Sans:wght@600;700;800;900&display=swap" rel="stylesheet">
   
   <!-- Firebase Compatibility SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -73,31 +73,31 @@
       gap: 0.2rem;
     }
     header h1 { 
-      font-family: 'Russo One', sans-serif;
-      font-size: clamp(1.8rem, 4.2dvh, 2.3rem); 
-      letter-spacing: 1px;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 900;
+      font-size: clamp(2rem, 4.6dvh, 2.5rem); 
+      letter-spacing: 0.5px;
       color: var(--gold); 
-      -webkit-text-stroke: 2px var(--poke-blue);
+      -webkit-text-stroke: 2.2px var(--poke-blue);
       text-shadow: 
-        -2px -2px 0 var(--poke-blue),  
-         2px -2px 0 var(--poke-blue),
-        -2px  2px 0 var(--poke-blue),
-         2px  2px 0 var(--poke-blue),
-         0 4px 0 #1b4b79,
-         0 6px 14px rgba(0,0,0,0.6);
-      transform: perspective(300px) rotateX(4deg);
+        -2.5px -2.5px 0 var(--poke-blue),  
+         2.5px -2.5px 0 var(--poke-blue),
+        -2.5px  2.5px 0 var(--poke-blue),
+         2.5px  2.5px 0 var(--poke-blue),
+         0 5px 0 #1b4b79,
+         0 8px 16px rgba(0,0,0,0.65);
       display: inline-block;
     }
     header h1 span { 
       color: #fff; 
-      -webkit-text-stroke: 2px var(--red);
+      -webkit-text-stroke: 2.2px var(--red);
       text-shadow: 
-        -2px -2px 0 var(--red),  
-         2px -2px 0 var(--red),
-        -2px  2px 0 var(--red),
-         2px  2px 0 var(--red),
-         0 4px 0 #991b1b,
-         0 6px 14px rgba(0,0,0,0.6);
+        -2.5px -2.5px 0 var(--red),  
+         2.5px -2.5px 0 var(--red),
+        -2.5px  2.5px 0 var(--red),
+         2.5px  2.5px 0 var(--red),
+         0 5px 0 #991b1b,
+         0 8px 16px rgba(0,0,0,0.65);
     }
 
     .top-action-bar {
@@ -1160,6 +1160,7 @@
     let currentCardsList = [];
     let currentZoomIndex = 0;
     let activeDexModalPoke = null;
+    let openedFromDexModal = false;
     const memoryTcgCache = new Map();
 
     function toTitleCase(str) {
@@ -1538,7 +1539,6 @@
             syncBasePokemonFromCards();
           };
 
-          // Long press (hold) opens zoom preview
           let holdTimer = null;
           cell.addEventListener('touchstart', () => {
             holdTimer = setTimeout(() => {
@@ -1951,8 +1951,6 @@
       });
     }
 
-    let openedFromDexModal = false;
-
     function openTcgZoom(index, fromModal = false) {
       openedFromDexModal = fromModal;
       currentZoomIndex = index;
@@ -2017,6 +2015,9 @@
       syncBasePokemonFromCards();
 
       if (curId) renderTcgCards(currentCardsList);
+      if (activeDexModalPoke) {
+        // Refresh the underlying modal data in memory so when we return it's up to date
+      }
     }
 
     function navigateZoomCard(dir) {

@@ -120,7 +120,7 @@
     }
     .search-box button:active { transform: scale(0.95); background: #1e293b; }
     .suggestions { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--card); border: 1px solid #334155; border-radius: 14px; max-height: 190px; overflow-y: auto; list-style: none; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.6); }
-    .suggestions li { padding: 0.55rem 0.85rem; display: flex; justify-content: space-between; font-size: 0.84rem; border-bottom: 1px solid #1e293b; cursor: pointer; text-transform: capitalize; }
+    .suggestions li { padding: 0.55rem 0.85rem; display: flex; justify-content: space-between; font-size: 0.84rem; border-bottom: 1px solid #1e293b; cursor: pointer; }
     .suggestions li:last-child { border-bottom: none; }
 
     .wheel-wrap { 
@@ -885,39 +885,55 @@
       // Generation 1 (Kanto)
       'base1': 'Base Set', 'base2': 'Jungle', 'base3': 'Fossil', 'base4': 'Base Set 2', 'base5': 'Team Rocket',
       'gym1': 'Gym Heroes', 'gym2': 'Gym Challenge',
+      
+      // Generation 2 (Johto)
       'neo1': 'Neo Genesis', 'neo2': 'Neo Discovery', 'neo3': 'Neo Revelation', 'neo4': 'Neo Destiny',
       'si1': 'Southern Islands', 'base6': 'Legendary Collection', 'ecard1': 'Expedition Base Set',
       'ecard2': 'Aquapolis', 'ecard3': 'Skyridge',
+      
+      // Generation 3 (Hoenn)
       'ex1': 'EX Ruby & Sapphire', 'ex2': 'EX Sandstorm', 'ex3': 'EX Dragon',
       'ex4': 'EX Team Magma vs Team Aqua', 'ex5': 'EX Hidden Legends', 'ex6': 'EX FireRed & LeafGreen',
       'ex7': 'EX Team Rocket Returns', 'ex8': 'EX Deoxys', 'ex9': 'EX Emerald',
       'ex10': 'EX Unseen Forces', 'ex11': 'EX Delta Species', 'ex12': 'EX Legend Maker',
       'ex13': 'EX Holon Phantoms', 'ex14': 'EX Crystal Guardians', 'ex15': 'EX Dragon Frontiers',
       'ex16': 'EX Power Keepers',
+      
+      // Generation 4 (Sinnoh & HGSS)
       'dp1': 'Diamond & Pearl', 'dp2': 'Mysterious Treasures', 'dp3': 'Secret Wonders',
       'dp4': 'Great Encounters', 'dp5': 'Majestic Dawn', 'dp6': 'Legends Awakened',
       'dp7': 'Stormfront', 'pl1': 'Platinum', 'pl2': 'Rising Rivals', 'pl3': 'Supreme Victors',
       'pl4': 'Arceus', 'col1': 'Call of Legends', 'hgss1': 'HeartGold & SoulSilver',
       'hgss2': 'Unleashed', 'hgss3': 'Undaunted', 'hgss4': 'Triumphant',
+      
+      // Generation 5 (Unova)
       'bw1': 'Black & White', 'bw2': 'Emerging Powers', 'bw3': 'Noble Victories',
       'bw4': 'Next Destinies', 'bw5': 'Dark Explorers', 'bw6': 'Dragons Exalted',
       'bw7': 'Boundaries Crossed', 'bw8': 'Plasma Storm', 'bw9': 'Plasma Freeze',
       'bw10': 'Plasma Blast', 'bw11': 'Legendary Treasures',
+      
+      // Generation 6 (Kalos)
       'xy1': 'XY Base', 'xy2': 'Flashfire', 'xy3': 'Furious Fists', 'xy4': 'Phantom Forces',
       'xy5': 'Primal Clash', 'xy6': 'Roaring Skies', 'xy7': 'Ancient Origins',
       'xy8': 'BREAKthrough', 'xy9': 'BREAKpoint', 'xy10': 'Fates Collide',
       'xy11': 'Steam Siege', 'xy12': 'Evolutions', 'g1': 'Generations',
+      
+      // Generation 7 (Alola)
       'sm1': 'Sun & Moon', 'sm2': 'Guardians Rising', 'sm3': 'Burning Shadows',
       'sm35': 'Shining Legends', 'sm4': 'Crimson Invasion', 'sm5': 'Ultra Prism',
       'sm6': 'Forbidden Light', 'sm7': 'Celestial Storm', 'sm75': 'Dragon Majesty',
       'sm8': 'Lost Thunder', 'sm9': 'Team Up', 'sm10': 'Unbroken Bonds',
       'sm11': 'Unified Minds', 'sm115': 'Hidden Fates', 'sm12': 'Cosmic Eclipse',
+      
+      // Generation 8 (Galar)
       'swsh1': 'Sword & Shield', 'swsh2': 'Rebel Clash', 'swsh3': 'Darkness Ablaze',
       'swsh35': 'Champion\'s Path', 'swsh4': 'Vivid Voltage', 'swsh45': 'Shining Fates',
       'swsh5': 'Battle Styles', 'swsh6': 'Chilling Reign', 'swsh7': 'Evolving Skies',
       'cel25': 'Celebrations', 'swsh8': 'Fusion Strike', 'swsh9': 'Brilliant Stars',
       'swsh10': 'Astral Radiance', 'pgo': 'Pokémon GO', 'swsh11': 'Lost Origin',
       'swsh12': 'Silver Tempest', 'swsh12pt5': 'Crown Zenith',
+      
+      // Generation 9 (Paldea)
       'sv1': 'Scarlet & Violet', 'sv01': 'Scarlet & Violet', 'sve': 'Scarlet & Violet',
       'sv2': 'Paldea Evolved', 'sv02': 'Paldea Evolved', 'pal': 'Paldea Evolved',
       'sv3': 'Obsidian Flames', 'sv03': 'Obsidian Flames', 'obf': 'Obsidian Flames',
@@ -927,8 +943,12 @@
       'sv06.5': 'Shrouded Fable', 'sfa': 'Shrouded Fable', 'sv7': 'Stellar Crown', 'sv07': 'Stellar Crown', 'scr': 'Stellar Crown',
       'sv8': 'Surging Sparks', 'sv08': 'Surging Sparks', 'ssp': 'Surging Sparks',
       'sv08.5': 'Prismatic Evolutions', 'pre': 'Prismatic Evolutions',
+      
+      // Mega Evolution Series
       'me01': 'Phantasmal Flames', 'me02': 'Ascended Heroes', 'me03': 'Perfect Order',
       'me04': 'Chaos Rising', 'me05': 'Pitch Black', 'pbl': 'Pitch Black',
+      
+      // Promos
       'smp': 'SM Promos', 'swshp': 'SWSH Promos', 'svp': 'SV Promos', 'xyp': 'XY Promos',
       'bwp': 'BW Promos', 'dpp': 'DP Promos', 'np': 'Nintendo Promos', 'pop': 'POP Series'
     };
@@ -949,22 +969,31 @@
     let activeDexModalPoke = null;
     const memoryTcgCache = new Map();
 
+    function toTitleCase(str) {
+      if (!str) return '';
+      return str
+        .replace(/[-_]/g, ' ')
+        .split(' ')
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ');
+    }
+
     function getCleanNationalDexName(pokeName, speciesName) {
-      if (speciesName) return speciesName.replace(/-/g, ' ');
+      if (speciesName) return toTitleCase(speciesName);
       if (!pokeName) return '';
       
       const lower = pokeName.toLowerCase();
       const preservedHyphenNames = new Set(['chi-yu', 'ting-lu', 'wo-chien', 'chien-pao', 'porygon-z', 'tapu-koko', 'tapu-lele', 'tapu-bulu', 'tapu-fini', 'jangmo-o', 'hakamo-o', 'kommo-o', 'ho-oh', 'porygon2']);
       if (preservedHyphenNames.has(lower)) {
-        return pokeName.replace(/-/g, ' ');
+        return toTitleCase(pokeName);
       }
 
       const parts = pokeName.split('-');
       const suffixes = new Set(['male', 'female', 'average', 'small', 'large', 'super', 'red', 'blue', 'yellow', 'white', 'standard', 'incarnate', 'ordinary', 'aria', 'midday', 'midnight', 'dusk', 'solo', 'shield', 'disguised', 'plant', 'sandy', 'trash', 'overcast', 'sunshine', 'east', 'west']);
       if (parts.length > 1 && suffixes.has(parts[parts.length - 1].toLowerCase())) {
-        return parts.slice(0, parts.length - 1).join(' ');
+        return toTitleCase(parts.slice(0, parts.length - 1).join(' '));
       }
-      return pokeName.replace(/-/g, ' ');
+      return toTitleCase(pokeName);
     }
 
     function resolveSetName(setObj, cardId = '') {
@@ -1091,7 +1120,7 @@
       list.forEach(p => {
         const owned = s.has(p.id), d = document.createElement('div');
         d.className = `dex-item ${owned ? 'owned' : 'unowned'}`;
-        d.innerHTML = `${owned ? '<div style="position:absolute;top:3px;right:3px;background:var(--green);color:#fff;font-size:0.52rem;font-weight:900;width:13px;height:13px;border-radius:50%;display:flex;align-items:center;justify-content:center;">✓</div>' : ''}<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png" loading="lazy"/><div style="font-size:0.62rem;font-weight:800;color:var(--sub)">#${String(p.id).padStart(4,'0')}</div><div style="font-size:0.65rem;font-weight:700;text-transform:capitalize;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name.replace('-',' ')}</div>`;
+        d.innerHTML = `${owned ? '<div style="position:absolute;top:3px;right:3px;background:var(--green);color:#fff;font-size:0.52rem;font-weight:900;width:13px;height:13px;border-radius:50%;display:flex;align-items:center;justify-content:center;">✓</div>' : ''}<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png" loading="lazy"/><div style="font-size:0.62rem;font-weight:800;color:var(--sub)">#${String(p.id).padStart(4,'0')}</div><div style="font-size:0.65rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${toTitleCase(p.name)}</div>`;
         
         let holdTimer = null;
         d.addEventListener('touchstart', () => {
@@ -1167,7 +1196,7 @@
       r.forEach(p => {
         const li = document.createElement('li');
         li.className = 'recent-item';
-        li.innerHTML = `<img src="${p.sprite}"/><div style="flex:1;"><div style="font-weight:800;font-size:0.95rem;text-transform:capitalize;">${p.name}</div><div style="font-size:0.75rem;color:var(--sub);font-weight:700;">#${String(p.id).padStart(4,'0')} · <span style="color:${COLORS[p.type]||'#fff'}">${p.type.toUpperCase()}</span></div></div>${s.has(p.id)?'<span style="color:var(--green);font-weight:900;">✓</span>':''}`;
+        li.innerHTML = `<img src="${p.sprite}"/><div style="flex:1;"><div style="font-weight:800;font-size:0.95rem;">${toTitleCase(p.name)}</div><div style="font-size:0.75rem;color:var(--sub);font-weight:700;">#${String(p.id).padStart(4,'0')} · <span style="color:${COLORS[p.type]||'#fff'}">${p.type.toUpperCase()}</span></div></div>${s.has(p.id)?'<span style="color:var(--green);font-weight:900;">✓</span>':''}`;
         li.onclick = () => { closeModal(null, 'recentModal'); loadPoke(p.id, 0, false); };
         l.appendChild(li);
       });
@@ -1258,7 +1287,7 @@
         
         if (isSpinning) return;
 
-        const cleanSpeciesName = (data.names && data.names.find(n => n.language.name === 'en')?.name) || data.name.replace(/-/g, ' ');
+        const cleanSpeciesName = (data.names && data.names.find(n => n.language.name === 'en')?.name) || toTitleCase(data.name);
         document.getElementById('pokeName').innerText = cleanSpeciesName;
 
         const enEntry = data.flavor_text_entries ? data.flavor_text_entries.find(e => e.language.name === 'en') : null;
@@ -1303,7 +1332,7 @@
         node.className = `evo-node ${st.id === curId ? 'active-evo' : ''}`;
         node.innerHTML = `
           <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${st.id}.png" alt="${st.name}" />
-          <span>${st.name.replace('-', ' ')}</span>
+          <span>${toTitleCase(st.name)}</span>
         `;
         node.onclick = () => {
           if (st.id !== curId) loadPoke(st.id, 0, false);
@@ -1352,10 +1381,9 @@
       return regex.test(c);
     }
 
-    // High-Accuracy Authoritative Fetcher
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_authoritative_v1500_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_authoritative_v1600_${cleanName.toLowerCase()}`;
       
       if (!bypassCache) {
         if (memoryTcgCache.has(cacheKey)) {
@@ -1414,7 +1442,6 @@
         } catch (err) {}
       }
 
-      // Filter out all Digital Cards + strictly match exact name
       const physicalSpeciesCards = allCards
         .filter(c => !isDigitalOnlyCard(c))
         .filter(c => matchesExactPokemonName(c.name, cleanName))
@@ -1536,7 +1563,6 @@
       }
     }
 
-    // Touch Swipe Navigation (Strict 2D Horizontal)
     let zoomTouchX = 0;
     const zoomViewArea = document.getElementById('zoomViewArea');
     
@@ -1591,7 +1617,8 @@
       l.innerHTML = '';
       m.forEach(p => {
         const li = document.createElement('li');
-        li.innerHTML = `<span><span style="color:var(--sub);font-weight:700;margin-right:0.4rem;">#${String(p.id).padStart(4,'0')}</span>${p.name.replace('-',' ')}</span>${s.has(p.id)?'<span style="color:var(--green);font-weight:900;">✓</span>':''}`;
+        const formattedName = toTitleCase(p.name);
+        li.innerHTML = `<span><span style="color:var(--sub);font-weight:700;margin-right:0.4rem;">#${String(p.id).padStart(4,'0')}</span>${formattedName}</span>${s.has(p.id)?'<span style="color:var(--green);font-weight:900;">✓</span>':''}`;
         li.onmousedown = () => loadPoke(p.id, 0, true);
         l.appendChild(li);
       });

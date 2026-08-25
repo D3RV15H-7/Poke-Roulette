@@ -1059,13 +1059,13 @@
       ground: '<svg viewBox="0 0 24 24"><path fill="#4e3b0e" d="M5 19h14a1 1 0 0 0 1-1l-3-10a1 1 0 0 0-1-.7h-5a1 1 0 0 0-.9.6L4 18a1 1 0 0 0 1 1zm3-3l1.5-4h2.5l-1 4z"/></svg>',
       flying: '<svg viewBox="0 0 24 24"><path fill="#2e1b60" d="M3 13.5C7 8 13 8 21 8c-3 2-6 3.5-9 3.5-3 0-5.5 1-9 2zm2 3.5c3-1 6-1 10-1-2 1.5-4.5 2-8 2.5-1 0-1.5-.5-2-1.5z"/></svg>',
       psychic: '<svg viewBox="0 0 24 24"><path fill="#5b0d28" d="M12 4a8 8 0 0 0-8 8 8 8 0 0 0 8 8c3.5 0 6.5-2.2 7.5-5.5a1 1 0 0 0-1-1.2c-2.5.2-5-1.5-5.5-4 0-.8.2-1.5.5-2.2A8 8 0 0 0 12 4z"/></svg>',
-      bug: '<svg viewBox="0 0 24 24"><path fill="#3a4a06" d="M12 4c-3.5 0-6.5 2.5-6.5 6 0 2.2 1.2 4.2 3 5.2V19a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1v-3.8c1.8-1 3-3 3-5.2 0-3.5-3-6-6.5-6zm-2.5 7a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3 z"/></svg>',
+      bug: '<svg viewBox="0 0 24 24"><path fill="#3a4a06" d="M12 4c-3.5 0-6.5 2.5-6.5 6 0 2.2 1.2 4.2 3 5.2V19a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1v-3.8c1.8-1 3-3 3-5.2 0-3.5-3-6-6.5-6zm-2.5 7a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>',
       rock: '<svg viewBox="0 0 24 24"><path fill="#463608" d="M7 5l6-2 5 4-1 6-7 7-5-3 2-12zm4 3l-2 5 4 3 3-4-1-3-4-1z"/></svg>',
       ghost: '<svg viewBox="0 0 24 24"><path fill="#2c1556" d="M12 3c-4.5 0-8 3.5-8 8v8l3-2 2.5 2 2.5-2 2.5 2 2.5-2 3 2v-8c0-4.5-3.5-8-8-8zm-3 8a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm6 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>',
       dragon: '<svg viewBox="0 0 24 24"><path fill="#544300" d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c1.5 0 3-.3 4.2-1-3-1-5-3.5-5-7 0-3.5 2.5-6.5 6-7.5-1.5-1.2-3.2-2.5-5.2-2.5z"/></svg>',
       dark: '<svg viewBox="0 0 24 24"><path fill="#0d1924" d="M12 3a9 9 0 1 0 9 9c0-.6 0-1.2-.2-1.8A7 7 0 0 1 12 3z"/></svg>',
       steel: '<svg viewBox="0 0 24 24"><path fill="#363c44" d="M12 2L4 7v10l8 5 8-5V7l-8-5zm0 3.5l5 3.2v6.6l-5 3.2-5-3.2V8.7l5-3.2z"/></svg>',
-      fairy: '<svg viewBox="0 0 24 24"><path fill="#5e1538" d="M12 2.5C10 6 7 9 7 13c0 3.5 2.5 6 5 8.5 2.5-2.5 5-5 5-8.5 0-4-3-7-5-10.5zm0 10a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>'
+      fairy: '<svg viewBox="0 0 24 24"><path fill="#5e1538" d="M12 2.5C10 6 7 9 7 13c0 3.5 2.5 6 5 8.5 2.5-2.5 5-5 5-8.5 0-4-3-7-5-10.5zm0 10a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3 z"/></svg>'
     };
 
     const KNOWN_SETS = {
@@ -1455,7 +1455,7 @@
           cell.className = 'dex-card-thumb-cell';
           cell.innerHTML = `
             <div class="tcg-thumb-frame ${isOwnedCard ? 'card-owned' : ''}">
-              <div class="card-check-circle ${isOwnedCard ? 'checked' : ''}" id="chk_${card.id}">✓</div>
+              <div class="card-check-circle ${isOwnedCard ? 'checked' : ''}" id="modal_chk_${card.id}">✓</div>
               <img class="tcg-card-thumb" src="${card.smallImg}" loading="lazy" alt="${card.name}" onerror="this.closest('.dex-card-thumb-cell')?.remove()" />
               ${card.priceGBP ? `<div class="tcg-card-price-badge">£${card.priceGBP}</div>` : ''}
             </div>
@@ -1463,7 +1463,6 @@
             <div class="dex-cell-num">#${card.number}</div>
           `;
 
-          // Tapping check circle toggles card collection
           const checkCircle = cell.querySelector('.card-check-circle');
           const thumbFrame = cell.querySelector('.tcg-thumb-frame');
 
@@ -1484,7 +1483,6 @@
             saveCardCol(setColCards);
           };
 
-          // Tapping thumbnail opens zoom
           cell.onclick = () => {
             currentCardsList = cardsList;
             openTcgZoom(index);
@@ -1872,6 +1870,7 @@
 
         node.onclick = (e) => {
           e.stopPropagation();
+          currentCardsList = cards;
           openTcgZoom(index);
         };
         

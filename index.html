@@ -36,10 +36,14 @@
     html, body { 
       width: 100vw; 
       height: 100dvh; 
+      max-height: 100dvh;
       overflow: hidden; 
       background: var(--bg); 
       color: var(--text);
-      overscroll-behavior: none;
+      overscroll-behavior: none !important;
+      -webkit-overscroll-behavior: none !important;
+      position: fixed;
+      inset: 0;
     }
     
     body { 
@@ -48,15 +52,15 @@
       align-items: center; 
       justify-content: flex-start;
       padding: clamp(0.2rem, 0.8dvh, 0.4rem) clamp(0.4rem, 2vw, 0.8rem); 
-      touch-action: pan-y; 
+      touch-action: none; 
     }
     
-    /* Pull-to-Refresh Floating HUD */
+    /* Pull-to-Refresh Floating Badge */
     .ptr-indicator {
       position: fixed;
       top: 10px;
       left: 50%;
-      transform: translate(-50%, -70px);
+      transform: translate(-50%, -75px);
       display: flex;
       align-items: center;
       gap: 0.5rem;
@@ -65,10 +69,10 @@
       padding: 0.35rem 0.9rem;
       border-radius: 99px;
       box-shadow: 0 10px 28px rgba(0,0,0,0.7);
-      z-index: 1000;
+      z-index: 9999;
       pointer-events: none;
       opacity: 0;
-      transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease;
+      transition: transform 0.12s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.15s ease;
     }
     .ptr-spinner {
       width: 16px;
@@ -111,6 +115,7 @@
       justify-content: flex-start;
       gap: clamp(0.2rem, 0.6dvh, 0.45rem); 
       overflow: hidden;
+      touch-action: pan-y;
     }
     
     header { 
@@ -302,6 +307,7 @@
       overflow-y: auto;
       scrollbar-width: thin;
       scrollbar-color: #334155 transparent;
+      touch-action: pan-y;
     }
     @keyframes custodySlideUp {
       from { opacity: 0; transform: translateY(25px); }
@@ -507,7 +513,7 @@
     .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.04rem 0.7rem; text-align: left; background: #090d16; padding: clamp(0.14rem, 0.32dvh, 0.2rem) 0.6rem; border-radius: 8px; font-size: clamp(0.56rem, 1dvh, 0.64rem); }
     .stats span:last-child { font-weight: 700; float: right; }
 
-    /* Navigation Hub - Dynamic Under-Card Placement */
+    /* Navigation Hub - Compact & Adaptive */
     .hub { 
       display: flex; 
       justify-content: center; 
@@ -815,7 +821,7 @@
 </head>
 <body>
 
-  <!-- Pull-to-Refresh HUD -->
+  <!-- Floating Pull-to-Refresh HUD -->
   <div class="ptr-indicator" id="ptrIndicator">
     <div class="ptr-spinner" id="ptrSpinner"></div>
     <span class="ptr-text" id="ptrText">Pull to refresh...</span>
@@ -1113,6 +1119,11 @@
       'fantastical parade', 'crimson blaze', 'eevee grove', 'mega rising', 'wisdom of sea and sky'
     ];
 
+    const PRESERVED_HYPHEN_POKEMON = new Set([
+      'chien-pao', 'ting-lu', 'chi-yu', 'wo-chien', 
+      'porygon-z', 'ho-oh', 'jangmo-o', 'hakamo-o', 'kommo-o'
+    ]);
+
     let dir = [], rot = 0, audioCtx = null, curPoke = null, isShiny = false, curId = null, tabFilter = 'all', dexQuery = '', activeTcgRequestId = 0, isSpinning = false;
     let currentCardsList = [];
     let currentZoomIndex = 0;
@@ -1121,6 +1132,16 @@
 
     function toTitleCase(str) {
       if (!str) return '';
+      const lower = str.toLowerCase().trim();
+      
+      // Preserve explicit hyphenated Pokémon
+      if (PRESERVED_HYPHEN_POKEMON.has(lower)) {
+        return lower
+          .split('-')
+          .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+          .join('-');
+      }
+
       return str
         .replace(/[-_]/g, ' ')
         .split(' ')
@@ -1129,15 +1150,13 @@
     }
 
     function getCleanNationalDexName(pokeName, speciesName) {
+      const target = (speciesName || pokeName || '').toLowerCase().trim();
+      if (PRESERVED_HYPHEN_POKEMON.has(target)) {
+        return toTitleCase(target);
+      }
       if (speciesName) return toTitleCase(speciesName);
       if (!pokeName) return '';
       
-      const lower = pokeName.toLowerCase();
-      const preservedHyphenNames = new Set(['chi-yu', 'ting-lu', 'wo-chien', 'chien-pao', 'porygon-z', 'tapu-koko', 'tapu-lele', 'tapu-bulu', 'tapu-fini', 'jangmo-o', 'hakamo-o', 'kommo-o', 'ho-oh', 'porygon2']);
-      if (preservedHyphenNames.has(lower)) {
-        return toTitleCase(pokeName);
-      }
-
       const parts = pokeName.split('-');
       const suffixes = new Set(['male', 'female', 'average', 'small', 'large', 'super', 'red', 'blue', 'yellow', 'white', 'standard', 'incarnate', 'ordinary', 'aria', 'midday', 'midnight', 'dusk', 'solo', 'shield', 'disguised', 'plant', 'sandy', 'trash', 'overcast', 'sunshine', 'east', 'west']);
       if (parts.length > 1 && suffixes.has(parts[parts.length - 1].toLowerCase())) {
@@ -1531,7 +1550,7 @@
         
         if (isSpinning) return;
 
-        const cleanSpeciesName = (data.names && data.names.find(n => n.language.name === 'en')?.name) || toTitleCase(data.name);
+        const cleanSpeciesName = getCleanNationalDexName(data.name, (data.names && data.names.find(n => n.language.name === 'en')?.name));
         document.getElementById('pokeName').innerText = cleanSpeciesName;
 
         const enEntry = data.flavor_text_entries ? data.flavor_text_entries.find(e => e.language.name === 'en') : null;
@@ -1620,15 +1639,24 @@
     function matchesExactPokemonName(cardName, targetName) {
       const c = (cardName || '').toLowerCase().trim();
       const t = targetName.toLowerCase().trim();
-      const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(`(^|[\\s\\-_/&])${escaped}([\\s\\-_/&]|$)`, 'i');
-      return regex.test(c);
+      
+      // Standardize hyphens vs spaces
+      const cNormalized = c.replace(/[-_]/g, ' ');
+      const tNormalized = t.replace(/[-_]/g, ' ');
+
+      const escapedT = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escapedNorm = tNormalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      const regex1 = new RegExp(`(^|[\\s\\-_/&])${escapedT}([\\s\\-_/&]|$)`, 'i');
+      const regex2 = new RegExp(`(^|[\\s\\-_/&])${escapedNorm}([\\s\\-_/&]|$)`, 'i');
+
+      return regex1.test(c) || regex2.test(cNormalized);
     }
 
     // High-Accuracy Authoritative Fetcher
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_authoritative_v2300_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_authoritative_v2500_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
       
       if (!bypassCache) {
         if (memoryTcgCache.has(cacheKey)) {
@@ -1642,7 +1670,7 @@
         }
       }
 
-      const primaryTerm = cleanName.split(' ')[0];
+      const primaryTerm = cleanName.includes('-') ? cleanName : cleanName.split(' ')[0];
 
       const fetchWithRetry = async (url, retries = 3, delay = 350) => {
         for (let i = 0; i < retries; i++) {
@@ -1661,7 +1689,10 @@
       };
 
       const pokemontcgPromise = async () => {
-        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:${encodeURIComponent(primaryTerm)}* OR name:"${encodeURIComponent(cleanName)}"&select=id,name,images,set,number,tcgplayer,cardmarket&pageSize=200&orderBy=-set.releaseDate`;
+        const queryTerm = encodeURIComponent(primaryTerm);
+        const queryClean = encodeURIComponent(cleanName);
+        const querySpaced = encodeURIComponent(cleanName.replace(/[-_]/g, ' '));
+        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${queryTerm}"* OR name:"${queryClean}"* OR name:"${querySpaced}"*&select=id,name,images,set,number,tcgplayer,cardmarket&pageSize=200&orderBy=-set.releaseDate`;
         const json = await fetchWithRetry(queryUrl);
         return json.data || [];
       };
@@ -1744,7 +1775,7 @@
 
       if (!cards || !cards.length) {
         countText.innerText = "0 Cards";
-        strip.innerHTML = '<div class="tcg-empty-msg">No physical cards found</div>';
+        strip.innerHTML = '<div class="tcg-empty-msg" style="color:var(--sub);font-size:0.75rem;padding:1.5rem 0;text-align:center;width:100%;">No physical cards found</div>';
         return;
       }
 
@@ -1809,7 +1840,6 @@
       }
     }
 
-    // Touch Swipe Navigation (Strict 2D Horizontal)
     let zoomTouchX = 0;
     const zoomViewArea = document.getElementById('zoomViewArea');
     
@@ -2007,19 +2037,19 @@
     document.addEventListener('click', e => { if (!e.target.closest('.search-wrap')) document.getElementById('sList').style.display = 'none'; });
 
     // ----------------------------------------------------
-    // FIXED OVERLAY PULL DOWN TO REFRESH
+    // ACCURATE TOUCH INTERCEPTION FOR PULL-DOWN-TO-REFRESH
     // ----------------------------------------------------
     let ptrStartY = 0;
     let ptrCurrentY = 0;
     let isPtrActive = false;
-    const PTR_THRESHOLD = 65;
+    const PTR_THRESHOLD = 75;
     const ptrIndicator = document.getElementById('ptrIndicator');
     const ptrSpinner = document.getElementById('ptrSpinner');
     const ptrText = document.getElementById('ptrText');
 
     window.addEventListener('touchstart', e => {
       if (e.touches.length !== 1) return;
-      const scrollableParent = e.target.closest('.list-view, .card, .dex-cards-grid');
+      const scrollableParent = e.target.closest('.list-view, .card, .dex-cards-grid, .suggestions');
       if (scrollableParent && scrollableParent.scrollTop > 0) return;
 
       ptrStartY = e.touches[0].pageY;
@@ -2032,7 +2062,9 @@
       const pullDistance = ptrCurrentY - ptrStartY;
 
       if (pullDistance > 10) {
-        const clampedY = Math.min(pullDistance * 0.38, 70);
+        if (e.cancelable) e.preventDefault();
+
+        const clampedY = Math.min(pullDistance * 0.38, 75);
         ptrIndicator.style.opacity = Math.min(clampedY / 30, 1);
         ptrIndicator.style.transform = `translate(-50%, ${clampedY}px)`;
         ptrSpinner.style.transform = `rotate(${clampedY * 4.5}deg)`;
@@ -2045,7 +2077,7 @@
           ptrText.style.color = "var(--sub)";
         }
       }
-    }, { passive: true });
+    }, { passive: false });
 
     window.addEventListener('touchend', () => {
       if (!isPtrActive) return;
@@ -2063,7 +2095,7 @@
         }, 300);
       } else {
         ptrIndicator.style.opacity = '0';
-        ptrIndicator.style.transform = 'translate(-50%, -70px)';
+        ptrIndicator.style.transform = 'translate(-50%, -75px)';
       }
     }, { passive: true });
 

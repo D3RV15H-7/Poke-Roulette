@@ -631,6 +631,33 @@
       transform: none !important;
     }
 
+    /* Zoom View Checkbox Circle Overlay */
+    .zoom-check-circle {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.88);
+      border: 2px solid #64748b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 900;
+      color: transparent;
+      z-index: 20;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      transition: all 0.15s;
+    }
+    .zoom-check-circle.checked {
+      background: var(--green);
+      border-color: #fff;
+      color: #fff;
+    }
+
     .tcg-zoom-arrow {
       position: absolute;
       top: 50%;
@@ -932,6 +959,7 @@
       <div class="tcg-zoom-view-area" id="zoomViewArea">
         <button class="tcg-zoom-arrow left" id="zoomLeftArrow" onclick="navigateZoomCard(-1)">‹</button>
         <div class="flat-card-container">
+          <div class="zoom-check-circle" id="zoomCheckCircle" onclick="toggleZoomCardOwned()">✓</div>
           <img class="tcg-zoom-img" id="tcgZoomImg" src="" alt="Card HD" />
         </div>
         <button class="tcg-zoom-arrow right" id="zoomRightArrow" onclick="navigateZoomCard(1)">›</button>
@@ -1065,7 +1093,7 @@
       dragon: '<svg viewBox="0 0 24 24"><path fill="#544300" d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c1.5 0 3-.3 4.2-1-3-1-5-3.5-5-7 0-3.5 2.5-6.5 6-7.5-1.5-1.2-3.2-2.5-5.2-2.5z"/></svg>',
       dark: '<svg viewBox="0 0 24 24"><path fill="#0d1924" d="M12 3a9 9 0 1 0 9 9c0-.6 0-1.2-.2-1.8A7 7 0 0 1 12 3z"/></svg>',
       steel: '<svg viewBox="0 0 24 24"><path fill="#363c44" d="M12 2L4 7v10l8 5 8-5V7l-8-5zm0 3.5l5 3.2v6.6l-5 3.2-5-3.2V8.7l5-3.2z"/></svg>',
-      fairy: '<svg viewBox="0 0 24 24"><path fill="#5e1538" d="M12 2.5C10 6 7 9 7 13c0 3.5 2.5 6 5 8.5 2.5-2.5 5-5 5-8.5 0-4-3-7-5-10.5zm0 10a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3 z"/></svg>'
+      fairy: '<svg viewBox="0 0 24 24"><path fill="#5e1538" d="M12 2.5C10 6 7 9 7 13c0 3.5 2.5 6 5 8.5 2.5-2.5 5-5 5-8.5 0-4-3-7-5-10.5zm0 10a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>'
     };
 
     const KNOWN_SETS = {
@@ -1253,6 +1281,27 @@
         }, { merge: true }).catch(err => console.error("Card cloud save error:", err));
       }
     };
+
+    // Auto-sync base Pokemon collection when TCG card checkboxes change
+    function syncBasePokemonFromCards() {
+      if (!curId) return;
+      const cardCol = getCardCol();
+      const hasOwnedCard = currentCardsList.some(c => cardCol.has(c.id));
+      const mainCol = getCol();
+      
+      let changed = false;
+      if (hasOwnedCard && !mainCol.has(curId)) {
+        mainCol.add(curId);
+        changed = true;
+      } else if (!hasOwnedCard && mainCol.has(curId)) {
+        mainCol.delete(curId);
+        changed = true;
+      }
+
+      if (changed) {
+        saveCol(mainCol);
+      }
+    }
 
     const getRec = () => JSON.parse(localStorage.getItem('p_rec') || '[]');
     
@@ -1481,6 +1530,7 @@
               thumbFrame.classList.add('card-owned');
             }
             saveCardCol(setColCards);
+            syncBasePokemonFromCards();
           };
 
           cell.onclick = () => {
@@ -1866,6 +1916,7 @@
             thumbFrame.classList.add('card-owned');
           }
           saveCardCol(setColCards);
+          syncBasePokemonFromCards();
         };
 
         node.onclick = (e) => {
@@ -1897,11 +1948,43 @@
         priceValEl.innerText = card.priceGBP ? `£${card.priceGBP}` : 'Market N/A';
       }
 
+      const zoomCheckCircle = document.getElementById('zoomCheckCircle');
+      const ownedCardSet = getCardCol();
+      if (zoomCheckCircle) {
+        if (ownedCardSet.has(card.id)) {
+          zoomCheckCircle.classList.add('checked');
+        } else {
+          zoomCheckCircle.classList.remove('checked');
+        }
+      }
+
       const leftArrow = document.getElementById('zoomLeftArrow');
       const rightArrow = document.getElementById('zoomRightArrow');
 
       if (leftArrow) leftArrow.style.display = currentZoomIndex > 0 ? 'flex' : 'none';
       if (rightArrow) rightArrow.style.display = currentZoomIndex < currentCardsList.length - 1 ? 'flex' : 'none';
+    }
+
+    function toggleZoomCardOwned() {
+      if (!currentCardsList.length) return;
+      const card = currentCardsList[currentZoomIndex];
+      initAudio();
+      playTick();
+      const setColCards = getCardCol();
+      const zoomCheckCircle = document.getElementById('zoomCheckCircle');
+
+      if (setColCards.has(card.id)) {
+        setColCards.delete(card.id);
+        if (zoomCheckCircle) zoomCheckCircle.classList.remove('checked');
+      } else {
+        setColCards.add(card.id);
+        if (zoomCheckCircle) zoomCheckCircle.classList.add('checked');
+      }
+      saveCardCol(setColCards);
+      syncBasePokemonFromCards();
+
+      // Refresh strip view if active
+      if (curPoke) renderTcgCards(currentCardsList);
     }
 
     function navigateZoomCard(dir) {

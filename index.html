@@ -209,6 +209,7 @@
     body.has-active .btn-close { display: flex; }
     @keyframes springPop { 0% { opacity: 0; transform: scale(0.3) rotate(-90deg); } 100% { opacity: 1; transform: scale(1) rotate(0deg); } }
 
+    /* Floating Navigation Hub with Explicit Labels */
     .hub { 
       display: flex; 
       justify-content: center; 
@@ -882,58 +883,41 @@
     };
 
     const KNOWN_SETS = {
-      // Generation 1 (Kanto)
       'base1': 'Base Set', 'base2': 'Jungle', 'base3': 'Fossil', 'base4': 'Base Set 2', 'base5': 'Team Rocket',
       'gym1': 'Gym Heroes', 'gym2': 'Gym Challenge',
-      
-      // Generation 2 (Johto)
       'neo1': 'Neo Genesis', 'neo2': 'Neo Discovery', 'neo3': 'Neo Revelation', 'neo4': 'Neo Destiny',
       'si1': 'Southern Islands', 'base6': 'Legendary Collection', 'ecard1': 'Expedition Base Set',
       'ecard2': 'Aquapolis', 'ecard3': 'Skyridge',
-      
-      // Generation 3 (Hoenn)
       'ex1': 'EX Ruby & Sapphire', 'ex2': 'EX Sandstorm', 'ex3': 'EX Dragon',
       'ex4': 'EX Team Magma vs Team Aqua', 'ex5': 'EX Hidden Legends', 'ex6': 'EX FireRed & LeafGreen',
       'ex7': 'EX Team Rocket Returns', 'ex8': 'EX Deoxys', 'ex9': 'EX Emerald',
       'ex10': 'EX Unseen Forces', 'ex11': 'EX Delta Species', 'ex12': 'EX Legend Maker',
       'ex13': 'EX Holon Phantoms', 'ex14': 'EX Crystal Guardians', 'ex15': 'EX Dragon Frontiers',
       'ex16': 'EX Power Keepers',
-      
-      // Generation 4 (Sinnoh & HGSS)
       'dp1': 'Diamond & Pearl', 'dp2': 'Mysterious Treasures', 'dp3': 'Secret Wonders',
       'dp4': 'Great Encounters', 'dp5': 'Majestic Dawn', 'dp6': 'Legends Awakened',
       'dp7': 'Stormfront', 'pl1': 'Platinum', 'pl2': 'Rising Rivals', 'pl3': 'Supreme Victors',
       'pl4': 'Arceus', 'col1': 'Call of Legends', 'hgss1': 'HeartGold & SoulSilver',
       'hgss2': 'Unleashed', 'hgss3': 'Undaunted', 'hgss4': 'Triumphant',
-      
-      // Generation 5 (Unova)
       'bw1': 'Black & White', 'bw2': 'Emerging Powers', 'bw3': 'Noble Victories',
       'bw4': 'Next Destinies', 'bw5': 'Dark Explorers', 'bw6': 'Dragons Exalted',
       'bw7': 'Boundaries Crossed', 'bw8': 'Plasma Storm', 'bw9': 'Plasma Freeze',
       'bw10': 'Plasma Blast', 'bw11': 'Legendary Treasures',
-      
-      // Generation 6 (Kalos)
       'xy1': 'XY Base', 'xy2': 'Flashfire', 'xy3': 'Furious Fists', 'xy4': 'Phantom Forces',
       'xy5': 'Primal Clash', 'xy6': 'Roaring Skies', 'xy7': 'Ancient Origins',
       'xy8': 'BREAKthrough', 'xy9': 'BREAKpoint', 'xy10': 'Fates Collide',
       'xy11': 'Steam Siege', 'xy12': 'Evolutions', 'g1': 'Generations',
-      
-      // Generation 7 (Alola)
       'sm1': 'Sun & Moon', 'sm2': 'Guardians Rising', 'sm3': 'Burning Shadows',
       'sm35': 'Shining Legends', 'sm4': 'Crimson Invasion', 'sm5': 'Ultra Prism',
       'sm6': 'Forbidden Light', 'sm7': 'Celestial Storm', 'sm75': 'Dragon Majesty',
       'sm8': 'Lost Thunder', 'sm9': 'Team Up', 'sm10': 'Unbroken Bonds',
       'sm11': 'Unified Minds', 'sm115': 'Hidden Fates', 'sm12': 'Cosmic Eclipse',
-      
-      // Generation 8 (Galar)
       'swsh1': 'Sword & Shield', 'swsh2': 'Rebel Clash', 'swsh3': 'Darkness Ablaze',
       'swsh35': 'Champion\'s Path', 'swsh4': 'Vivid Voltage', 'swsh45': 'Shining Fates',
       'swsh5': 'Battle Styles', 'swsh6': 'Chilling Reign', 'swsh7': 'Evolving Skies',
       'cel25': 'Celebrations', 'swsh8': 'Fusion Strike', 'swsh9': 'Brilliant Stars',
       'swsh10': 'Astral Radiance', 'pgo': 'Pokémon GO', 'swsh11': 'Lost Origin',
       'swsh12': 'Silver Tempest', 'swsh12pt5': 'Crown Zenith',
-      
-      // Generation 9 (Paldea)
       'sv1': 'Scarlet & Violet', 'sv01': 'Scarlet & Violet', 'sve': 'Scarlet & Violet',
       'sv2': 'Paldea Evolved', 'sv02': 'Paldea Evolved', 'pal': 'Paldea Evolved',
       'sv3': 'Obsidian Flames', 'sv03': 'Obsidian Flames', 'obf': 'Obsidian Flames',
@@ -943,12 +927,8 @@
       'sv06.5': 'Shrouded Fable', 'sfa': 'Shrouded Fable', 'sv7': 'Stellar Crown', 'sv07': 'Stellar Crown', 'scr': 'Stellar Crown',
       'sv8': 'Surging Sparks', 'sv08': 'Surging Sparks', 'ssp': 'Surging Sparks',
       'sv08.5': 'Prismatic Evolutions', 'pre': 'Prismatic Evolutions',
-      
-      // Mega Evolution Series
       'me01': 'Phantasmal Flames', 'me02': 'Ascended Heroes', 'me03': 'Perfect Order',
       'me04': 'Chaos Rising', 'me05': 'Pitch Black', 'pbl': 'Pitch Black',
-      
-      // Promos
       'smp': 'SM Promos', 'swshp': 'SWSH Promos', 'svp': 'SV Promos', 'xyp': 'XY Promos',
       'bwp': 'BW Promos', 'dpp': 'DP Promos', 'np': 'Nintendo Promos', 'pop': 'POP Series'
     };
@@ -1381,6 +1361,7 @@
       return regex.test(c);
     }
 
+    // High-Accuracy Authoritative Fetcher
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
       const cacheKey = `tcg_authoritative_v1600_${cleanName.toLowerCase()}`;
@@ -1442,6 +1423,7 @@
         } catch (err) {}
       }
 
+      // Filter out all Digital Cards + strictly match exact name
       const physicalSpeciesCards = allCards
         .filter(c => !isDigitalOnlyCard(c))
         .filter(c => matchesExactPokemonName(c.name, cleanName))
@@ -1563,6 +1545,7 @@
       }
     }
 
+    // Touch Swipe Navigation (Strict 2D Horizontal)
     let zoomTouchX = 0;
     const zoomViewArea = document.getElementById('zoomViewArea');
     
@@ -1604,6 +1587,7 @@
     function hideActive() { 
       document.body.classList.remove('has-active'); 
       document.getElementById('pokeCard').style.display = 'none'; 
+      document.getElementById('spinBtn').innerText = "SPIN & GENERATE";
       curId = curPoke = null; 
       currentCardsList = [];
     }
@@ -1698,6 +1682,7 @@
     function renderCard(p, dir = 0, shiny = false) {
       curId = p.id; curPoke = p; isShiny = shiny;
       document.body.classList.add('has-active');
+      document.getElementById('spinBtn').innerText = "SPIN AGAIN";
       const card = document.getElementById('pokeCard');
       document.getElementById('dexNum').innerText = `#${String(p.id).padStart(4,'0')}`;
       

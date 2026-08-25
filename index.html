@@ -40,10 +40,6 @@
       overflow: hidden; 
       background: var(--bg); 
       color: var(--text);
-      overscroll-behavior: none !important;
-      -webkit-overscroll-behavior: none !important;
-      position: fixed;
-      inset: 0;
     }
     
     body { 
@@ -52,57 +48,6 @@
       align-items: center; 
       justify-content: flex-start;
       padding: clamp(0.2rem, 0.8dvh, 0.4rem) clamp(0.4rem, 2vw, 0.8rem); 
-      touch-action: none; 
-    }
-    
-    /* Pull-to-Refresh Floating Badge */
-    .ptr-indicator {
-      position: fixed;
-      top: 10px;
-      left: 50%;
-      transform: translate(-50%, -75px);
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      background: var(--card);
-      border: 1.5px solid #334155;
-      padding: 0.35rem 0.9rem;
-      border-radius: 99px;
-      box-shadow: 0 10px 28px rgba(0,0,0,0.7);
-      z-index: 9999;
-      pointer-events: none;
-      opacity: 0;
-      transition: transform 0.12s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.15s ease;
-    }
-    .ptr-spinner {
-      width: 16px;
-      height: 16px;
-      border: 2px solid #334155;
-      border-top-color: var(--gold);
-      border-radius: 50%;
-      transition: transform 0.1s linear;
-    }
-    .ptr-spinner.spinning {
-      animation: ptrSpin 0.6s linear infinite;
-    }
-    .ptr-text {
-      font-size: 0.7rem;
-      font-weight: 800;
-      color: var(--sub);
-      letter-spacing: 0.3px;
-    }
-    @keyframes ptrSpin { 100% { transform: rotate(360deg); } }
-
-    .top-refresh-hint {
-      font-size: 0.6rem;
-      font-weight: 800;
-      letter-spacing: 0.4px;
-      color: var(--sub);
-      opacity: 0.75;
-      text-transform: uppercase;
-      user-select: none;
-      margin-bottom: 0.1rem;
-      flex-shrink: 0;
     }
 
     .viewport { 
@@ -115,7 +60,6 @@
       justify-content: flex-start;
       gap: clamp(0.2rem, 0.6dvh, 0.45rem); 
       overflow: hidden;
-      touch-action: pan-y;
     }
     
     header { 
@@ -126,7 +70,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.1rem;
+      gap: 0.2rem;
     }
     header h1 { 
       font-family: 'Russo One', sans-serif;
@@ -155,19 +99,48 @@
          0 4px 0 #991b1b,
          0 6px 14px rgba(0,0,0,0.6);
     }
+
+    .top-action-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
     .badge { 
-      display: inline-block; 
-      margin-top: 0.1rem; 
+      display: inline-flex; 
+      align-items: center;
       background: var(--card); 
       border: 1px solid #334155; 
       color: var(--sub); 
       font-size: 0.7rem; 
       font-weight: 800; 
-      padding: 0.1rem 0.6rem; 
+      padding: 0.15rem 0.65rem; 
       border-radius: 99px; 
       box-shadow: 0 4px 12px rgba(0,0,0,0.35);
     }
     .badge strong { color: var(--green); }
+
+    .btn-top-reload {
+      background: var(--card);
+      border: 1px solid #334155;
+      color: var(--sub);
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 0.15rem 0.6rem;
+      border-radius: 99px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+      transition: transform 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .btn-top-reload:active {
+      transform: scale(0.94);
+      color: #fff;
+      border-color: var(--red);
+    }
 
     .search-wrap { position: relative; width: 100%; max-width: 380px; flex-shrink: 0; z-index: 20; }
     .search-box { display: flex; gap: 0.45rem; width: 100%; }
@@ -212,7 +185,6 @@
       align-items: center; 
       justify-content: center; 
       flex-shrink: 0; 
-      transition: opacity 0.2s ease;
     }
     body.has-active .wheel-wrap { 
       display: none !important;
@@ -816,18 +788,15 @@
 </head>
 <body>
 
-  <!-- Floating Pull-to-Refresh HUD -->
-  <div class="ptr-indicator" id="ptrIndicator">
-    <div class="ptr-spinner" id="ptrSpinner"></div>
-    <span class="ptr-text" id="ptrText">Pull to refresh...</span>
-  </div>
-
   <div class="viewport">
-    <div class="top-refresh-hint">↓ Pull down to refresh</div>
-    
     <header>
       <h1>Poké<span>Roulette</span></h1>
-      <div><div class="badge">Collected: <strong id="tCount">0</strong> / 1025</div></div>
+      <div class="top-action-bar">
+        <div class="badge">Collected: <strong id="tCount">0</strong> / 1025</div>
+        <button class="btn-top-reload" onclick="window.location.reload()" title="Reload Application">
+          ↻ Refresh
+        </button>
+      </div>
     </header>
 
     <div class="search-wrap">
@@ -1659,7 +1628,7 @@
     // High-Accuracy Authoritative Fetcher
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_authoritative_v2500_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+      const cacheKey = `tcg_authoritative_v2600_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
       
       if (!bypassCache) {
         if (memoryTcgCache.has(cacheKey)) {
@@ -1842,7 +1811,6 @@
       }
     }
 
-    // Touch Swipe Navigation (Strict 2D Horizontal)
     let zoomTouchX = 0;
     const zoomViewArea = document.getElementById('zoomViewArea');
     
@@ -2045,69 +2013,6 @@
     tcgStripEl.addEventListener('touchend', e => e.stopPropagation(), { passive: true });
 
     document.addEventListener('click', e => { if (!e.target.closest('.search-wrap')) document.getElementById('sList').style.display = 'none'; });
-
-    // ----------------------------------------------------
-    // ACCURATE TOUCH INTERCEPTION FOR PULL-DOWN-TO-REFRESH
-    // ----------------------------------------------------
-    let ptrStartY = 0;
-    let ptrCurrentY = 0;
-    let isPtrActive = false;
-    const PTR_THRESHOLD = 75;
-    const ptrIndicator = document.getElementById('ptrIndicator');
-    const ptrSpinner = document.getElementById('ptrSpinner');
-    const ptrText = document.getElementById('ptrText');
-
-    window.addEventListener('touchstart', e => {
-      if (e.touches.length !== 1) return;
-      const scrollableParent = e.target.closest('.list-view, .card, .dex-cards-grid, .suggestions');
-      if (scrollableParent && scrollableParent.scrollTop > 0) return;
-
-      ptrStartY = e.touches[0].pageY;
-      isPtrActive = true;
-    }, { passive: true });
-
-    window.addEventListener('touchmove', e => {
-      if (!isPtrActive) return;
-      ptrCurrentY = e.touches[0].pageY;
-      const pullDistance = ptrCurrentY - ptrStartY;
-
-      if (pullDistance > 10) {
-        if (e.cancelable) e.preventDefault();
-
-        const clampedY = Math.min(pullDistance * 0.38, 75);
-        ptrIndicator.style.opacity = Math.min(clampedY / 30, 1);
-        ptrIndicator.style.transform = `translate(-50%, ${clampedY}px)`;
-        ptrSpinner.style.transform = `rotate(${clampedY * 4.5}deg)`;
-
-        if (clampedY >= PTR_THRESHOLD * 0.38) {
-          ptrText.innerText = "Release to reload...";
-          ptrText.style.color = "var(--gold)";
-        } else {
-          ptrText.innerText = "Pull down to refresh...";
-          ptrText.style.color = "var(--sub)";
-        }
-      }
-    }, { passive: false });
-
-    window.addEventListener('touchend', () => {
-      if (!isPtrActive) return;
-      const pullDistance = ptrCurrentY - ptrStartY;
-      isPtrActive = false;
-
-      if (pullDistance * 0.38 >= PTR_THRESHOLD * 0.38) {
-        if (navigator.vibrate) navigator.vibrate(20);
-        ptrSpinner.classList.add('spinning');
-        ptrText.innerText = "Reloading...";
-        ptrIndicator.style.transform = `translate(-50%, 60px)`;
-        
-        setTimeout(() => {
-          window.location.reload();
-        }, 300);
-      } else {
-        ptrIndicator.style.opacity = '0';
-        ptrIndicator.style.transform = 'translate(-50%, -75px)';
-      }
-    }, { passive: true });
 
     (async () => {
       buildIcons();

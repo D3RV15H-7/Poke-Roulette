@@ -175,12 +175,23 @@
     .suggestions li { padding: 0.55rem 0.85rem; display: flex; justify-content: space-between; font-size: 0.84rem; border-bottom: 1px solid #1e293b; cursor: pointer; }
     .suggestions li:last-child { border-bottom: none; }
 
-    /* Enlarged Roulette Wheel Container */
+    .center-content-area {
+      flex: 1;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(0.4rem, 1.2dvh, 0.8rem);
+      min-height: 0;
+    }
+
+    /* Enlarged Roulette Wheel Container with padding above spin button */
     .wheel-wrap { 
       position: relative; 
       width: clamp(230px, 34dvh, 290px); 
       height: clamp(230px, 34dvh, 290px); 
-      margin: clamp(0.1rem, 0.4dvh, 0.3rem) auto; 
+      margin: 0 auto clamp(0.6rem, 1.5dvh, 1rem) auto; 
       display: flex; 
       align-items: center; 
       justify-content: center; 
@@ -212,7 +223,15 @@
     .center-hub { position: absolute; width: clamp(32px, 4.8dvh, 42px); height: clamp(32px, 4.8dvh, 42px); background: #fff; border-radius: 50%; border: 3px solid var(--bg); z-index: 5; display: flex; align-items: center; justify-content: center; }
     .center-hub::after { content: ''; width: 40%; height: 40%; border-radius: 50%; background: var(--red); border: 2px solid var(--bg); }
 
-    .spin-row { display: flex; gap: 0.45rem; width: 100%; justify-content: center; align-items: center; flex-shrink: 0; margin-top: 0.1rem; }
+    .spin-row { 
+      display: flex; 
+      gap: 0.45rem; 
+      width: 100%; 
+      justify-content: center; 
+      align-items: center; 
+      flex-shrink: 0; 
+      margin-bottom: clamp(0.6rem, 1.5dvh, 1rem); 
+    }
 
     .btn-spin { 
       background: linear-gradient(135deg, var(--red), #dc2626); 
@@ -252,7 +271,7 @@
     body.has-active .btn-close { display: flex; }
     @keyframes springPop { 0% { opacity: 0; transform: scale(0.3) rotate(-90deg); } 100% { opacity: 1; transform: scale(1) rotate(0deg); } }
 
-    /* Compact Auto-Wrapping Card */
+    /* Compact Auto-Wrapping Card with bottom padding */
     .card { 
       width: 100%; 
       max-width: 440px; 
@@ -269,6 +288,7 @@
       min-height: 0; 
       max-height: calc(100dvh - 210px);
       position: relative; 
+      margin-bottom: clamp(0.6rem, 1.5dvh, 1rem); 
       animation: custodySlideUp 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
       transition: border-color 0.4s ease, box-shadow 0.4s ease;
       overflow-y: auto;
@@ -530,7 +550,8 @@
       gap: 0.25rem;
       flex-shrink: 0;
       width: 100%;
-      margin-top: 0.15rem;
+      margin-top: clamp(0.4rem, 1dvh, 0.8rem);
+      margin-bottom: clamp(0.2rem, 0.5dvh, 0.4rem);
     }
 
     .hub { 
@@ -947,7 +968,7 @@
       </div>
     </div>
 
-    <!-- Navigation Hub & Collection Count (Stays stable directly below spin row or card) -->
+    <!-- Navigation Hub & Collection Count (Stays stable directly below spin button or card) -->
     <div class="hub-outer-wrap" id="persistentHub">
       <div class="hub">
         <div class="hub-item-wrap">
@@ -2088,7 +2109,7 @@
       document.getElementById('pokeCard').style.display = 'none'; 
       document.getElementById('spinBtn').innerText = "SPIN AGAIN";
       
-      // Move Hub back to the center stack below spin button when closing card view
+      // Return hub to be right below the spin row
       document.querySelector('.spin-row').after(document.getElementById('persistentHub'));
 
       curId = curPoke = null; 

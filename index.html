@@ -1,5 +1,3 @@
-What Was Fixed
- * Pinned Header & Refresh Button: Kept the main header, title, and top refresh button locked at the very top of the page viewport so they never shift or move downward, while keeping the roulette wheel and main app content vertically centered.
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -59,8 +57,8 @@ What Was Fixed
       display: flex; 
       flex-direction: column; 
       align-items: center; 
-      justify-content: space-between;
-      gap: clamp(0.2rem, 0.5dvh, 0.4rem); 
+      justify-content: flex-start;
+      gap: clamp(0.2rem, 0.6dvh, 0.45rem); 
       overflow: hidden;
     }
     
@@ -68,17 +66,18 @@ What Was Fixed
       width: 100%; 
       text-align: center; 
       flex-shrink: 0; 
+      margin-bottom: clamp(0.05rem, 0.2dvh, 0.15rem);
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.15rem;
-      padding-top: 0.1rem;
+      gap: 0.2rem;
     }
 
+    /* Ultra-Clean Modern Title Styling */
     header h1 { 
       font-family: 'Plus Jakarta Sans', sans-serif;
       font-weight: 900;
-      font-size: clamp(2.1rem, 4.8dvh, 2.6rem); 
+      font-size: clamp(2rem, 4.5dvh, 2.4rem); 
       letter-spacing: 0.5px;
       color: var(--gold); 
       text-shadow: 
@@ -87,9 +86,9 @@ What Was Fixed
       display: inline-block;
     }
     header h1 span { 
-      color: var(--red); 
+      color: #fff; 
       text-shadow: 
-        0 3px 0 #ffffff,
+        0 3px 0 var(--red),
         0 6px 14px rgba(0,0,0,0.65);
     }
 
@@ -135,17 +134,6 @@ What Was Fixed
       border-color: var(--red);
     }
 
-    .center-content-area {
-      flex: 1;
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: clamp(0.3rem, 1dvh, 0.6rem);
-      min-height: 0;
-    }
-
     .search-wrap { position: relative; width: 100%; max-width: 380px; flex-shrink: 0; z-index: 20; }
     .search-box { display: flex; gap: 0.45rem; width: 100%; }
     .search-box input { 
@@ -179,11 +167,11 @@ What Was Fixed
     .suggestions li { padding: 0.55rem 0.85rem; display: flex; justify-content: space-between; font-size: 0.84rem; border-bottom: 1px solid #1e293b; cursor: pointer; }
     .suggestions li:last-child { border-bottom: none; }
 
-    /* Enlarged Roulette Wheel Container */
+    /* Roulette Wheel Container */
     .wheel-wrap { 
       position: relative; 
-      width: clamp(240px, 36dvh, 300px); 
-      height: clamp(240px, 36dvh, 300px); 
+      width: clamp(200px, 30dvh, 250px); 
+      height: clamp(200px, 30dvh, 250px); 
       margin: clamp(0.2rem, 0.6dvh, 0.45rem) auto; 
       display: flex; 
       align-items: center; 
@@ -213,7 +201,7 @@ What Was Fixed
     .slice-icon { position: absolute; width: 11.5%; height: 11.5%; display: flex; align-items: center; justify-content: center; opacity: 0.9; }
     .slice-icon svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.45)); }
     .pointer { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 15px solid #fff; z-index: 10; filter: drop-shadow(0 3px 5px rgba(0,0,0,0.6)); transition: all 0.35s; }
-    .center-hub { position: absolute; width: clamp(32px, 4.8dvh, 42px); height: clamp(32px, 4.8dvh, 42px); background: #fff; border-radius: 50%; border: 3px solid var(--bg); z-index: 5; display: flex; align-items: center; justify-content: center; }
+    .center-hub { position: absolute; width: clamp(28px, 4.2dvh, 36px); height: clamp(28px, 4.2dvh, 36px); background: #fff; border-radius: 50%; border: 3px solid var(--bg); z-index: 5; display: flex; align-items: center; justify-content: center; }
     .center-hub::after { content: ''; width: 40%; height: 40%; border-radius: 50%; background: var(--red); border: 2px solid var(--bg); }
 
     .spin-row { display: flex; gap: 0.45rem; width: 100%; justify-content: center; align-items: center; flex-shrink: 0; margin-top: 0.1rem; }
@@ -523,12 +511,12 @@ What Was Fixed
       gap: 0.25rem;
       flex-shrink: 0;
       width: 100%;
-      margin-top: clamp(0.1rem, 0.4dvh, 0.25rem);
-      margin-bottom: clamp(0.05rem, 0.2dvh, 0.15rem);
+      margin-top: clamp(0.2rem, 0.8dvh, 0.4rem);
+      margin-bottom: clamp(0.1rem, 0.3dvh, 0.25rem);
     }
     body.has-active .hub-outer-wrap {
-      margin-top: 0.2rem;
-      margin-bottom: 0.2rem;
+      margin-top: 0.35rem;
+      margin-bottom: 0.35rem;
     }
 
     .hub { 
@@ -876,76 +864,74 @@ What Was Fixed
       </div>
     </header>
 
-    <div class="center-content-area">
-      <div class="search-wrap">
-        <form class="search-box" onsubmit="event.preventDefault(); submitSearch();">
-          <input type="text" id="sInput" placeholder="Type Pokémon Name or Dex #" autocomplete="off" oninput="handleSearch(this.value)" />
-          <button type="submit">Search</button>
-        </form>
-        <ul class="suggestions" id="sList"></ul>
+    <div class="search-wrap">
+      <form class="search-box" onsubmit="event.preventDefault(); submitSearch();">
+        <input type="text" id="sInput" placeholder="Type Pokémon Name or Dex #" autocomplete="off" oninput="handleSearch(this.value)" />
+        <button type="submit">Search</button>
+      </form>
+      <ul class="suggestions" id="sList"></ul>
+    </div>
+
+    <div class="wheel-wrap">
+      <div class="pointer"></div>
+      <div class="wheel" id="wheel"></div>
+      <div class="center-hub"></div>
+    </div>
+
+    <div class="spin-row">
+      <button class="btn-spin" id="spinBtn" onclick="handleSpinButtonClick()">SPIN & GENERATE</button>
+      <button class="btn-close" id="closeBtn" onclick="hideActive()" title="Hide Pokémon View">✕</button>
+    </div>
+
+    <!-- Active Pokémon Details & TCG Card Variation Strip -->
+    <div class="card" id="pokeCard">
+      <div class="card-nav">
+        <button onclick="navigateDex(-1)">‹</button>
+        <div style="font-size:0.72rem;font-weight:800;color:var(--sub);" id="dexNum">#0000</div>
+        <button onclick="navigateDex(1)">›</button>
+      </div>
+      <h2 class="poke-name" id="pokeName">Pokémon</h2>
+      
+      <div class="img-box">
+        <img class="main-art" id="pokeImg" src="" alt="Artwork" />
+        <div class="sparkle" id="sparkle">✨</div>
+        <div class="tick-badge" id="cardTick">✓</div>
+      </div>
+      
+      <div class="card-actions">
+        <button class="btn-icon" onclick="playCry()">🔊</button>
+        <div class="types" id="pokeTypes"></div>
+        <button class="btn-icon" id="shinyBtn" onclick="toggleShiny()">★</button>
       </div>
 
-      <div class="wheel-wrap">
-        <div class="pointer"></div>
-        <div class="wheel" id="wheel"></div>
-        <div class="center-hub"></div>
+      <div class="lore-box" id="pokeLore">Accessing Pokédex lore...</div>
+
+      <div class="evo-chain-wrap" id="evoChain"></div>
+
+      <div class="tcg-section-wrap" id="tcgWrap">
+        <div class="tcg-header-row">
+          <span class="tcg-title-text" id="tcgSectionTitle">🃏 Card Variations</span>
+          <span class="tcg-count-text" id="tcgCountText">Loading cards...</span>
+        </div>
+        <div class="tcg-scroll-strip" id="tcgStrip">
+          <div class="tcg-skeleton-card"></div>
+          <div class="tcg-skeleton-card"></div>
+          <div class="tcg-skeleton-card"></div>
+          <div class="tcg-skeleton-card"></div>
+        </div>
       </div>
 
-      <div class="spin-row">
-        <button class="btn-spin" id="spinBtn" onclick="handleSpinButtonClick()">SPIN & GENERATE</button>
-        <button class="btn-close" id="closeBtn" onclick="hideActive()" title="Hide Pokémon View">✕</button>
-      </div>
-
-      <!-- Active Pokémon Details & TCG Card Variation Strip -->
-      <div class="card" id="pokeCard">
-        <div class="card-nav">
-          <button onclick="navigateDex(-1)">‹</button>
-          <div style="font-size:0.72rem;font-weight:800;color:var(--sub);" id="dexNum">#0000</div>
-          <button onclick="navigateDex(1)">›</button>
-        </div>
-        <h2 class="poke-name" id="pokeName">Pokémon</h2>
-        
-        <div class="img-box">
-          <img class="main-art" id="pokeImg" src="" alt="Artwork" />
-          <div class="sparkle" id="sparkle">✨</div>
-          <div class="tick-badge" id="cardTick">✓</div>
-        </div>
-        
-        <div class="card-actions">
-          <button class="btn-icon" onclick="playCry()">🔊</button>
-          <div class="types" id="pokeTypes"></div>
-          <button class="btn-icon" id="shinyBtn" onclick="toggleShiny()">★</button>
-        </div>
-
-        <div class="lore-box" id="pokeLore">Accessing Pokédex lore...</div>
-
-        <div class="evo-chain-wrap" id="evoChain"></div>
-
-        <div class="tcg-section-wrap" id="tcgWrap">
-          <div class="tcg-header-row">
-            <span class="tcg-title-text" id="tcgSectionTitle">🃏 Card Variations</span>
-            <span class="tcg-count-text" id="tcgCountText">Loading cards...</span>
-          </div>
-          <div class="tcg-scroll-strip" id="tcgStrip">
-            <div class="tcg-skeleton-card"></div>
-            <div class="tcg-skeleton-card"></div>
-            <div class="tcg-skeleton-card"></div>
-            <div class="tcg-skeleton-card"></div>
-          </div>
-        </div>
-
-        <button class="btn-collect" id="colBtn" onclick="toggleCollect()">
-          <span id="colIcon">+</span> <span id="colTxt">Add to Collection</span>
-        </button>
-        
-        <div class="stats">
-          <div><span style="color:var(--sub)">Height:</span> <span id="sH">-</span></div>
-          <div><span style="color:var(--sub)">Weight:</span> <span id="sW">-</span></div>
-          <div><span style="color:var(--sub)">HP:</span> <span id="sHp">-</span></div>
-          <div><span style="color:var(--sub)">Attack:</span> <span id="sAtk">-</span></div>
-          <div><span style="color:var(--sub)">Defense:</span> <span id="sDef">-</span></div>
-          <div><span style="color:var(--sub)">Speed:</span> <span id="sSpd">-</span></div>
-        </div>
+      <button class="btn-collect" id="colBtn" onclick="toggleCollect()">
+        <span id="colIcon">+</span> <span id="colTxt">Add to Collection</span>
+      </button>
+      
+      <div class="stats">
+        <div><span style="color:var(--sub)">Height:</span> <span id="sH">-</span></div>
+        <div><span style="color:var(--sub)">Weight:</span> <span id="sW">-</span></div>
+        <div><span style="color:var(--sub)">HP:</span> <span id="sHp">-</span></div>
+        <div><span style="color:var(--sub)">Attack:</span> <span id="sAtk">-</span></div>
+        <div><span style="color:var(--sub)">Defense:</span> <span id="sDef">-</span></div>
+        <div><span style="color:var(--sub)">Speed:</span> <span id="sSpd">-</span></div>
       </div>
     </div>
 
@@ -2088,7 +2074,7 @@ What Was Fixed
     function hideActive() { 
       document.body.classList.remove('has-active'); 
       document.getElementById('pokeCard').style.display = 'none'; 
-      document.getElementById('spinBtn').innerText = "SPIN AGAIN";
+      document.getElementById('spinBtn').innerText = "SPIN & GENERATE";
       curId = curPoke = null; 
       currentCardsList = [];
     }

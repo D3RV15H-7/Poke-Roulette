@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@900&family=Plus+Jakarta+Sans:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800;900&display=swap" rel="stylesheet">
   
   <!-- Firebase Compatibility SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -72,39 +72,30 @@
       align-items: center;
       gap: 0.2rem;
     }
+
+    /* Ultra-Clean Modern Title Styling */
     header h1 { 
-      font-family: 'Outfit', sans-serif;
+      font-family: 'Plus Jakarta Sans', sans-serif;
       font-weight: 900;
-      font-size: clamp(2rem, 4.6dvh, 2.5rem); 
+      font-size: clamp(2rem, 4.5dvh, 2.4rem); 
       letter-spacing: 0.5px;
       color: var(--gold); 
-      -webkit-text-stroke: 2.2px var(--poke-blue);
       text-shadow: 
-        -2.5px -2.5px 0 var(--poke-blue),  
-         2.5px -2.5px 0 var(--poke-blue),
-        -2.5px  2.5px 0 var(--poke-blue),
-         2.5px  2.5px 0 var(--poke-blue),
-         0 5px 0 #1b4b79,
-         0 8px 16px rgba(0,0,0,0.65);
+        0 3px 0 var(--poke-blue),
+        0 6px 14px rgba(0,0,0,0.65);
       display: inline-block;
     }
     header h1 span { 
       color: #fff; 
-      -webkit-text-stroke: 2.2px var(--red);
       text-shadow: 
-        -2.5px -2.5px 0 var(--red),  
-         2.5px -2.5px 0 var(--red),
-        -2.5px  2.5px 0 var(--red),
-         2.5px  2.5px 0 var(--red),
-         0 5px 0 #991b1b,
-         0 8px 16px rgba(0,0,0,0.65);
+        0 3px 0 var(--red),
+        0 6px 14px rgba(0,0,0,0.65);
     }
 
     .top-action-bar {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.5rem;
     }
 
     .badge { 
@@ -113,11 +104,12 @@
       background: var(--card); 
       border: 1px solid #334155; 
       color: var(--sub); 
-      font-size: 0.7rem; 
+      font-size: 0.68rem; 
       font-weight: 800; 
-      padding: 0.15rem 0.65rem; 
+      padding: 0.2rem 0.75rem; 
       border-radius: 99px; 
       box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+      margin-top: 0.15rem;
     }
     .badge strong { color: var(--green); }
 
@@ -511,19 +503,29 @@
     .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.04rem 0.7rem; text-align: left; background: #090d16; padding: clamp(0.14rem, 0.32dvh, 0.2rem) 0.6rem; border-radius: 8px; font-size: clamp(0.56rem, 1dvh, 0.64rem); }
     .stats span:last-child { font-weight: 700; float: right; }
 
-    /* Navigation Hub - Immediately Under Card */
+    /* Navigation Hub */
+    .hub-outer-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      flex-shrink: 0;
+      width: 100%;
+      margin-top: clamp(0.2rem, 0.8dvh, 0.4rem);
+      margin-bottom: clamp(0.1rem, 0.3dvh, 0.25rem);
+    }
+    body.has-active .hub-outer-wrap {
+      margin-top: 0.35rem;
+      margin-bottom: 0.35rem;
+    }
+
     .hub { 
       display: flex; 
       justify-content: center; 
       gap: 1.4rem; 
-      margin-top: clamp(0.2rem, 0.8dvh, 0.4rem); 
-      margin-bottom: clamp(0.1rem, 0.3dvh, 0.25rem); 
-      flex-shrink: 0; 
       width: 100%;
     }
     body.has-active .hub { 
-      margin-top: 0.35rem; 
-      margin-bottom: 0.35rem; 
       gap: 1.2rem; 
     }
 
@@ -856,7 +858,6 @@
     <header>
       <h1>Poké<span>Roulette</span></h1>
       <div class="top-action-bar">
-        <div class="badge">Collected: <strong id="tCount">0</strong> / 1025</div>
         <button class="btn-top-reload" onclick="window.location.reload()" title="Reload Application">
           ↻ Refresh
         </button>
@@ -934,27 +935,30 @@
       </div>
     </div>
 
-    <!-- Navigation Hub (Directly below Card or Wheel) -->
-    <div class="hub">
-      <div class="hub-item-wrap">
-        <button class="btn-hub" onclick="openModal('dexModal')" title="Collection">
-          <svg viewBox="0 0 24 24"><path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-9Z"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M8 10h8v4H8z"/></svg>
-          <div class="hub-badge" id="bagBadge">0</div>
-        </button>
-        <span class="hub-item-label">Dex</span>
+    <!-- Navigation Hub & Collection Count below icons -->
+    <div class="hub-outer-wrap">
+      <div class="hub">
+        <div class="hub-item-wrap">
+          <button class="btn-hub" onclick="openModal('dexModal')" title="Collection">
+            <svg viewBox="0 0 24 24"><path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-9Z"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M8 10h8v4H8z"/></svg>
+            <div class="hub-badge" id="bagBadge">0</div>
+          </button>
+          <span class="hub-item-label">Dex</span>
+        </div>
+        <div class="hub-item-wrap">
+          <button class="btn-hub" onclick="openModal('recentModal')" title="History">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><polyline points="3 3 3 8 8 8"/></svg>
+          </button>
+          <span class="hub-item-label">History</span>
+        </div>
+        <div class="hub-item-wrap">
+          <button class="btn-hub" onclick="openModal('accountModal')" title="Account Sync" id="btnAccount">
+            <svg viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </button>
+          <span class="hub-item-label" id="accountLabel">Account</span>
+        </div>
       </div>
-      <div class="hub-item-wrap">
-        <button class="btn-hub" onclick="openModal('recentModal')" title="History">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><polyline points="3 3 3 8 8 8"/></svg>
-        </button>
-        <span class="hub-item-label">History</span>
-      </div>
-      <div class="hub-item-wrap">
-        <button class="btn-hub" onclick="openModal('accountModal')" title="Account Sync" id="btnAccount">
-          <svg viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        </button>
-        <span class="hub-item-label" id="accountLabel">Account</span>
-      </div>
+      <div class="badge">Collected: <strong id="tCount">0</strong> / 1025</div>
     </div>
   </div>
 
@@ -2015,9 +2019,6 @@
       syncBasePokemonFromCards();
 
       if (curId) renderTcgCards(currentCardsList);
-      if (activeDexModalPoke) {
-        // Refresh the underlying modal data in memory so when we return it's up to date
-      }
     }
 
     function navigateZoomCard(dir) {

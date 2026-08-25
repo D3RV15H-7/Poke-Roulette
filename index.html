@@ -32,15 +32,33 @@
       --poke-blue: #2a75bb; 
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-    html, body { width: 100vw; height: 100dvh; overflow: hidden; background: var(--bg); color: var(--text); }
-    body { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: clamp(0.3rem, 1dvh, 0.6rem) clamp(0.5rem, 2vw, 1rem); touch-action: pan-y; }
     
-    /* Pull-to-Refresh Component */
+    html, body { 
+      width: 100vw; 
+      height: 100dvh; 
+      overflow: hidden; 
+      background: var(--bg); 
+      color: var(--text);
+      overscroll-behavior-y: none;
+      position: fixed;
+      inset: 0;
+    }
+    
+    body { 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      justify-content: center; 
+      padding: clamp(0.3rem, 1dvh, 0.6rem) clamp(0.5rem, 2vw, 1rem); 
+      touch-action: pan-y; 
+    }
+    
+    /* Pull-to-Refresh Floating HUD */
     .ptr-indicator {
       position: fixed;
-      top: -60px;
+      top: 14px;
       left: 50%;
-      transform: translateX(-50%);
+      transform: translate(-50%, -70px);
       display: flex;
       align-items: center;
       gap: 0.5rem;
@@ -48,11 +66,11 @@
       border: 1.5px solid #334155;
       padding: 0.4rem 1rem;
       border-radius: 99px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      box-shadow: 0 10px 28px rgba(0,0,0,0.7);
       z-index: 1000;
       pointer-events: none;
-      transition: transform 0.15s ease-out, opacity 0.2s ease;
       opacity: 0;
+      transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease;
     }
     .ptr-spinner {
       width: 18px;
@@ -73,6 +91,18 @@
     }
     @keyframes ptrSpin { 100% { transform: rotate(360deg); } }
 
+    .top-refresh-hint {
+      font-size: 0.64rem;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      color: var(--sub);
+      opacity: 0.7;
+      text-transform: uppercase;
+      user-select: none;
+      margin-bottom: -0.1rem;
+    }
+    body.has-active .top-refresh-hint { display: none; }
+
     .viewport { 
       width: 100%; 
       max-width: 440px; 
@@ -81,8 +111,8 @@
       flex-direction: column; 
       align-items: center; 
       justify-content: space-between;
-      padding: clamp(0.4rem, 1.2dvh, 0.8rem) 0;
-      gap: clamp(0.35rem, 1dvh, 0.65rem); 
+      padding: clamp(0.3rem, 1dvh, 0.6rem) 0;
+      gap: clamp(0.3rem, 0.8dvh, 0.55rem); 
       transition: justify-content 0.4s ease;
     }
     body.has-active .viewport { justify-content: flex-start; padding: 0; gap: 0.15rem; }
@@ -92,6 +122,10 @@
       text-align: center; 
       flex-shrink: 0; 
       margin-bottom: clamp(0.15rem, 0.5dvh, 0.35rem);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.2rem;
     }
     header h1 { 
       font-family: 'Russo One', sans-serif;
@@ -122,7 +156,7 @@
     }
     .badge { 
       display: inline-block; 
-      margin-top: 0.25rem; 
+      margin-top: 0.15rem; 
       background: var(--card); 
       border: 1px solid #334155; 
       color: var(--sub); 
@@ -786,6 +820,8 @@
   </div>
 
   <div class="viewport">
+    <div class="top-refresh-hint">↓ Pull down to refresh</div>
+    
     <header>
       <h1>Poké<span>Roulette</span></h1>
       <div><div class="badge">Collected: <strong id="tCount">0</strong> / 1025</div></div>
@@ -1647,7 +1683,6 @@
         } catch (err) {}
       }
 
-      // Filter out all Digital Cards + strictly match exact name
       const physicalSpeciesCards = allCards
         .filter(c => !isDigitalOnlyCard(c))
         .filter(c => matchesExactPokemonName(c.name, cleanName))
@@ -1967,12 +2002,12 @@
     document.addEventListener('click', e => { if (!e.target.closest('.search-wrap')) document.getElementById('sList').style.display = 'none'; });
 
     // ----------------------------------------------------
-    // PULL DOWN TO REFRESH ENGINE
+    // FIXED OVERLAY PULL DOWN TO REFRESH (NO PAGE DISPLACEMENT)
     // ----------------------------------------------------
     let ptrStartY = 0;
     let ptrCurrentY = 0;
     let isPtrActive = false;
-    const PTR_THRESHOLD = 75;
+    const PTR_THRESHOLD = 70;
     const ptrIndicator = document.getElementById('ptrIndicator');
     const ptrSpinner = document.getElementById('ptrSpinner');
     const ptrText = document.getElementById('ptrText');
@@ -1991,13 +2026,13 @@
       ptrCurrentY = e.touches[0].pageY;
       const pullDistance = ptrCurrentY - ptrStartY;
 
-      if (pullDistance > 15) {
-        const clampedY = Math.min(pullDistance * 0.45, 95);
-        ptrIndicator.style.opacity = Math.min(clampedY / 45, 1);
+      if (pullDistance > 10) {
+        const clampedY = Math.min(pullDistance * 0.4, 75);
+        ptrIndicator.style.opacity = Math.min(clampedY / 35, 1);
         ptrIndicator.style.transform = `translate(-50%, ${clampedY}px)`;
-        ptrSpinner.style.transform = `rotate(${clampedY * 4}deg)`;
+        ptrSpinner.style.transform = `rotate(${clampedY * 4.5}deg)`;
 
-        if (clampedY >= PTR_THRESHOLD * 0.45) {
+        if (clampedY >= PTR_THRESHOLD * 0.4) {
           ptrText.innerText = "Release to reload...";
           ptrText.style.color = "var(--gold)";
         } else {
@@ -2012,18 +2047,18 @@
       const pullDistance = ptrCurrentY - ptrStartY;
       isPtrActive = false;
 
-      if (pullDistance * 0.45 >= PTR_THRESHOLD * 0.45) {
+      if (pullDistance * 0.4 >= PTR_THRESHOLD * 0.4) {
         if (navigator.vibrate) navigator.vibrate(20);
         ptrSpinner.classList.add('spinning');
         ptrText.innerText = "Reloading...";
-        ptrIndicator.style.transform = `translate(-50%, 75px)`;
+        ptrIndicator.style.transform = `translate(-50%, 65px)`;
         
         setTimeout(() => {
           window.location.reload();
-        }, 350);
+        }, 300);
       } else {
         ptrIndicator.style.opacity = '0';
-        ptrIndicator.style.transform = 'translate(-50%, -60px)';
+        ptrIndicator.style.transform = 'translate(-50%, -70px)';
       }
     }, { passive: true });
 

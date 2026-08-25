@@ -14,7 +14,7 @@
     :root { --bg: #0f172a; --card: #1e293b; --red: #ef4444; --text: #f8fafc; --sub: #94a3b8; --green: #10b981; --gold: #f59e0b; }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
     html, body { width: 100vw; height: 100dvh; overflow: hidden; background: var(--bg); color: var(--text); }
-    body { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: clamp(0.15rem, 0.4dvh, 0.35rem) clamp(0.4rem, 1.5vw, 0.8rem); touch-action: pan-y; }
+    body { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: clamp(0.4rem, 1.2dvh, 0.8rem) clamp(0.5rem, 2vw, 1rem); touch-action: pan-y; }
     
     .viewport { 
       width: 100%; 
@@ -23,32 +23,71 @@
       display: flex; 
       flex-direction: column; 
       align-items: center; 
-      justify-content: center; 
-      gap: clamp(0.08rem, 0.25dvh, 0.18rem); 
+      justify-content: space-between;
+      padding: clamp(0.5rem, 1.5dvh, 1rem) 0;
+      gap: clamp(0.4rem, 1.2dvh, 0.8rem); 
       transition: justify-content 0.4s ease;
     }
-    body.has-active .viewport { justify-content: flex-start; }
+    body.has-active .viewport { justify-content: flex-start; padding: 0; gap: 0.15rem; }
     
     header { width: 100%; text-align: center; flex-shrink: 0; }
-    header h1 { font-size: clamp(1.05rem, 2.3dvh, 1.3rem); font-weight: 800; color: #fff; }
+    header h1 { 
+      font-size: clamp(1.4rem, 3.4dvh, 1.85rem); 
+      font-weight: 900; 
+      letter-spacing: -0.5px;
+      color: #fff; 
+      text-shadow: 0 4px 18px rgba(0,0,0,0.5);
+    }
     header span { color: var(--red); }
-    .badge { display: inline-block; margin-top: 0.02rem; background: var(--card); border: 1px solid #334155; color: var(--sub); font-size: 0.64rem; font-weight: 700; padding: 0.04rem 0.4rem; border-radius: 99px; }
+    .badge { 
+      display: inline-block; 
+      margin-top: 0.2rem; 
+      background: var(--card); 
+      border: 1px solid #334155; 
+      color: var(--sub); 
+      font-size: 0.72rem; 
+      font-weight: 800; 
+      padding: 0.12rem 0.65rem; 
+      border-radius: 99px; 
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
     .badge strong { color: var(--green); }
 
-    .search-wrap { position: relative; width: 100%; max-width: 360px; flex-shrink: 0; z-index: 20; }
-    .search-box { display: flex; gap: 0.4rem; width: 100%; }
-    .search-box input { flex: 1; background: var(--card); border: 1.5px solid #334155; color: #fff; padding: clamp(0.45rem, 1dvh, 0.6rem) 1rem; border-radius: 99px; font-size: 0.88rem; outline: none; transition: border-color 0.2s; }
-    .search-box input:focus { border-color: var(--red); }
-    .search-box button { background: #334155; color: #fff; border: none; padding: 0 1.15rem; border-radius: 99px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+    .search-wrap { position: relative; width: 100%; max-width: 380px; flex-shrink: 0; z-index: 20; }
+    .search-box { display: flex; gap: 0.45rem; width: 100%; }
+    .search-box input { 
+      flex: 1; 
+      background: var(--card); 
+      border: 1.5px solid #334155; 
+      color: #fff; 
+      padding: clamp(0.55rem, 1.3dvh, 0.75rem) 1.15rem; 
+      border-radius: 99px; 
+      font-size: 0.95rem; 
+      outline: none; 
+      transition: border-color 0.2s, box-shadow 0.2s; 
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    }
+    .search-box input:focus { border-color: var(--red); box-shadow: 0 0 16px rgba(239, 68, 68, 0.3); }
+    .search-box button { 
+      background: #334155; 
+      color: #fff; 
+      border: none; 
+      padding: 0 1.25rem; 
+      border-radius: 99px; 
+      font-size: 0.88rem; 
+      font-weight: 800; 
+      cursor: pointer; 
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    }
     .suggestions { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--card); border: 1px solid #334155; border-radius: 14px; max-height: 190px; overflow-y: auto; list-style: none; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
     .suggestions li { padding: 0.55rem 0.85rem; display: flex; justify-content: space-between; font-size: 0.84rem; border-bottom: 1px solid #2d3748; cursor: pointer; text-transform: capitalize; }
     .suggestions li:last-child { border-bottom: none; }
 
     .wheel-wrap { 
       position: relative; 
-      width: clamp(200px, 30dvh, 240px); 
-      height: clamp(200px, 30dvh, 240px); 
-      margin: clamp(0.3rem, 0.9dvh, 0.5rem) auto; 
+      width: clamp(210px, 32dvh, 255px); 
+      height: clamp(210px, 32dvh, 255px); 
+      margin: clamp(0.4rem, 1.5dvh, 0.8rem) auto; 
       display: flex; 
       align-items: center; 
       justify-content: center; 
@@ -76,7 +115,7 @@
         #B59030 240deg 260deg, #6B45B5 260deg 280deg, #E5BE00 280deg 300deg, #233544 300deg 320deg,
         #9AA2AC 320deg 340deg, #F469A9 340deg 360deg
       ); 
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
+      box-shadow: 0 14px 32px rgba(0,0,0,0.6); 
     }
     .wheel-icons { position: absolute; inset: 0; pointer-events: none; }
     .slice-icon { position: absolute; width: 11.5%; height: 11.5%; display: flex; align-items: center; justify-content: center; opacity: 0.9; }
@@ -87,19 +126,19 @@
     body.has-active .center-hub { width: clamp(12px, 1.6dvh, 16px); height: clamp(12px, 1.6dvh, 16px); border-width: 2px; }
     .center-hub::after { content: ''; width: 40%; height: 40%; border-radius: 50%; background: var(--red); border: 2px solid var(--bg); }
 
-    .spin-row { display: flex; gap: 0; width: 100%; justify-content: center; align-items: center; flex-shrink: 0; }
-    body.has-active .spin-row { gap: 0.35rem; }
+    .spin-row { display: flex; gap: 0; width: 100%; justify-content: center; align-items: center; flex-shrink: 0; margin-top: 0.2rem; }
+    body.has-active .spin-row { gap: 0.35rem; margin-top: 0; }
 
     .btn-spin { 
       background: linear-gradient(135deg, var(--red), #dc2626); 
       color: #fff; 
       border: none; 
-      padding: clamp(0.5rem, 1.3dvh, 0.7rem) clamp(1.6rem, 4.5vw, 2.2rem); 
-      font-size: clamp(0.85rem, 1.9dvh, 1rem); 
-      font-weight: 800; 
-      letter-spacing: 0.5px; 
+      padding: clamp(0.6rem, 1.5dvh, 0.85rem) clamp(1.8rem, 5vw, 2.5rem); 
+      font-size: clamp(0.9rem, 2dvh, 1.05rem); 
+      font-weight: 900; 
+      letter-spacing: 0.75px; 
       border-radius: 99px; 
-      box-shadow: 0 6px 20px rgba(239,68,68,0.45); 
+      box-shadow: 0 8px 25px rgba(239,68,68,0.5); 
       cursor: pointer; 
       white-space: nowrap;
       transition: padding 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.2s;
@@ -130,10 +169,34 @@
     body.has-active .btn-close { display: flex; }
     @keyframes springPop { 0% { opacity: 0; transform: scale(0.3) rotate(-90deg); } 100% { opacity: 1; transform: scale(1) rotate(0deg); } }
 
-    .hub { display: flex; justify-content: center; gap: 0.8rem; margin: 0.05rem 0; flex-shrink: 0; }
-    .btn-hub { position: relative; background: var(--card); border: 1px solid #334155; width: clamp(36px, 4.8dvh, 42px); height: clamp(36px, 4.8dvh, 42px); border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-    .btn-hub svg { width: 18px; height: 18px; fill: none; stroke: #f8fafc; stroke-width: 2; }
-    .hub-badge { position: absolute; top: -5px; right: -5px; background: var(--green); color: #fff; font-size: 0.6rem; font-weight: 800; min-width: 18px; height: 18px; padding: 0 3px; border-radius: 99px; display: flex; align-items: center; justify-content: center; border: 2px solid var(--bg); }
+    /* Floating Navigation Hub */
+    .hub { 
+      display: flex; 
+      justify-content: center; 
+      gap: 1.1rem; 
+      margin-top: clamp(0.6rem, 2dvh, 1.2rem); 
+      margin-bottom: clamp(0.3rem, 1dvh, 0.6rem); 
+      flex-shrink: 0; 
+    }
+    body.has-active .hub { margin-top: 0.05rem; margin-bottom: 0.05rem; gap: 0.7rem; }
+
+    .btn-hub { 
+      position: relative; 
+      background: var(--card); 
+      border: 1.5px solid #334155; 
+      width: clamp(42px, 5.4dvh, 48px); 
+      height: clamp(42px, 5.4dvh, 48px); 
+      border-radius: 14px; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      cursor: pointer; 
+      box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+      transition: transform 0.15s, border-color 0.15s;
+    }
+    .btn-hub:active { transform: scale(0.92); border-color: var(--red); }
+    .btn-hub svg { width: 21px; height: 21px; fill: none; stroke: #f8fafc; stroke-width: 2; }
+    .hub-badge { position: absolute; top: -5px; right: -5px; background: var(--green); color: #fff; font-size: 0.62rem; font-weight: 800; min-width: 19px; height: 19px; padding: 0 3px; border-radius: 99px; display: flex; align-items: center; justify-content: center; border: 2px solid var(--bg); }
 
     .card { 
       width: 100%; 
@@ -676,7 +739,7 @@
       </div>
 
       <div class="tcg-zoom-title" id="tcgZoomTitle">Card Title</div>
-      <div class="tcg-zoom-meta" id="tcgZoomMeta">Set · Number · Rarity</div>
+      <div class="tcg-zoom-meta" id="tcgZoomMeta">Set · Number</div>
       <div class="tcg-zoom-price-row" id="tcgZoomPrice">
         <span>Est. Value:</span> <strong id="tcgZoomPriceVal">£--.--</strong>
       </div>
@@ -758,58 +821,41 @@
     };
 
     const KNOWN_SETS = {
-      // Generation 1 (Kanto)
       'base1': 'Base Set', 'base2': 'Jungle', 'base3': 'Fossil', 'base4': 'Base Set 2', 'base5': 'Team Rocket',
       'gym1': 'Gym Heroes', 'gym2': 'Gym Challenge',
-      
-      // Generation 2 (Johto)
       'neo1': 'Neo Genesis', 'neo2': 'Neo Discovery', 'neo3': 'Neo Revelation', 'neo4': 'Neo Destiny',
       'si1': 'Southern Islands', 'base6': 'Legendary Collection', 'ecard1': 'Expedition Base Set',
       'ecard2': 'Aquapolis', 'ecard3': 'Skyridge',
-      
-      // Generation 3 (Hoenn)
       'ex1': 'EX Ruby & Sapphire', 'ex2': 'EX Sandstorm', 'ex3': 'EX Dragon',
       'ex4': 'EX Team Magma vs Team Aqua', 'ex5': 'EX Hidden Legends', 'ex6': 'EX FireRed & LeafGreen',
       'ex7': 'EX Team Rocket Returns', 'ex8': 'EX Deoxys', 'ex9': 'EX Emerald',
       'ex10': 'EX Unseen Forces', 'ex11': 'EX Delta Species', 'ex12': 'EX Legend Maker',
       'ex13': 'EX Holon Phantoms', 'ex14': 'EX Crystal Guardians', 'ex15': 'EX Dragon Frontiers',
       'ex16': 'EX Power Keepers',
-      
-      // Generation 4 (Sinnoh & HGSS)
       'dp1': 'Diamond & Pearl', 'dp2': 'Mysterious Treasures', 'dp3': 'Secret Wonders',
       'dp4': 'Great Encounters', 'dp5': 'Majestic Dawn', 'dp6': 'Legends Awakened',
       'dp7': 'Stormfront', 'pl1': 'Platinum', 'pl2': 'Rising Rivals', 'pl3': 'Supreme Victors',
       'pl4': 'Arceus', 'col1': 'Call of Legends', 'hgss1': 'HeartGold & SoulSilver',
       'hgss2': 'Unleashed', 'hgss3': 'Undaunted', 'hgss4': 'Triumphant',
-      
-      // Generation 5 (Unova)
       'bw1': 'Black & White', 'bw2': 'Emerging Powers', 'bw3': 'Noble Victories',
       'bw4': 'Next Destinies', 'bw5': 'Dark Explorers', 'bw6': 'Dragons Exalted',
       'bw7': 'Boundaries Crossed', 'bw8': 'Plasma Storm', 'bw9': 'Plasma Freeze',
       'bw10': 'Plasma Blast', 'bw11': 'Legendary Treasures',
-      
-      // Generation 6 (Kalos)
       'xy1': 'XY Base', 'xy2': 'Flashfire', 'xy3': 'Furious Fists', 'xy4': 'Phantom Forces',
       'xy5': 'Primal Clash', 'xy6': 'Roaring Skies', 'xy7': 'Ancient Origins',
       'xy8': 'BREAKthrough', 'xy9': 'BREAKpoint', 'xy10': 'Fates Collide',
       'xy11': 'Steam Siege', 'xy12': 'Evolutions', 'g1': 'Generations',
-      
-      // Generation 7 (Alola)
       'sm1': 'Sun & Moon', 'sm2': 'Guardians Rising', 'sm3': 'Burning Shadows',
       'sm35': 'Shining Legends', 'sm4': 'Crimson Invasion', 'sm5': 'Ultra Prism',
       'sm6': 'Forbidden Light', 'sm7': 'Celestial Storm', 'sm75': 'Dragon Majesty',
       'sm8': 'Lost Thunder', 'sm9': 'Team Up', 'sm10': 'Unbroken Bonds',
       'sm11': 'Unified Minds', 'sm115': 'Hidden Fates', 'sm12': 'Cosmic Eclipse',
-      
-      // Generation 8 (Galar)
       'swsh1': 'Sword & Shield', 'swsh2': 'Rebel Clash', 'swsh3': 'Darkness Ablaze',
       'swsh35': 'Champion\'s Path', 'swsh4': 'Vivid Voltage', 'swsh45': 'Shining Fates',
       'swsh5': 'Battle Styles', 'swsh6': 'Chilling Reign', 'swsh7': 'Evolving Skies',
       'cel25': 'Celebrations', 'swsh8': 'Fusion Strike', 'swsh9': 'Brilliant Stars',
       'swsh10': 'Astral Radiance', 'pgo': 'Pokémon GO', 'swsh11': 'Lost Origin',
       'swsh12': 'Silver Tempest', 'swsh12pt5': 'Crown Zenith',
-      
-      // Generation 9 (Paldea)
       'sv1': 'Scarlet & Violet', 'sv01': 'Scarlet & Violet', 'sve': 'Scarlet & Violet',
       'sv2': 'Paldea Evolved', 'sv02': 'Paldea Evolved', 'pal': 'Paldea Evolved',
       'sv3': 'Obsidian Flames', 'sv03': 'Obsidian Flames', 'obf': 'Obsidian Flames',
@@ -819,58 +865,12 @@
       'sv06.5': 'Shrouded Fable', 'sfa': 'Shrouded Fable', 'sv7': 'Stellar Crown', 'sv07': 'Stellar Crown', 'scr': 'Stellar Crown',
       'sv8': 'Surging Sparks', 'sv08': 'Surging Sparks', 'ssp': 'Surging Sparks',
       'sv08.5': 'Prismatic Evolutions', 'pre': 'Prismatic Evolutions',
-      
-      // Mega Evolution Series
       'me01': 'Phantasmal Flames', 'me02': 'Ascended Heroes', 'me03': 'Perfect Order',
       'me04': 'Chaos Rising', 'me05': 'Pitch Black', 'pbl': 'Pitch Black',
-      
-      // Promos
       'smp': 'SM Promos', 'swshp': 'SWSH Promos', 'svp': 'SV Promos', 'xyp': 'XY Promos',
       'bwp': 'BW Promos', 'dpp': 'DP Promos', 'np': 'Nintendo Promos', 'pop': 'POP Series'
     };
 
-    const SET_PRINTED_TOTALS = {
-      'sm12': 236, 'cosmic eclipse': 236,
-      'sm115': 68, 'hidden fates': 68,
-      'sm11': 236, 'unified minds': 236,
-      'sm10': 214, 'unbroken bonds': 214,
-      'sm9': 181, 'team up': 181,
-      'sm8': 214, 'lost thunder': 214,
-      'sm7': 168, 'celestial storm': 168,
-      'sm6': 131, 'forbidden light': 131,
-      'sm5': 156, 'ultra prism': 156,
-      'sm4': 111, 'crimson invasion': 111,
-      'sm3': 147, 'burning shadows': 147,
-      'sm2': 145, 'guardians rising': 145,
-      'sm1': 149, 'sun & moon': 149,
-      'sv06': 167, 'twm': 167, 'twilight masquerade': 167,
-      'sv05': 162, 'tef': 162, 'temporal forces': 162,
-      'sv04': 182, 'par': 182, 'paradox rift': 182,
-      'sv03': 197, 'obf': 197, 'obsidian flames': 197,
-      'sv02': 193, 'pal': 193, 'paldea evolved': 193,
-      'sv01': 198, 'sve': 198, 'scarlet & violet': 198,
-      'sv03.5': 165, '151': 165,
-      'sv04.5': 91, 'paf': 91, 'paldean fates': 91,
-      'sv06.5': 64, 'sfa': 64, 'shrouded fable': 64,
-      'sv07': 142, 'scr': 142, 'stellar crown': 142,
-      'sv08': 191, 'ssp': 191, 'surging sparks': 191,
-      'swsh12pt5': 160, 'crown zenith': 160,
-      'swsh12': 195, 'silver tempest': 195,
-      'swsh11': 196, 'lost origin': 196,
-      'swsh10': 189, 'astral radiance': 189,
-      'swsh09': 172, 'brilliant stars': 172,
-      'swsh08': 264, 'fusion strike': 264,
-      'swsh07': 203, 'evolving skies': 203,
-      'swsh06': 198, 'chilling reign': 198,
-      'swsh05': 163, 'battle styles': 163,
-      'swsh045': 72, 'shining fates': 72,
-      'swsh04': 185, 'vivid voltage': 185,
-      'swsh03': 189, 'darkness ablaze': 189,
-      'swsh02': 192, 'rebel clash': 192,
-      'swsh01': 202, 'sword & shield': 202
-    };
-
-    // Digital-Only Sets Blacklist
     const DIGITAL_SET_BLACKLIST = new Set([
       'a1', 'a1a', 'a2', 'a2a', 'b1', 'b1a', 'b2', 'b2a',
       'p-a', 'p-b', 'promo-a', 'promo-b', 'tcgp', 'tcg-pocket', 'pocket', 'tcglive'
@@ -1252,139 +1252,6 @@
       evoBox.style.display = 'flex';
     }
 
-    // Comprehensive Deterministic Rarity Classifier for Physical Cards
-    function evaluateCardTier(card) {
-      const r = (card.rarity || '').toLowerCase().trim();
-      const subtypes = (card.subtypes || []).map(s => s.toLowerCase().trim());
-      const number = String(card.number || card.localId || '').toLowerCase().trim();
-      const setId = String(card.set?.id || '').toLowerCase().trim();
-      const setName = String(card.set?.name || '').toLowerCase().trim();
-      const name = (card.name || '').toLowerCase().trim();
-
-      const numVal = parseInt(number.replace(/\D/g, '')) || 0;
-      
-      let setTotal = card.set?.printedTotal || card.set?.total || 0;
-      if (!setTotal) {
-        setTotal = SET_PRINTED_TOTALS[setId] || SET_PRINTED_TOTALS[setName] || 0;
-      }
-
-      // Priority 1: Direct Official Printed Tier Overrides
-      if (r === 'uncommon' || r === 'rare uncommon') {
-        return { rank: 23, label: 'Uncommon' };
-      }
-      if (r === 'common' || r === 'rare common') {
-        return { rank: 24, label: 'Common' };
-      }
-
-      const isSecretMath = (setTotal > 0 && numVal > setTotal);
-      const isTrainerGallery = (number.startsWith('tg') || number.startsWith('gg')) && r !== 'common' && r !== 'uncommon';
-      const isShinyVault = number.startsWith('sv') && !number.startsWith('svp') && r !== 'common' && r !== 'uncommon';
-      const isCharacterRare = (r.includes('character') || subtypes.includes('character rare')) && r !== 'common' && r !== 'uncommon';
-
-      // Rank 1: Mega Attack Rare
-      if (r.includes('mega attack')) return { rank: 1, label: 'Mega Attack Rare' };
-      
-      // Rank 2: Mega Hyper Rare
-      if (r.includes('mega hyper') || (name.includes('mega ') && isSecretMath)) {
-        return { rank: 2, label: 'Mega Hyper Rare' };
-      }
-      
-      // Rank 3: Black White Rare
-      if (r.includes('black white') || r.includes('black & white')) return { rank: 3, label: 'Black White Rare' };
-      
-      // Rank 4: Hyper Rare
-      if (r.includes('hyper rare') || r.includes('rainbow') || (r.includes('gold') && isSecretMath)) {
-        return { rank: 4, label: 'Hyper Rare' };
-      }
-      
-      // Rank 5: Shiny Ultra Rare
-      if (r.includes('shiny ultra') || r.includes('shiny super')) return { rank: 5, label: 'Shiny Ultra Rare' };
-      
-      // Rank 6: Special Illustration Rare (SIR)
-      if (r.includes('special illustration') || subtypes.includes('special illustration rare') || r.includes('special art rare')) {
-        return { rank: 6, label: 'Special Illustration Rare' };
-      }
-      
-      // Rank 7: Illustration Rare (IR) / Character Rare (CHR) / Secret Rare Pokémon Art
-      if (r.includes('illustration rare') || subtypes.includes('illustration rare') || isCharacterRare || r.includes('art rare') || isTrainerGallery || (isSecretMath && !r.includes('ultra') && !r.includes('hyper') && !r.includes('gold') && !r.includes('shiny ultra') && !r.includes('ace spec') && r !== 'common' && r !== 'uncommon')) {
-        return { rank: 7, label: 'Illustration Rare' };
-      }
-      
-      // Rank 8: Rare BREAK
-      if (r.includes('break') || subtypes.includes('break')) return { rank: 8, label: 'Rare BREAK' };
-      
-      // Rank 9: Ultra Rare
-      if (r.includes('ultra rare') || r.includes('rare ultra') || r.includes('rare holo v') || r.includes('vmax') || r.includes('vstar')) {
-        return { rank: 9, label: 'Ultra Rare' };
-      }
-      
-      // Rank 10: Rare Holo GX
-      if (r.includes('rare holo gx') || (r.includes('gx') && !r.includes('shiny')) || name.endsWith(' gx')) return { rank: 10, label: 'Rare Holo GX' };
-      
-      // Rank 11: Rare Holo EX
-      if (r.includes('rare holo ex') || (r.includes('ex') && !r.includes('double rare')) || name.endsWith(' ex')) return { rank: 11, label: 'Rare Holo EX' };
-      
-      // Rank 12: Shiny Rare
-      if (r.includes('shiny rare') || r.includes('shining') || isShinyVault) return { rank: 12, label: 'Shiny Rare' };
-      
-      // Rank 13: Promo
-      if (r.includes('promo') || number.startsWith('svp') || number.startsWith('swshp') || number.startsWith('smp') || number.startsWith('xyp') || number.startsWith('bwp') || number.startsWith('dpp')) {
-        return { rank: 13, label: 'Promo' };
-      }
-      
-      // Rank 14: Radiant Rare
-      if (r.includes('radiant') || subtypes.includes('radiant')) return { rank: 14, label: 'Radiant Rare' };
-      
-      // Rank 15: Amazing
-      if (r.includes('amazing') || subtypes.includes('amazing')) return { rank: 15, label: 'Amazing' };
-      
-      // Rank 16: ACE SPEC Rare
-      if (r.includes('ace spec') || subtypes.includes('ace spec')) return { rank: 16, label: 'ACE SPEC Rare' };
-      
-      // Rank 17: Double Rare
-      if (r.includes('double rare')) return { rank: 17, label: 'Double Rare' };
-      
-      // Rank 18: LEGEND
-      if (r.includes('legend') || subtypes.includes('legend')) return { rank: 18, label: 'LEGEND' };
-      
-      // Rank 19: Rare Prime
-      if (r.includes('prime') || subtypes.includes('prime')) return { rank: 19, label: 'Rare Prime' };
-      
-      // Rank 20: Rare Holo Lv.X
-      if (r.includes('lv.x') || subtypes.includes('lv.x') || name.includes(' lv.x') || name.includes(' lv. x') || name.includes(' level x')) {
-        return { rank: 20, label: 'Rare Holo Lv.X' };
-      }
-      
-      // Rank 21: Rare Holo
-      if (r.includes('rare holo') || (r.includes('holo') && !r.includes('reverse') && r !== 'uncommon' && r !== 'common')) {
-        return { rank: 21, label: 'Rare Holo' };
-      }
-      
-      // Classic Era Vintage Number Deduction (Only when rarity string is missing or ambiguous)
-      if (setTotal > 0 && numVal > 0 && (!r || r === 'rare')) {
-        if (numVal <= Math.min(17, Math.floor(setTotal * 0.15))) {
-          return { rank: 21, label: 'Rare Holo' };
-        } else if (numVal <= Math.floor(setTotal * 0.35)) {
-          return { rank: 22, label: 'Rare' };
-        } else if (numVal <= Math.floor(setTotal * 0.65)) {
-          return { rank: 23, label: 'Uncommon' };
-        } else {
-          return { rank: 24, label: 'Common' };
-        }
-      }
-
-      // Rank 22: Rare
-      if (r.includes('rare') && r !== 'uncommon' && r !== 'common') return { rank: 22, label: 'Rare' };
-      
-      // Rank 23: Uncommon
-      if (r.includes('uncommon')) return { rank: 23, label: 'Uncommon' };
-      
-      // Rank 24: Common
-      if (r.includes('common')) return { rank: 24, label: 'Common' };
-
-      return { rank: 22, label: 'Rare' };
-    }
-
     // Comprehensive Pricing Extractor (TCGplayer & Cardmarket in GBP)
     function extractCardPriceGBP(card) {
       if (card.tcgplayer?.prices) {
@@ -1424,10 +1291,10 @@
       return regex.test(c);
     }
 
-    // Authoritative Data Fetching Pipeline
+    // High-Accuracy Authoritative Fetcher (Clean Set + Number only)
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_authoritative_v1300_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_authoritative_v1400_${cleanName.toLowerCase()}`;
       
       if (!bypassCache) {
         if (memoryTcgCache.has(cacheKey)) {
@@ -1460,7 +1327,7 @@
       };
 
       const pokemontcgPromise = async () => {
-        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:${encodeURIComponent(primaryTerm)}* OR name:"${encodeURIComponent(cleanName)}"&select=id,name,images,set,number,rarity,subtypes,tcgplayer,cardmarket&pageSize=200&orderBy=-set.releaseDate`;
+        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:${encodeURIComponent(primaryTerm)}* OR name:"${encodeURIComponent(cleanName)}"&select=id,name,images,set,number,tcgplayer,cardmarket&pageSize=200&orderBy=-set.releaseDate`;
         const json = await fetchWithRetry(queryUrl);
         return json.data || [];
       };
@@ -1479,9 +1346,7 @@
                 name: c.name,
                 images: { small: `${c.image}/low.webp`, large: `${c.image}/high.webp` },
                 set: { name: c.set?.name || '', id: c.set?.id || '', printedTotal: c.set?.cardCount?.official || 0 },
-                number: c.localId || '?',
-                rarity: c.rarity || '',
-                subtypes: []
+                number: c.localId || '?'
               }));
             }
           }
@@ -1494,22 +1359,15 @@
         .filter(c => matchesExactPokemonName(c.name, cleanName))
         .filter(c => c.images?.small && typeof c.images.small === 'string' && !c.images.small.includes('undefined'));
 
-      const formattedCards = physicalSpeciesCards.map(c => {
-        const tier = evaluateCardTier(c);
-        return {
-          id: c.id,
-          name: c.name,
-          smallImg: c.images?.small || '',
-          largeImg: c.images?.large || c.images?.small || '',
-          setName: resolveSetName(c.set, c.id),
-          number: c.number || c.localId || '?',
-          rarity: tier.label,
-          priceGBP: extractCardPriceGBP(c),
-          rank: tier.rank
-        };
-      });
-
-      formattedCards.sort((a, b) => a.rank - b.rank);
+      const formattedCards = physicalSpeciesCards.map(c => ({
+        id: c.id,
+        name: c.name,
+        smallImg: c.images?.small || '',
+        largeImg: c.images?.large || c.images?.small || '',
+        setName: resolveSetName(c.set, c.id),
+        number: c.number || c.localId || '?',
+        priceGBP: extractCardPriceGBP(c)
+      }));
 
       if (formattedCards.length > 0) {
         memoryTcgCache.set(cacheKey, formattedCards);
@@ -1593,7 +1451,7 @@
       const card = currentCardsList[currentZoomIndex];
       document.getElementById('tcgZoomImg').src = card.largeImg || card.smallImg;
       document.getElementById('tcgZoomTitle').innerText = card.name;
-      document.getElementById('tcgZoomMeta').innerText = `${card.setName} · #${card.number} · ${card.rarity}`;
+      document.getElementById('tcgZoomMeta').innerText = `${card.setName} · #${card.number}`;
       document.getElementById('tcgZoomCounter').innerText = `${currentZoomIndex + 1} / ${currentCardsList.length}`;
       
       const priceValEl = document.getElementById('tcgZoomPriceVal');

@@ -114,9 +114,9 @@
       background: var(--card); 
       border: 1px solid #334155; 
       color: var(--sub); 
-      font-size: 0.68rem; 
+      font-size: 0.72rem; 
       font-weight: 800; 
-      padding: 0.2rem 0.75rem; 
+      padding: 0.25rem 0.85rem; 
       border-radius: 99px; 
       box-shadow: 0 4px 12px rgba(0,0,0,0.35);
     }
@@ -519,31 +519,37 @@
 
     .btn-collect { width: 100%; padding: clamp(0.14rem, 0.35dvh, 0.22rem); margin-bottom: clamp(0.05rem, 0.18dvh, 0.12rem); border-radius: 8px; border: 1px solid #334155; background: #090d16; color: var(--sub); font-size: 0.65rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.35rem; }
     .btn-collect.active { background: rgba(16,185,129,0.15); border-color: var(--green); color: var(--green); }
-    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.04rem 0.7rem; text-align: left; background: #090d16; padding: clamp(0.14rem, 0.32dvh, 0.2rem) 0.6rem; border-radius: 8px; font-size: clamp(0.56rem, 1dvh, 0.64rem); }
+    
+    /* Stats Box Layout */
+    .stats { 
+      display: grid; 
+      grid-template-columns: 1fr 1fr; 
+      gap: 0.04rem 0.7rem; 
+      text-align: left; 
+      background: #090d16; 
+      padding: clamp(0.14rem, 0.32dvh, 0.2rem) 0.6rem; 
+      border-radius: 8px; 
+      font-size: clamp(0.56rem, 1dvh, 0.64rem); 
+      margin-bottom: 0.25rem;
+    }
     .stats span:last-child { font-weight: 700; float: right; }
 
-    /* Navigation Hub & Collected Badge Grouped Below Spin Button */
+    /* Navigation Hub & Collected Badge Grouped Together */
     .hub-outer-wrap {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.35rem;
+      gap: 0.3rem;
       flex-shrink: 0;
       width: 100%;
-      margin-top: clamp(0.2rem, 0.6dvh, 0.4rem);
-    }
-    body.has-active .hub-outer-wrap {
-      margin-top: 0.3rem;
+      margin-top: 0.2rem;
     }
 
     .hub { 
       display: flex; 
       justify-content: center; 
-      gap: 1.4rem; 
+      gap: 1.6rem; 
       width: 100%;
-    }
-    body.has-active .hub { 
-      gap: 1.2rem; 
     }
 
     .hub-item-wrap {
@@ -553,24 +559,22 @@
       gap: 0.18rem;
     }
     .hub-item-label {
-      font-size: 0.6rem;
+      font-size: 0.62rem;
       font-weight: 800;
       letter-spacing: 0.4px;
       color: var(--sub);
       text-transform: uppercase;
       user-select: none;
     }
-    body.has-active .hub-item-label {
-      font-size: 0.56rem;
-    }
 
+    /* Slightly Bigger Hub Buttons */
     .btn-hub { 
       position: relative; 
       background: var(--card); 
       border: 1.5px solid #334155; 
-      width: clamp(38px, 4.8dvh, 44px); 
-      height: clamp(38px, 4.8dvh, 44px); 
-      border-radius: 14px; 
+      width: clamp(44px, 5.6dvh, 50px); 
+      height: clamp(44px, 5.6dvh, 50px); 
+      border-radius: 16px; 
       display: flex; 
       align-items: center; 
       justify-content: center; 
@@ -579,7 +583,7 @@
       transition: transform 0.15s, border-color 0.15s;
     }
     .btn-hub:active { transform: scale(0.92); border-color: var(--red); }
-    .btn-hub svg { width: 19px; height: 19px; fill: none; stroke: #f8fafc; stroke-width: 2; }
+    .btn-hub svg { width: 22px; height: 22px; fill: none; stroke: #f8fafc; stroke-width: 2; }
     .hub-badge { position: absolute; top: -5px; right: -5px; background: var(--green); color: #fff; font-size: 0.6rem; font-weight: 800; min-width: 18px; height: 18px; padding: 0 3px; border-radius: 99px; display: flex; align-items: center; justify-content: center; border: 2px solid var(--bg); }
 
     /* Maximized Flat 2D Zoom Modal */
@@ -902,6 +906,32 @@
         <button class="btn-close" id="closeBtn" onclick="hideActive()" title="Hide Pokémon View">✕</button>
       </div>
 
+      <!-- Navigation Hub & Collection Count below Spin button / Card -->
+      <div class="hub-outer-wrap" id="persistentHub">
+        <div class="hub">
+          <div class="hub-item-wrap">
+            <button class="btn-hub" onclick="openModal('dexModal')" title="Collection">
+              <svg viewBox="0 0 24 24"><path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-9Z"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M8 10h8v4H8z"/></svg>
+              <div class="hub-badge" id="bagBadge">0</div>
+            </button>
+            <span class="hub-item-label">Dex</span>
+          </div>
+          <div class="hub-item-wrap">
+            <button class="btn-hub" onclick="openModal('recentModal')" title="History">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><polyline points="3 3 3 8 8 8"/></svg>
+            </button>
+            <span class="hub-item-label">History</span>
+          </div>
+          <div class="hub-item-wrap">
+            <button class="btn-hub" onclick="openModal('accountModal')" title="Account Sync" id="btnAccount">
+              <svg viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </button>
+            <span class="hub-item-label" id="accountLabel">Account</span>
+          </div>
+        </div>
+        <div class="badge">Collected: <strong id="tCount">0</strong> / 1025</div>
+      </div>
+
       <!-- Active Pokémon Details & TCG Card Variation Strip -->
       <div class="card" id="pokeCard">
         <div class="card-nav">
@@ -955,31 +985,6 @@
       </div>
     </div>
 
-    <!-- Navigation Hub & Collection Count below Spin button / Card -->
-    <div class="hub-outer-wrap">
-      <div class="hub">
-        <div class="hub-item-wrap">
-          <button class="btn-hub" onclick="openModal('dexModal')" title="Collection">
-            <svg viewBox="0 0 24 24"><path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-9Z"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M8 10h8v4H8z"/></svg>
-            <div class="hub-badge" id="bagBadge">0</div>
-          </button>
-          <span class="hub-item-label">Dex</span>
-        </div>
-        <div class="hub-item-wrap">
-          <button class="btn-hub" onclick="openModal('recentModal')" title="History">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><polyline points="3 3 3 8 8 8"/></svg>
-          </button>
-          <span class="hub-item-label">History</span>
-        </div>
-        <div class="hub-item-wrap">
-          <button class="btn-hub" onclick="openModal('accountModal')" title="Account Sync" id="btnAccount">
-            <svg viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          </button>
-          <span class="hub-item-label" id="accountLabel">Account</span>
-        </div>
-      </div>
-      <div class="badge">Collected: <strong id="tCount">0</strong> / 1025</div>
-    </div>
   </div>
 
   <div class="tcg-zoom-modal" id="tcgZoomModal" onclick="closeTcgZoom()">
@@ -2225,6 +2230,9 @@
       document.getElementById('sDef').innerText = st.defense || '-';
       document.getElementById('sSpd').innerText = st.speed || '-';
       updateBtn(getCol().has(p.id));
+
+      // Append persistent Hub below card view when active
+      card.appendChild(document.getElementById('persistentHub'));
       card.style.display = 'block';
     }
 
@@ -2232,13 +2240,13 @@
     const cardEl = document.getElementById('pokeCard');
     
     cardEl.addEventListener('touchstart', e => { 
-      isSwipeRestricted = Boolean(e.target.closest('#tcgWrap, #tcgStrip, #evoChain'));
+      isSwipeRestricted = Boolean(e.target.closest('#tcgWrap, #tcgStrip, #evoChain, .hub-outer-wrap'));
       tX = e.changedTouches[0].screenX; 
       tY = e.changedTouches[0].screenY; 
     }, { passive: true });
 
     cardEl.addEventListener('touchend', e => {
-      if (isSwipeRestricted || Boolean(e.target.closest('#tcgWrap, #tcgStrip, #evoChain'))) {
+      if (isSwipeRestricted || Boolean(e.target.closest('#tcgWrap, #tcgStrip, #evoChain, .hub-outer-wrap'))) {
         return;
       }
 
@@ -2255,6 +2263,13 @@
     tcgStripEl.addEventListener('touchend', e => e.stopPropagation(), { passive: true });
 
     document.addEventListener('click', e => { if (!e.target.closest('.search-wrap')) document.getElementById('sList').style.display = 'none'; });
+
+    // When hiding active card, reposition Hub back to main viewport container
+    const originalHideActive = hideActive;
+    hideActive = function() {
+      originalHideActive();
+      document.querySelector('.viewport').appendChild(document.getElementById('persistentHub'));
+    };
 
     (async () => {
       buildIcons();

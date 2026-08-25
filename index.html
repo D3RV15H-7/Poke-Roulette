@@ -288,6 +288,7 @@
     body.has-active .btn-close { display: flex; }
     @keyframes springPop { 0% { opacity: 0; transform: scale(0.3) rotate(-90deg); } 100% { opacity: 1; transform: scale(1) rotate(0deg); } }
 
+    /* Compact Auto-Wrapping Card */
     .card { 
       width: 100%; 
       max-width: 440px; 
@@ -299,8 +300,10 @@
       display: none; 
       text-align: center; 
       user-select: none; 
-      flex: 1 1 auto;
+      flex: 0 1 auto;
+      height: auto;
       min-height: 0; 
+      max-height: calc(100dvh - 170px);
       position: relative; 
       animation: custodySlideUp 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
       transition: border-color 0.4s ease, box-shadow 0.4s ease;
@@ -323,8 +326,8 @@
       align-items: center; 
       justify-content: center; 
       margin: 0 auto;
-      width: clamp(120px, 17dvh, 165px); 
-      height: clamp(120px, 17dvh, 165px); 
+      width: clamp(110px, 15dvh, 150px); 
+      height: clamp(110px, 15dvh, 150px); 
       aspect-ratio: 1 / 1;
     }
     .card img.main-art { 
@@ -513,20 +516,20 @@
     .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.04rem 0.7rem; text-align: left; background: #090d16; padding: clamp(0.14rem, 0.32dvh, 0.2rem) 0.6rem; border-radius: 8px; font-size: clamp(0.56rem, 1dvh, 0.64rem); }
     .stats span:last-child { font-weight: 700; float: right; }
 
-    /* Navigation Hub - Compact & Adaptive */
+    /* Navigation Hub - Immediately Under Card */
     .hub { 
       display: flex; 
       justify-content: center; 
       gap: 1.4rem; 
-      margin-top: clamp(0.2rem, 0.8dvh, 0.5rem); 
+      margin-top: clamp(0.2rem, 0.8dvh, 0.4rem); 
       margin-bottom: clamp(0.1rem, 0.3dvh, 0.25rem); 
       flex-shrink: 0; 
       width: 100%;
     }
     body.has-active .hub { 
-      margin-top: 0.15rem; 
-      margin-bottom: 0.15rem; 
-      gap: 1.1rem; 
+      margin-top: 0.35rem; 
+      margin-bottom: 0.35rem; 
+      gap: 1.2rem; 
     }
 
     .hub-item-wrap {
@@ -544,7 +547,7 @@
       user-select: none;
     }
     body.has-active .hub-item-label {
-      font-size: 0.54rem;
+      font-size: 0.56rem;
     }
 
     .btn-hub { 
@@ -1134,7 +1137,6 @@
       if (!str) return '';
       const lower = str.toLowerCase().trim();
       
-      // Preserve explicit hyphenated Pokémon
       if (PRESERVED_HYPHEN_POKEMON.has(lower)) {
         return lower
           .split('-')
@@ -1640,7 +1642,6 @@
       const c = (cardName || '').toLowerCase().trim();
       const t = targetName.toLowerCase().trim();
       
-      // Standardize hyphens vs spaces
       const cNormalized = c.replace(/[-_]/g, ' ');
       const tNormalized = t.replace(/[-_]/g, ' ');
 
@@ -1840,6 +1841,7 @@
       }
     }
 
+    // Touch Swipe Navigation (Strict 2D Horizontal)
     let zoomTouchX = 0;
     const zoomViewArea = document.getElementById('zoomViewArea');
     

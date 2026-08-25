@@ -10,6 +10,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Plus+Jakarta+Sans:wght@600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Firebase Compatibility SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
   <meta name="theme-color" content="#1e293b" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -209,11 +215,11 @@
     body.has-active .btn-close { display: flex; }
     @keyframes springPop { 0% { opacity: 0; transform: scale(0.3) rotate(-90deg); } 100% { opacity: 1; transform: scale(1) rotate(0deg); } }
 
-    /* Floating Navigation Hub with Explicit Labels */
+    /* Navigation Dock */
     .hub { 
       display: flex; 
       justify-content: center; 
-      gap: 1.6rem; 
+      gap: 1.3rem; 
       margin-top: clamp(0.4rem, 1.4dvh, 0.8rem); 
       margin-bottom: clamp(0.2rem, 0.8dvh, 0.4rem); 
       flex-shrink: 0; 
@@ -691,6 +697,49 @@
       transition: transform 0.15s, background 0.15s;
     }
     .btn-header-action:active { transform: scale(0.92); background: #475569; }
+
+    /* Account Modal Inputs & Buttons */
+    .auth-form-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+    .auth-input {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1.5px solid #334155;
+      color: #fff;
+      padding: 0.65rem 1rem;
+      border-radius: 12px;
+      font-size: 0.88rem;
+      outline: none;
+    }
+    .auth-input:focus { border-color: var(--red); }
+    .btn-auth-primary {
+      background: linear-gradient(135deg, var(--red), #dc2626);
+      color: #fff;
+      border: none;
+      padding: 0.7rem;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .btn-google-auth {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      background: #fff;
+      color: #0f172a;
+      border: none;
+      padding: 0.65rem;
+      border-radius: 12px;
+      font-size: 0.86rem;
+      font-weight: 800;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -733,6 +782,12 @@
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><polyline points="3 3 3 8 8 8"/></svg>
         </button>
         <span class="hub-item-label">History</span>
+      </div>
+      <div class="hub-item-wrap">
+        <button class="btn-hub" onclick="openModal('accountModal')" title="Account Sync" id="btnAccount">
+          <svg viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </button>
+        <span class="hub-item-label" id="accountLabel">Account</span>
       </div>
     </div>
 
@@ -855,7 +910,57 @@
     </div>
   </div>
 
+  <!-- Account & Cloud Sync Modal -->
+  <div class="modal" id="accountModal" onclick="closeModal(event, 'accountModal')">
+    <div class="modal-body" onclick="event.stopPropagation()">
+      <div class="modal-head">
+        <h3 style="font-size:1.15rem;font-weight:800;">👤 Account Sync</h3>
+        <button style="background:#334155;color:#fff;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;" onclick="closeModal(null, 'accountModal')">✕</button>
+      </div>
+
+      <div id="authLoggedInView" style="display:none;flex-direction:column;gap:1rem;padding:0.5rem 0;">
+        <div style="font-size:0.9rem;font-weight:700;">Signed in as: <span id="authUserEmail" style="color:var(--gold);"></span></div>
+        <div style="font-size:0.75rem;color:var(--sub);">Your collected cards are automatically backed up to the cloud.</div>
+        <button class="btn-auth-primary" onclick="handleSignOut()">Sign Out</button>
+      </div>
+
+      <div id="authLoggedOutView" class="auth-form-wrap">
+        <button class="btn-google-auth" onclick="handleGoogleSignIn()">
+          <svg style="width:18px;height:18px;" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+          Sign in with Google
+        </button>
+        <div style="text-align:center;font-size:0.75rem;color:var(--sub);margin:0.2rem 0;">— OR EMAIL —</div>
+        <input type="email" id="authEmail" class="auth-input" placeholder="Email Address" />
+        <input type="password" id="authPassword" class="auth-input" placeholder="Password" />
+        <div style="display:flex;gap:0.5rem;">
+          <button class="btn-auth-primary" style="flex:1;" onclick="handleEmailAuth(false)">Log In</button>
+          <button class="btn-auth-primary" style="flex:1;background:#334155;" onclick="handleEmailAuth(true)">Sign Up</button>
+        </div>
+        <div id="authErrorMsg" style="color:var(--red);font-size:0.75rem;text-align:center;display:none;"></div>
+      </div>
+    </div>
+  </div>
+
   <script>
+    // ----------------------------------------------------
+    // FIREBASE INITIALIZATION
+    // ----------------------------------------------------
+    const firebaseConfig = {
+      apiKey: "AIzaSyDzCZXdjU7ztaoExSbyHKCS-cgQl4lGQDI",
+      authDomain: "poke-roulette-app.firebaseapp.com",
+      projectId: "poke-roulette-app",
+      storageBucket: "poke-roulette-app.firebasestorage.app",
+      messagingSenderId: "514395694013",
+      appId: "1:514395694013:web:6250bd0a49674a45af28d4"
+    };
+
+    let auth = null, db = null, currentUser = null;
+    try {
+      firebase.initializeApp(firebaseConfig);
+      auth = firebase.auth();
+      db = firebase.firestore();
+    } catch (e) { console.error("Firebase init:", e); }
+
     const TOTAL = 1025;
     const USD_TO_GBP = 0.79;
     const TYPES = ['normal','fire','water','grass','electric','ice','fighting','poison','ground','flying','psychic','bug','rock','ghost','dragon','dark','steel','fairy'];
@@ -884,53 +989,41 @@
 
     const KNOWN_SETS = {
       'base1': 'Base Set', 'base2': 'Jungle', 'base3': 'Fossil', 'base4': 'Base Set 2', 'base5': 'Team Rocket',
-      'gym1': 'Gym Heroes', 'gym2': 'Gym Challenge',
-      'neo1': 'Neo Genesis', 'neo2': 'Neo Discovery', 'neo3': 'Neo Revelation', 'neo4': 'Neo Destiny',
-      'si1': 'Southern Islands', 'base6': 'Legendary Collection', 'ecard1': 'Expedition Base Set',
-      'ecard2': 'Aquapolis', 'ecard3': 'Skyridge',
-      'ex1': 'EX Ruby & Sapphire', 'ex2': 'EX Sandstorm', 'ex3': 'EX Dragon',
-      'ex4': 'EX Team Magma vs Team Aqua', 'ex5': 'EX Hidden Legends', 'ex6': 'EX FireRed & LeafGreen',
-      'ex7': 'EX Team Rocket Returns', 'ex8': 'EX Deoxys', 'ex9': 'EX Emerald',
-      'ex10': 'EX Unseen Forces', 'ex11': 'EX Delta Species', 'ex12': 'EX Legend Maker',
-      'ex13': 'EX Holon Phantoms', 'ex14': 'EX Crystal Guardians', 'ex15': 'EX Dragon Frontiers',
-      'ex16': 'EX Power Keepers',
-      'dp1': 'Diamond & Pearl', 'dp2': 'Mysterious Treasures', 'dp3': 'Secret Wonders',
-      'dp4': 'Great Encounters', 'dp5': 'Majestic Dawn', 'dp6': 'Legends Awakened',
-      'dp7': 'Stormfront', 'pl1': 'Platinum', 'pl2': 'Rising Rivals', 'pl3': 'Supreme Victors',
-      'pl4': 'Arceus', 'col1': 'Call of Legends', 'hgss1': 'HeartGold & SoulSilver',
-      'hgss2': 'Unleashed', 'hgss3': 'Undaunted', 'hgss4': 'Triumphant',
-      'bw1': 'Black & White', 'bw2': 'Emerging Powers', 'bw3': 'Noble Victories',
-      'bw4': 'Next Destinies', 'bw5': 'Dark Explorers', 'bw6': 'Dragons Exalted',
-      'bw7': 'Boundaries Crossed', 'bw8': 'Plasma Storm', 'bw9': 'Plasma Freeze',
-      'bw10': 'Plasma Blast', 'bw11': 'Legendary Treasures',
-      'xy1': 'XY Base', 'xy2': 'Flashfire', 'xy3': 'Furious Fists', 'xy4': 'Phantom Forces',
-      'xy5': 'Primal Clash', 'xy6': 'Roaring Skies', 'xy7': 'Ancient Origins',
-      'xy8': 'BREAKthrough', 'xy9': 'BREAKpoint', 'xy10': 'Fates Collide',
-      'xy11': 'Steam Siege', 'xy12': 'Evolutions', 'g1': 'Generations',
-      'sm1': 'Sun & Moon', 'sm2': 'Guardians Rising', 'sm3': 'Burning Shadows',
-      'sm35': 'Shining Legends', 'sm4': 'Crimson Invasion', 'sm5': 'Ultra Prism',
-      'sm6': 'Forbidden Light', 'sm7': 'Celestial Storm', 'sm75': 'Dragon Majesty',
-      'sm8': 'Lost Thunder', 'sm9': 'Team Up', 'sm10': 'Unbroken Bonds',
-      'sm11': 'Unified Minds', 'sm115': 'Hidden Fates', 'sm12': 'Cosmic Eclipse',
-      'swsh1': 'Sword & Shield', 'swsh2': 'Rebel Clash', 'swsh3': 'Darkness Ablaze',
-      'swsh35': 'Champion\'s Path', 'swsh4': 'Vivid Voltage', 'swsh45': 'Shining Fates',
-      'swsh5': 'Battle Styles', 'swsh6': 'Chilling Reign', 'swsh7': 'Evolving Skies',
-      'cel25': 'Celebrations', 'swsh8': 'Fusion Strike', 'swsh9': 'Brilliant Stars',
-      'swsh10': 'Astral Radiance', 'pgo': 'Pokémon GO', 'swsh11': 'Lost Origin',
-      'swsh12': 'Silver Tempest', 'swsh12pt5': 'Crown Zenith',
-      'sv1': 'Scarlet & Violet', 'sv01': 'Scarlet & Violet', 'sve': 'Scarlet & Violet',
-      'sv2': 'Paldea Evolved', 'sv02': 'Paldea Evolved', 'pal': 'Paldea Evolved',
-      'sv3': 'Obsidian Flames', 'sv03': 'Obsidian Flames', 'obf': 'Obsidian Flames',
-      'sv03.5': '151', 'mew': '151', 'sv4': 'Paradox Rift', 'sv04': 'Paradox Rift', 'par': 'Paradox Rift',
-      'sv04.5': 'Paldean Fates', 'paf': 'Paldean Fates', 'sv5': 'Temporal Forces', 'sv05': 'Temporal Forces', 'tef': 'Temporal Forces',
-      'sv6': 'Twilight Masquerade', 'sv06': 'Twilight Masquerade', 'twm': 'Twilight Masquerade',
-      'sv06.5': 'Shrouded Fable', 'sfa': 'Shrouded Fable', 'sv7': 'Stellar Crown', 'sv07': 'Stellar Crown', 'scr': 'Stellar Crown',
-      'sv8': 'Surging Sparks', 'sv08': 'Surging Sparks', 'ssp': 'Surging Sparks',
-      'sv08.5': 'Prismatic Evolutions', 'pre': 'Prismatic Evolutions',
-      'me01': 'Phantasmal Flames', 'me02': 'Ascended Heroes', 'me03': 'Perfect Order',
-      'me04': 'Chaos Rising', 'me05': 'Pitch Black', 'pbl': 'Pitch Black',
-      'smp': 'SM Promos', 'swshp': 'SWSH Promos', 'svp': 'SV Promos', 'xyp': 'XY Promos',
-      'bwp': 'BW Promos', 'dpp': 'DP Promos', 'np': 'Nintendo Promos', 'pop': 'POP Series'
+      'gym1': 'Gym Heroes', 'gym2': 'Gym Challenge', 'neo1': 'Neo Genesis', 'neo2': 'Neo Discovery',
+      'neo3': 'Neo Revelation', 'neo4': 'Neo Destiny', 'si1': 'Southern Islands', 'base6': 'Legendary Collection',
+      'ecard1': 'Expedition Base Set', 'ecard2': 'Aquapolis', 'ecard3': 'Skyridge',
+      'ex1': 'EX Ruby & Sapphire', 'ex2': 'EX Sandstorm', 'ex3': 'EX Dragon', 'ex4': 'EX Team Magma vs Team Aqua',
+      'ex5': 'EX Hidden Legends', 'ex6': 'EX FireRed & LeafGreen', 'ex7': 'EX Team Rocket Returns', 'ex8': 'EX Deoxys',
+      'ex9': 'EX Emerald', 'ex10': 'EX Unseen Forces', 'ex11': 'EX Delta Species', 'ex12': 'EX Legend Maker',
+      'ex13': 'EX Holon Phantoms', 'ex14': 'EX Crystal Guardians', 'ex15': 'EX Dragon Frontiers', 'ex16': 'EX Power Keepers',
+      'dp1': 'Diamond & Pearl', 'dp2': 'Mysterious Treasures', 'dp3': 'Secret Wonders', 'dp4': 'Great Encounters',
+      'dp5': 'Majestic Dawn', 'dp6': 'Legends Awakened', 'dp7': 'Stormfront', 'pl1': 'Platinum', 'pl2': 'Rising Rivals',
+      'pl3': 'Supreme Victors', 'pl4': 'Arceus', 'col1': 'Call of Legends', 'hgss1': 'HeartGold & SoulSilver',
+      'hgss2': 'Unleashed', 'hgss3': 'Undaunted', 'hgss4': 'Triumphant', 'bw1': 'Black & White', 'bw2': 'Emerging Powers',
+      'bw3': 'Noble Victories', 'bw4': 'Next Destinies', 'bw5': 'Dark Explorers', 'bw6': 'Dragons Exalted',
+      'bw7': 'Boundaries Crossed', 'bw8': 'Plasma Storm', 'bw9': 'Plasma Freeze', 'bw10': 'Plasma Blast',
+      'bw11': 'Legendary Treasures', 'xy1': 'XY Base', 'xy2': 'Flashfire', 'xy3': 'Furious Fists', 'xy4': 'Phantom Forces',
+      'xy5': 'Primal Clash', 'xy6': 'Roaring Skies', 'xy7': 'Ancient Origins', 'xy8': 'BREAKthrough', 'xy9': 'BREAKpoint',
+      'xy10': 'Fates Collide', 'xy11': 'Steam Siege', 'xy12': 'Evolutions', 'g1': 'Generations',
+      'sm1': 'Sun & Moon', 'sm2': 'Guardians Rising', 'sm3': 'Burning Shadows', 'sm35': 'Shining Legends',
+      'sm4': 'Crimson Invasion', 'sm5': 'Ultra Prism', 'sm6': 'Forbidden Light', 'sm7': 'Celestial Storm',
+      'sm75': 'Dragon Majesty', 'sm8': 'Lost Thunder', 'sm9': 'Team Up', 'sm10': 'Unbroken Bonds',
+      'sm11': 'Unified Minds', 'sm115': 'Hidden Fates', 'sm12': 'Cosmic Eclipse', 'swsh1': 'Sword & Shield',
+      'swsh2': 'Rebel Clash', 'swsh3': 'Darkness Ablaze', 'swsh35': 'Champion\'s Path', 'swsh4': 'Vivid Voltage',
+      'swsh45': 'Shining Fates', 'swsh5': 'Battle Styles', 'swsh6': 'Chilling Reign', 'swsh7': 'Evolving Skies',
+      'cel25': 'Celebrations', 'swsh8': 'Fusion Strike', 'swsh9': 'Brilliant Stars', 'swsh10': 'Astral Radiance',
+      'pgo': 'Pokémon GO', 'swsh11': 'Lost Origin', 'swsh12': 'Silver Tempest', 'swsh12pt5': 'Crown Zenith',
+      'sv1': 'Scarlet & Violet', 'sv01': 'Scarlet & Violet', 'sve': 'Scarlet & Violet', 'sv2': 'Paldea Evolved',
+      'sv02': 'Paldea Evolved', 'pal': 'Paldea Evolved', 'sv3': 'Obsidian Flames', 'sv03': 'Obsidian Flames',
+      'obf': 'Obsidian Flames', 'sv03.5': '151', 'mew': '151', 'sv4': 'Paradox Rift', 'sv04': 'Paradox Rift',
+      'par': 'Paradox Rift', 'sv04.5': 'Paldean Fates', 'paf': 'Paldean Fates', 'sv5': 'Temporal Forces',
+      'sv05': 'Temporal Forces', 'tef': 'Temporal Forces', 'sv6': 'Twilight Masquerade', 'sv06': 'Twilight Masquerade',
+      'twm': 'Twilight Masquerade', 'sv06.5': 'Shrouded Fable', 'sfa': 'Shrouded Fable', 'sv7': 'Stellar Crown',
+      'sv07': 'Stellar Crown', 'scr': 'Stellar Crown', 'sv8': 'Surging Sparks', 'sv08': 'Surging Sparks',
+      'ssp': 'Surging Sparks', 'sv08.5': 'Prismatic Evolutions', 'pre': 'Prismatic Evolutions',
+      'me01': 'Phantasmal Flames', 'me02': 'Ascended Heroes', 'me03': 'Perfect Order', 'me04': 'Chaos Rising',
+      'me05': 'Pitch Black', 'pbl': 'Pitch Black', 'smp': 'SM Promos', 'swshp': 'SWSH Promos',
+      'svp': 'SV Promos', 'xyp': 'XY Promos', 'bwp': 'BW Promos', 'dpp': 'DP Promos', 'np': 'Nintendo Promos', 'pop': 'POP Series'
     };
 
     const DIGITAL_SET_BLACKLIST = new Set([
@@ -1035,12 +1128,103 @@
       wheel.appendChild(layer);
     }
 
+    // ----------------------------------------------------
+    // AUTHENTICATION & CLOUD SYNC ENGINE
+    // ----------------------------------------------------
+    if (auth) {
+      auth.onAuthStateChanged(async user => {
+        currentUser = user;
+        const loggedInView = document.getElementById('authLoggedInView');
+        const loggedOutView = document.getElementById('authLoggedOutView');
+        const emailSpan = document.getElementById('authUserEmail');
+        const accountLabel = document.getElementById('accountLabel');
+
+        if (user) {
+          loggedInView.style.display = 'flex';
+          loggedOutView.style.display = 'none';
+          emailSpan.innerText = user.email || 'Google Account';
+          accountLabel.innerText = 'Profile';
+          accountLabel.style.color = 'var(--green)';
+
+          // Pull cloud data and merge
+          try {
+            const doc = await db.collection("users").doc(user.uid).get();
+            if (doc.exists && Array.isArray(doc.data().collection)) {
+              const cloudSet = new Set(doc.data().collection);
+              const localSet = getCol();
+              const merged = new Set([...cloudSet, ...localSet]);
+              saveCol(merged, true);
+            } else {
+              syncCollectionToCloud([...getCol()]);
+            }
+          } catch (err) { console.error("Cloud pull error:", err); }
+        } else {
+          loggedInView.style.display = 'none';
+          loggedOutView.style.display = 'flex';
+          accountLabel.innerText = 'Account';
+          accountLabel.style.color = 'var(--sub)';
+        }
+      });
+    }
+
+    async function syncCollectionToCloud(array) {
+      if (currentUser && db) {
+        try {
+          await db.collection("users").doc(currentUser.uid).set({
+            collection: array,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+        } catch (err) { console.error("Cloud save error:", err); }
+      }
+    }
+
+    async function handleGoogleSignIn() {
+      if (!auth) return alert("Please configure Firebase keys first.");
+      const provider = new firebase.auth.GoogleAuthProvider();
+      try {
+        await auth.signInWithPopup(provider);
+        closeModal(null, 'accountModal');
+      } catch (err) {
+        showAuthError(err.message);
+      }
+    }
+
+    async function handleEmailAuth(isSignUp) {
+      if (!auth) return alert("Please configure Firebase keys first.");
+      const email = document.getElementById('authEmail').value.trim();
+      const pass = document.getElementById('authPassword').value;
+      if (!email || !pass) return showAuthError("Please fill out all fields.");
+      try {
+        if (isSignUp) {
+          await auth.createUserWithEmailAndPassword(email, pass);
+        } else {
+          await auth.signInWithEmailAndPassword(email, pass);
+        }
+        closeModal(null, 'accountModal');
+      } catch (err) {
+        showAuthError(err.message);
+      }
+    }
+
+    async function handleSignOut() {
+      if (auth) await auth.signOut();
+      closeModal(null, 'accountModal');
+    }
+
+    function showAuthError(msg) {
+      const el = document.getElementById('authErrorMsg');
+      el.innerText = msg;
+      el.style.display = 'block';
+    }
+
     const getCol = () => new Set(JSON.parse(localStorage.getItem('p_col') || '[]'));
-    const saveCol = s => { 
-      localStorage.setItem('p_col', JSON.stringify([...s])); 
+    const saveCol = (s, skipCloud = false) => { 
+      const arr = [...s];
+      localStorage.setItem('p_col', JSON.stringify(arr)); 
       updateCounts(); 
       renderRecents(); 
       if (curId) updateBtn(s.has(curId)); 
+      if (!skipCloud) syncCollectionToCloud(arr);
     };
     const getRec = () => JSON.parse(localStorage.getItem('p_rec') || '[]');
     
@@ -1055,7 +1239,7 @@
     function clearHistory() { localStorage.removeItem('p_rec'); updateCounts(); renderRecents(); }
 
     function updateCounts() {
-      const s = getCol(), r = getRec();
+      const s = getCol();
       document.getElementById('tCount').innerText = s.size;
       document.getElementById('tOwned').innerText = s.size;
       document.getElementById('tMissing').innerText = TOTAL - s.size;
@@ -1364,7 +1548,7 @@
     // High-Accuracy Authoritative Fetcher
     async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const cleanName = getCleanNationalDexName(pokeName, speciesName);
-      const cacheKey = `tcg_authoritative_v1600_${cleanName.toLowerCase()}`;
+      const cacheKey = `tcg_authoritative_v1800_${cleanName.toLowerCase()}`;
       
       if (!bypassCache) {
         if (memoryTcgCache.has(cacheKey)) {

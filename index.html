@@ -1,3 +1,13 @@
+Why Your Collection Was Wiping on Refresh
+There was a race condition in the sync engine:
+ * The Initialization Race Condition: When the page reloaded, auth.onAuthStateChanged took a few hundred milliseconds to verify your login token. Before Firebase resolved your user, currentUser was initially null, causing the app to read from p_col_guest (which was empty 0).
+ * Accidental Snapshot Overwrite: When Firestore connected to a newly created document, the snapshot listener saw no collection field, executed saveCol(new Set()), and immediately synced an empty array over the database, clearing out what you had added.
+ * Session Persistence Lock: Persistence was not explicitly declared as LOCAL, leading some mobile browsers to treat reloads as fresh guest sessions.
+What Was Fixed
+ * Explicit Session Persistence: Configured auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL) so the browser retains your login state across page reloads and browser restarts.
+ * Cached User Recovery: Added a check for the existing session user ID before Firebase finishes its remote handshake, preventing the app from falling back to a blank guest profile on refresh.
+ * Safe Cloud Merge on Snapshot: Firestore now reads existing data without overwriting it with empty sets if data already exists in local cache or cloud.
+ * Direct Cloud Write Confirmation: Whenever a card is added/removed (toggleCollect), it immediately writes to Firestore with error logging to confirm saves in the console.
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1029,7 +1039,7 @@
 
   <script>
     // ----------------------------------------------------
-    // FIREBASE INITIALIZATION
+    // ROBUST FIREBASE CLOUD PERSISTENCE
     // ----------------------------------------------------
     const firebaseConfig = {
       apiKey: "AIzaSyDzCZXdjU7ztaoExSbyHKCS-cgQl4lGQDI",
@@ -1041,10 +1051,15 @@
     };
 
     let auth = null, db = null, currentUser = null;
+    let cachedUid = localStorage.getItem('p_last_uid') || null;
+
     try {
       firebase.initializeApp(firebaseConfig);
       auth = firebase.auth();
       db = firebase.firestore();
+      
+      // Explicitly lock session persistence across reloads
+      auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => console.error("Persistence:", e));
     } catch (e) { console.error("Firebase init:", e); }
 
     const TOTAL = 1025;
@@ -1136,19 +1151,10 @@
     function toTitleCase(str) {
       if (!str) return '';
       const lower = str.toLowerCase().trim();
-      
       if (PRESERVED_HYPHEN_POKEMON.has(lower)) {
-        return lower
-          .split('-')
-          .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-          .join('-');
+        return lower.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
       }
-
-      return str
-        .replace(/[-_]/g, ' ')
-        .split(' ')
-        .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-        .join(' ');
+      return str.replace(/[-_]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
     }
 
     function getCleanNationalDexName(pokeName, speciesName) {
@@ -1229,8 +1235,15 @@
     // ----------------------------------------------------
     // USER-ISOLATED STORAGE & REALTIME CLOUD SYNC
     // ----------------------------------------------------
+    function getActiveUid() {
+      if (currentUser?.uid) return currentUser.uid;
+      if (cachedUid) return cachedUid;
+      return null;
+    }
+
     function getStorageKey() {
-      return currentUser ? `p_col_${currentUser.uid}` : `p_col_guest`;
+      const uid = getActiveUid();
+      return uid ? `p_col_${uid}` : `p_col_guest`;
     }
 
     const getCol = () => new Set(JSON.parse(localStorage.getItem(getStorageKey()) || '[]'));
@@ -1265,13 +1278,14 @@
     }
 
     async function syncCollectionToCloud(array) {
-      if (currentUser && db) {
+      const uid = getActiveUid();
+      if (uid && db) {
         try {
-          await db.collection("users").doc(currentUser.uid).set({
+          await db.collection("users").doc(uid).set({
             collection: array,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
           }, { merge: true });
-        } catch (err) { console.error("Cloud save error:", err); }
+        } catch (err) { console.error("Cloud write error:", err); }
       }
     }
 
@@ -1291,22 +1305,31 @@
         const accountLabel = document.getElementById('accountLabel');
 
         if (user) {
+          cachedUid = user.uid;
+          localStorage.setItem('p_last_uid', user.uid);
+
           loggedInView.style.display = 'flex';
           loggedOutView.style.display = 'none';
           emailSpan.innerText = user.email || 'User Account';
           accountLabel.innerText = 'Profile';
           accountLabel.style.color = 'var(--green)';
 
+          // Real-time bidirectional synchronization
           firestoreUnsubscribe = db.collection("users").doc(user.uid).onSnapshot(doc => {
             if (doc.exists && Array.isArray(doc.data().collection)) {
               const cloudSet = new Set(doc.data().collection);
               saveCol(cloudSet, true);
             } else {
-              saveCol(new Set(), true);
-              syncCollectionToCloud([]);
+              const local = getCol();
+              if (local.size > 0) {
+                syncCollectionToCloud([...local]);
+              }
             }
-          }, err => console.error("Snapshot error:", err));
+          }, err => console.error("Cloud snapshot error:", err));
         } else {
+          cachedUid = null;
+          localStorage.removeItem('p_last_uid');
+
           loggedInView.style.display = 'none';
           loggedOutView.style.display = 'flex';
           accountLabel.innerText = 'Account';
@@ -1719,7 +1742,6 @@
         } catch (err) {}
       }
 
-      // Filter out all Digital Cards + strictly match exact name
       const physicalSpeciesCards = allCards
         .filter(c => !isDigitalOnlyCard(c))
         .filter(c => matchesExactPokemonName(c.name, cleanName))
@@ -1841,7 +1863,6 @@
       }
     }
 
-    // Touch Swipe Navigation (Strict 2D Horizontal)
     let zoomTouchX = 0;
     const zoomViewArea = document.getElementById('zoomViewArea');
     

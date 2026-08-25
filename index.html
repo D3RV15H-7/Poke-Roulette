@@ -629,8 +629,8 @@ body.has-active .btn-close {
   position: absolute;
   bottom: 2px;
   right: 2px;
-  background: rgba(15, 23, 42, 0.88);
-  border: 1px solid rgba(16, 185, 129, 0.5);
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(16, 185, 129, 0.6);
   color: var(--green);
   font-size: 0.5rem;
   font-weight: 800;
@@ -1409,6 +1409,9 @@ body.has-active .hub-item-label {
 </div>
 
 <script>
+// Optional: Paste your free PokemonTCG.io API key here to increase daily rate limits if desired.
+const POKEMON_TCG_API_KEY = "";
+
 const firebaseConfig = {
   apiKey: "AIzaSyDzCZXdjU7ztaoExSbyHKCS-cgQl4lGQDI",
   authDomain: "poke-roulette-app.firebaseapp.com",
@@ -1430,6 +1433,7 @@ try {
 
 const TOTAL = 1025;
 const USD_TO_GBP = 0.79;
+const EUR_TO_GBP = 0.86;
 const TYPES = ['normal','fire','water','grass','electric','ice','fighting','poison','ground','flying','psychic','bug','rock','ghost','dragon','dark','steel','fairy'];
 const COLORS = { normal:'#A8A77A', fire:'#EE3F1E', water:'#1C95F0', grass:'#22C02A', electric:'#F5D61A', ice:'#70D6F5', fighting:'#E65A15', poison:'#A944B8', ground:'#CCA03B', flying:'#8E6BE8', psychic:'#EA3E7B', bug:'#91C01E', rock:'#B59030', ghost:'#6B45B5', dragon:'#E5BE00', dark:'#233544', steel:'#9AA2AC', fairy:'#F469A9' };
 const SVGS = {
@@ -1444,9 +1448,9 @@ const SVGS = {
   ground: '<svg viewBox="0 0 24 24"><path fill="#4e3b0e" d="M5 19h14a1 1 0 0 0 1-1l-3-10a1 1 0 0 0-1-.7h-5a1 1 0 0 0-.9.6L4 18a1 1 0 0 0 1 1zm3-3l1.5-4h2.5l-1 4z"/></svg>',
   flying: '<svg viewBox="0 0 24 24"><path fill="#2e1b60" d="M3 13.5C7 8 13 8 21 8c-3 2-6 3.5-9 3.5-3 0-5.5 1-9 2zm2 3.5c3-1 6-1 10-1-2 1.5-4.5 2-8 2.5-1 0-1.5-.5-2-1.5z"/></svg>',
   psychic: '<svg viewBox="0 0 24 24"><path fill="#5b0d28" d="M12 4a8 8 0 0 0-8 8 8 8 0 0 0 8 8c3.5 0 6.5-2.2 7.5-5.5a1 1 0 0 0-1-1.2c-2.5.2-5-1.5-5.5-4 0-.8.2-1.5.5-2.2A8 8 0 0 0 12 4z"/></svg>',
-  bug: '<svg viewBox="0 0 24 24"><path fill="#3a4a06" d="M12 4c-3.5 0-6.5 2.5-6.5 6 0 2.2 1.2 4.2 3 5.2V19a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1v-3.8c1.8-1 3-3 3-5.2 0-3.5-3-6-6.5-6zm-2.5 7a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3 z"/></svg>',
+  bug: '<svg viewBox="0 0 24 24"><path fill="#3a4a06" d="M12 4c-3.5 0-6.5 2.5-6.5 6 0 2.2 1.2 4.2 3 5.2V19a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1v-3.8c1.8-1 3-3 3-5.2 0-3.5-3-6-6.5-6zm-2.5 7a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>',
   rock: '<svg viewBox="0 0 24 24"><path fill="#463608" d="M7 5l6-2 5 4-1 6-7 7-5-3 2-12zm4 3l-2 5 4 3 3-4-1-3-4-1z"/></svg>',
-  ghost: '<svg viewBox="0 0 24 24"><path fill="#2c1556" d="M12 3c-4.5 0-8 3.5-8 8v8l3-2 2.5 2 2.5-2 2.5 2 2.5-2 3 2v-8c0-4.5-3.5-8-8-8zm-3 8a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm6 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3 z"/></svg>',
+  ghost: '<svg viewBox="0 0 24 24"><path fill="#2c1556" d="M12 3c-4.5 0-8 3.5-8 8v8l3-2 2.5 2 2.5-2 2.5 2 2.5-2 3 2v-8c0-4.5-3.5-8-8-8zm-3 8a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm6 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>',
   dragon: '<svg viewBox="0 0 24 24"><path fill="#544300" d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c1.5 0 3-.3 4.2-1-3-1-5-3.5-5-7 0-3.5 2.5-6.5 6-7.5-1.5-1.2-3.2-2.5-5.2-2.5z"/></svg>',
   dark: '<svg viewBox="0 0 24 24"><path fill="#0d1924" d="M12 3a9 9 0 1 0 9 9c0-.6 0-1.2-.2-1.8A7 7 0 0 1 12 3z"/></svg>',
   steel: '<svg viewBox="0 0 24 24"><path fill="#363c44" d="M12 2L4 7v10l8 5 8-5V7l-8-5zm0 3.5l5 3.2v6.6l-5 3.2-5-3.2V8.7l5-3.2z"/></svg>',
@@ -1966,12 +1970,42 @@ function renderEvolutionChain(chain) {
   });
   evoBox.style.display = 'flex';
 }
+
 function extractCardPriceGBP(card) {
+  // 1. UK / European Market: Prioritize Cardmarket
+  if (card.cardmarket?.prices) {
+    const cp = card.cardmarket.prices;
+    const candidates = [
+      cp.trendPrice,
+      cp.averageSellPrice,
+      cp.avg1,
+      cp.avg7,
+      cp.avg30,
+      cp.lowPrice
+    ];
+    for (const price of candidates) {
+      if (price && typeof price === 'number' && price > 0) {
+        return (price * EUR_TO_GBP).toFixed(2);
+      }
+    }
+  }
+  
+  // 2. Global / US Fallback: TCGPlayer
   if (card.tcgplayer?.prices) {
     const p = card.tcgplayer.prices;
     const candidates = [
-      p.holofoil?.market, p.reverseHolofoil?.market, p.normal?.market, p.unlimitedHolofoil?.market, p['1stEditionHolofoil']?.market,
-      p.holofoil?.mid, p.normal?.mid, p.reverseHolofoil?.mid, p.holofoil?.directLow, p.normal?.directLow, p.holofoil?.low, p.normal?.low
+      p.holofoil?.market,
+      p.reverseHolofoil?.market,
+      p.normal?.market,
+      p.unlimitedHolofoil?.market,
+      p['1stEditionHolofoil']?.market,
+      p.holofoil?.mid,
+      p.normal?.mid,
+      p.reverseHolofoil?.mid,
+      p.holofoil?.directLow,
+      p.normal?.directLow,
+      p.holofoil?.low,
+      p.normal?.low
     ];
     for (const price of candidates) {
       if (price && typeof price === 'number' && price > 0) {
@@ -1979,17 +2013,9 @@ function extractCardPriceGBP(card) {
       }
     }
   }
-  if (card.cardmarket?.prices) {
-    const cp = card.cardmarket.prices;
-    const candidates = [ cp.averageSellPrice, cp.trendPrice, cp.avg1, cp.avg7, cp.avg30, cp.lowPrice ];
-    for (const price of candidates) {
-      if (price && typeof price === 'number' && price > 0) {
-        return (price * 0.86).toFixed(2);
-      }
-    }
-  }
   return null;
 }
+
 function matchesExactPokemonName(cardName, targetName) {
   const c = (cardName || '').toLowerCase().trim();
   const t = targetName.toLowerCase().trim();
@@ -2001,9 +2027,10 @@ function matchesExactPokemonName(cardName, targetName) {
   const regex2 = new RegExp(`(^|[\\s\\-_/&])${escapedNorm}([\\s\\-_/&]|$)`, 'i');
   return regex1.test(c) || regex2.test(cNormalized);
 }
+
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2600_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2610_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);
@@ -2016,12 +2043,12 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
     }
   }
   const primaryTerm = cleanName.includes('-') ? cleanName : cleanName.split(' ')[0];
-  const fetchWithRetry = async (url, retries = 3, delay = 350) => {
+  const fetchWithRetry = async (url, headers = {}, retries = 3, delay = 350) => {
     for (let i = 0; i < retries; i++) {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 4500);
-        const res = await fetch(url, { signal: controller.signal });
+        const res = await fetch(url, { headers, signal: controller.signal });
         clearTimeout(timeoutId);
         if (res.ok) return await res.json();
       } catch (e) {
@@ -2031,14 +2058,17 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
     }
     throw new Error("Failed to fetch");
   };
+
   const pokemontcgPromise = async () => {
     const queryTerm = encodeURIComponent(primaryTerm);
     const queryClean = encodeURIComponent(cleanName);
     const querySpaced = encodeURIComponent(cleanName.replace(/[-_]/g, ' '));
     const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${queryTerm}"* OR name:"${queryClean}"* OR name:"${querySpaced}"*&select=id,name,images,set,number,tcgplayer,cardmarket&pageSize=200&orderBy=-set.releaseDate`;
-    const json = await fetchWithRetry(queryUrl);
+    const headers = POKEMON_TCG_API_KEY ? { 'X-Api-Key': POKEMON_TCG_API_KEY } : {};
+    const json = await fetchWithRetry(queryUrl, headers);
     return json.data || [];
   };
+
   let allCards = [];
   try {
     allCards = await pokemontcgPromise();

@@ -1,13 +1,4 @@
-Why Your Collection Was Wiping on Refresh
-There was a race condition in the sync engine:
- * The Initialization Race Condition: When the page reloaded, auth.onAuthStateChanged took a few hundred milliseconds to verify your login token. Before Firebase resolved your user, currentUser was initially null, causing the app to read from p_col_guest (which was empty 0).
- * Accidental Snapshot Overwrite: When Firestore connected to a newly created document, the snapshot listener saw no collection field, executed saveCol(new Set()), and immediately synced an empty array over the database, clearing out what you had added.
- * Session Persistence Lock: Persistence was not explicitly declared as LOCAL, leading some mobile browsers to treat reloads as fresh guest sessions.
-What Was Fixed
- * Explicit Session Persistence: Configured auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL) so the browser retains your login state across page reloads and browser restarts.
- * Cached User Recovery: Added a check for the existing session user ID before Firebase finishes its remote handshake, preventing the app from falling back to a blank guest profile on refresh.
- * Safe Cloud Merge on Snapshot: Firestore now reads existing data without overwriting it with empty sets if data already exists in local cache or cloud.
- * Direct Cloud Write Confirmation: Whenever a card is added/removed (toggleCollect), it immediately writes to Firestore with error logging to confirm saves in the console.
+
 <!DOCTYPE html>
 <html lang="en">
 <head>

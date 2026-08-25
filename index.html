@@ -35,6 +35,44 @@
     html, body { width: 100vw; height: 100dvh; overflow: hidden; background: var(--bg); color: var(--text); }
     body { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: clamp(0.3rem, 1dvh, 0.6rem) clamp(0.5rem, 2vw, 1rem); touch-action: pan-y; }
     
+    /* Pull-to-Refresh Component */
+    .ptr-indicator {
+      position: fixed;
+      top: -60px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--card);
+      border: 1.5px solid #334155;
+      padding: 0.4rem 1rem;
+      border-radius: 99px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      z-index: 1000;
+      pointer-events: none;
+      transition: transform 0.15s ease-out, opacity 0.2s ease;
+      opacity: 0;
+    }
+    .ptr-spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid #334155;
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      transition: transform 0.1s linear;
+    }
+    .ptr-spinner.spinning {
+      animation: ptrSpin 0.6s linear infinite;
+    }
+    .ptr-text {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: var(--sub);
+      letter-spacing: 0.3px;
+    }
+    @keyframes ptrSpin { 100% { transform: rotate(360deg); } }
+
     .viewport { 
       width: 100%; 
       max-width: 440px; 
@@ -741,6 +779,12 @@
 </head>
 <body>
 
+  <!-- Pull-to-Refresh HUD -->
+  <div class="ptr-indicator" id="ptrIndicator">
+    <div class="ptr-spinner" id="ptrSpinner"></div>
+    <span class="ptr-text" id="ptrText">Pull to refresh...</span>
+  </div>
+
   <div class="viewport">
     <header>
       <h1>Poké<span>Roulette</span></h1>
@@ -1192,7 +1236,6 @@
           accountLabel.innerText = 'Profile';
           accountLabel.style.color = 'var(--green)';
 
-          // Subscribe to User's private cloud document
           firestoreUnsubscribe = db.collection("users").doc(user.uid).onSnapshot(doc => {
             if (doc.exists && Array.isArray(doc.data().collection)) {
               const cloudSet = new Set(doc.data().collection);
@@ -1922,6 +1965,67 @@
     tcgStripEl.addEventListener('touchend', e => e.stopPropagation(), { passive: true });
 
     document.addEventListener('click', e => { if (!e.target.closest('.search-wrap')) document.getElementById('sList').style.display = 'none'; });
+
+    // ----------------------------------------------------
+    // PULL DOWN TO REFRESH ENGINE
+    // ----------------------------------------------------
+    let ptrStartY = 0;
+    let ptrCurrentY = 0;
+    let isPtrActive = false;
+    const PTR_THRESHOLD = 75;
+    const ptrIndicator = document.getElementById('ptrIndicator');
+    const ptrSpinner = document.getElementById('ptrSpinner');
+    const ptrText = document.getElementById('ptrText');
+
+    window.addEventListener('touchstart', e => {
+      if (e.touches.length !== 1) return;
+      const scrollableParent = e.target.closest('.list-view, .card, .dex-cards-grid');
+      if (scrollableParent && scrollableParent.scrollTop > 0) return;
+
+      ptrStartY = e.touches[0].pageY;
+      isPtrActive = true;
+    }, { passive: true });
+
+    window.addEventListener('touchmove', e => {
+      if (!isPtrActive) return;
+      ptrCurrentY = e.touches[0].pageY;
+      const pullDistance = ptrCurrentY - ptrStartY;
+
+      if (pullDistance > 15) {
+        const clampedY = Math.min(pullDistance * 0.45, 95);
+        ptrIndicator.style.opacity = Math.min(clampedY / 45, 1);
+        ptrIndicator.style.transform = `translate(-50%, ${clampedY}px)`;
+        ptrSpinner.style.transform = `rotate(${clampedY * 4}deg)`;
+
+        if (clampedY >= PTR_THRESHOLD * 0.45) {
+          ptrText.innerText = "Release to reload...";
+          ptrText.style.color = "var(--gold)";
+        } else {
+          ptrText.innerText = "Pull down to refresh...";
+          ptrText.style.color = "var(--sub)";
+        }
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => {
+      if (!isPtrActive) return;
+      const pullDistance = ptrCurrentY - ptrStartY;
+      isPtrActive = false;
+
+      if (pullDistance * 0.45 >= PTR_THRESHOLD * 0.45) {
+        if (navigator.vibrate) navigator.vibrate(20);
+        ptrSpinner.classList.add('spinning');
+        ptrText.innerText = "Reloading...";
+        ptrIndicator.style.transform = `translate(-50%, 75px)`;
+        
+        setTimeout(() => {
+          window.location.reload();
+        }, 350);
+      } else {
+        ptrIndicator.style.opacity = '0';
+        ptrIndicator.style.transform = 'translate(-50%, -60px)';
+      }
+    }, { passive: true });
 
     (async () => {
       buildIcons();

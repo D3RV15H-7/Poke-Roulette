@@ -577,7 +577,7 @@
     }
     .tcg-zoom-content {
       background: var(--card);
-      border: 1px solid #334155;
+      border: 2px solid #334155;
       border-radius: 24px;
       padding: clamp(0.65rem, 1.4dvh, 1rem) clamp(0.75rem, 2vw, 1.2rem);
       max-width: 400px;
@@ -590,6 +590,11 @@
       box-shadow: 0 20px 50px rgba(0,0,0,0.9);
       animation: zoomIn 0.2s ease-out;
       position: relative;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .tcg-zoom-content.card-owned {
+      border-color: var(--green);
+      box-shadow: 0 0 25px rgba(16, 185, 129, 0.55), 0 20px 50px rgba(0,0,0,0.9);
     }
     @keyframes zoomIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     
@@ -620,6 +625,7 @@
       box-shadow: 0 14px 36px rgba(0,0,0,0.75);
       overflow: hidden;
       transform: none !important;
+      background: #1e293b;
     }
     .tcg-zoom-img {
       width: 100%;
@@ -631,11 +637,11 @@
       transform: none !important;
     }
 
-    /* Zoom View Checkbox Circle Overlay */
+    /* Zoom View Checkbox Circle Overlay on Outer Card Box Top-Right */
     .zoom-check-circle {
       position: absolute;
-      top: 10px;
-      right: 10px;
+      top: 14px;
+      right: 14px;
       width: 28px;
       height: 28px;
       border-radius: 50%;
@@ -647,7 +653,7 @@
       font-size: 0.85rem;
       font-weight: 900;
       color: transparent;
-      z-index: 20;
+      z-index: 50;
       cursor: pointer;
       box-shadow: 0 4px 12px rgba(0,0,0,0.6);
       transition: all 0.15s;
@@ -953,13 +959,13 @@
   </div>
 
   <div class="tcg-zoom-modal" id="tcgZoomModal" onclick="closeTcgZoom()">
-    <div class="tcg-zoom-content" onclick="event.stopPropagation()">
+    <div class="tcg-zoom-content" id="zoomContainer" onclick="event.stopPropagation()">
+      <div class="zoom-check-circle" id="zoomCheckCircle" onclick="toggleZoomCardOwned(event)">✓</div>
       <div class="tcg-zoom-counter" id="tcgZoomCounter">1 / 1</div>
       
       <div class="tcg-zoom-view-area" id="zoomViewArea">
         <button class="tcg-zoom-arrow left" id="zoomLeftArrow" onclick="navigateZoomCard(-1)">‹</button>
         <div class="flat-card-container">
-          <div class="zoom-check-circle" id="zoomCheckCircle" onclick="toggleZoomCardOwned()">✓</div>
           <img class="tcg-zoom-img" id="tcgZoomImg" src="" alt="Card HD" />
         </div>
         <button class="tcg-zoom-arrow right" id="zoomRightArrow" onclick="navigateZoomCard(1)">›</button>
@@ -1282,7 +1288,6 @@
       }
     };
 
-    // Auto-sync base Pokemon collection when TCG card checkboxes change
     function syncBasePokemonFromCards() {
       if (!curId) return;
       const cardCol = getCardCol();
@@ -1949,12 +1954,16 @@
       }
 
       const zoomCheckCircle = document.getElementById('zoomCheckCircle');
+      const zoomContainer = document.getElementById('zoomContainer');
       const ownedCardSet = getCardCol();
-      if (zoomCheckCircle) {
+      
+      if (zoomCheckCircle && zoomContainer) {
         if (ownedCardSet.has(card.id)) {
           zoomCheckCircle.classList.add('checked');
+          zoomContainer.classList.add('card-owned');
         } else {
           zoomCheckCircle.classList.remove('checked');
+          zoomContainer.classList.remove('card-owned');
         }
       }
 
@@ -1965,26 +1974,29 @@
       if (rightArrow) rightArrow.style.display = currentZoomIndex < currentCardsList.length - 1 ? 'flex' : 'none';
     }
 
-    function toggleZoomCardOwned() {
+    function toggleZoomCardOwned(e) {
+      if (e) e.stopPropagation();
       if (!currentCardsList.length) return;
       const card = currentCardsList[currentZoomIndex];
       initAudio();
       playTick();
       const setColCards = getCardCol();
       const zoomCheckCircle = document.getElementById('zoomCheckCircle');
+      const zoomContainer = document.getElementById('zoomContainer');
 
       if (setColCards.has(card.id)) {
         setColCards.delete(card.id);
         if (zoomCheckCircle) zoomCheckCircle.classList.remove('checked');
+        if (zoomContainer) zoomContainer.classList.remove('card-owned');
       } else {
         setColCards.add(card.id);
         if (zoomCheckCircle) zoomCheckCircle.classList.add('checked');
+        if (zoomContainer) zoomContainer.classList.add('card-owned');
       }
       saveCardCol(setColCards);
       syncBasePokemonFromCards();
 
-      // Refresh strip view if active
-      if (curPoke) renderTcgCards(currentCardsList);
+      if (curId) renderTcgCards(currentCardsList);
     }
 
     function navigateZoomCard(dir) {

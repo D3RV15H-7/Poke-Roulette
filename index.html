@@ -1,3 +1,4 @@
+Here is the complete updated code with the selector moved to the left side of the wheel and the rotation mathematics recalibrated so the selected slice aligns directly with the left-hand pointer:
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -278,16 +279,17 @@ body.has-active .wheel-wrap {
   white-space: nowrap;
 }
 
+/* Left Pointer Configuration */
 .pointer {
   position: absolute;
-  top: -10px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 50%;
+  left: -10px;
+  transform: translateY(-50%);
   width: 0;
   height: 0;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-top: 15px solid #fff;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 15px solid #fff;
   z-index: 10;
   filter: drop-shadow(0 3px 5px rgba(0,0,0,0.6));
   transition: all 0.35s;
@@ -1621,7 +1623,6 @@ function isDigitalOnlyCard(card) {
   return false;
 }
 
-/* Subtle, perfectly positioned slice text labels */
 function buildLabels() {
   const wheel = document.getElementById('wheel');
   const layer = document.createElement('div');
@@ -2147,7 +2148,7 @@ function matchesExactPokemonName(cardName, targetName) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2750_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2760_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);
@@ -2462,7 +2463,8 @@ async function loadPoke(id, dir = 0, log = false) {
   try {
     const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
     const data = await res.json();
-    const targetDeg = (360 - (TYPES.indexOf(data.types[0].type.name) * 20 + 10)) % 360;
+    // Calibrated so target slice lands horizontally on the LEFT pointer (270deg offset)
+    const targetDeg = (270 - (TYPES.indexOf(data.types[0].type.name) * 20 + 10) + 360) % 360;
     const w = document.getElementById('wheel');
     w.style.transition = 'none';
     rot = targetDeg;
@@ -2490,7 +2492,8 @@ async function spinAndPick() {
   isSpinning = true;
   hideActive();
   const idx = Math.floor(Math.random() * TYPES.length);
-  const targetDeg = (360 - (idx * 20 + 10)) % 360;
+  // Calibrated so target slice lands horizontally on the LEFT pointer (270deg offset)
+  const targetDeg = (270 - (idx * 20 + 10) + 360) % 360;
   w.style.transition = 'transform 3.2s cubic-bezier(0.12, 0.9, 0.18, 1)';
   rot += (Math.floor(Math.random() * 3) + 4) * 360 + ((targetDeg - (rot % 360) + 360) % 360);
   w.style.transform = `rotate(${rot}deg)`;

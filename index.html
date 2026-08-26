@@ -197,7 +197,7 @@ header h1 span {
   border-bottom: none;
 }
 
-/* Responsive Dynamic Wheel Container with Upward Shrink & Downward Slide Transitions */
+/* Responsive Dynamic Wheel Container */
 .wheel-wrap {
   position: relative;
   width: clamp(220px, 42dvh, 340px);
@@ -218,7 +218,6 @@ header h1 span {
   pointer-events: auto;
 }
 
-/* Shrunk Upward State */
 body.has-active .wheel-wrap {
   opacity: 0;
   transform: translateY(-24px) scale(0.45);
@@ -277,7 +276,6 @@ body.has-active .wheel-wrap {
   transition: all 0.35s;
 }
 
-/* Proportional Center Hub */
 .center-hub {
   position: absolute;
   width: clamp(32px, 5.5dvh, 44px);
@@ -646,7 +644,7 @@ body.has-active .btn-close {
   bottom: 2px;
   right: 2px;
   background: rgba(15, 23, 42, 0.94);
-  border: 1px solid rgba(16, 185, 129, 0.7);
+  border: 1px solid rgba(16, 185, 129, 0.75);
   color: var(--green);
   font-size: 0.52rem;
   font-weight: 800;
@@ -1990,8 +1988,24 @@ function renderEvolutionChain(chain) {
 
 function extractCardPriceGBP(card) {
   if (!card) return null;
+
+  // 1. Check direct numeric prices (from TCGdex pricing object or unified mapper)
+  if (card.pricing) {
+    if (card.pricing.cardmarket) {
+      const cmp = card.pricing.cardmarket;
+      const val = cmp.trend || cmp.avg || cmp.low || cmp.trendPrice || cmp.averageSellPrice;
+      const num = parseFloat(val);
+      if (!isNaN(num) && num > 0) return (num * EUR_TO_GBP).toFixed(2);
+    }
+    if (card.pricing.tcgplayer) {
+      const tp = card.pricing.tcgplayer;
+      const val = tp.market || tp.mid || tp.low || tp.directLow;
+      const num = parseFloat(val);
+      if (!isNaN(num) && num > 0) return (num * USD_TO_GBP).toFixed(2);
+    }
+  }
   
-  // 1. UK / European Market Benchmark: Cardmarket
+  // 2. UK / European Market Benchmark: Cardmarket from PokemonTCG.io
   if (card.cardmarket && card.cardmarket.prices) {
     const cp = card.cardmarket.prices;
     const candidates = [
@@ -2014,7 +2028,7 @@ function extractCardPriceGBP(card) {
     }
   }
   
-  // 2. Global / Secondary Benchmark: TCGplayer (USD -> GBP)
+  // 3. Global / Secondary Benchmark: TCGplayer from PokemonTCG.io
   if (card.tcgplayer && card.tcgplayer.prices) {
     const p = card.tcgplayer.prices;
     const subCategories = ['holofoil', 'normal', 'reverseHolofoil', '1stEditionHolofoil', 'unlimitedHolofoil', '1stEditionNormal', 'unlimitedNormal'];
@@ -2054,7 +2068,7 @@ function matchesExactPokemonName(cardName, targetName) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2620_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2630_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);
@@ -2067,11 +2081,11 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
     }
   }
   const primaryTerm = cleanName.includes('-') ? cleanName : cleanName.split(' ')[0];
-  const fetchWithRetry = async (url, headers = {}, retries = 3, delay = 350) => {
+  const fetchWithRetry = async (url, headers = {}, retries = 2, delay = 350) => {
     for (let i = 0; i < retries; i++) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4500);
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
         const res = await fetch(url, { headers, signal: controller.signal });
         clearTimeout(timeoutId);
         if (res.ok) return await res.json();
@@ -2083,19 +2097,21 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
     throw new Error("Failed to fetch");
   };
 
-  const pokemontcgPromise = async () => {
-    const queryTerm = encodeURIComponent(primaryTerm);
-    const queryClean = encodeURIComponent(cleanName.replace(/["']/g, ''));
-    const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${queryClean}"* OR name:"${queryTerm}"*&select=id,name,images,set,number,tcgplayer,cardmarket&pageSize=150&orderBy=-set.releaseDate`;
+  let allCards = [];
+
+  // Primary API: PokemonTCG.io with CORS-safe headers
+  try {
+    const querySpaced = cleanName.replace(/["']/g, '');
+    const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(querySpaced)}"*&select=id,name,images,set,number,tcgplayer,cardmarket&pageSize=120&orderBy=-set.releaseDate`;
     const headers = POKEMON_TCG_API_KEY ? { 'X-Api-Key': POKEMON_TCG_API_KEY } : {};
     const json = await fetchWithRetry(queryUrl, headers);
-    return json.data || [];
-  };
+    if (json && json.data && json.data.length > 0) {
+      allCards = json.data;
+    }
+  } catch (e) {}
 
-  let allCards = [];
-  try {
-    allCards = await pokemontcgPromise();
-  } catch (e) {
+  // Fallback API: TCGdex with embedded card pricing
+  if (!allCards || allCards.length === 0) {
     try {
       const res = await fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(primaryTerm)}`);
       if (res.ok) {
@@ -2106,16 +2122,19 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
             name: c.name,
             images: { small: `${c.image}/low.webp`, large: `${c.image}/high.webp` },
             set: { name: c.set?.name || '', id: c.set?.id || '', printedTotal: c.set?.cardCount?.official || 0 },
-            number: c.localId || '?'
+            number: c.localId || '?',
+            pricing: c.pricing || null
           }));
         }
       }
     } catch (err) {}
   }
+
   const physicalSpeciesCards = allCards
     .filter(c => !isDigitalOnlyCard(c))
     .filter(c => matchesExactPokemonName(c.name, cleanName))
     .filter(c => c.images?.small && typeof c.images.small === 'string' && !c.images.small.includes('undefined'));
+
   const formattedCards = physicalSpeciesCards.map(c => ({
     id: c.id,
     name: c.name,
@@ -2125,6 +2144,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
     number: c.number || c.localId || '?',
     priceGBP: extractCardPriceGBP(c)
   }));
+
   if (formattedCards.length > 0) {
     memoryTcgCache.set(cacheKey, formattedCards);
     try {
@@ -2133,6 +2153,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   }
   return formattedCards;
 }
+
 async function fetchTcgCards(pokeName, speciesName) {
   const requestId = ++activeTcgRequestId;
   const strip = document.getElementById('tcgStrip');
@@ -2158,6 +2179,7 @@ async function fetchTcgCards(pokeName, speciesName) {
     }
   }
 }
+
 function renderTcgCards(cards) {
   const strip = document.getElementById('tcgStrip');
   const countText = document.getElementById('tcgCountText');
@@ -2209,12 +2231,14 @@ function renderTcgCards(cards) {
     strip.appendChild(node);
   });
 }
+
 function openTcgZoom(index, fromModal = false) {
   openedFromDexModal = fromModal;
   currentZoomIndex = index;
   updateZoomModalContent();
   document.getElementById('tcgZoomModal').style.display = 'flex';
 }
+
 function updateZoomModalContent() {
   if (!currentCardsList.length) return;
   const card = currentCardsList[currentZoomIndex];
@@ -2243,6 +2267,7 @@ function updateZoomModalContent() {
   if (leftArrow) leftArrow.style.display = currentZoomIndex > 0 ? 'flex' : 'none';
   if (rightArrow) rightArrow.style.display = currentZoomIndex < currentCardsList.length - 1 ? 'flex' : 'none';
 }
+
 function toggleZoomCardOwned(e) {
   if (e) e.stopPropagation();
   if (!currentCardsList.length) return;
@@ -2265,6 +2290,7 @@ function toggleZoomCardOwned(e) {
   syncBasePokemonFromCards();
   if (curId) renderTcgCards(currentCardsList);
 }
+
 function navigateZoomCard(dir) {
   if (!currentCardsList.length) return;
   const newIndex = currentZoomIndex + dir;
@@ -2273,6 +2299,7 @@ function navigateZoomCard(dir) {
     updateZoomModalContent();
   }
 }
+
 let zoomTouchX = 0;
 const zoomViewArea = document.getElementById('zoomViewArea');
 if (zoomViewArea) {
@@ -2290,24 +2317,28 @@ if (zoomViewArea) {
     }
   }, { passive: true });
 }
+
 function closeTcgZoom() {
   document.getElementById('tcgZoomModal').style.display = 'none';
   if (openedFromDexModal && activeDexModalPoke) {
     openDexCardsModal(activeDexModalPoke);
   }
 }
+
 function toggleCollect() {
   if (!curId) return;
   const s = getCol();
   s.has(curId) ? s.delete(curId) : (s.add(curId), playTick());
   saveCol(s);
 }
+
 function updateBtn(owned) {
   document.getElementById('colBtn').classList.toggle('active', owned);
   document.getElementById('cardTick').classList.toggle('active', owned);
   document.getElementById('colIcon').innerText = owned ? '✓' : '+';
   document.getElementById('colTxt').innerText = owned ? 'In Collection (Tap to remove)' : 'Add to Collection';
 }
+
 function hideActive() {
   document.body.classList.remove('has-active');
   document.getElementById('pokeCard').style.display = 'none';
@@ -2315,12 +2346,14 @@ function hideActive() {
   curId = curPoke = null;
   currentCardsList = [];
 }
+
 function handleSpinButtonClick() {
   if (document.body.classList.contains('has-active')) {
     hideActive();
   }
   spinAndPick();
 }
+
 function handleSearch(val) {
   const l = document.getElementById('sList'), v = val.trim().toLowerCase().replace('#','');
   if (!v || !dir.length) return l.style.display = 'none';
@@ -2337,10 +2370,12 @@ function handleSearch(val) {
   });
   l.style.display = 'block';
 }
+
 function submitSearch() {
   const f = document.getElementById('sList').querySelector('li');
   f ? f.onmousedown() : handleSearch(document.getElementById('sInput').value);
 }
+
 async function loadPoke(id, dir = 0, log = false) {
   document.getElementById('sList').style.display = 'none';
   const input = document.getElementById('sInput');
@@ -2362,6 +2397,7 @@ async function loadPoke(id, dir = 0, log = false) {
     console.error(e);
   }
 }
+
 function navigateDex(d) {
   if (!curId) return;
   let next = curId + d;
@@ -2369,6 +2405,7 @@ function navigateDex(d) {
   if (next > TOTAL) next = 1;
   loadPoke(next, d, false);
 }
+
 async function spinAndPick() {
   initAudio();
   document.getElementById('sList').style.display = 'none';
@@ -2410,6 +2447,7 @@ async function spinAndPick() {
     btn.disabled = false;
   }
 }
+
 function renderCard(p, dir = 0, shiny = false) {
   curId = p.id;
   curPoke = p;

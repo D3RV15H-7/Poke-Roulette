@@ -248,7 +248,7 @@ body.has-active .wheel-wrap {
   pointer-events: none;
 }
 
-/* Option 2: Frosted Pill Badges & High-Contrast White Type Icons */
+/* Frosted Badges & High-Contrast White Type Icons */
 .slice-icon {
   position: absolute;
   width: 13.5%;
@@ -1484,7 +1484,44 @@ const SVGS = {
   steel: '<svg viewBox="0 0 24 24"><path d="M12 2L4 7v10l8 5 8-5V7l-8-5zm0 3.5l5 3.2v6.6l-5 3.2-5-3.2V8.7l5-3.2z"/></svg>',
   fairy: '<svg viewBox="0 0 24 24"><path d="M12 2.5C10 6 7 9 7 13c0 3.5 2.5 6 5 8.5 2.5-2.5 5-5 5-8.5 0-4-3-7-5-10.5zm0 10a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>'
 };
-const KNOWN_SETS = { 'base1': 'Base Set', 'base2': 'Jungle', 'base3': 'Fossil', 'base4': 'Base Set 2', 'base5': 'Team Rocket', 'gym1': 'Gym Heroes', 'gym2': 'Gym Challenge', 'neo1': 'Neo Genesis', 'neo2': 'Neo Discovery', 'neo3': 'Neo Revelation', 'neo4': 'Neo Destiny', 'si1': 'Southern Islands', 'base6': 'Legendary Collection', 'ecard1': 'Expedition Base Set', 'ecard2': 'Aquapolis', 'ecard3': 'Skyridge', 'ex1': 'EX Ruby & Sapphire', 'ex2': 'EX Sandstorm', 'ex3': 'EX Dragon', 'ex4': 'EX Team Magma vs Team Aqua', 'ex5': 'EX Hidden Legends', 'ex6': 'EX FireRed & LeafGreen', 'ex7': 'EX Team Rocket Returns', 'ex8': 'EX Deoxys', 'ex9': 'EX Emerald', 'ex10': 'EX Unseen Forces', 'ex11': 'EX Delta Species', 'ex12': 'EX Legend Maker', 'ex13': 'EX Holon Phantoms', 'ex14': 'EX Crystal Guardians', 'ex15': 'EX Dragon Frontiers', 'ex16': 'EX Power Keepers', 'dp1': 'Diamond & Pearl', 'dp2': 'Mysterious Treasures', 'dp3': 'Secret Wonders', 'dp4': 'Great Encounters', 'dp5': 'Majestic Dawn', 'dp6': 'Legends Awakened', 'dp7': 'Stormfront', 'pl1': 'Platinum', 'pl2': 'Rising Rivals', 'pl3': 'Supreme Victors', 'pl4': 'Arceus', 'col1': 'Call of Legends', 'hgss1': 'HeartGold & SoulSilver', 'hgss2': 'Unleashed', 'hgss3': 'Undaunted', 'hgss4': 'Triumphant', 'bw1': 'Black & White', 'bw2': 'Emerging Powers', 'bw3': 'Noble Victories', 'bw4': 'Next Destinies', 'bw5': 'Dark Explorers', 'bw6': 'Dragons Exalted', 'bw7': 'Boundaries Crossed', 'bw8': 'Plasma Storm', 'bw9': 'Plasma Freeze', 'bw10': 'Plasma Blast', 'bw11': 'Legendary Treasures', 'xy1': 'XY Base', 'xy2': 'Flashfire', 'xy3': 'Furious Fists', 'xy4': 'Phantom Forces', 'xy5': 'Primal Clash', 'xy6': 'Roaring Skies', 'xy7': 'Ancient Origins', 'xy8': 'BREAKthrough', 'xy9': 'BREAKpoint', 'xy10': 'Fates Collide', 'xy11': 'Steam Siege', 'xy12': 'Evolutions', 'g1': 'Generations', 'sm1': 'Sun & Moon', 'sm2': 'Guardians Rising', 'sm3': 'Burning Shadows', 'sm35': 'Shining Legends', 'sm4': 'Crimson Invasion', 'sm5': 'Ultra Prism', 'sm6': 'Forbidden Light', 'sm7': 'Celestial Storm', 'sm75': 'Dragon Majesty', 'sm8': 'Lost Thunder', 'sm9': 'Team Up', 'sm10': 'Unbroken Bonds', 'sm11': 'Unified Minds', 'sm115': 'Hidden Fates', 'sm12': 'Cosmic Eclipse', 'swsh1': 'Sword & Shield', 'swsh2': 'Rebel Clash', 'swsh3': 'Darkness Ablaze', 'swsh35': 'Champion\'s Path', 'swsh4': 'Vivid Voltage', 'swsh45': 'Shining Fates', 'swsh5': 'Battle Styles', 'swsh6': 'Chilling Reign', 'swsh7': 'Evolving Skies', 'cel25': 'Celebrations', 'swsh8': 'Fusion Strike', 'swsh9': 'Brilliant Stars', 'swsh10': 'Astral Radiance', 'pgo': 'Pokémon GO', 'swsh11': 'Lost Origin', 'swsh12': 'Silver Tempest', 'swsh12pt5': 'Crown Zenith', 'sv1': 'Scarlet & Violet', 'sv01': 'Scarlet & Violet', 'sve': 'Scarlet & Violet', 'sv2': 'Paldea Evolved', 'sv02': 'Paldea Evolved', 'pal': 'Paldea Evolved', 'sv3': 'Obsidian Flames', 'sv03': 'Obsidian Flames', 'obf': 'Obsidian Flames', 'sv03.5': '151', 'mew': '151', 'sv4': 'Paradox Rift', 'sv04': 'Paradox Rift', 'par': 'Paradox Rift', 'sv04.5': 'Paldean Fates', 'paf': 'Paldean Fates', 'sv5': 'Temporal Forces', 'sv05': 'Temporal Forces', 'tef': 'Temporal Forces', 'sv6': 'Twilight Masquerade', 'sv06': 'Twilight Masquerade', 'twm': 'Twilight Masquerade', 'sv06.5': 'Shrouded Fable', 'sfa': 'Shrouded Fable', 'sv7': 'Stellar Crown', 'sv07': 'Stellar Crown', 'scr': 'Stellar Crown', 'sv8': 'Surging Sparks', 'sv08': 'Surging Sparks', 'ssp': 'Surging Sparks', 'sv08.5': 'Prismatic Evolutions', 'pre': 'Prismatic Evolutions', 'me01': 'Phantasmal Flames', 'me02': 'Ascended Heroes', 'me03': 'Perfect Order', 'me04': 'Chaos Rising', 'me05': 'Pitch Black', 'pbl': 'Pitch Black', 'smp': 'SM Promos', 'swshp': 'SWSH Promos', 'svp': 'SV Promos', 'xyp': 'XY Promos', 'bwp': 'BW Promos', 'dpp': 'DP Promos', 'np': 'Nintendo Promos', 'pop': 'POP Series' };
+const KNOWN_SETS = { 
+  'base1': 'Base Set', 'base2': 'Jungle', 'base3': 'Fossil', 'base4': 'Base Set 2', 'base5': 'Team Rocket', 
+  'gym1': 'Gym Heroes', 'gym2': 'Gym Challenge', 'neo1': 'Neo Genesis', 'neo2': 'Neo Discovery', 'neo3': 'Neo Revelation', 
+  'neo4': 'Neo Destiny', 'si1': 'Southern Islands', 'base6': 'Legendary Collection', 'ecard1': 'Expedition Base Set', 
+  'ecard2': 'Aquapolis', 'ecard3': 'Skyridge', 'ex1': 'EX Ruby & Sapphire', 'ex2': 'EX Sandstorm', 'ex3': 'EX Dragon', 
+  'ex4': 'EX Team Magma vs Team Aqua', 'ex5': 'EX Hidden Legends', 'ex6': 'EX FireRed & LeafGreen', 'ex7': 'EX Team Rocket Returns', 
+  'ex8': 'EX Deoxys', 'ex9': 'EX Emerald', 'ex10': 'EX Unseen Forces', 'ex11': 'EX Delta Species', 'ex12': 'EX Legend Maker', 
+  'ex13': 'EX Holon Phantoms', 'ex14': 'EX Crystal Guardians', 'ex15': 'EX Dragon Frontiers', 'ex16': 'EX Power Keepers', 
+  'dp1': 'Diamond & Pearl', 'dp2': 'Mysterious Treasures', 'dp3': 'Secret Wonders', 'dp4': 'Great Encounters', 
+  'dp5': 'Majestic Dawn', 'dp6': 'Legends Awakened', 'dp7': 'Stormfront', 'pl1': 'Platinum', 'pl2': 'Rising Rivals', 
+  'pl3': 'Supreme Victors', 'pl4': 'Arceus', 'col1': 'Call of Legends', 'hgss1': 'HeartGold & SoulSilver', 
+  'hgss2': 'Unleashed', 'hgss3': 'Undaunted', 'hgss4': 'Triumphant', 'bw1': 'Black & White', 'bw2': 'Emerging Powers', 
+  'bw3': 'Noble Victories', 'bw4': 'Next Destinies', 'bw5': 'Dark Explorers', 'bw6': 'Dragons Exalted', 
+  'bw7': 'Boundaries Crossed', 'bw8': 'Plasma Storm', 'bw9': 'Plasma Freeze', 'bw10': 'Plasma Blast', 
+  'bw11': 'Legendary Treasures', 'xy1': 'XY Base', 'xy2': 'Flashfire', 'xy3': 'Furious Fists', 'xy4': 'Phantom Forces', 
+  'xy5': 'Primal Clash', 'xy6': 'Roaring Skies', 'xy7': 'Ancient Origins', 'xy8': 'BREAKthrough', 'xy9': 'BREAKpoint', 
+  'xy10': 'Fates Collide', 'xy11': 'Steam Siege', 'xy12': 'Evolutions', 'g1': 'Generations', 'sm1': 'Sun & Moon', 
+  'sm2': 'Guardians Rising', 'sm3': 'Burning Shadows', 'sm35': 'Shining Legends', 'sm4': 'Crimson Invasion', 
+  'sm5': 'Ultra Prism', 'sm6': 'Forbidden Light', 'sm7': 'Celestial Storm', 'sm75': 'Dragon Majesty', 
+  'sm8': 'Lost Thunder', 'sm9': 'Team Up', 'sm10': 'Unbroken Bonds', 'sm11': 'Unified Minds', 'sm115': 'Hidden Fates', 
+  'sm12': 'Cosmic Eclipse', 'swsh1': 'Sword & Shield', 'swsh2': 'Rebel Clash', 'swsh3': 'Darkness Ablaze', 
+  'swsh35': 'Champion\'s Path', 'swsh4': 'Vivid Voltage', 'swsh45': 'Shining Fates', 'swsh5': 'Battle Styles', 
+  'swsh6': 'Chilling Reign', 'swsh7': 'Evolving Skies', 'cel25': 'Celebrations', 'swsh8': 'Fusion Strike', 
+  'swsh9': 'Brilliant Stars', 'swsh9tg': 'Brilliant Stars TG', 'swsh10': 'Astral Radiance', 'swsh10tg': 'Astral Radiance TG', 
+  'pgo': 'Pokémon GO', 'swsh11': 'Lost Origin', 'swsh11tg': 'Lost Origin TG', 'swsh12': 'Silver Tempest', 
+  'swsh12tg': 'Silver Tempest TG', 'swsh12pt5': 'Crown Zenith', 'swsh12pt5gg': 'Crown Zenith Galarian Gallery', 
+  'crzgg': 'Crown Zenith Galarian Gallery', 'sv1': 'Scarlet & Violet', 'sv01': 'Scarlet & Violet', 'sve': 'Scarlet & Violet', 
+  'sv2': 'Paldea Evolved', 'sv02': 'Paldea Evolved', 'pal': 'Paldea Evolved', 'sv3': 'Obsidian Flames', 
+  'sv03': 'Obsidian Flames', 'obf': 'Obsidian Flames', 'sv03.5': '151', 'mew': '151', 'sv4': 'Paradox Rift', 
+  'sv04': 'Paradox Rift', 'par': 'Paradox Rift', 'sv04.5': 'Paldean Fates', 'paf': 'Paldean Fates', 'sv5': 'Temporal Forces', 
+  'sv05': 'Temporal Forces', 'tef': 'Temporal Forces', 'sv6': 'Twilight Masquerade', 'sv06': 'Twilight Masquerade', 
+  'twm': 'Twilight Masquerade', 'sv06.5': 'Shrouded Fable', 'sfa': 'Shrouded Fable', 'sv7': 'Stellar Crown', 
+  'sv07': 'Stellar Crown', 'scr': 'Stellar Crown', 'sv8': 'Surging Sparks', 'sv08': 'Surging Sparks', 
+  'ssp': 'Surging Sparks', 'sv08.5': 'Prismatic Evolutions', 'pre': 'Prismatic Evolutions', 'me01': 'Phantasmal Flames', 
+  'me02': 'Ascended Heroes', 'me03': 'Perfect Order', 'me04': 'Chaos Rising', 'me05': 'Pitch Black', 'pbl': 'Pitch Black', 
+  'smp': 'SM Promos', 'swshp': 'SWSH Promos', 'svp': 'SV Promos', 'xyp': 'XY Promos', 'bwp': 'BW Promos', 
+  'dpp': 'DP Promos', 'np': 'Nintendo Promos', 'pop': 'POP Series'
+};
 const DIGITAL_SET_BLACKLIST = new Set([ 'a1', 'a1a', 'a2', 'a2a', 'b1', 'b1a', 'b2', 'b2a', 'p-a', 'p-b', 'promo-a', 'promo-b', 'tcgp', 'tcg-pocket', 'pocket', 'tcglive' ]);
 const DIGITAL_EXPANSION_NAMES = [ 'genetic apex', 'mythical island', 'space-time smackdown', 'triumphant light', 'fantastical parade', 'crimson blaze', 'eevee grove', 'mega rising', 'wisdom of sea and sky' ];
 const PRESERVED_HYPHEN_POKEMON = new Set([ 'chien-pao', 'ting-lu', 'chi-yu', 'wo-chien', 'porygon-z', 'ho-oh', 'jangmo-o', 'hakamo-o', 'kommo-o' ]);
@@ -1519,14 +1556,6 @@ function getCleanNationalDexName(pokeName, speciesName) {
   return toTitleCase(pokeName);
 }
 function resolveSetName(setObj, cardId = '') {
-  if (setObj?.name) {
-    const nameClean = String(setObj.name).trim();
-    const lowerName = nameClean.toLowerCase();
-    if (KNOWN_SETS[lowerName]) return KNOWN_SETS[lowerName];
-    if (nameClean && !['promo', 'expansion', 'set', 'tcg set'].includes(lowerName)) {
-      return nameClean;
-    }
-  }
   if (setObj?.id) {
     const idLower = String(setObj.id).toLowerCase().trim();
     if (KNOWN_SETS[idLower]) return KNOWN_SETS[idLower];
@@ -1534,6 +1563,14 @@ function resolveSetName(setObj, cardId = '') {
   if (cardId && typeof cardId === 'string' && cardId.includes('-')) {
     const prefix = cardId.split('-')[0].toLowerCase().trim();
     if (KNOWN_SETS[prefix]) return KNOWN_SETS[prefix];
+  }
+  if (setObj?.name) {
+    const nameClean = String(setObj.name).trim();
+    const lowerName = nameClean.toLowerCase();
+    if (KNOWN_SETS[lowerName]) return KNOWN_SETS[lowerName];
+    if (nameClean && !['promo', 'expansion', 'set', 'tcg set'].includes(lowerName)) {
+      return nameClean;
+    }
   }
   if (setObj?.series && typeof setObj.series === 'string') {
     const sClean = setObj.series.trim();
@@ -2078,7 +2115,7 @@ function matchesExactPokemonName(cardName, targetName) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2630_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2640_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);
@@ -2109,9 +2146,10 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
   let allCards = [];
 
+  // Query across base sets and all Gallery/Special Subsets (GG, TG, Promos)
   try {
-    const querySpaced = cleanName.replace(/["']/g, '');
-    const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(querySpaced)}"*&select=id,name,images,set,number,tcgplayer,cardmarket&pageSize=120&orderBy=-set.releaseDate`;
+    const cleanWord = cleanName.replace(/["']/g, '');
+    const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:*${encodeURIComponent(cleanWord)}*&select=id,name,images,set,number,tcgplayer,cardmarket&pageSize=180&orderBy=-set.releaseDate`;
     const headers = POKEMON_TCG_API_KEY ? { 'X-Api-Key': POKEMON_TCG_API_KEY } : {};
     const json = await fetchWithRetry(queryUrl, headers);
     if (json && json.data && json.data.length > 0) {

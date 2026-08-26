@@ -7,7 +7,6 @@
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon.svg" />
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800;900&display=swap" rel="stylesheet">
 <!-- Firebase Compatibility SDKs -->
@@ -1541,20 +1540,43 @@ function toTitleCase(str) {
   }
   return str.replace(/[-_]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 }
+
 function getCleanNationalDexName(pokeName, speciesName) {
-  const target = (speciesName || pokeName || '').toLowerCase().trim();
+  let target = (speciesName || pokeName || '').toLowerCase().trim();
   if (PRESERVED_HYPHEN_POKEMON.has(target)) {
     return toTitleCase(target);
   }
   if (speciesName) return toTitleCase(speciesName);
-  if (!pokeName) return '';
-  const parts = pokeName.split('-');
-  const suffixes = new Set(['male', 'female', 'average', 'small', 'large', 'super', 'red', 'blue', 'yellow', 'white', 'standard', 'incarnate', 'ordinary', 'aria', 'midday', 'midnight', 'dusk', 'solo', 'shield', 'disguised', 'plant', 'sandy', 'trash', 'overcast', 'sunshine', 'east', 'west']);
-  if (parts.length > 1 && suffixes.has(parts[parts.length - 1].toLowerCase())) {
+  if (!target) return '';
+
+  const multiWordSuffixes = [
+    'two-segment', 'three-segment', 'four-segment', 'family-of-four', 'family-of-three',
+    'green-plumage', 'blue-plumage', 'yellow-plumage', 'white-plumage',
+    'paldea-combat-breed', 'paldea-blaze-breed', 'paldea-aqua-breed',
+    'single-strike', 'rapid-strike', 'full-belly', 'hangry',
+    'red-meteor', 'orange-meteor', 'yellow-meteor', 'green-meteor', 'blue-meteor', 'indigo-meteor', 'violet-meteor',
+    'ice-face', 'noice-face', 'busted'
+  ];
+  for (const suf of multiWordSuffixes) {
+    if (target.endsWith(`-${suf}`)) {
+      target = target.slice(0, -(suf.length + 1));
+      break;
+    }
+  }
+
+  const parts = target.split('-');
+  const singleWordSuffixes = new Set([
+    'male', 'female', 'average', 'small', 'large', 'super', 'red', 'blue', 'yellow', 'white', 
+    'standard', 'incarnate', 'ordinary', 'aria', 'midday', 'midnight', 'dusk', 'solo', 'shield', 
+    'disguised', 'plant', 'sandy', 'trash', 'overcast', 'sunshine', 'east', 'west', 'zero', 'hero',
+    'curly', 'droopy', 'stretchy', 'amped', 'low-key', 'ice', 'noice'
+  ]);
+  if (parts.length > 1 && singleWordSuffixes.has(parts[parts.length - 1].toLowerCase())) {
     return toTitleCase(parts.slice(0, parts.length - 1).join(' '));
   }
-  return toTitleCase(pokeName);
+  return toTitleCase(target);
 }
+
 function resolveSetName(setObj, cardId = '') {
   if (setObj?.id) {
     const idLower = String(setObj.id).toLowerCase().trim();
@@ -1786,13 +1808,13 @@ function renderDex() {
   if (tabFilter === 'missing') list = dir.filter(p => !s.has(p.id));
   if (dexQuery) {
     const isN = !isNaN(parseInt(dexQuery));
-    list = list.filter(p => isN ? (p.id === parseInt(dexQuery) || String(p.id).startsWith(dexQuery)) : p.name.toLowerCase().includes(dexQuery));
+    list = list.filter(p => isN ? (p.id === parseInt(dexQuery) || String(p.id).startsWith(dexQuery)) : p.cleanName.toLowerCase().includes(dexQuery));
   }
   g.innerHTML = list.length ? '' : '<div style="grid-column:span 4;color:var(--sub);text-align:center;padding:2rem 0;">No Pokémon found!</div>';
   list.forEach(p => {
     const owned = s.has(p.id), d = document.createElement('div');
     d.className = `dex-item ${owned ? 'owned' : 'unowned'}`;
-    d.innerHTML = `${owned ? '<div style="position:absolute;top:3px;right:3px;background:var(--green);color:#fff;font-size:0.52rem;font-weight:900;width:13px;height:13px;border-radius:50%;display:flex;align-items:center;justify-content:center;">✓</div>' : ''}<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png" loading="lazy"/><div style="font-size:0.62rem;font-weight:800;color:var(--sub)">#${String(p.id).padStart(4,'0')}</div><div style="font-size:0.65rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${toTitleCase(p.name)}</div>`;
+    d.innerHTML = `${owned ? '<div style="position:absolute;top:3px;right:3px;background:var(--green);color:#fff;font-size:0.52rem;font-weight:900;width:13px;height:13px;border-radius:50%;display:flex;align-items:center;justify-content:center;">✓</div>' : ''}<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png" loading="lazy"/><div style="font-size:0.62rem;font-weight:800;color:var(--sub)">#${String(p.id).padStart(4,'0')}</div><div style="font-size:0.65rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.cleanName}</div>`;
     let holdTimer = null;
     d.addEventListener('touchstart', () => { holdTimer = setTimeout(() => openDexCardsModal(p), 450); }, { passive: true });
     d.addEventListener('touchend', () => clearTimeout(holdTimer), { passive: true });
@@ -1894,7 +1916,7 @@ function renderRecents() {
   r.forEach(p => {
     const li = document.createElement('li');
     li.className = 'recent-item';
-    li.innerHTML = `<img src="${p.sprite}"/><div style="flex:1;"><div style="font-weight:800;font-size:0.95rem;">${toTitleCase(p.name)}</div><div style="font-size:0.75rem;color:var(--sub);font-weight:700;">#${String(p.id).padStart(4,'0')} · <span style="color:${COLORS[p.type]||'#fff'}">${p.type.toUpperCase()}</span></div></div>${s.has(p.id)?'<span style="color:var(--green);font-weight:900;">✓</span>':''}`;
+    li.innerHTML = `<img src="${p.sprite}"/><div style="flex:1;"><div style="font-weight:800;font-size:0.95rem;">${p.name}</div><div style="font-size:0.75rem;color:var(--sub);font-weight:700;">#${String(p.id).padStart(4,'0')} · <span style="color:${COLORS[p.type]||'#fff'}">${p.type.toUpperCase()}</span></div></div>${s.has(p.id)?'<span style="color:var(--green);font-weight:900;">✓</span>':''}`;
     li.onclick = () => {
       closeModal(null, 'recentModal');
       loadPoke(p.id, 0, false);
@@ -2026,7 +2048,7 @@ function renderEvolutionChain(chain) {
     node.className = `evo-node ${st.id === curId ? 'active-evo' : ''}`;
     node.innerHTML = `
       <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${st.id}.png" alt="${st.name}" />
-      <span>${toTitleCase(st.name)}</span>
+      <span>${getCleanNationalDexName(st.name)}</span>
     `;
     node.onclick = () => {
       if (st.id !== curId) loadPoke(st.id, 0, false);
@@ -2115,7 +2137,7 @@ function matchesExactPokemonName(cardName, targetName) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2640_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2650_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);
@@ -2146,7 +2168,6 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
   let allCards = [];
 
-  // Query across base sets and all Gallery/Special Subsets (GG, TG, Promos)
   try {
     const cleanWord = cleanName.replace(/["']/g, '');
     const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:*${encodeURIComponent(cleanWord)}*&select=id,name,images,set,number,tcgplayer,cardmarket&pageSize=180&orderBy=-set.releaseDate`;
@@ -2404,13 +2425,12 @@ function handleSearch(val) {
   const l = document.getElementById('sList'), v = val.trim().toLowerCase().replace('#','');
   if (!v || !dir.length) return l.style.display = 'none';
   const isN = !isNaN(parseInt(v)), s = getCol();
-  const m = dir.filter(p => isN ? (p.id === parseInt(v) || String(p.id).startsWith(v)) : p.name.includes(v)).slice(0, 7);
+  const m = dir.filter(p => isN ? (p.id === parseInt(v) || String(p.id).startsWith(v)) : p.cleanName.toLowerCase().includes(v)).slice(0, 7);
   if (!m.length) return l.style.display = 'none';
   l.innerHTML = '';
   m.forEach(p => {
     const li = document.createElement('li');
-    const formattedName = toTitleCase(p.name);
-    li.innerHTML = `<span><span style="color:var(--sub);font-weight:700;margin-right:0.4rem;">#${String(p.id).padStart(4,'0')}</span>${formattedName}</span>${s.has(p.id)?'<span style="color:var(--green);font-weight:900;">✓</span>':''}`;
+    li.innerHTML = `<span><span style="color:var(--sub);font-weight:700;margin-right:0.4rem;">#${String(p.id).padStart(4,'0')}</span>${p.cleanName}</span>${s.has(p.id)?'<span style="color:var(--green);font-weight:900;">✓</span>':''}`;
     li.onmousedown = () => loadPoke(p.id, 0, true);
     l.appendChild(li);
   });
@@ -2562,7 +2582,11 @@ document.addEventListener('click', e => {
   try {
     const res = await fetch(`https://pokeapi.co/api/v2/pokemon?limit=${TOTAL}`);
     const data = await res.json();
-    dir = data.results.map((p, i) => ({ id: i + 1, name: p.name }));
+    dir = data.results.map((p, i) => ({ 
+      id: i + 1, 
+      name: p.name,
+      cleanName: getCleanNationalDexName(p.name)
+    }));
   } catch (e) {}
 })();
 </script>

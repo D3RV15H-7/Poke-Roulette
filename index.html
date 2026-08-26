@@ -645,14 +645,16 @@ body.has-active .btn-close {
   position: absolute;
   bottom: 2px;
   right: 2px;
-  background: rgba(15, 23, 42, 0.92);
-  border: 1px solid rgba(16, 185, 129, 0.6);
+  background: rgba(15, 23, 42, 0.94);
+  border: 1px solid rgba(16, 185, 129, 0.7);
   color: var(--green);
-  font-size: 0.5rem;
+  font-size: 0.52rem;
   font-weight: 800;
-  padding: 0.03rem 0.28rem;
+  padding: 0.05rem 0.32rem;
   border-radius: 4px;
   backdrop-filter: blur(4px);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.6);
+  z-index: 10;
 }
 .card-check-circle {
   position: absolute;
@@ -1987,41 +1989,51 @@ function renderEvolutionChain(chain) {
 }
 
 function extractCardPriceGBP(card) {
-  if (card.cardmarket?.prices) {
+  if (!card) return null;
+  
+  // 1. UK / European Market Benchmark: Cardmarket
+  if (card.cardmarket && card.cardmarket.prices) {
     const cp = card.cardmarket.prices;
     const candidates = [
       cp.trendPrice,
       cp.averageSellPrice,
-      cp.avg1,
       cp.avg7,
       cp.avg30,
-      cp.lowPrice
+      cp.avg1,
+      cp.lowPrice,
+      cp.reverseHoloTrend,
+      cp.reverseHoloAvg7,
+      cp.reverseHoloAvg30,
+      cp.reverseHoloSell
     ];
-    for (const price of candidates) {
-      if (price && typeof price === 'number' && price > 0) {
-        return (price * EUR_TO_GBP).toFixed(2);
+    for (const val of candidates) {
+      const num = parseFloat(val);
+      if (!isNaN(num) && num > 0) {
+        return (num * EUR_TO_GBP).toFixed(2);
       }
     }
   }
-  if (card.tcgplayer?.prices) {
+  
+  // 2. Global / Secondary Benchmark: TCGplayer (USD -> GBP)
+  if (card.tcgplayer && card.tcgplayer.prices) {
     const p = card.tcgplayer.prices;
-    const candidates = [
-      p.holofoil?.market,
-      p.reverseHolofoil?.market,
-      p.normal?.market,
-      p.unlimitedHolofoil?.market,
-      p['1stEditionHolofoil']?.market,
-      p.holofoil?.mid,
-      p.normal?.mid,
-      p.reverseHolofoil?.mid,
-      p.holofoil?.directLow,
-      p.normal?.directLow,
-      p.holofoil?.low,
-      p.normal?.low
-    ];
-    for (const price of candidates) {
-      if (price && typeof price === 'number' && price > 0) {
-        return (price * USD_TO_GBP).toFixed(2);
+    const subCategories = ['holofoil', 'normal', 'reverseHolofoil', '1stEditionHolofoil', 'unlimitedHolofoil', '1stEditionNormal', 'unlimitedNormal'];
+    for (const cat of subCategories) {
+      if (p[cat]) {
+        const val = p[cat].market || p[cat].mid || p[cat].directLow || p[cat].low;
+        const num = parseFloat(val);
+        if (!isNaN(num) && num > 0) {
+          return (num * USD_TO_GBP).toFixed(2);
+        }
+      }
+    }
+    for (const key in p) {
+      if (p[key] && typeof p[key] === 'object') {
+        const val = p[key].market || p[key].mid || p[key].directLow || p[key].low;
+        const num = parseFloat(val);
+        if (!isNaN(num) && num > 0) {
+          return (num * USD_TO_GBP).toFixed(2);
+        }
       }
     }
   }
@@ -2042,7 +2054,7 @@ function matchesExactPokemonName(cardName, targetName) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2610_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2620_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);
@@ -2073,9 +2085,8 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
   const pokemontcgPromise = async () => {
     const queryTerm = encodeURIComponent(primaryTerm);
-    const queryClean = encodeURIComponent(cleanName);
-    const querySpaced = encodeURIComponent(cleanName.replace(/[-_]/g, ' '));
-    const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${queryTerm}"* OR name:"${queryClean}"* OR name:"${querySpaced}"*&select=id,name,images,set,number,tcgplayer,cardmarket&pageSize=200&orderBy=-set.releaseDate`;
+    const queryClean = encodeURIComponent(cleanName.replace(/["']/g, ''));
+    const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${queryClean}"* OR name:"${queryTerm}"*&select=id,name,images,set,number,tcgplayer,cardmarket&pageSize=150&orderBy=-set.releaseDate`;
     const headers = POKEMON_TCG_API_KEY ? { 'X-Api-Key': POKEMON_TCG_API_KEY } : {};
     const json = await fetchWithRetry(queryUrl, headers);
     return json.data || [];

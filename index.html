@@ -227,7 +227,6 @@ body.has-active .wheel-wrap {
   overflow: hidden;
 }
 
-/* Palette accurately matching the image discs */
 .wheel {
   position: relative;
   width: 100%;
@@ -272,13 +271,17 @@ body.has-active .wheel-wrap {
   background: transparent;
   border: none;
   padding: 0;
-  box-shadow: none;
 }
 .slice-icon svg {
   width: 100%;
   height: 100%;
-  fill: #111827;
-  filter: drop-shadow(0 1px 2px rgba(255,255,255,0.45));
+  fill: #0f172a !important;
+  filter: drop-shadow(0 1px 1px rgba(255, 255, 255, 0.6));
+}
+.slice-icon svg path,
+.slice-icon svg circle,
+.slice-icon svg polygon {
+  fill: #0f172a !important;
 }
 
 .pointer {
@@ -1473,7 +1476,6 @@ const USD_TO_GBP = 0.79;
 const EUR_TO_GBP = 0.86;
 const TYPES = ['normal','fire','water','grass','electric','ice','fighting','poison','ground','flying','psychic','bug','rock','ghost','dragon','dark','steel','fairy'];
 
-/* Authentic Disc Color System */
 const COLORS = { 
   normal: '#ECE8D7', 
   fire: '#EE3F24', 
@@ -1512,7 +1514,7 @@ const SVGS = {
   rock: '<svg viewBox="0 0 24 24"><polygon points="7,5 15,3 20,8 18,16 11,21 4,17 5,10"/></svg>',
   ghost: '<svg viewBox="0 0 24 24"><path d="M12 4.5c-4.2 0-7 3-7 7.2 0 3.8 1.8 6.8 4.2 6.8 1.2 0 1.8-.8 2.8-.8s1.6.8 2.8.8c2.4 0 4.2-3 4.2-6.8 0-4.2-2.8-7.2-7-7.2zm-2.5 6a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>',
   dragon: '<svg viewBox="0 0 24 24"><path d="M13.5 4.5C8.8 4.5 5 8.3 5 13c0 4.2 3.1 7.6 7.1 8 3.8.4 7.4-2.4 7.8-6.2.2-2.3-.6-4.4-2.1-5.9 1.1.2 2 .8 2.6 1.7.5-1.8-.1-3.7-1.6-4.9-1.3-.9-2.9-1.2-4.3-1.2z"/></svg>',
-  dark: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5" fill="none" stroke="#111827" stroke-width="3.5"/><circle cx="12" cy="12" r="4.2"/></svg>',
+  dark: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5" fill="none" stroke="#0f172a" stroke-width="3.5"/><circle cx="12" cy="12" r="4.2"/></svg>',
   steel: '<svg viewBox="0 0 24 24"><path d="M12 3l7.5 4.3v8.6L12 20.2 4.5 15.9V7.3L12 3zm0 5.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6z"/></svg>',
   fairy: '<svg viewBox="0 0 24 24"><path d="M12 4.5c2.4 0 4.5 2 4.5 4.5 0 4.2-4.5 8.5-4.5 8.5s-4.5-4.3-4.5-8.5c0-2.5 2.1-4.5 4.5-4.5z"/></svg>'
 };
@@ -2172,7 +2174,7 @@ function matchesExactPokemonName(cardName, targetName) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2690_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2700_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);

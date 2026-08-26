@@ -227,7 +227,6 @@ body.has-active .wheel-wrap {
   overflow: hidden;
 }
 
-/* Palette accurately matching the image discs */
 .wheel {
   position: relative;
   width: 100%;
@@ -255,29 +254,6 @@ body.has-active .wheel-wrap {
     #EA6FC2 340deg 360deg  /* fairy */
   );
   box-shadow: 0 16px 36px rgba(0,0,0,0.65);
-}
-.wheel-icons {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-/* Clean energy discs positioned cleanly inside slice */
-.slice-icon {
-  position: absolute;
-  width: 12.5%;
-  height: 12.5%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  padding: 0;
-}
-.slice-icon svg {
-  width: 100%;
-  height: 100%;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.45));
 }
 
 .pointer {
@@ -2170,7 +2146,7 @@ function matchesExactPokemonName(cardName, targetName) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2730_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2740_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);

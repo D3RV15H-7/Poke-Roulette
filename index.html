@@ -227,7 +227,7 @@ body.has-active .wheel-wrap {
   overflow: hidden;
 }
 
-/* Accurate Theme Palette Gradient */
+/* Palette accurately matching the image discs */
 .wheel {
   position: relative;
   width: 100%;
@@ -235,24 +235,24 @@ body.has-active .wheel-wrap {
   border-radius: 50%;
   border: clamp(3px, 0.5dvh, 5px) solid var(--card);
   background: conic-gradient(
-    #A0A29F 0deg 20deg,    /* normal */
-    #FBA54C 20deg 40deg,   /* fire */
-    #539DDF 40deg 60deg,   /* water */
-    #5FBD58 60deg 80deg,   /* grass */
-    #F2D94E 80deg 100deg,  /* electric */
-    #75D0C1 100deg 120deg, /* ice */
-    #D3425F 120deg 140deg, /* fighting */
-    #B763CF 140deg 160deg, /* poison */
-    #DA7C4D 160deg 180deg, /* ground */
-    #A1BBEC 180deg 200deg, /* flying */
-    #FA7179 200deg 220deg, /* psychic */
-    #92BC2C 220deg 240deg, /* bug */
-    #C9BB8D 240deg 260deg, /* rock */
-    #5F6DBC 260deg 280deg, /* ghost */
-    #0C69C8 280deg 300deg, /* dragon */
-    #595761 300deg 320deg, /* dark */
-    #5695A3 320deg 340deg, /* steel */
-    #EE90E6 340deg 360deg  /* fairy */
+    #ECE8D7 0deg 20deg,    /* normal */
+    #EE3F24 20deg 40deg,   /* fire */
+    #1790EE 40deg 60deg,   /* water */
+    #23B938 60deg 80deg,   /* grass */
+    #FFDE00 80deg 100deg,  /* electric */
+    #69DCF4 100deg 120deg, /* ice */
+    #E85523 120deg 140deg, /* fighting */
+    #B844C8 140deg 160deg, /* poison */
+    #E5BF62 160deg 180deg, /* ground */
+    #9BB7F5 180deg 200deg, /* flying */
+    #F34C89 200deg 220deg, /* psychic */
+    #98CE1E 220deg 240deg, /* bug */
+    #D19B27 240deg 260deg, /* rock */
+    #714EB8 260deg 280deg, /* ghost */
+    #D6A900 280deg 300deg, /* dragon */
+    #2D5E7B 300deg 320deg, /* dark */
+    #8DA5B4 320deg 340deg, /* steel */
+    #EA6FC2 340deg 360deg  /* fairy */
   );
   box-shadow: 0 16px 36px rgba(0,0,0,0.65);
 }
@@ -277,13 +277,8 @@ body.has-active .wheel-wrap {
 .slice-icon svg {
   width: 100%;
   height: 100%;
-  fill: #ffffff !important;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.65));
-}
-.slice-icon svg path,
-.slice-icon svg circle,
-.slice-icon svg polygon {
-  fill: #ffffff !important;
+  fill: #111827;
+  filter: drop-shadow(0 1px 2px rgba(255,255,255,0.45));
 }
 
 .pointer {
@@ -1480,46 +1475,46 @@ const TYPES = ['normal','fire','water','grass','electric','ice','fighting','pois
 
 /* Authentic Disc Color System */
 const COLORS = { 
-  normal: '#A0A29F', 
-  fire: '#FBA54C', 
-  water: '#539DDF', 
-  grass: '#5FBD58', 
-  electric: '#F2D94E', 
-  ice: '#75D0C1', 
-  fighting: '#D3425F', 
-  poison: '#B763CF', 
-  ground: '#DA7C4D', 
-  flying: '#A1BBEC', 
-  psychic: '#FA7179', 
-  bug: '#92BC2C', 
-  rock: '#C9BB8D', 
-  ghost: '#5F6DBC', 
-  dragon: '#0C69C8', 
-  dark: '#595761', 
-  steel: '#5695A3', 
-  fairy: '#EE90E6' 
+  normal: '#ECE8D7', 
+  fire: '#EE3F24', 
+  water: '#1790EE', 
+  grass: '#23B938', 
+  electric: '#FFDE00', 
+  ice: '#69DCF4', 
+  fighting: '#E85523', 
+  poison: '#B844C8', 
+  ground: '#E5BF62', 
+  flying: '#9BB7F5', 
+  psychic: '#F34C89', 
+  bug: '#98CE1E', 
+  rock: '#D19B27', 
+  ghost: '#714EB8', 
+  dragon: '#D6A900', 
+  dark: '#2D5E7B', 
+  steel: '#8DA5B4', 
+  fairy: '#EA6FC2' 
 };
 
-/* High-Definition Replicas of the Reference Glyph SVGs */
+/* Vector Path Definitions */
 const SVGS = {
-  bug: '<svg viewBox="0 0 24 24"><circle cx="12" cy="7.2" r="2.2"/><path d="M12 10.2c-3.8 0-6.8 3-6.8 6.8 0 2.2 1.3 4 3.2 4.8.8-1.5 2.1-2.6 3.6-2.6s2.8 1.1 3.6 2.6c1.9-.8 3.2-2.6 3.2-4.8 0-3.8-3-6.8-6.8-6.8z"/><circle cx="9.2" cy="14" r="0.9" fill="#000" opacity="0.2"/><circle cx="14.8" cy="14" r="0.9" fill="#000" opacity="0.2"/></svg>',
-  dark: '<svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.6 0-1.2-.2-1.8A7 7 0 0 1 12 3z"/></svg>',
-  dragon: '<svg viewBox="0 0 24 24"><path d="M13.5 4.5C8.8 4.5 5 8.3 5 13c0 4.2 3.1 7.6 7.1 8 3.8.4 7.4-2.4 7.8-6.2.2-2.3-.6-4.4-2.1-5.9 1.1.2 2 .8 2.6 1.7.5-1.8-.1-3.7-1.6-4.9-1.3-.9-2.9-1.2-4.3-1.2zM9.5 13a2.5 2.5 0 1 1 5 0 2.5 2.5 0 0 1-5 0z"/></svg>',
-  electric: '<svg viewBox="0 0 24 24"><polygon points="13.5,2 4.5,13 10.5,13 8.5,22 19.5,9.5 13,9.5"/></svg>',
-  fairy: '<svg viewBox="0 0 24 24"><path d="M12 2.5l2.2 5.5 5.8.5-4.4 3.8 1.4 5.7-5-3-5 3 1.4-5.7-4.4-3.8 5.8-.5z"/></svg>',
-  fighting: '<svg viewBox="0 0 24 24"><path d="M8 5a2 2 0 0 1 4 0v1h1a2 2 0 0 1 4 0v2h1a2 2 0 0 1 2 2v4a6 6 0 0 1-6 6H12a6 6 0 0 1-6-6V9a2 2 0 0 1 2-2V5z"/></svg>',
+  normal: '<svg viewBox="0 0 24 24"><path d="M12 2.5l2.2 5.5 5.8.5-4.4 3.8 1.4 5.7-5-3-5 3 1.4-5.7-4.4-3.8 5.8-.5z"/></svg>',
   fire: '<svg viewBox="0 0 24 24"><path d="M12 2.5C9.2 6.5 6.5 9.8 6.5 14a5.5 5.5 0 0 0 11 0c0-4.2-2.7-7.5-5.5-11.5zm0 14a2 2 0 0 1-2-2c0-1.2.9-2.2 2-3.3 1.1 1.1 2 2.1 2 3.3a2 2 0 0 1-2 2z"/></svg>',
-  flying: '<svg viewBox="0 0 24 24"><path d="M4 14.5c4.5-4.5 10.5-5.5 16-5.5-3.5 2.5-7 4-11 4.5 3 .8 6 1.8 8.5 3.5-5 .5-9.5-.5-13.5-2.5z"/></svg>',
-  ghost: '<svg viewBox="0 0 24 24"><path d="M12 4.5c-4.2 0-7 3-7 7.2 0 3.8 1.8 6.8 4.2 6.8 1.2 0 1.8-.8 2.8-.8s1.6.8 2.8.8c2.4 0 4.2-3 4.2-6.8 0-4.2-2.8-7.2-7-7.2zm-2.5 6a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>',
+  water: '<svg viewBox="0 0 24 24"><path d="M12 2.8C12 2.8 5.8 11 5.8 15.2a6.2 6.2 0 0 0 12.4 0c0-4.2-6.2-12.4-6.2-12.4zm0 15.6a3.6 3.6 0 0 1-3.6-3.6c0-1.5 1.2-3.4 3.6-5.8 2.4 2.4 3.6 4.3 3.6 5.8 0 2-1.6 3.6-3.6 3.6z"/></svg>',
   grass: '<svg viewBox="0 0 24 24"><path d="M18.5 4C10.5 4.5 6 10.5 6 17.5c0 2.5 1.5 3.5 3.5 3.5 7 0 11-6 11-14.5 0-1.8-.8-2.5-2-2.5zm-5.5 13c-1.2-1.8-1.5-4-1.5-6.5 2 .8 4 2.2 5 4-1.5 1.2-2.5 2-3.5 2.5z"/></svg>',
-  ground: '<svg viewBox="0 0 24 24"><polygon points="12,5 3.5,19 20.5,19"/><polygon points="12,9 7.5,16.5 16.5,16.5" fill="#000" opacity="0.25"/></svg>',
+  electric: '<svg viewBox="0 0 24 24"><polygon points="13.5,2 4.5,13 10.5,13 8.5,22 19.5,9.5 13,9.5"/></svg>',
   ice: '<svg viewBox="0 0 24 24"><path d="M12 2l1.5 4.5L18 8l-3.5 3.5.8 4.8L12 14l-3.3 2.3.8-4.8L6 8l4.5-1.5zM12 22l-1.5-4.5L6 16l3.5-3.5-.8-4.8L12 10l3.3-2.3-.8 4.8L18 16l-4.5 1.5z"/></svg>',
-  normal: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5" fill="none" stroke="#ffffff" stroke-width="3.5"/></svg>',
+  fighting: '<svg viewBox="0 0 24 24"><path d="M8 5a2 2 0 0 1 4 0v1h1a2 2 0 0 1 4 0v2h1a2 2 0 0 1 2 2v4a6 6 0 0 1-6 6H12a6 6 0 0 1-6-6V9a2 2 0 0 1 2-2V5z"/></svg>',
   poison: '<svg viewBox="0 0 24 24"><path d="M12 3a7 7 0 0 0-6.8 7.5c0 3.2 2 5.5 4.3 6.5v2h5v-2c2.3-1 4.3-3.3 4.3-6.5A7 7 0 0 0 12 3zm-2.5 7.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>',
+  ground: '<svg viewBox="0 0 24 24"><polygon points="12,5 3.5,19 20.5,19"/><polygon points="12,9 7.5,16.5 16.5,16.5" fill="#fff" opacity="0.4"/></svg>',
+  flying: '<svg viewBox="0 0 24 24"><path d="M4 14.5c4.5-4.5 10.5-5.5 16-5.5-3.5 2.5-7 4-11 4.5 3 .8 6 1.8 8.5 3.5-5 .5-9.5-.5-13.5-2.5z"/></svg>',
   psychic: '<svg viewBox="0 0 24 24"><path d="M12 5a7 7 0 1 0 7 7 5 5 0 0 0-5-5 3 3 0 0 0-3 3 1.5 1.5 0 1 0 3 0 1 1 0 0 1 1-1 3 3 0 0 1 3 3 5 5 0 0 1-5 5 7 7 0 0 1-7-7 5 5 0 0 1 5-5z"/></svg>',
+  bug: '<svg viewBox="0 0 24 24"><circle cx="12" cy="7.2" r="2.2"/><path d="M12 10.2c-3.8 0-6.8 3-6.8 6.8 0 2.2 1.3 4 3.2 4.8.8-1.5 2.1-2.6 3.6-2.6s2.8 1.1 3.6 2.6c1.9-.8 3.2-2.6 3.2-4.8 0-3.8-3-6.8-6.8-6.8z"/></svg>',
   rock: '<svg viewBox="0 0 24 24"><polygon points="7,5 15,3 20,8 18,16 11,21 4,17 5,10"/></svg>',
+  ghost: '<svg viewBox="0 0 24 24"><path d="M12 4.5c-4.2 0-7 3-7 7.2 0 3.8 1.8 6.8 4.2 6.8 1.2 0 1.8-.8 2.8-.8s1.6.8 2.8.8c2.4 0 4.2-3 4.2-6.8 0-4.2-2.8-7.2-7-7.2zm-2.5 6a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>',
+  dragon: '<svg viewBox="0 0 24 24"><path d="M13.5 4.5C8.8 4.5 5 8.3 5 13c0 4.2 3.1 7.6 7.1 8 3.8.4 7.4-2.4 7.8-6.2.2-2.3-.6-4.4-2.1-5.9 1.1.2 2 .8 2.6 1.7.5-1.8-.1-3.7-1.6-4.9-1.3-.9-2.9-1.2-4.3-1.2z"/></svg>',
+  dark: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5" fill="none" stroke="#111827" stroke-width="3.5"/><circle cx="12" cy="12" r="4.2"/></svg>',
   steel: '<svg viewBox="0 0 24 24"><path d="M12 3l7.5 4.3v8.6L12 20.2 4.5 15.9V7.3L12 3zm0 5.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6z"/></svg>',
-  water: '<svg viewBox="0 0 24 24"><path d="M12 2.8C12 2.8 5.8 11 5.8 15.2a6.2 6.2 0 0 0 12.4 0c0-4.2-6.2-12.4-6.2-12.4zm0 15.6a3.6 3.6 0 0 1-3.6-3.6c0-1.5 1.2-3.4 3.6-5.8 2.4 2.4 3.6 4.3 3.6 5.8 0 2-1.6 3.6-3.6 3.6z"/></svg>'
+  fairy: '<svg viewBox="0 0 24 24"><path d="M12 4.5c2.4 0 4.5 2 4.5 4.5 0 4.2-4.5 8.5-4.5 8.5s-4.5-4.3-4.5-8.5c0-2.5 2.1-4.5 4.5-4.5z"/></svg>'
 };
 
 const KNOWN_SETS = { 
@@ -2177,7 +2172,7 @@ function matchesExactPokemonName(cardName, targetName) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2680_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2690_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);

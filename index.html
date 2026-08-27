@@ -1542,6 +1542,62 @@ const DIGITAL_SET_BLACKLIST = new Set([ 'a1', 'a1a', 'a2', 'a2a', 'b1', 'b1a', '
 const DIGITAL_EXPANSION_NAMES = [ 'genetic apex', 'mythical island', 'space-time smackdown', 'triumphant light', 'fantastical parade', 'crimson blaze', 'eevee grove', 'mega rising', 'wisdom of sea and sky' ];
 const PRESERVED_HYPHEN_POKEMON = new Set([ 'chien-pao', 'ting-lu', 'chi-yu', 'wo-chien', 'porygon-z', 'ho-oh', 'jangmo-o', 'hakamo-o', 'kommo-o' ]);
 
+// --- Rarity Weight Hierarchy (Higher number = Rarer) ---
+const RARITY_TIERS = {
+  // Ultra High-End / Secret / Special Rares
+  'hyper rare': 100,
+  'special illustration rare': 95,
+  'secret rare': 90,
+  'illustration rare': 85,
+  'ultra rare': 80,
+  'shining': 78,
+  'star': 78,
+  'rare secret': 75,
+  'rare rainbow': 75,
+  'rare secret classic': 75,
+  'rare ultra': 72,
+  'double rare': 70,
+  'radiant rare': 68,
+  'trainer gallery rare holo': 65,
+  'galarian gallery': 65,
+  'ace spec rare': 60,
+
+  // Mid / Holographic / V-Tier
+  'rare holo vmax': 55,
+  'rare holo vstar': 55,
+  'rare holo ex': 52,
+  'rare holo gx': 52,
+  'rare holo lv.x': 52,
+  'rare prime': 50,
+  'rare holo v': 48,
+  'rare holo': 45,
+  'rare shiny gx': 45,
+  'rare shiny': 42,
+  'promo': 40,
+  'promo rare': 40,
+
+  // Standard Rares
+  'rare': 30,
+  'rare ace': 30,
+  'rare prism': 30,
+  'rare break': 30,
+
+  // Lower Rarities
+  'uncommon': 20,
+  'common': 10
+};
+
+function getRarityScore(rarityStr) {
+  if (!rarityStr || typeof rarityStr !== 'string') return 0;
+  const clean = rarityStr.toLowerCase().trim();
+  if (RARITY_TIERS[clean] !== undefined) return RARITY_TIERS[clean];
+
+  for (const [key, score] of Object.entries(RARITY_TIERS)) {
+    if (clean.includes(key)) return score;
+  }
+  return 15;
+}
+
 let dir = [], rot = 0, audioCtx = null, curPoke = null, isShiny = false, curId = null, tabFilter = 'all', dexQuery = '', activeTcgRequestId = 0, isSpinning = false;
 let currentCardsList = [];
 let currentZoomIndex = 0;
@@ -2155,7 +2211,7 @@ function matchesExactPokemonName(cardName, targetName) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2770_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2771_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);
@@ -2188,7 +2244,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
   try {
     const cleanWord = cleanName.replace(/["']/g, '');
-    const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:*${encodeURIComponent(cleanWord)}*&select=id,name,images,set,number,tcgplayer,cardmarket&pageSize=180&orderBy=-set.releaseDate`;
+    const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:*${encodeURIComponent(cleanWord)}*&select=id,name,images,set,number,tcgplayer,cardmarket,rarity&pageSize=180`;
     const headers = POKEMON_TCG_API_KEY ? { 'X-Api-Key': POKEMON_TCG_API_KEY } : {};
     const json = await fetchWithRetry(queryUrl, headers);
     if (json && json.data && json.data.length > 0) {
@@ -2208,6 +2264,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
             images: { small: `${c.image}/low.webp`, large: `${c.image}/high.webp` },
             set: { name: c.set?.name || '', id: c.set?.id || '', printedTotal: c.set?.cardCount?.official || 0 },
             number: c.localId || '?',
+            rarity: c.rarity || 'Common',
             pricing: c.pricing || null
           }));
         }
@@ -2227,8 +2284,20 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
     largeImg: c.images?.large || c.images?.small || '',
     setName: resolveSetName(c.set, c.id),
     number: c.number || c.localId || '?',
+    rarity: c.rarity || 'Common',
+    rarityScore: getRarityScore(c.rarity),
     priceGBP: extractCardPriceGBP(c)
   }));
+
+  // Sort: Highest rarity score first -> Secondary sort by estimated GBP market value
+  formattedCards.sort((a, b) => {
+    if (b.rarityScore !== a.rarityScore) {
+      return b.rarityScore - a.rarityScore;
+    }
+    const priceA = parseFloat(a.priceGBP) || 0;
+    const priceB = parseFloat(b.priceGBP) || 0;
+    return priceB - priceA;
+  });
 
   if (formattedCards.length > 0) {
     memoryTcgCache.set(cacheKey, formattedCards);

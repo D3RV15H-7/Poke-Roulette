@@ -1430,11 +1430,11 @@ body.has-active .hub-item-label {
     </div>
     <div id="authLoggedInView" style="display:none;flex-direction:column;gap:1rem;padding:0.5rem 0;">
       <div style="font-size:0.9rem;font-weight:700;">Signed in as: <span id="authUserEmail" style="color:var(--gold);"></span></div>
-      <div style="font-size:0.75rem;color:var(--sub);">Your collected cards are automatically backed up to your account.</div>
+      <div style="font-size:0.75rem;color:var(--sub);">Your collected Pokémon and cards are synced across all devices.</div>
       <button class="btn-auth-primary" onclick="handleSignOut()">Sign Out</button>
     </div>
     <div id="authLoggedOutView" class="auth-form-wrap">
-      <div class="auth-promo-msg">Create an account or log in to save your Dex!</div>
+      <div class="auth-promo-msg">Create an account or log in to sync your Pokédex across devices!</div>
       <input type="email" id="authEmail" class="auth-input" placeholder="Email Address" />
       <input type="password" id="authPassword" class="auth-input" placeholder="Password" />
       <div style="display:flex;gap:0.5rem;">
@@ -1459,13 +1459,17 @@ const firebaseConfig = {
 };
 
 let auth = null, db = null, currentUser = null;
-let cachedUid = localStorage.getItem('p_last_uid') || null;
+let activeUid = localStorage.getItem('p_last_uid') || null;
+
+// In-Memory Collection Sets
+let memCol = new Set();
+let memCardCol = new Set();
 
 try {
   firebase.initializeApp(firebaseConfig);
   auth = firebase.auth();
   db = firebase.firestore();
-  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => console.error("Persistence:", e));
+  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => console.error("Persistence error:", e));
 } catch (e) {
   console.error("Firebase init:", e);
 }
@@ -1476,24 +1480,10 @@ const EUR_TO_GBP = 0.86;
 const TYPES = ['normal','fire','water','grass','electric','ice','fighting','poison','ground','flying','psychic','bug','rock','ghost','dragon','dark','steel','fairy'];
 
 const COLORS = { 
-  normal: '#ECE8D7', 
-  fire: '#EE3F24', 
-  water: '#1790EE', 
-  grass: '#23B938', 
-  electric: '#FFDE00', 
-  ice: '#69DCF4', 
-  fighting: '#E85523', 
-  poison: '#B844C8', 
-  ground: '#E5BF62', 
-  flying: '#9BB7F5', 
-  psychic: '#F34C89', 
-  bug: '#98CE1E', 
-  rock: '#D19B27', 
-  ghost: '#714EB8', 
-  dragon: '#D6A900', 
-  dark: '#2D5E7B', 
-  steel: '#8DA5B4', 
-  fairy: '#EA6FC2' 
+  normal: '#ECE8D7', fire: '#EE3F24', water: '#1790EE', grass: '#23B938', electric: '#FFDE00', 
+  ice: '#69DCF4', fighting: '#E85523', poison: '#B844C8', ground: '#E5BF62', flying: '#9BB7F5', 
+  psychic: '#F34C89', bug: '#98CE1E', rock: '#D19B27', ghost: '#714EB8', dragon: '#D6A900', 
+  dark: '#2D5E7B', steel: '#8DA5B4', fairy: '#EA6FC2' 
 };
 
 const KNOWN_SETS = { 
@@ -1591,6 +1581,112 @@ let currentZoomIndex = 0;
 let activeDexModalPoke = null;
 let openedFromDexModal = false;
 const memoryTcgCache = new Map();
+
+// Storage Key Handlers
+function getStorageKey() {
+  return activeUid ? `p_col_${activeUid}` : `p_col_guest`;
+}
+function getCardStorageKey() {
+  return activeUid ? `p_cards_${activeUid}` : `p_cards_guest`;
+}
+
+// Initial Local Storage Load
+function reloadMemoryFromLocal() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(getStorageKey()) || '[]');
+    memCol = new Set(raw.map(id => parseInt(id, 10)).filter(id => !isNaN(id)));
+    const rawCards = JSON.parse(localStorage.getItem(getCardStorageKey()) || '[]');
+    memCardCol = new Set(rawCards.map(String));
+  } catch (e) {
+    memCol = new Set();
+    memCardCol = new Set();
+  }
+  updateCounts();
+}
+reloadMemoryFromLocal();
+
+const getCol = () => memCol;
+const getCardCol = () => memCardCol;
+
+function saveLocalState() {
+  localStorage.setItem(getStorageKey(), JSON.stringify([...memCol]));
+  localStorage.setItem(getCardStorageKey(), JSON.stringify([...memCardCol]));
+  updateCounts();
+  renderRecents();
+  if (curId) updateBtn(memCol.has(curId));
+  if (document.getElementById('dexModal').style.display === 'flex') {
+    renderDex();
+  }
+}
+
+// Persistent Add/Remove Handlers
+function toggleCollect() {
+  if (!curId) return;
+  initAudio();
+  const exists = memCol.has(curId);
+  if (exists) {
+    memCol.delete(curId);
+  } else {
+    memCol.add(curId);
+    playTick();
+  }
+  saveLocalState();
+  
+  if (currentUser && db) {
+    const docRef = db.collection("users").doc(currentUser.uid);
+    const op = exists 
+      ? firebase.firestore.FieldValue.arrayRemove(curId)
+      : firebase.firestore.FieldValue.arrayUnion(curId);
+    docRef.set({ 
+      collection: op, 
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp() 
+    }, { merge: true }).catch(err => console.error("Firestore sync error:", err));
+  }
+}
+
+function toggleCardCollection(cardId) {
+  initAudio();
+  playTick();
+  const cId = String(cardId);
+  const exists = memCardCol.has(cId);
+  if (exists) {
+    memCardCol.delete(cId);
+  } else {
+    memCardCol.add(cId);
+  }
+  saveLocalState();
+
+  if (currentUser && db) {
+    const docRef = db.collection("users").doc(currentUser.uid);
+    const op = exists 
+      ? firebase.firestore.FieldValue.arrayRemove(cId)
+      : firebase.firestore.FieldValue.arrayUnion(cId);
+    docRef.set({ 
+      cardsCollection: op, 
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp() 
+    }, { merge: true }).catch(err => console.error("Firestore card sync error:", err));
+  }
+  syncBasePokemonFromCards();
+}
+
+function syncBasePokemonFromCards() {
+  if (!curId) return;
+  const hasOwnedCard = currentCardsList.some(c => memCardCol.has(String(c.id)));
+  let changed = false;
+  if (hasOwnedCard && !memCol.has(curId)) {
+    memCol.add(curId);
+    changed = true;
+  }
+  if (changed) {
+    saveLocalState();
+    if (currentUser && db) {
+      db.collection("users").doc(currentUser.uid).set({ 
+        collection: firebase.firestore.FieldValue.arrayUnion(curId),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp() 
+      }, { merge: true });
+    }
+  }
+}
 
 function toTitleCase(str) {
   if (!str) return '';
@@ -1691,71 +1787,6 @@ function buildLabels() {
   wheel.appendChild(layer);
 }
 
-function getActiveUid() {
-  if (currentUser && currentUser.uid) return currentUser.uid;
-  if (cachedUid) return cachedUid;
-  return null;
-}
-function getStorageKey(targetUid = null) {
-  const uid = targetUid || getActiveUid();
-  return uid ? `p_col_${uid}` : `p_col_guest`;
-}
-function getCardStorageKey(targetUid = null) {
-  const uid = targetUid || getActiveUid();
-  return uid ? `p_cards_${uid}` : `p_cards_guest`;
-}
-
-const getCol = () => {
-  const raw = JSON.parse(localStorage.getItem(getStorageKey()) || '[]');
-  return new Set(raw.map(id => parseInt(id, 10)).filter(id => !isNaN(id)));
-};
-
-const getCardCol = () => {
-  const raw = JSON.parse(localStorage.getItem(getCardStorageKey()) || '[]');
-  return new Set(raw.map(String));
-};
-
-const saveCol = (s, skipCloud = false, targetUid = null) => {
-  const arr = [...s].map(id => parseInt(id, 10)).filter(id => !isNaN(id));
-  localStorage.setItem(getStorageKey(targetUid), JSON.stringify(arr));
-  updateCounts();
-  renderRecents();
-  if (curId) updateBtn(s.has(curId));
-  if (document.getElementById('dexModal').style.display === 'flex') {
-    renderDex();
-  }
-  if (!skipCloud) syncCollectionToCloud(arr);
-};
-
-const saveCardCol = (s, skipCloud = false, targetUid = null) => {
-  const arr = [...s].map(String);
-  localStorage.setItem(getCardStorageKey(targetUid), JSON.stringify(arr));
-  if (!skipCloud && currentUser && db) {
-    db.collection("users").doc(currentUser.uid).set({ 
-      cardsCollection: arr, 
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp() 
-    }, { merge: true }).catch(err => console.error("Card cloud save error:", err));
-  }
-};
-
-function syncBasePokemonFromCards() {
-  if (!curId) return;
-  const cardCol = getCardCol();
-  const hasOwnedCard = currentCardsList.some(c => cardCol.has(c.id));
-  const mainCol = getCol();
-  let changed = false;
-  if (hasOwnedCard && !mainCol.has(curId)) {
-    mainCol.add(curId);
-    changed = true;
-  } else if (!hasOwnedCard && mainCol.has(curId)) {
-    mainCol.delete(curId);
-    changed = true;
-  }
-  if (changed) {
-    saveCol(mainCol);
-  }
-}
-
 const getRec = () => JSON.parse(localStorage.getItem('p_rec') || '[]');
 function addRec(p) {
   let r = getRec().filter(x => x.id !== p.id);
@@ -1771,28 +1802,13 @@ function clearHistory() {
   renderRecents();
 }
 function updateCounts() {
-  const s = getCol();
-  document.getElementById('tCount').innerText = s.size;
-  document.getElementById('tOwned').innerText = s.size;
-  document.getElementById('tMissing').innerText = TOTAL - s.size;
-  document.getElementById('bagBadge').innerText = s.size;
+  document.getElementById('tCount').innerText = memCol.size;
+  document.getElementById('tOwned').innerText = memCol.size;
+  document.getElementById('tMissing').innerText = TOTAL - memCol.size;
+  document.getElementById('bagBadge').innerText = memCol.size;
 }
 
-async function syncCollectionToCloud(array) {
-  if (currentUser && db) {
-    try {
-      const cleanArray = array.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
-      await db.collection("users").doc(currentUser.uid).set({ 
-        collection: cleanArray, 
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp() 
-      }, { merge: true });
-      console.log(`[Sync] Synced ${cleanArray.length} Pokémon to cloud.`);
-    } catch (err) {
-      console.error("Cloud write error:", err);
-    }
-  }
-}
-
+// Authentication & Cloud Sync Engine
 let firestoreUnsubscribe = null;
 if (auth) {
   auth.onAuthStateChanged(async user => {
@@ -1807,7 +1823,7 @@ if (auth) {
     const accountLabel = document.getElementById('accountLabel');
     
     if (user) {
-      cachedUid = user.uid;
+      activeUid = user.uid;
       localStorage.setItem('p_last_uid', user.uid);
       loggedInView.style.display = 'flex';
       loggedOutView.style.display = 'none';
@@ -1815,54 +1831,49 @@ if (auth) {
       accountLabel.innerText = 'Profile';
       accountLabel.style.color = 'var(--green)';
 
+      // Listen directly to user's remote document
       firestoreUnsubscribe = db.collection("users").doc(user.uid).onSnapshot(doc => {
         if (doc.exists) {
           const data = doc.data();
-          const cloudCollection = Array.isArray(data.collection) ? data.collection.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
+          const cloudArr = Array.isArray(data.collection) ? data.collection.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
           const cloudCards = Array.isArray(data.cardsCollection) ? data.cardsCollection.map(String) : [];
           
-          console.log(`[Sync] Cloud snapshot received: ${cloudCollection.length} Pokémon, ${cloudCards.length} cards.`);
-          
-          saveCol(new Set(cloudCollection), true, user.uid);
-          saveCardCol(new Set(cloudCards), true, user.uid);
+          memCol = new Set(cloudArr);
+          memCardCol = new Set(cloudCards);
+          saveLocalState();
         } else {
-          // Document does not exist in Firestore yet: check if there is existing local guest progress to back up
-          const guestCol = new Set(JSON.parse(localStorage.getItem('p_col_guest') || '[]').map(id => parseInt(id, 10)).filter(id => !isNaN(id)));
-          const guestCards = new Set(JSON.parse(localStorage.getItem('p_cards_guest') || '[]').map(String));
+          // Brand new account: migrate existing local guest progress once
+          const guestCol = JSON.parse(localStorage.getItem('p_col_guest') || '[]').map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+          const guestCards = JSON.parse(localStorage.getItem('p_cards_guest') || '[]').map(String);
           
-          if (guestCol.size > 0 || guestCards.size > 0) {
-            saveCol(guestCol, false, user.uid);
-            saveCardCol(guestCards, false, user.uid);
-          } else {
-            saveCol(new Set(), true, user.uid);
-            saveCardCol(new Set(), true, user.uid);
+          if (guestCol.length > 0 || guestCards.length > 0) {
+            memCol = new Set(guestCol);
+            memCardCol = new Set(guestCards);
+            saveLocalState();
+            db.collection("users").doc(user.uid).set({
+              collection: guestCol,
+              cardsCollection: guestCards,
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
           }
         }
-        updateCounts();
         if (curId) {
-          updateBtn(getCol().has(curId));
+          updateBtn(memCol.has(curId));
           if (currentCardsList.length) renderTcgCards(currentCardsList);
         }
-        if (document.getElementById('dexModal').style.display === 'flex') {
-          renderDex();
-        }
       }, err => {
-        console.error("Cloud snapshot error:", err);
-        showAuthError("Database sync failed. Check Firestore rules.");
+        console.error("Firestore sync error:", err);
+        showAuthError("Database sync failed. Verify Firestore rules.");
       });
     } else {
-      cachedUid = null;
+      activeUid = null;
       localStorage.removeItem('p_last_uid');
       loggedInView.style.display = 'none';
       loggedOutView.style.display = 'flex';
       accountLabel.innerText = 'Account';
       accountLabel.style.color = 'var(--sub)';
-      updateCounts();
-      renderRecents();
-      if (curId) updateBtn(getCol().has(curId));
-      if (document.getElementById('dexModal').style.display === 'flex') {
-        renderDex();
-      }
+      reloadMemoryFromLocal();
+      if (curId) updateBtn(memCol.has(curId));
     }
   });
 }
@@ -1918,17 +1929,17 @@ function handleDexFilterSearch(val) {
   renderDex();
 }
 function renderDex() {
-  const g = document.getElementById('dexGrid'), s = getCol();
+  const g = document.getElementById('dexGrid');
   let list = dir;
-  if (tabFilter === 'owned') list = dir.filter(p => s.has(p.id));
-  if (tabFilter === 'missing') list = dir.filter(p => !s.has(p.id));
+  if (tabFilter === 'owned') list = dir.filter(p => memCol.has(p.id));
+  if (tabFilter === 'missing') list = dir.filter(p => !memCol.has(p.id));
   if (dexQuery) {
     const isN = !isNaN(parseInt(dexQuery));
     list = list.filter(p => isN ? (p.id === parseInt(dexQuery) || String(p.id).startsWith(dexQuery)) : p.cleanName.toLowerCase().includes(dexQuery));
   }
   g.innerHTML = list.length ? '' : '<div style="grid-column:span 4;color:var(--sub);text-align:center;padding:2rem 0;">No Pokémon found!</div>';
   list.forEach(p => {
-    const owned = s.has(p.id), d = document.createElement('div');
+    const owned = memCol.has(p.id), d = document.createElement('div');
     d.className = `dex-item ${owned ? 'owned' : 'unowned'}`;
     d.innerHTML = `${owned ? '<div style="position:absolute;top:3px;right:3px;background:var(--green);color:#fff;font-size:0.52rem;font-weight:900;width:13px;height:13px;border-radius:50%;display:flex;align-items:center;justify-content:center;">✓</div>' : ''}<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png" loading="lazy"/><div style="font-size:0.62rem;font-weight:800;color:var(--sub)">#${String(p.id).padStart(4,'0')}</div><div style="font-size:0.65rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.cleanName}</div>`;
     let holdTimer = null;
@@ -1940,10 +1951,8 @@ function renderDex() {
     d.addEventListener('mouseup', () => clearTimeout(holdTimer));
     d.addEventListener('mouseleave', () => clearTimeout(holdTimer));
     d.onclick = () => {
-      initAudio();
-      s.has(p.id) ? s.delete(p.id) : (s.add(p.id), playTick());
-      saveCol(s);
-      renderDex();
+      curId = p.id;
+      toggleCollect();
     };
     g.appendChild(d);
   });
@@ -1961,9 +1970,9 @@ async function openDexCardsModal(p, bypassCache = false) {
   try {
     const cardsList = await fetchTcgCardsData(p.name, p.species?.name, bypassCache);
     grid.innerHTML = cardsList.length ? '' : '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">No physical cards found</div>';
-    const ownedCardSet = getCardCol();
+    
     cardsList.forEach((card, index) => {
-      const isOwnedCard = ownedCardSet.has(card.id);
+      const isOwnedCard = memCardCol.has(String(card.id));
       const cell = document.createElement('div');
       cell.className = 'dex-card-thumb-cell';
       cell.innerHTML = `
@@ -1976,23 +1985,14 @@ async function openDexCardsModal(p, bypassCache = false) {
         <div class="dex-cell-num">#${card.number}</div>
       `;
       const checkCircle = cell.querySelector('.card-check-circle');
-      const thumbFrame = cell.querySelector('.tcg-thumb-frame');
       checkCircle.onclick = (e) => {
         e.stopPropagation();
-        initAudio();
-        playTick();
-        const setColCards = getCardCol();
-        if (setColCards.has(card.id)) {
-          setColCards.delete(card.id);
-          checkCircle.classList.remove('checked');
-          thumbFrame.classList.remove('card-owned');
-        } else {
-          setColCards.add(card.id);
-          checkCircle.classList.add('checked');
-          thumbFrame.classList.add('card-owned');
-        }
-        saveCardCol(setColCards);
-        syncBasePokemonFromCards();
+        curId = p.id;
+        currentCardsList = cardsList;
+        toggleCardCollection(card.id);
+        const owned = memCardCol.has(String(card.id));
+        checkCircle.classList.toggle('checked', owned);
+        cell.querySelector('.tcg-thumb-frame').classList.toggle('card-owned', owned);
       };
       let holdTimer = null;
       cell.addEventListener('touchstart', () => {
@@ -2028,12 +2028,12 @@ function closeDexCardsModal() {
   document.getElementById('dexCardsModal').style.display = 'none';
 }
 function renderRecents() {
-  const l = document.getElementById('recentsList'), r = getRec(), s = getCol();
+  const l = document.getElementById('recentsList'), r = getRec();
   l.innerHTML = r.length ? '' : '<div style="color:var(--sub);text-align:center;padding:2rem 0;">No History!</div>';
   r.forEach(p => {
     const li = document.createElement('li');
     li.className = 'recent-item';
-    li.innerHTML = `<img src="${p.sprite}"/><div style="flex:1;"><div style="font-weight:800;font-size:0.95rem;">${p.name}</div><div style="font-size:0.75rem;color:var(--sub);font-weight:700;">#${String(p.id).padStart(4,'0')} · <span style="color:${COLORS[p.type]||'#fff'}">${p.type.toUpperCase()}</span></div></div>${s.has(p.id)?'<span style="color:var(--green);font-weight:900;">✓</span>':''}`;
+    li.innerHTML = `<img src="${p.sprite}"/><div style="flex:1;"><div style="font-weight:800;font-size:0.95rem;">${p.name}</div><div style="font-size:0.75rem;color:var(--sub);font-weight:700;">#${String(p.id).padStart(4,'0')} · <span style="color:${COLORS[p.type]||'#fff'}">${p.type.toUpperCase()}</span></div></div>${memCol.has(p.id)?'<span style="color:var(--green);font-weight:900;">✓</span>':''}`;
     li.onclick = () => {
       closeModal(null, 'recentModal');
       loadPoke(p.id, 0, false);
@@ -2386,9 +2386,9 @@ function renderTcgCards(cards) {
   }
   countText.innerText = `${cards.length} Card${cards.length === 1 ? '' : 's'}`;
   strip.innerHTML = '';
-  const ownedCardSet = getCardCol();
+  
   cards.forEach((card, index) => {
-    const isOwnedCard = ownedCardSet.has(card.id);
+    const isOwnedCard = memCardCol.has(String(card.id));
     const node = document.createElement('div');
     node.className = 'tcg-card-item';
     node.innerHTML = `
@@ -2401,23 +2401,13 @@ function renderTcgCards(cards) {
       <div class="tcg-card-num">#${card.number}</div>
     `;
     const checkCircle = node.querySelector('.card-check-circle');
-    const thumbFrame = node.querySelector('.tcg-thumb-frame');
     checkCircle.onclick = (e) => {
       e.stopPropagation();
-      initAudio();
-      playTick();
-      const setColCards = getCardCol();
-      if (setColCards.has(card.id)) {
-        setColCards.delete(card.id);
-        checkCircle.classList.remove('checked');
-        thumbFrame.classList.remove('card-owned');
-      } else {
-        setColCards.add(card.id);
-        checkCircle.classList.add('checked');
-        thumbFrame.classList.add('card-owned');
-      }
-      saveCardCol(setColCards);
-      syncBasePokemonFromCards();
+      currentCardsList = cards;
+      toggleCardCollection(card.id);
+      const owned = memCardCol.has(String(card.id));
+      checkCircle.classList.toggle('checked', owned);
+      node.querySelector('.tcg-thumb-frame').classList.toggle('card-owned', owned);
     };
     node.onclick = (e) => {
       e.stopPropagation();
@@ -2448,15 +2438,10 @@ function updateZoomModalContent() {
   }
   const zoomCheckCircle = document.getElementById('zoomCheckCircle');
   const zoomContainer = document.getElementById('zoomContainer');
-  const ownedCardSet = getCardCol();
+  const isOwned = memCardCol.has(String(card.id));
   if (zoomCheckCircle && zoomContainer) {
-    if (ownedCardSet.has(card.id)) {
-      zoomCheckCircle.classList.add('checked');
-      zoomContainer.classList.add('card-owned');
-    } else {
-      zoomCheckCircle.classList.remove('checked');
-      zoomContainer.classList.remove('card-owned');
-    }
+    zoomCheckCircle.classList.toggle('checked', isOwned);
+    zoomContainer.classList.toggle('card-owned', isOwned);
   }
   const leftArrow = document.getElementById('zoomLeftArrow');
   const rightArrow = document.getElementById('zoomRightArrow');
@@ -2468,22 +2453,8 @@ function toggleZoomCardOwned(e) {
   if (e) e.stopPropagation();
   if (!currentCardsList.length) return;
   const card = currentCardsList[currentZoomIndex];
-  initAudio();
-  playTick();
-  const setColCards = getCardCol();
-  const zoomCheckCircle = document.getElementById('zoomCheckCircle');
-  const zoomContainer = document.getElementById('zoomContainer');
-  if (setColCards.has(card.id)) {
-    setColCards.delete(card.id);
-    if (zoomCheckCircle) zoomCheckCircle.classList.remove('checked');
-    if (zoomContainer) zoomContainer.classList.remove('card-owned');
-  } else {
-    setColCards.add(card.id);
-    if (zoomCheckCircle) zoomCheckCircle.classList.add('checked');
-    if (zoomContainer) zoomContainer.classList.add('card-owned');
-  }
-  saveCardCol(setColCards);
-  syncBasePokemonFromCards();
+  toggleCardCollection(card.id);
+  updateZoomModalContent();
   if (curId) renderTcgCards(currentCardsList);
 }
 
@@ -2521,13 +2492,6 @@ function closeTcgZoom() {
   }
 }
 
-function toggleCollect() {
-  if (!curId) return;
-  const s = getCol();
-  s.has(curId) ? s.delete(curId) : (s.add(curId), playTick());
-  saveCol(s);
-}
-
 function updateBtn(owned) {
   document.getElementById('colBtn').classList.toggle('active', owned);
   document.getElementById('cardTick').classList.toggle('active', owned);
@@ -2553,13 +2517,13 @@ function handleSpinButtonClick() {
 function handleSearch(val) {
   const l = document.getElementById('sList'), v = val.trim().toLowerCase().replace('#','');
   if (!v || !dir.length) return l.style.display = 'none';
-  const isN = !isNaN(parseInt(v)), s = getCol();
+  const isN = !isNaN(parseInt(v));
   const m = dir.filter(p => isN ? (p.id === parseInt(v) || String(p.id).startsWith(v)) : p.cleanName.toLowerCase().includes(v)).slice(0, 7);
   if (!m.length) return l.style.display = 'none';
   l.innerHTML = '';
   m.forEach(p => {
     const li = document.createElement('li');
-    li.innerHTML = `<span><span style="color:var(--sub);font-weight:700;margin-right:0.4rem;">#${String(p.id).padStart(4,'0')}</span>${p.cleanName}</span>${s.has(p.id)?'<span style="color:var(--green);font-weight:900;">✓</span>':''}`;
+    li.innerHTML = `<span><span style="color:var(--sub);font-weight:700;margin-right:0.4rem;">#${String(p.id).padStart(4,'0')}</span>${p.cleanName}</span>${memCol.has(p.id)?'<span style="color:var(--green);font-weight:900;">✓</span>':''}`;
     li.onmousedown = () => loadPoke(p.id, 0, true);
     l.appendChild(li);
   });
@@ -2674,7 +2638,7 @@ function renderCard(p, dir = 0, shiny = false) {
   document.getElementById('sAtk').innerText = st.attack || '-';
   document.getElementById('sDef').innerText = st.defense || '-';
   document.getElementById('sSpd').innerText = st.speed || '-';
-  updateBtn(getCol().has(p.id));
+  updateBtn(memCol.has(p.id));
   card.style.display = 'block';
 }
 

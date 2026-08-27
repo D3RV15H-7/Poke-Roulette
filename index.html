@@ -1461,7 +1461,6 @@ const firebaseConfig = {
 let auth = null, db = null, currentUser = null;
 let activeUid = localStorage.getItem('p_last_uid') || null;
 
-// In-Memory Collection Sets
 let memCol = new Set();
 let memCardCol = new Set();
 
@@ -1469,7 +1468,6 @@ try {
   firebase.initializeApp(firebaseConfig);
   auth = firebase.auth();
   db = firebase.firestore();
-  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => console.error("Persistence error:", e));
 } catch (e) {
   console.error("Firebase init:", e);
 }
@@ -1582,7 +1580,6 @@ let activeDexModalPoke = null;
 let openedFromDexModal = false;
 const memoryTcgCache = new Map();
 
-// Storage Key Handlers
 function getStorageKey() {
   return activeUid ? `p_col_${activeUid}` : `p_col_guest`;
 }
@@ -1590,7 +1587,6 @@ function getCardStorageKey() {
   return activeUid ? `p_cards_${activeUid}` : `p_cards_guest`;
 }
 
-// Initial Local Storage Load
 function reloadMemoryFromLocal() {
   try {
     const raw = JSON.parse(localStorage.getItem(getStorageKey()) || '[]');
@@ -1609,8 +1605,8 @@ const getCol = () => memCol;
 const getCardCol = () => memCardCol;
 
 function saveLocalState() {
-  localStorage.setItem(getStorageKey(), JSON.stringify([...memCol]));
-  localStorage.setItem(getCardStorageKey(), JSON.stringify([...memCardCol]));
+  localStorage.setItem(getStorageKey(), JSON.stringify(Array.from(memCol)));
+  localStorage.setItem(getCardStorageKey(), JSON.stringify(Array.from(memCardCol)));
   updateCounts();
   renderRecents();
   if (curId) updateBtn(memCol.has(curId));
@@ -1619,72 +1615,54 @@ function saveLocalState() {
   }
 }
 
-// Persistent Add/Remove Handlers
+async function writeFullCollectionToCloud() {
+  if (currentUser && db) {
+    try {
+      await db.collection("users").doc(currentUser.uid).set({
+        collection: Array.from(memCol),
+        cardsCollection: Array.from(memCardCol)
+      }, { merge: true });
+    } catch (err) {
+      console.error("Cloud write failed:", err);
+    }
+  }
+}
+
 function toggleCollect() {
   if (!curId) return;
   initAudio();
-  const exists = memCol.has(curId);
-  if (exists) {
-    memCol.delete(curId);
+  const idNum = parseInt(curId, 10);
+  if (memCol.has(idNum)) {
+    memCol.delete(idNum);
   } else {
-    memCol.add(curId);
+    memCol.add(idNum);
     playTick();
   }
   saveLocalState();
-  
-  if (currentUser && db) {
-    const docRef = db.collection("users").doc(currentUser.uid);
-    const op = exists 
-      ? firebase.firestore.FieldValue.arrayRemove(curId)
-      : firebase.firestore.FieldValue.arrayUnion(curId);
-    docRef.set({ 
-      collection: op, 
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp() 
-    }, { merge: true }).catch(err => console.error("Firestore sync error:", err));
-  }
+  writeFullCollectionToCloud();
 }
 
 function toggleCardCollection(cardId) {
   initAudio();
   playTick();
   const cId = String(cardId);
-  const exists = memCardCol.has(cId);
-  if (exists) {
+  if (memCardCol.has(cId)) {
     memCardCol.delete(cId);
   } else {
     memCardCol.add(cId);
   }
   saveLocalState();
-
-  if (currentUser && db) {
-    const docRef = db.collection("users").doc(currentUser.uid);
-    const op = exists 
-      ? firebase.firestore.FieldValue.arrayRemove(cId)
-      : firebase.firestore.FieldValue.arrayUnion(cId);
-    docRef.set({ 
-      cardsCollection: op, 
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp() 
-    }, { merge: true }).catch(err => console.error("Firestore card sync error:", err));
-  }
   syncBasePokemonFromCards();
+  writeFullCollectionToCloud();
 }
 
 function syncBasePokemonFromCards() {
   if (!curId) return;
+  const idNum = parseInt(curId, 10);
   const hasOwnedCard = currentCardsList.some(c => memCardCol.has(String(c.id)));
-  let changed = false;
-  if (hasOwnedCard && !memCol.has(curId)) {
-    memCol.add(curId);
-    changed = true;
-  }
-  if (changed) {
+  if (hasOwnedCard && !memCol.has(idNum)) {
+    memCol.add(idNum);
     saveLocalState();
-    if (currentUser && db) {
-      db.collection("users").doc(currentUser.uid).set({ 
-        collection: firebase.firestore.FieldValue.arrayUnion(curId),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp() 
-      }, { merge: true });
-    }
   }
 }
 
@@ -1808,7 +1786,6 @@ function updateCounts() {
   document.getElementById('bagBadge').innerText = memCol.size;
 }
 
-// Authentication & Cloud Sync Engine
 let firestoreUnsubscribe = null;
 if (auth) {
   auth.onAuthStateChanged(async user => {
@@ -1831,39 +1808,38 @@ if (auth) {
       accountLabel.innerText = 'Profile';
       accountLabel.style.color = 'var(--green)';
 
-      // Listen directly to user's remote document
+      try {
+        const snap = await db.collection("users").doc(user.uid).get();
+        if (snap.exists) {
+          const data = snap.data();
+          const cloudArr = Array.isArray(data.collection) ? data.collection.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
+          const cloudCards = Array.isArray(data.cardsCollection) ? data.cardsCollection.map(String) : [];
+          memCol = new Set(cloudArr);
+          memCardCol = new Set(cloudCards);
+          saveLocalState();
+        } else {
+          // If first time user document creation, save current memory state
+          await writeFullCollectionToCloud();
+        }
+      } catch (err) {
+        console.error("Error hydrating collection from cloud:", err);
+      }
+
       firestoreUnsubscribe = db.collection("users").doc(user.uid).onSnapshot(doc => {
         if (doc.exists) {
           const data = doc.data();
           const cloudArr = Array.isArray(data.collection) ? data.collection.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
           const cloudCards = Array.isArray(data.cardsCollection) ? data.cardsCollection.map(String) : [];
-          
           memCol = new Set(cloudArr);
           memCardCol = new Set(cloudCards);
           saveLocalState();
-        } else {
-          // Brand new account: migrate existing local guest progress once
-          const guestCol = JSON.parse(localStorage.getItem('p_col_guest') || '[]').map(id => parseInt(id, 10)).filter(id => !isNaN(id));
-          const guestCards = JSON.parse(localStorage.getItem('p_cards_guest') || '[]').map(String);
-          
-          if (guestCol.length > 0 || guestCards.length > 0) {
-            memCol = new Set(guestCol);
-            memCardCol = new Set(guestCards);
-            saveLocalState();
-            db.collection("users").doc(user.uid).set({
-              collection: guestCol,
-              cardsCollection: guestCards,
-              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
-          }
         }
         if (curId) {
-          updateBtn(memCol.has(curId));
+          updateBtn(memCol.has(parseInt(curId, 10)));
           if (currentCardsList.length) renderTcgCards(currentCardsList);
         }
       }, err => {
-        console.error("Firestore sync error:", err);
-        showAuthError("Database sync failed. Verify Firestore rules.");
+        console.error("Firestore real-time listener error:", err);
       });
     } else {
       activeUid = null;
@@ -1873,7 +1849,7 @@ if (auth) {
       accountLabel.innerText = 'Account';
       accountLabel.style.color = 'var(--sub)';
       reloadMemoryFromLocal();
-      if (curId) updateBtn(memCol.has(curId));
+      if (curId) updateBtn(memCol.has(parseInt(curId, 10)));
     }
   });
 }

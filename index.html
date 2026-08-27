@@ -1457,8 +1457,10 @@ const firebaseConfig = {
   messagingSenderId: "514395694013",
   appId: "1:514395694013:web:6250bd0a49674a45af28d4"
 };
+
 let auth = null, db = null, currentUser = null;
 let cachedUid = localStorage.getItem('p_last_uid') || null;
+
 try {
   firebase.initializeApp(firebaseConfig);
   auth = firebase.auth();
@@ -1536,7 +1538,6 @@ const DIGITAL_SET_BLACKLIST = new Set([ 'a1', 'a1a', 'a2', 'a2a', 'b1', 'b1a', '
 const DIGITAL_EXPANSION_NAMES = [ 'genetic apex', 'mythical island', 'space-time smackdown', 'triumphant light', 'fantastical parade', 'crimson blaze', 'eevee grove', 'mega rising', 'wisdom of sea and sky' ];
 const PRESERVED_HYPHEN_POKEMON = new Set([ 'chien-pao', 'ting-lu', 'chi-yu', 'wo-chien', 'porygon-z', 'ho-oh', 'jangmo-o', 'hakamo-o', 'kommo-o' ]);
 
-// --- Rarity Weight Hierarchy (Higher number = Rarer) ---
 const RARITY_TIERS = {
   'hyper rare': 100,
   'special illustration rare': 95,
@@ -1691,24 +1692,32 @@ function buildLabels() {
 }
 
 function getActiveUid() {
-  if (currentUser?.uid) return currentUser.uid;
+  if (currentUser && currentUser.uid) return currentUser.uid;
   if (cachedUid) return cachedUid;
   return null;
 }
-function getStorageKey() {
-  const uid = getActiveUid();
+function getStorageKey(targetUid = null) {
+  const uid = targetUid || getActiveUid();
   return uid ? `p_col_${uid}` : `p_col_guest`;
 }
-function getCardStorageKey() {
-  const uid = getActiveUid();
+function getCardStorageKey(targetUid = null) {
+  const uid = targetUid || getActiveUid();
   return uid ? `p_cards_${uid}` : `p_cards_guest`;
 }
-const getCol = () => new Set(JSON.parse(localStorage.getItem(getStorageKey()) || '[]'));
-const getCardCol = () => new Set(JSON.parse(localStorage.getItem(getCardStorageKey()) || '[]'));
 
-const saveCol = (s, skipCloud = false) => {
-  const arr = [...s];
-  localStorage.setItem(getStorageKey(), JSON.stringify(arr));
+const getCol = () => {
+  const raw = JSON.parse(localStorage.getItem(getStorageKey()) || '[]');
+  return new Set(raw.map(id => parseInt(id, 10)).filter(id => !isNaN(id)));
+};
+
+const getCardCol = () => {
+  const raw = JSON.parse(localStorage.getItem(getCardStorageKey()) || '[]');
+  return new Set(raw.map(String));
+};
+
+const saveCol = (s, skipCloud = false, targetUid = null) => {
+  const arr = [...s].map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+  localStorage.setItem(getStorageKey(targetUid), JSON.stringify(arr));
   updateCounts();
   renderRecents();
   if (curId) updateBtn(s.has(curId));
@@ -1718,9 +1727,9 @@ const saveCol = (s, skipCloud = false) => {
   if (!skipCloud) syncCollectionToCloud(arr);
 };
 
-const saveCardCol = (s, skipCloud = false) => {
-  const arr = [...s];
-  localStorage.setItem(getCardStorageKey(), JSON.stringify(arr));
+const saveCardCol = (s, skipCloud = false, targetUid = null) => {
+  const arr = [...s].map(String);
+  localStorage.setItem(getCardStorageKey(targetUid), JSON.stringify(arr));
   if (!skipCloud && currentUser && db) {
     db.collection("users").doc(currentUser.uid).set({ 
       cardsCollection: arr, 
@@ -1746,6 +1755,7 @@ function syncBasePokemonFromCards() {
     saveCol(mainCol);
   }
 }
+
 const getRec = () => JSON.parse(localStorage.getItem('p_rec') || '[]');
 function addRec(p) {
   let r = getRec().filter(x => x.id !== p.id);
@@ -1771,10 +1781,12 @@ function updateCounts() {
 async function syncCollectionToCloud(array) {
   if (currentUser && db) {
     try {
+      const cleanArray = array.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
       await db.collection("users").doc(currentUser.uid).set({ 
-        collection: array, 
+        collection: cleanArray, 
         updatedAt: firebase.firestore.FieldValue.serverTimestamp() 
       }, { merge: true });
+      console.log(`[Sync] Synced ${cleanArray.length} Pokémon to cloud.`);
     } catch (err) {
       console.error("Cloud write error:", err);
     }
@@ -1793,6 +1805,7 @@ if (auth) {
     const loggedOutView = document.getElementById('authLoggedOutView');
     const emailSpan = document.getElementById('authUserEmail');
     const accountLabel = document.getElementById('accountLabel');
+    
     if (user) {
       cachedUid = user.uid;
       localStorage.setItem('p_last_uid', user.uid);
@@ -1805,28 +1818,33 @@ if (auth) {
       firestoreUnsubscribe = db.collection("users").doc(user.uid).onSnapshot(doc => {
         if (doc.exists) {
           const data = doc.data();
-          if (Array.isArray(data.collection)) {
-            saveCol(new Set(data.collection), true);
-          }
-          if (Array.isArray(data.cardsCollection)) {
-            saveCardCol(new Set(data.cardsCollection), true);
-          }
+          const cloudCollection = Array.isArray(data.collection) ? data.collection.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
+          const cloudCards = Array.isArray(data.cardsCollection) ? data.cardsCollection.map(String) : [];
+          
+          console.log(`[Sync] Cloud snapshot received: ${cloudCollection.length} Pokémon, ${cloudCards.length} cards.`);
+          
+          saveCol(new Set(cloudCollection), true, user.uid);
+          saveCardCol(new Set(cloudCards), true, user.uid);
         } else {
-          // If a brand new cloud record, back up any pre-existing local data
-          const local = getCol();
-          const localCards = getCardCol();
-          if (local.size > 0 || localCards.size > 0) {
-            db.collection("users").doc(user.uid).set({
-              collection: [...local],
-              cardsCollection: [...localCards],
-              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+          // Document does not exist in Firestore yet: check if there is existing local guest progress to back up
+          const guestCol = new Set(JSON.parse(localStorage.getItem('p_col_guest') || '[]').map(id => parseInt(id, 10)).filter(id => !isNaN(id)));
+          const guestCards = new Set(JSON.parse(localStorage.getItem('p_cards_guest') || '[]').map(String));
+          
+          if (guestCol.size > 0 || guestCards.size > 0) {
+            saveCol(guestCol, false, user.uid);
+            saveCardCol(guestCards, false, user.uid);
+          } else {
+            saveCol(new Set(), true, user.uid);
+            saveCardCol(new Set(), true, user.uid);
           }
         }
         updateCounts();
         if (curId) {
           updateBtn(getCol().has(curId));
           if (currentCardsList.length) renderTcgCards(currentCardsList);
+        }
+        if (document.getElementById('dexModal').style.display === 'flex') {
+          renderDex();
         }
       }, err => {
         console.error("Cloud snapshot error:", err);
@@ -1842,6 +1860,9 @@ if (auth) {
       updateCounts();
       renderRecents();
       if (curId) updateBtn(getCol().has(curId));
+      if (document.getElementById('dexModal').style.display === 'flex') {
+        renderDex();
+      }
     }
   });
 }

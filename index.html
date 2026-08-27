@@ -1459,17 +1459,22 @@ const firebaseConfig = {
 };
 
 let auth = null, db = null, currentUser = null;
-let activeUid = localStorage.getItem('p_last_uid') || null;
+let activeUid = null;
+try {
+  activeUid = localStorage.getItem('p_last_uid') || null;
+} catch (e) {}
 
 let memCol = new Set();
 let memCardCol = new Set();
 
 try {
-  firebase.initializeApp(firebaseConfig);
-  auth = firebase.auth();
-  db = firebase.firestore();
+  if (typeof firebase !== 'undefined') {
+    firebase.initializeApp(firebaseConfig);
+    auth = firebase.auth();
+    db = firebase.firestore();
+  }
 } catch (e) {
-  console.error("Firebase init:", e);
+  console.error("Firebase init error:", e);
 }
 
 const TOTAL = 1025;
@@ -1605,41 +1610,29 @@ const getCol = () => memCol;
 const getCardCol = () => memCardCol;
 
 function saveLocalState() {
-  localStorage.setItem(getStorageKey(), JSON.stringify(Array.from(memCol)));
-  localStorage.setItem(getCardStorageKey(), JSON.stringify(Array.from(memCardCol)));
+  try {
+    localStorage.setItem(getStorageKey(), JSON.stringify(Array.from(memCol)));
+    localStorage.setItem(getCardStorageKey(), JSON.stringify(Array.from(memCardCol)));
+  } catch (e) {}
   updateCounts();
   renderRecents();
-  if (curId) updateBtn(memCol.has(curId));
+  if (curId) updateBtn(memCol.has(parseInt(curId, 10)));
   if (document.getElementById('dexModal').style.display === 'flex') {
     renderDex();
   }
 }
 
-async function writeFullCollectionToCloud() {
-  if (!currentUser) {
-    console.warn("Cannot sync: No user currently logged in.");
-    return;
-  }
-  if (!db) {
-    alert("Firestore DB object is not initialized. Check your firebaseConfig.");
-    return;
-  }
-
-  try {
+function writeFullCollectionToCloud() {
+  if (currentUser && db) {
     const payload = {
       collection: Array.from(memCol),
-      cardsCollection: Array.from(memCardCol),
-      updatedAt: new Date().toISOString()
+      cardsCollection: Array.from(memCardCol)
     };
-    
-    console.log("Attempting write to UID:", currentUser.uid, payload);
-    await db.collection("users").doc(currentUser.uid).set(payload, { merge: true });
-    console.log("✅ Cloud Write Succeeded!");
-  } catch (err) {
-    console.error("❌ Cloud Write Failed:", err);
-    alert("Firestore Write Error: " + err.code + " - " + err.message);
+    db.collection("users").doc(currentUser.uid).set(payload, { merge: true })
+      .catch(err => {
+        console.error("Cloud write failed:", err);
+      });
   }
-}
 }
 
 function toggleCollect() {
@@ -1764,6 +1757,7 @@ function isDigitalOnlyCard(card) {
 
 function buildLabels() {
   const wheel = document.getElementById('wheel');
+  if (!wheel) return;
   const layer = document.createElement('div');
   layer.className = 'wheel-labels';
   TYPES.forEach((t, i) => {
@@ -1779,30 +1773,48 @@ function buildLabels() {
   wheel.appendChild(layer);
 }
 
-const getRec = () => JSON.parse(localStorage.getItem('p_rec') || '[]');
+const getRec = () => {
+  try {
+    return JSON.parse(localStorage.getItem('p_rec') || '[]');
+  } catch (e) {
+    return [];
+  }
+};
+
 function addRec(p) {
   let r = getRec().filter(x => x.id !== p.id);
   const cleanName = getCleanNationalDexName(p.name, p.species?.name);
   r.unshift({ id: p.id, name: cleanName, type: p.types[0].type.name, sprite: p.sprites.other?.home?.front_default || p.sprites.other?.['official-artwork']?.front_default || p.sprites.front_default });
-  localStorage.setItem('p_rec', JSON.stringify(r.slice(0, 20)));
+  try {
+    localStorage.setItem('p_rec', JSON.stringify(r.slice(0, 20)));
+  } catch (e) {}
   updateCounts();
   renderRecents();
 }
+
 function clearHistory() {
-  localStorage.removeItem('p_rec');
+  try {
+    localStorage.removeItem('p_rec');
+  } catch (e) {}
   updateCounts();
   renderRecents();
 }
+
 function updateCounts() {
-  document.getElementById('tCount').innerText = memCol.size;
-  document.getElementById('tOwned').innerText = memCol.size;
-  document.getElementById('tMissing').innerText = TOTAL - memCol.size;
-  document.getElementById('bagBadge').innerText = memCol.size;
+  const count = memCol.size;
+  const tCount = document.getElementById('tCount');
+  const tOwned = document.getElementById('tOwned');
+  const tMissing = document.getElementById('tMissing');
+  const bagBadge = document.getElementById('bagBadge');
+  if (tCount) tCount.innerText = count;
+  if (tOwned) tOwned.innerText = count;
+  if (tMissing) tMissing.innerText = TOTAL - count;
+  if (bagBadge) bagBadge.innerText = count;
 }
 
 let firestoreUnsubscribe = null;
 if (auth) {
-  auth.onAuthStateChanged(async user => {
+  auth.onAuthStateChanged(user => {
     if (firestoreUnsubscribe) {
       firestoreUnsubscribe();
       firestoreUnsubscribe = null;
@@ -1815,85 +1827,90 @@ if (auth) {
     
     if (user) {
       activeUid = user.uid;
-      localStorage.setItem('p_last_uid', user.uid);
-      loggedInView.style.display = 'flex';
-      loggedOutView.style.display = 'none';
-      emailSpan.innerText = user.email || 'User Account';
-      accountLabel.innerText = 'Profile';
-      accountLabel.style.color = 'var(--green)';
-
-      try {
-        const snap = await db.collection("users").doc(user.uid).get();
-        if (snap.exists) {
-          const data = snap.data();
-          const cloudArr = Array.isArray(data.collection) ? data.collection.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
-          const cloudCards = Array.isArray(data.cardsCollection) ? data.cardsCollection.map(String) : [];
-          memCol = new Set(cloudArr);
-          memCardCol = new Set(cloudCards);
-          saveLocalState();
-        } else {
-          // If first time user document creation, save current memory state
-          await writeFullCollectionToCloud();
-        }
-      } catch (err) {
-        console.error("Error hydrating collection from cloud:", err);
+      try { localStorage.setItem('p_last_uid', user.uid); } catch (e) {}
+      if (loggedInView) loggedInView.style.display = 'flex';
+      if (loggedOutView) loggedOutView.style.display = 'none';
+      if (emailSpan) emailSpan.innerText = user.email || 'User Account';
+      if (accountLabel) {
+        accountLabel.innerText = 'Profile';
+        accountLabel.style.color = 'var(--green)';
       }
 
-      firestoreUnsubscribe = db.collection("users").doc(user.uid).onSnapshot(doc => {
-        if (doc.exists) {
-          const data = doc.data();
-          const cloudArr = Array.isArray(data.collection) ? data.collection.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
-          const cloudCards = Array.isArray(data.cardsCollection) ? data.cardsCollection.map(String) : [];
-          memCol = new Set(cloudArr);
-          memCardCol = new Set(cloudCards);
-          saveLocalState();
-        }
-        if (curId) {
-          updateBtn(memCol.has(parseInt(curId, 10)));
-          if (currentCardsList.length) renderTcgCards(currentCardsList);
-        }
-      }, err => {
-        console.error("Firestore real-time listener error:", err);
-      });
+      if (db) {
+        db.collection("users").doc(user.uid).get().then(snap => {
+          if (snap.exists) {
+            const data = snap.data();
+            const cloudArr = Array.isArray(data.collection) ? data.collection.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
+            const cloudCards = Array.isArray(data.cardsCollection) ? data.cardsCollection.map(String) : [];
+            memCol = new Set(cloudArr);
+            memCardCol = new Set(cloudCards);
+            saveLocalState();
+          } else {
+            writeFullCollectionToCloud();
+          }
+        }).catch(err => {
+          console.error("Hydration error:", err);
+        });
+
+        firestoreUnsubscribe = db.collection("users").doc(user.uid).onSnapshot(doc => {
+          if (doc.exists) {
+            const data = doc.data();
+            const cloudArr = Array.isArray(data.collection) ? data.collection.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
+            const cloudCards = Array.isArray(data.cardsCollection) ? data.cardsCollection.map(String) : [];
+            memCol = new Set(cloudArr);
+            memCardCol = new Set(cloudCards);
+            saveLocalState();
+          }
+        }, err => {
+          console.error("Firestore listener error:", err);
+        });
+      }
     } else {
       activeUid = null;
-      localStorage.removeItem('p_last_uid');
-      loggedInView.style.display = 'none';
-      loggedOutView.style.display = 'flex';
-      accountLabel.innerText = 'Account';
-      accountLabel.style.color = 'var(--sub)';
+      try { localStorage.removeItem('p_last_uid'); } catch (e) {}
+      if (loggedInView) loggedInView.style.display = 'none';
+      if (loggedOutView) loggedOutView.style.display = 'flex';
+      if (accountLabel) {
+        accountLabel.innerText = 'Account';
+        accountLabel.style.color = 'var(--sub)';
+      }
       reloadMemoryFromLocal();
       if (curId) updateBtn(memCol.has(parseInt(curId, 10)));
     }
   });
 }
 
-async function handleEmailAuth(isSignUp) {
-  if (!auth) return alert("Please configure Firebase keys first.");
-  const email = document.getElementById('authEmail').value.trim();
-  const pass = document.getElementById('authPassword').value;
+function handleEmailAuth(isSignUp) {
+  if (!auth) return alert("Firebase Auth is not available.");
+  const email = (document.getElementById('authEmail')?.value || '').trim();
+  const pass = document.getElementById('authPassword')?.value || '';
   if (!email || !pass) return showAuthError("Please fill out all fields.");
-  try {
-    if (isSignUp) {
-      await auth.createUserWithEmailAndPassword(email, pass);
-    } else {
-      await auth.signInWithEmailAndPassword(email, pass);
-    }
+  
+  const authPromise = isSignUp 
+    ? auth.createUserWithEmailAndPassword(email, pass)
+    : auth.signInWithEmailAndPassword(email, pass);
+
+  authPromise.then(() => {
     closeModal(null, 'accountModal');
-  } catch (err) {
+  }).catch(err => {
     showAuthError(err.message);
-  }
+  });
 }
 
-async function handleSignOut() {
-  if (auth) await auth.signOut();
-  closeModal(null, 'accountModal');
+function handleSignOut() {
+  if (auth) {
+    auth.signOut().then(() => {
+      closeModal(null, 'accountModal');
+    }).catch(err => console.error("Sign out error:", err));
+  }
 }
 
 function showAuthError(msg) {
   const el = document.getElementById('authErrorMsg');
-  el.innerText = msg;
-  el.style.display = 'block';
+  if (el) {
+    el.innerText = msg;
+    el.style.display = 'block';
+  }
 }
 
 function openModal(id) {
@@ -1904,22 +1921,34 @@ function openModal(id) {
     renderDex();
   }
   if (id === 'recentModal') renderRecents();
-  document.getElementById(id).style.display = 'flex';
+  const el = document.getElementById(id);
+  if (el) el.style.display = 'flex';
 }
+
 function closeModal(e, id) {
-  if (!e || e.target.id === id) document.getElementById(id).style.display = 'none';
+  if (!e || e.target.id === id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  }
 }
+
 function setDexTab(t) {
   tabFilter = t;
-  ['all', 'owned', 'missing'].forEach(x => document.getElementById(`tab-${x}`).classList.toggle('active', x === t));
+  ['all', 'owned', 'missing'].forEach(x => {
+    const btn = document.getElementById(`tab-${x}`);
+    if (btn) btn.classList.toggle('active', x === t);
+  });
   renderDex();
 }
+
 function handleDexFilterSearch(val) {
   dexQuery = val.trim().toLowerCase().replace('#', '');
   renderDex();
 }
+
 function renderDex() {
   const g = document.getElementById('dexGrid');
+  if (!g) return;
   let list = dir;
   if (tabFilter === 'owned') list = dir.filter(p => memCol.has(p.id));
   if (tabFilter === 'missing') list = dir.filter(p => !memCol.has(p.id));
@@ -1954,11 +1983,12 @@ async function openDexCardsModal(p, bypassCache = false) {
   const grid = document.getElementById('dexCardsGrid');
   const title = document.getElementById('dexCardsTitle');
   const cleanName = getCleanNationalDexName(p.name, p.species?.name);
-  title.innerText = `${cleanName} Cards`;
-  grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:2rem 0;font-size:0.8rem;">Loading cards...</div>';
-  modal.style.display = 'flex';
+  if (title) title.innerText = `${cleanName} Cards`;
+  if (grid) grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:2rem 0;font-size:0.8rem;">Loading cards...</div>';
+  if (modal) modal.style.display = 'flex';
   try {
     const cardsList = await fetchTcgCardsData(p.name, p.species?.name, bypassCache);
+    if (!grid) return;
     grid.innerHTML = cardsList.length ? '' : '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">No physical cards found</div>';
     
     cardsList.forEach((card, index) => {
@@ -1975,15 +2005,18 @@ async function openDexCardsModal(p, bypassCache = false) {
         <div class="dex-cell-num">#${card.number}</div>
       `;
       const checkCircle = cell.querySelector('.card-check-circle');
-      checkCircle.onclick = (e) => {
-        e.stopPropagation();
-        curId = p.id;
-        currentCardsList = cardsList;
-        toggleCardCollection(card.id);
-        const owned = memCardCol.has(String(card.id));
-        checkCircle.classList.toggle('checked', owned);
-        cell.querySelector('.tcg-thumb-frame').classList.toggle('card-owned', owned);
-      };
+      if (checkCircle) {
+        checkCircle.onclick = (e) => {
+          e.stopPropagation();
+          curId = p.id;
+          currentCardsList = cardsList;
+          toggleCardCollection(card.id);
+          const owned = memCardCol.has(String(card.id));
+          checkCircle.classList.toggle('checked', owned);
+          const tf = cell.querySelector('.tcg-thumb-frame');
+          if (tf) tf.classList.toggle('card-owned', owned);
+        };
+      }
       let holdTimer = null;
       cell.addEventListener('touchstart', () => {
         holdTimer = setTimeout(() => {
@@ -2006,19 +2039,23 @@ async function openDexCardsModal(p, bypassCache = false) {
       grid.appendChild(cell);
     });
   } catch (e) {
-    grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">Failed to load cards. Tap ↻ to retry.</div>';
+    if (grid) grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">Failed to load cards. Tap ↻ to retry.</div>';
   }
 }
+
 function refreshCurrentDexCards() {
   if (activeDexModalPoke) {
     openDexCardsModal(activeDexModalPoke, true);
   }
 }
 function closeDexCardsModal() {
-  document.getElementById('dexCardsModal').style.display = 'none';
+  const modal = document.getElementById('dexCardsModal');
+  if (modal) modal.style.display = 'none';
 }
+
 function renderRecents() {
   const l = document.getElementById('recentsList'), r = getRec();
+  if (!l) return;
   l.innerHTML = r.length ? '' : '<div style="color:var(--sub);text-align:center;padding:2rem 0;">No History!</div>';
   r.forEach(p => {
     const li = document.createElement('li');
@@ -2031,24 +2068,31 @@ function renderRecents() {
     l.appendChild(li);
   });
 }
+
 function initAudio() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch (e) {}
 }
+
 function playTick() {
   if (navigator.vibrate) navigator.vibrate(12);
   if (!audioCtx) return;
-  const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
-  osc.type = 'triangle';
-  osc.frequency.setValueAtTime(340, audioCtx.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(70, audioCtx.currentTime + 0.04);
-  g.gain.setValueAtTime(0.2, audioCtx.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
-  osc.connect(g);
-  g.connect(audioCtx.destination);
-  osc.start();
-  osc.stop(audioCtx.currentTime + 0.04);
+  try {
+    const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(340, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(70, audioCtx.currentTime + 0.04);
+    g.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+    osc.connect(g);
+    g.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.04);
+  } catch (e) {}
 }
+
 function playCry() {
   if (!curPoke?.cries) return;
   const url = curPoke.cries.latest || curPoke.cries.legacy;
@@ -2058,19 +2102,23 @@ function playCry() {
     a.play().catch(() => {});
   }
 }
+
 function triggerSparkle() {
   const s = document.getElementById('sparkle');
+  if (!s) return;
   s.classList.remove('pop');
   void s.offsetWidth;
   s.classList.add('pop');
   if (navigator.vibrate) navigator.vibrate([40, 60, 40, 60, 80]);
 }
+
 function toggleShiny() {
   if (!curPoke) return;
   isShiny = !isShiny;
   updateArt();
   if (isShiny) triggerSparkle();
 }
+
 function updateArt() {
   if (!curPoke) return;
   const p = curPoke;
@@ -2085,17 +2133,22 @@ function updateArt() {
     defaultImg = p.sprites.front_default;
     shinyImg = p.sprites.front_shiny || defaultImg;
   }
-  document.getElementById('pokeImg').src = isShiny ? shinyImg : defaultImg;
-  document.getElementById('shinyBtn').classList.toggle('active', isShiny);
+  const pokeImg = document.getElementById('pokeImg');
+  const shinyBtn = document.getElementById('shinyBtn');
+  if (pokeImg) pokeImg.src = isShiny ? shinyImg : defaultImg;
+  if (shinyBtn) shinyBtn.classList.toggle('active', isShiny);
 }
+
 function hexToRgb(hex) {
   hex = hex.replace('#', '');
   if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
   const num = parseInt(hex, 16);
   return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
 }
+
 function updateCardAura(types) {
   const card = document.getElementById('pokeCard');
+  if (!card) return;
   const primaryHex = COLORS[types[0]?.type?.name] || '#ef4444';
   const secondaryHex = types[1] ? (COLORS[types[1].type.name] || primaryHex) : primaryHex;
   const pRgb = hexToRgb(primaryHex);
@@ -2103,13 +2156,16 @@ function updateCardAura(types) {
   card.style.borderColor = primaryHex;
   card.style.boxShadow = `0 14px 32px rgba(0,0,0,0.55), 0 0 24px rgba(${pRgb}, 0.45), inset 0 0 16px rgba(${sRgb}, 0.25)`;
 }
+
 async function fetchLoreAndEvolution(speciesUrl, fallbackId) {
   const loreBox = document.getElementById('pokeLore');
   const evoBox = document.getElementById('evoChain');
   if (!isSpinning) {
-    loreBox.innerText = "Accessing Pokédex lore...";
-    evoBox.style.display = 'none';
-    evoBox.innerHTML = '';
+    if (loreBox) loreBox.innerText = "Accessing Pokédex lore...";
+    if (evoBox) {
+      evoBox.style.display = 'none';
+      evoBox.innerHTML = '';
+    }
   }
   try {
     const url = speciesUrl || `https://pokeapi.co/api/v2/pokemon-species/${fallbackId}/`;
@@ -2118,20 +2174,23 @@ async function fetchLoreAndEvolution(speciesUrl, fallbackId) {
     const data = await res.json();
     if (isSpinning) return;
     const cleanSpeciesName = getCleanNationalDexName(data.name, (data.names && data.names.find(n => n.language.name === 'en')?.name));
-    document.getElementById('pokeName').innerText = cleanSpeciesName;
+    const pokeName = document.getElementById('pokeName');
+    if (pokeName) pokeName.innerText = cleanSpeciesName;
     const enEntry = data.flavor_text_entries ? data.flavor_text_entries.find(e => e.language.name === 'en') : null;
-    loreBox.innerText = enEntry ? enEntry.flavor_text.replace(/[\n\f\r]/g, ' ').replace(/\s+/g, ' ').trim() : "No Pokédex lore entry recorded.";
+    if (loreBox) loreBox.innerText = enEntry ? enEntry.flavor_text.replace(/[\n\f\r]/g, ' ').replace(/\s+/g, ' ').trim() : "No Pokédex lore entry recorded.";
     if (data.evolution_chain?.url) {
       const evoRes = await fetch(data.evolution_chain.url);
       const evoData = await evoRes.json();
       renderEvolutionChain(evoData.chain);
     }
   } catch (err) {
-    if (!isSpinning) loreBox.innerText = "PokéRoulette analyzer synchronized.";
+    if (!isSpinning && loreBox) loreBox.innerText = "PokéRoulette analyzer synchronized.";
   }
 }
+
 function renderEvolutionChain(chain) {
   const evoBox = document.getElementById('evoChain');
+  if (!evoBox) return;
   evoBox.innerHTML = '';
   const stages = [];
   let curr = chain;
@@ -2186,22 +2245,12 @@ function extractCardPriceGBP(card) {
   if (card.cardmarket && card.cardmarket.prices) {
     const cp = card.cardmarket.prices;
     const candidates = [
-      cp.trendPrice,
-      cp.averageSellPrice,
-      cp.avg7,
-      cp.avg30,
-      cp.avg1,
-      cp.lowPrice,
-      cp.reverseHoloTrend,
-      cp.reverseHoloAvg7,
-      cp.reverseHoloAvg30,
-      cp.reverseHoloSell
+      cp.trendPrice, cp.averageSellPrice, cp.avg7, cp.avg30, cp.avg1,
+      cp.lowPrice, cp.reverseHoloTrend, cp.reverseHoloAvg7, cp.reverseHoloAvg30, cp.reverseHoloSell
     ];
     for (const val of candidates) {
       const num = parseFloat(val);
-      if (!isNaN(num) && num > 0) {
-        return (num * EUR_TO_GBP).toFixed(2);
-      }
+      if (!isNaN(num) && num > 0) return (num * EUR_TO_GBP).toFixed(2);
     }
   }
   
@@ -2212,18 +2261,14 @@ function extractCardPriceGBP(card) {
       if (p[cat]) {
         const val = p[cat].market || p[cat].mid || p[cat].directLow || p[cat].low;
         const num = parseFloat(val);
-        if (!isNaN(num) && num > 0) {
-          return (num * USD_TO_GBP).toFixed(2);
-        }
+        if (!isNaN(num) && num > 0) return (num * USD_TO_GBP).toFixed(2);
       }
     }
     for (const key in p) {
       if (p[key] && typeof p[key] === 'object') {
         const val = p[key].market || p[key].mid || p[key].directLow || p[key].low;
         const num = parseFloat(val);
-        if (!isNaN(num) && num > 0) {
-          return (num * USD_TO_GBP).toFixed(2);
-        }
+        if (!isNaN(num) && num > 0) return (num * USD_TO_GBP).toFixed(2);
       }
     }
   }
@@ -2249,12 +2294,14 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);
     }
-    const stored = localStorage.getItem(cacheKey);
-    if (stored) {
-      const cached = JSON.parse(stored);
-      memoryTcgCache.set(cacheKey, cached);
-      return cached;
-    }
+    try {
+      const stored = localStorage.getItem(cacheKey);
+      if (stored) {
+        const cached = JSON.parse(stored);
+        memoryTcgCache.set(cacheKey, cached);
+        return cached;
+      }
+    } catch (e) {}
   }
   const primaryTerm = cleanName.includes('-') ? cleanName : cleanName.split(' ')[0];
   const fetchWithRetry = async (url, headers = {}, retries = 2, delay = 350) => {
@@ -2345,13 +2392,15 @@ async function fetchTcgCards(pokeName, speciesName) {
   const strip = document.getElementById('tcgStrip');
   const countText = document.getElementById('tcgCountText');
   if (!isSpinning) {
-    countText.innerText = "Loading cards...";
-    strip.innerHTML = `
-      <div class="tcg-skeleton-card"></div>
-      <div class="tcg-skeleton-card"></div>
-      <div class="tcg-skeleton-card"></div>
-      <div class="tcg-skeleton-card"></div>
-    `;
+    if (countText) countText.innerText = "Loading cards...";
+    if (strip) {
+      strip.innerHTML = `
+        <div class="tcg-skeleton-card"></div>
+        <div class="tcg-skeleton-card"></div>
+        <div class="tcg-skeleton-card"></div>
+        <div class="tcg-skeleton-card"></div>
+      `;
+    }
   }
   try {
     currentCardsList = await fetchTcgCardsData(pokeName, speciesName);
@@ -2369,12 +2418,13 @@ async function fetchTcgCards(pokeName, speciesName) {
 function renderTcgCards(cards) {
   const strip = document.getElementById('tcgStrip');
   const countText = document.getElementById('tcgCountText');
+  if (!strip) return;
   if (!cards || !cards.length) {
-    countText.innerText = "0 Cards";
+    if (countText) countText.innerText = "0 Cards";
     strip.innerHTML = '<div class="tcg-empty-msg" style="color:var(--sub);font-size:0.75rem;padding:1.5rem 0;text-align:center;width:100%;">No physical cards found</div>';
     return;
   }
-  countText.innerText = `${cards.length} Card${cards.length === 1 ? '' : 's'}`;
+  if (countText) countText.innerText = `${cards.length} Card${cards.length === 1 ? '' : 's'}`;
   strip.innerHTML = '';
   
   cards.forEach((card, index) => {
@@ -2391,14 +2441,17 @@ function renderTcgCards(cards) {
       <div class="tcg-card-num">#${card.number}</div>
     `;
     const checkCircle = node.querySelector('.card-check-circle');
-    checkCircle.onclick = (e) => {
-      e.stopPropagation();
-      currentCardsList = cards;
-      toggleCardCollection(card.id);
-      const owned = memCardCol.has(String(card.id));
-      checkCircle.classList.toggle('checked', owned);
-      node.querySelector('.tcg-thumb-frame').classList.toggle('card-owned', owned);
-    };
+    if (checkCircle) {
+      checkCircle.onclick = (e) => {
+        e.stopPropagation();
+        currentCardsList = cards;
+        toggleCardCollection(card.id);
+        const owned = memCardCol.has(String(card.id));
+        checkCircle.classList.toggle('checked', owned);
+        const tf = node.querySelector('.tcg-thumb-frame');
+        if (tf) tf.classList.toggle('card-owned', owned);
+      };
+    }
     node.onclick = (e) => {
       e.stopPropagation();
       currentCardsList = cards;
@@ -2412,16 +2465,21 @@ function openTcgZoom(index, fromModal = false) {
   openedFromDexModal = fromModal;
   currentZoomIndex = index;
   updateZoomModalContent();
-  document.getElementById('tcgZoomModal').style.display = 'flex';
+  const modal = document.getElementById('tcgZoomModal');
+  if (modal) modal.style.display = 'flex';
 }
 
 function updateZoomModalContent() {
   if (!currentCardsList.length) return;
   const card = currentCardsList[currentZoomIndex];
-  document.getElementById('tcgZoomImg').src = card.largeImg || card.smallImg;
-  document.getElementById('tcgZoomTitle').innerText = card.name;
-  document.getElementById('tcgZoomMeta').innerText = `${card.setName} · #${card.number}`;
-  document.getElementById('tcgZoomCounter').innerText = `${currentZoomIndex + 1} / ${currentCardsList.length}`;
+  const tcgZoomImg = document.getElementById('tcgZoomImg');
+  const tcgZoomTitle = document.getElementById('tcgZoomTitle');
+  const tcgZoomMeta = document.getElementById('tcgZoomMeta');
+  const tcgZoomCounter = document.getElementById('tcgZoomCounter');
+  if (tcgZoomImg) tcgZoomImg.src = card.largeImg || card.smallImg;
+  if (tcgZoomTitle) tcgZoomTitle.innerText = card.name;
+  if (tcgZoomMeta) tcgZoomMeta.innerText = `${card.setName} · #${card.number}`;
+  if (tcgZoomCounter) tcgZoomCounter.innerText = `${currentZoomIndex + 1} / ${currentCardsList.length}`;
   const priceValEl = document.getElementById('tcgZoomPriceVal');
   if (priceValEl) {
     priceValEl.innerText = card.priceGBP ? `£${card.priceGBP}` : 'Market N/A';
@@ -2476,23 +2534,30 @@ if (zoomViewArea) {
 }
 
 function closeTcgZoom() {
-  document.getElementById('tcgZoomModal').style.display = 'none';
+  const modal = document.getElementById('tcgZoomModal');
+  if (modal) modal.style.display = 'none';
   if (openedFromDexModal && activeDexModalPoke) {
     openDexCardsModal(activeDexModalPoke);
   }
 }
 
 function updateBtn(owned) {
-  document.getElementById('colBtn').classList.toggle('active', owned);
-  document.getElementById('cardTick').classList.toggle('active', owned);
-  document.getElementById('colIcon').innerText = owned ? '✓' : '+';
-  document.getElementById('colTxt').innerText = owned ? 'In Collection (Tap to remove)' : 'Add to Collection';
+  const colBtn = document.getElementById('colBtn');
+  const cardTick = document.getElementById('cardTick');
+  const colIcon = document.getElementById('colIcon');
+  const colTxt = document.getElementById('colTxt');
+  if (colBtn) colBtn.classList.toggle('active', owned);
+  if (cardTick) cardTick.classList.toggle('active', owned);
+  if (colIcon) colIcon.innerText = owned ? '✓' : '+';
+  if (colTxt) colTxt.innerText = owned ? 'In Collection (Tap to remove)' : 'Add to Collection';
 }
 
 function hideActive() {
   document.body.classList.remove('has-active');
-  document.getElementById('pokeCard').style.display = 'none';
-  document.getElementById('spinBtn').innerText = "SPIN & GENERATE";
+  const pokeCard = document.getElementById('pokeCard');
+  const spinBtn = document.getElementById('spinBtn');
+  if (pokeCard) pokeCard.style.display = 'none';
+  if (spinBtn) spinBtn.innerText = "SPIN & GENERATE";
   curId = curPoke = null;
   currentCardsList = [];
 }
@@ -2506,6 +2571,7 @@ function handleSpinButtonClick() {
 
 function handleSearch(val) {
   const l = document.getElementById('sList'), v = val.trim().toLowerCase().replace('#','');
+  if (!l) return;
   if (!v || !dir.length) return l.style.display = 'none';
   const isN = !isNaN(parseInt(v));
   const m = dir.filter(p => isN ? (p.id === parseInt(v) || String(p.id).startsWith(v)) : p.cleanName.toLowerCase().includes(v)).slice(0, 7);
@@ -2521,12 +2587,15 @@ function handleSearch(val) {
 }
 
 function submitSearch() {
-  const f = document.getElementById('sList').querySelector('li');
-  f ? f.onmousedown() : handleSearch(document.getElementById('sInput').value);
+  const sList = document.getElementById('sList');
+  const f = sList ? sList.querySelector('li') : null;
+  const sInput = document.getElementById('sInput');
+  f ? f.onmousedown() : handleSearch(sInput ? sInput.value : '');
 }
 
 async function loadPoke(id, dir = 0, log = false) {
-  document.getElementById('sList').style.display = 'none';
+  const sList = document.getElementById('sList');
+  if (sList) sList.style.display = 'none';
   const input = document.getElementById('sInput');
   if (input) {
     input.value = '';
@@ -2537,9 +2606,11 @@ async function loadPoke(id, dir = 0, log = false) {
     const data = await res.json();
     const targetDeg = (270 - (TYPES.indexOf(data.types[0].type.name) * 20 + 10) + 360) % 360;
     const w = document.getElementById('wheel');
-    w.style.transition = 'none';
-    rot = targetDeg;
-    w.style.transform = `rotate(${rot}deg)`;
+    if (w) {
+      w.style.transition = 'none';
+      rot = targetDeg;
+      w.style.transform = `rotate(${rot}deg)`;
+    }
     renderCard(data, dir, false);
     if (log) addRec(data);
   } catch (e) {
@@ -2557,16 +2628,19 @@ function navigateDex(d) {
 
 async function spinAndPick() {
   initAudio();
-  document.getElementById('sList').style.display = 'none';
+  const sList = document.getElementById('sList');
+  if (sList) sList.style.display = 'none';
   const btn = document.getElementById('spinBtn'), w = document.getElementById('wheel');
-  btn.disabled = true;
+  if (btn) btn.disabled = true;
   isSpinning = true;
   hideActive();
   const idx = Math.floor(Math.random() * TYPES.length);
   const targetDeg = (270 - (idx * 20 + 10) + 360) % 360;
-  w.style.transition = 'transform 3.2s cubic-bezier(0.12, 0.9, 0.18, 1)';
-  rot += (Math.floor(Math.random() * 3) + 4) * 360 + ((targetDeg - (rot % 360) + 360) % 360);
-  w.style.transform = `rotate(${rot}deg)`;
+  if (w) {
+    w.style.transition = 'transform 3.2s cubic-bezier(0.12, 0.9, 0.18, 1)';
+    rot += (Math.floor(Math.random() * 3) + 4) * 360 + ((targetDeg - (rot % 360) + 360) % 360);
+    w.style.transform = `rotate(${rot}deg)`;
+  }
   let delay = 0, iv = 45;
   while (delay < 3000) {
     setTimeout(playTick, delay);
@@ -2588,12 +2662,12 @@ async function spinAndPick() {
       addRec(pData);
       playCry();
       if (shiny) triggerSparkle();
-      btn.disabled = false;
+      if (btn) btn.disabled = false;
     }, 3200);
   } catch (e) {
     console.error(e);
     isSpinning = false;
-    btn.disabled = false;
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -2602,61 +2676,78 @@ function renderCard(p, dir = 0, shiny = false) {
   curPoke = p;
   isShiny = shiny;
   document.body.classList.add('has-active');
-  document.getElementById('spinBtn').innerText = "SPIN AGAIN";
+  const spinBtn = document.getElementById('spinBtn');
+  if (spinBtn) spinBtn.innerText = "SPIN AGAIN";
   const card = document.getElementById('pokeCard');
-  document.getElementById('dexNum').innerText = `#${String(p.id).padStart(4,'0')}`;
+  const dexNum = document.getElementById('dexNum');
+  if (dexNum) dexNum.innerText = `#${String(p.id).padStart(4,'0')}`;
   const cleanName = getCleanNationalDexName(p.name, p.species?.name);
-  document.getElementById('pokeName').innerText = cleanName;
+  const pokeName = document.getElementById('pokeName');
+  if (pokeName) pokeName.innerText = cleanName;
   updateArt();
   updateCardAura(p.types);
   fetchLoreAndEvolution(p.species?.url, p.id);
   fetchTcgCards(p.name, p.species?.name);
   const tBox = document.getElementById('pokeTypes');
-  tBox.innerHTML = '';
-  p.types.forEach(t => {
-    const pill = document.createElement('span');
-    pill.className = 'pill';
-    pill.innerText = t.type.name;
-    pill.style.backgroundColor = COLORS[t.type.name] || '#334155';
-    tBox.appendChild(pill);
-  });
-  document.getElementById('sH').innerText = `${p.height / 10} m`;
-  document.getElementById('sW').innerText = `${p.weight / 10} kg`;
+  if (tBox) {
+    tBox.innerHTML = '';
+    p.types.forEach(t => {
+      const pill = document.createElement('span');
+      pill.className = 'pill';
+      pill.innerText = t.type.name;
+      pill.style.backgroundColor = COLORS[t.type.name] || '#334155';
+      tBox.appendChild(pill);
+    });
+  }
+  const sH = document.getElementById('sH');
+  const sW = document.getElementById('sW');
+  if (sH) sH.innerText = `${p.height / 10} m`;
+  if (sW) sW.innerText = `${p.weight / 10} kg`;
   const st = {};
   p.stats.forEach(s => st[s.stat.name] = s.base_stat);
-  document.getElementById('sHp').innerText = st.hp || '-';
-  document.getElementById('sAtk').innerText = st.attack || '-';
-  document.getElementById('sDef').innerText = st.defense || '-';
-  document.getElementById('sSpd').innerText = st.speed || '-';
-  updateBtn(memCol.has(p.id));
-  card.style.display = 'block';
+  const sHp = document.getElementById('sHp');
+  const sAtk = document.getElementById('sAtk');
+  const sDef = document.getElementById('sDef');
+  const sSpd = document.getElementById('sSpd');
+  if (sHp) sHp.innerText = st.hp || '-';
+  if (sAtk) sAtk.innerText = st.attack || '-';
+  if (sDef) sDef.innerText = st.defense || '-';
+  if (sSpd) sSpd.innerText = st.speed || '-';
+  updateBtn(memCol.has(parseInt(p.id, 10)));
+  if (card) card.style.display = 'block';
 }
 
 let tX = 0, tY = 0, isSwipeRestricted = false;
 const cardEl = document.getElementById('pokeCard');
-cardEl.addEventListener('touchstart', e => {
-  isSwipeRestricted = Boolean(e.target.closest('#tcgWrap, #tcgStrip, #evoChain'));
-  tX = e.changedTouches[0].screenX;
-  tY = e.changedTouches[0].screenY;
-}, { passive: true });
-cardEl.addEventListener('touchend', e => {
-  if (isSwipeRestricted || Boolean(e.target.closest('#tcgWrap, #tcgStrip, #evoChain'))) {
-    return;
-  }
-  const dX = e.changedTouches[0].screenX - tX;
-  const dY = e.changedTouches[0].screenY - tY;
-  if (Math.abs(dX) > 40 && Math.abs(dX) > Math.abs(dY) * 1.3) {
-    navigateDex(dX < 0 ? 1 : -1);
-  }
-}, { passive: true });
+if (cardEl) {
+  cardEl.addEventListener('touchstart', e => {
+    isSwipeRestricted = Boolean(e.target.closest('#tcgWrap, #tcgStrip, #evoChain'));
+    tX = e.changedTouches[0].screenX;
+    tY = e.changedTouches[0].screenY;
+  }, { passive: true });
+  cardEl.addEventListener('touchend', e => {
+    if (isSwipeRestricted || Boolean(e.target.closest('#tcgWrap, #tcgStrip, #evoChain'))) {
+      return;
+    }
+    const dX = e.changedTouches[0].screenX - tX;
+    const dY = e.changedTouches[0].screenY - tY;
+    if (Math.abs(dX) > 40 && Math.abs(dX) > Math.abs(dY) * 1.3) {
+      navigateDex(dX < 0 ? 1 : -1);
+    }
+  }, { passive: true });
+}
 
 const tcgStripEl = document.getElementById('tcgStrip');
-tcgStripEl.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
-tcgStripEl.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
-tcgStripEl.addEventListener('touchend', e => e.stopPropagation(), { passive: true });
+if (tcgStripEl) {
+  tcgStripEl.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+  tcgStripEl.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
+  tcgStripEl.addEventListener('touchend', e => e.stopPropagation(), { passive: true });
+}
 
 document.addEventListener('click', e => {
-  if (!e.target.closest('.search-wrap')) document.getElementById('sList').style.display = 'none';
+  const sw = e.target.closest('.search-wrap');
+  const sl = document.getElementById('sList');
+  if (!sw && sl) sl.style.display = 'none';
 });
 
 (async () => {
@@ -2670,7 +2761,9 @@ document.addEventListener('click', e => {
       name: p.name,
       cleanName: getCleanNationalDexName(p.name)
     }));
-  } catch (e) {}
+  } catch (e) {
+    console.error("Pokédex preload error:", e);
+  }
 })();
 </script>
 </body>

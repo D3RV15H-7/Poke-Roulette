@@ -1616,16 +1616,30 @@ function saveLocalState() {
 }
 
 async function writeFullCollectionToCloud() {
-  if (currentUser && db) {
-    try {
-      await db.collection("users").doc(currentUser.uid).set({
-        collection: Array.from(memCol),
-        cardsCollection: Array.from(memCardCol)
-      }, { merge: true });
-    } catch (err) {
-      console.error("Cloud write failed:", err);
-    }
+  if (!currentUser) {
+    console.warn("Cannot sync: No user currently logged in.");
+    return;
   }
+  if (!db) {
+    alert("Firestore DB object is not initialized. Check your firebaseConfig.");
+    return;
+  }
+
+  try {
+    const payload = {
+      collection: Array.from(memCol),
+      cardsCollection: Array.from(memCardCol),
+      updatedAt: new Date().toISOString()
+    };
+    
+    console.log("Attempting write to UID:", currentUser.uid, payload);
+    await db.collection("users").doc(currentUser.uid).set(payload, { merge: true });
+    console.log("✅ Cloud Write Succeeded!");
+  } catch (err) {
+    console.error("❌ Cloud Write Failed:", err);
+    alert("Firestore Write Error: " + err.code + " - " + err.message);
+  }
+}
 }
 
 function toggleCollect() {

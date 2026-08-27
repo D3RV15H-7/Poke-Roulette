@@ -74,7 +74,6 @@ header {
   align-items: center;
   gap: 0.2rem;
 }
-/* Full Pokémon Solid Typography for both Poké and Roulette */
 header h1 {
   font-family: 'Pokemon Solid', 'Plus Jakarta Sans', sans-serif !important;
   font-weight: normal;
@@ -205,7 +204,6 @@ header h1 span {
   border-bottom: none;
 }
 
-/* Responsive Dynamic Wheel Container */
 .wheel-wrap {
   position: relative;
   width: clamp(220px, 42dvh, 340px);
@@ -242,24 +240,24 @@ body.has-active .wheel-wrap {
   border-radius: 50%;
   border: clamp(3px, 0.5dvh, 5px) solid var(--card);
   background: conic-gradient(
-    #ECE8D7 0deg 20deg,    /* normal */
-    #EE3F24 20deg 40deg,   /* fire */
-    #1790EE 40deg 60deg,   /* water */
-    #23B938 60deg 80deg,   /* grass */
-    #FFDE00 80deg 100deg,  /* electric */
-    #69DCF4 100deg 120deg, /* ice */
-    #E85523 120deg 140deg, /* fighting */
-    #B844C8 140deg 160deg, /* poison */
-    #E5BF62 160deg 180deg, /* ground */
-    #9BB7F5 180deg 200deg, /* flying */
-    #F34C89 200deg 220deg, /* psychic */
-    #98CE1E 220deg 240deg, /* bug */
-    #D19B27 240deg 260deg, /* rock */
-    #714EB8 260deg 280deg, /* ghost */
-    #D6A900 280deg 300deg, /* dragon */
-    #2D5E7B 300deg 320deg, /* dark */
-    #8DA5B4 320deg 340deg, /* steel */
-    #EA6FC2 340deg 360deg  /* fairy */
+    #ECE8D7 0deg 20deg,
+    #EE3F24 20deg 40deg,
+    #1790EE 40deg 60deg,
+    #23B938 60deg 80deg,
+    #FFDE00 80deg 100deg,
+    #69DCF4 100deg 120deg,
+    #E85523 120deg 140deg,
+    #B844C8 140deg 160deg,
+    #E5BF62 160deg 180deg,
+    #9BB7F5 180deg 200deg,
+    #F34C89 200deg 220deg,
+    #98CE1E 220deg 240deg,
+    #D19B27 240deg 260deg,
+    #714EB8 260deg 280deg,
+    #D6A900 280deg 300deg,
+    #2D5E7B 300deg 320deg,
+    #8DA5B4 320deg 340deg,
+    #EA6FC2 340deg 360deg
   );
   box-shadow: 0 16px 36px rgba(0,0,0,0.65);
 }
@@ -286,7 +284,6 @@ body.has-active .wheel-wrap {
   white-space: nowrap;
 }
 
-/* Left Pointer Configuration */
 .pointer {
   position: absolute;
   top: 50%;
@@ -382,7 +379,6 @@ body.has-active .btn-close {
   100% { opacity: 1; transform: scale(1) rotate(0deg); }
 }
 
-/* Compact Auto-Wrapping Card */
 .card {
   width: 100%;
   max-width: 440px;
@@ -1291,7 +1287,6 @@ body.has-active .hub-item-label {
     <button class="btn-close" id="closeBtn" onclick="hideActive()" title="Hide Pokémon View">✕</button>
   </div>
 
-  <!-- Active Pokémon Details & TCG Card Variation Strip -->
   <div class="card" id="pokeCard">
     <div class="card-nav">
       <button onclick="navigateDex(-1)">‹</button>
@@ -1337,7 +1332,6 @@ body.has-active .hub-item-label {
     </div>
   </div>
 
-  <!-- Navigation Hub & Collection Count below icons -->
   <div class="hub-outer-wrap">
     <div class="hub">
       <div class="hub-item-wrap">
@@ -1544,7 +1538,6 @@ const PRESERVED_HYPHEN_POKEMON = new Set([ 'chien-pao', 'ting-lu', 'chi-yu', 'wo
 
 // --- Rarity Weight Hierarchy (Higher number = Rarer) ---
 const RARITY_TIERS = {
-  // Ultra High-End / Secret / Special Rares
   'hyper rare': 100,
   'special illustration rare': 95,
   'secret rare': 90,
@@ -1561,8 +1554,6 @@ const RARITY_TIERS = {
   'trainer gallery rare holo': 65,
   'galarian gallery': 65,
   'ace spec rare': 60,
-
-  // Mid / Holographic / V-Tier
   'rare holo vmax': 55,
   'rare holo vstar': 55,
   'rare holo ex': 52,
@@ -1575,14 +1566,10 @@ const RARITY_TIERS = {
   'rare shiny': 42,
   'promo': 40,
   'promo rare': 40,
-
-  // Standard Rares
   'rare': 30,
   'rare ace': 30,
   'rare prism': 30,
   'rare break': 30,
-
-  // Lower Rarities
   'uncommon': 20,
   'common': 10
 };
@@ -1591,7 +1578,6 @@ function getRarityScore(rarityStr) {
   if (!rarityStr || typeof rarityStr !== 'string') return 0;
   const clean = rarityStr.toLowerCase().trim();
   if (RARITY_TIERS[clean] !== undefined) return RARITY_TIERS[clean];
-
   for (const [key, score] of Object.entries(RARITY_TIERS)) {
     if (clean.includes(key)) return score;
   }
@@ -1675,6 +1661,7 @@ function resolveSetName(setObj, cardId = '') {
   }
   return 'Promo';
 }
+
 function isDigitalOnlyCard(card) {
   const setId = String(card.set?.id || '').toLowerCase().trim();
   const cardId = String(card.id || '').toLowerCase().trim();
@@ -1718,21 +1705,30 @@ function getCardStorageKey() {
 }
 const getCol = () => new Set(JSON.parse(localStorage.getItem(getStorageKey()) || '[]'));
 const getCardCol = () => new Set(JSON.parse(localStorage.getItem(getCardStorageKey()) || '[]'));
+
 const saveCol = (s, skipCloud = false) => {
   const arr = [...s];
   localStorage.setItem(getStorageKey(), JSON.stringify(arr));
   updateCounts();
   renderRecents();
   if (curId) updateBtn(s.has(curId));
+  if (document.getElementById('dexModal').style.display === 'flex') {
+    renderDex();
+  }
   if (!skipCloud) syncCollectionToCloud(arr);
 };
+
 const saveCardCol = (s, skipCloud = false) => {
   const arr = [...s];
   localStorage.setItem(getCardStorageKey(), JSON.stringify(arr));
   if (!skipCloud && currentUser && db) {
-    db.collection("users").doc(currentUser.uid).set({ cardsCollection: arr, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }).catch(err => console.error("Card cloud save error:", err));
+    db.collection("users").doc(currentUser.uid).set({ 
+      cardsCollection: arr, 
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp() 
+    }, { merge: true }).catch(err => console.error("Card cloud save error:", err));
   }
 };
+
 function syncBasePokemonFromCards() {
   if (!curId) return;
   const cardCol = getCardCol();
@@ -1771,16 +1767,20 @@ function updateCounts() {
   document.getElementById('tMissing').innerText = TOTAL - s.size;
   document.getElementById('bagBadge').innerText = s.size;
 }
+
 async function syncCollectionToCloud(array) {
-  const uid = getActiveUid();
-  if (uid && db) {
+  if (currentUser && db) {
     try {
-      await db.collection("users").doc(uid).set({ collection: array, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      await db.collection("users").doc(currentUser.uid).set({ 
+        collection: array, 
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp() 
+      }, { merge: true });
     } catch (err) {
       console.error("Cloud write error:", err);
     }
   }
 }
+
 let firestoreUnsubscribe = null;
 if (auth) {
   auth.onAuthStateChanged(async user => {
@@ -1801,6 +1801,7 @@ if (auth) {
       emailSpan.innerText = user.email || 'User Account';
       accountLabel.innerText = 'Profile';
       accountLabel.style.color = 'var(--green)';
+
       firestoreUnsubscribe = db.collection("users").doc(user.uid).onSnapshot(doc => {
         if (doc.exists) {
           const data = doc.data();
@@ -1811,10 +1812,26 @@ if (auth) {
             saveCardCol(new Set(data.cardsCollection), true);
           }
         } else {
+          // If a brand new cloud record, back up any pre-existing local data
           const local = getCol();
-          if (local.size > 0) syncCollectionToCloud([...local]);
+          const localCards = getCardCol();
+          if (local.size > 0 || localCards.size > 0) {
+            db.collection("users").doc(user.uid).set({
+              collection: [...local],
+              cardsCollection: [...localCards],
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+          }
         }
-      }, err => console.error("Cloud snapshot error:", err));
+        updateCounts();
+        if (curId) {
+          updateBtn(getCol().has(curId));
+          if (currentCardsList.length) renderTcgCards(currentCardsList);
+        }
+      }, err => {
+        console.error("Cloud snapshot error:", err);
+        showAuthError("Database sync failed. Check Firestore rules.");
+      });
     } else {
       cachedUid = null;
       localStorage.removeItem('p_last_uid');
@@ -1828,6 +1845,7 @@ if (auth) {
     }
   });
 }
+
 async function handleEmailAuth(isSignUp) {
   if (!auth) return alert("Please configure Firebase keys first.");
   const email = document.getElementById('authEmail').value.trim();
@@ -1844,15 +1862,18 @@ async function handleEmailAuth(isSignUp) {
     showAuthError(err.message);
   }
 }
+
 async function handleSignOut() {
   if (auth) await auth.signOut();
   closeModal(null, 'accountModal');
 }
+
 function showAuthError(msg) {
   const el = document.getElementById('authErrorMsg');
   el.innerText = msg;
   el.style.display = 'block';
 }
+
 function openModal(id) {
   if (id === 'dexModal') {
     dexQuery = '';
@@ -1906,6 +1927,7 @@ function renderDex() {
     g.appendChild(d);
   });
 }
+
 async function openDexCardsModal(p, bypassCache = false) {
   activeDexModalPoke = p;
   const modal = document.getElementById('dexCardsModal');
@@ -2289,7 +2311,6 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
     priceGBP: extractCardPriceGBP(c)
   }));
 
-  // Sort: Highest rarity score first -> Secondary sort by estimated GBP market value
   formattedCards.sort((a, b) => {
     if (b.rarityScore !== a.rarityScore) {
       return b.rarityScore - a.rarityScore;

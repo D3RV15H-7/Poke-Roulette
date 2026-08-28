@@ -1649,28 +1649,30 @@ function toggleCollect() {
   writeFullCollectionToCloud();
 }
 
-function toggleCardCollection(cardId) {
+function toggleCardCollection(cardId, pokemonId = null) {
   initAudio();
   playTick();
   const cId = String(cardId);
+  const targetPokeId = parseInt(pokemonId || curId || activeDexModalPoke?.id, 10);
+
   if (memCardCol.has(cId)) {
     memCardCol.delete(cId);
   } else {
     memCardCol.add(cId);
   }
-  saveLocalState();
-  syncBasePokemonFromCards();
-  writeFullCollectionToCloud();
-}
 
-function syncBasePokemonFromCards() {
-  if (!curId) return;
-  const idNum = parseInt(curId, 10);
-  const hasOwnedCard = currentCardsList.some(c => memCardCol.has(String(c.id)));
-  if (hasOwnedCard && !memCol.has(idNum)) {
-    memCol.add(idNum);
-    saveLocalState();
+  // Check if any cards from the active Pokémon species are selected
+  if (targetPokeId && currentCardsList.length > 0) {
+    const hasAnyCardChecked = currentCardsList.some(c => memCardCol.has(String(c.id)));
+    if (hasAnyCardChecked) {
+      memCol.add(targetPokeId);
+    } else {
+      memCol.delete(targetPokeId);
+    }
   }
+
+  saveLocalState();
+  writeFullCollectionToCloud();
 }
 
 function toTitleCase(str) {
@@ -1961,17 +1963,12 @@ function renderDex() {
     const owned = memCol.has(p.id), d = document.createElement('div');
     d.className = `dex-item ${owned ? 'owned' : 'unowned'}`;
     d.innerHTML = `${owned ? '<div style="position:absolute;top:3px;right:3px;background:var(--green);color:#fff;font-size:0.52rem;font-weight:900;width:13px;height:13px;border-radius:50%;display:flex;align-items:center;justify-content:center;">✓</div>' : ''}<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png" loading="lazy"/><div style="font-size:0.62rem;font-weight:800;color:var(--sub)">#${String(p.id).padStart(4,'0')}</div><div style="font-size:0.65rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.cleanName}</div>`;
-    let holdTimer = null;
-    d.addEventListener('touchstart', () => { holdTimer = setTimeout(() => openDexCardsModal(p), 450); }, { passive: true });
-    d.addEventListener('touchend', () => clearTimeout(holdTimer), { passive: true });
-    d.addEventListener('touchmove', () => clearTimeout(holdTimer), { passive: true });
-    d.addEventListener('contextmenu', (e) => e.preventDefault());
-    d.addEventListener('mousedown', () => { holdTimer = setTimeout(() => openDexCardsModal(p), 450); });
-    d.addEventListener('mouseup', () => clearTimeout(holdTimer));
-    d.addEventListener('mouseleave', () => clearTimeout(holdTimer));
+    
+    // Single-Tap directly opens card variations
     d.onclick = () => {
-      curId = p.id;
-      toggleCollect();
+      initAudio();
+      playTick();
+      openDexCardsModal(p);
     };
     g.appendChild(d);
   });
@@ -1988,6 +1985,7 @@ async function openDexCardsModal(p, bypassCache = false) {
   if (modal) modal.style.display = 'flex';
   try {
     const cardsList = await fetchTcgCardsData(p.name, p.species?.name, bypassCache);
+    currentCardsList = cardsList;
     if (!grid) return;
     grid.innerHTML = cardsList.length ? '' : '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">No physical cards found</div>';
     
@@ -2008,34 +2006,23 @@ async function openDexCardsModal(p, bypassCache = false) {
       if (checkCircle) {
         checkCircle.onclick = (e) => {
           e.stopPropagation();
-          curId = p.id;
           currentCardsList = cardsList;
-          toggleCardCollection(card.id);
+          toggleCardCollection(card.id, p.id);
           const owned = memCardCol.has(String(card.id));
           checkCircle.classList.toggle('checked', owned);
           const tf = cell.querySelector('.tcg-thumb-frame');
           if (tf) tf.classList.toggle('card-owned', owned);
         };
       }
-      let holdTimer = null;
-      cell.addEventListener('touchstart', () => {
-        holdTimer = setTimeout(() => {
-          closeDexCardsModal();
-          currentCardsList = cardsList;
-          openTcgZoom(index, true);
-        }, 450);
-      }, { passive: true });
-      cell.addEventListener('touchend', () => clearTimeout(holdTimer), { passive: true });
-      cell.addEventListener('touchmove', () => clearTimeout(holdTimer), { passive: true });
-      cell.addEventListener('mousedown', () => {
-        holdTimer = setTimeout(() => {
-          closeDexCardsModal();
-          currentCardsList = cardsList;
-          openTcgZoom(index, true);
-        }, 450);
-      });
-      cell.addEventListener('mouseup', () => clearTimeout(holdTimer));
-      cell.addEventListener('mouseleave', () => clearTimeout(holdTimer));
+      
+      // Tap card preview opens zoom view
+      cell.onclick = (e) => {
+        if (e.target.closest('.card-check-circle')) return;
+        closeDexCardsModal();
+        currentCardsList = cardsList;
+        openTcgZoom(index, true);
+      };
+
       grid.appendChild(cell);
     });
   } catch (e) {
@@ -2445,7 +2432,7 @@ function renderTcgCards(cards) {
       checkCircle.onclick = (e) => {
         e.stopPropagation();
         currentCardsList = cards;
-        toggleCardCollection(card.id);
+        toggleCardCollection(card.id, curId);
         const owned = memCardCol.has(String(card.id));
         checkCircle.classList.toggle('checked', owned);
         const tf = node.querySelector('.tcg-thumb-frame');
@@ -2501,7 +2488,8 @@ function toggleZoomCardOwned(e) {
   if (e) e.stopPropagation();
   if (!currentCardsList.length) return;
   const card = currentCardsList[currentZoomIndex];
-  toggleCardCollection(card.id);
+  const targetPokeId = activeDexModalPoke?.id || curId;
+  toggleCardCollection(card.id, targetPokeId);
   updateZoomModalContent();
   if (curId) renderTcgCards(currentCardsList);
 }

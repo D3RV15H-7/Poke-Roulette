@@ -1530,6 +1530,13 @@ const KNOWN_SETS = {
   'me04': 'Chaos Rising', 'me4': 'Chaos Rising', 'chr': 'Chaos Rising',
   'me05': 'Pitch Black', 'me5': 'Pitch Black', 'pbl': 'Pitch Black',
 
+  // McDonald's Collections
+  'mcd11': "McDonald's Collection 2011", 'mcd12': "McDonald's Collection 2012", 'mcd14': "McDonald's Collection 2014",
+  'mcd15': "McDonald's Collection 2015", 'mcd16': "McDonald's Collection 2016", 'mcd17': "McDonald's Collection 2017",
+  'mcd18': "McDonald's Collection 2018", 'mcd19': "McDonald's Collection 2019", 'mcd21': "McDonald's Collection 2021",
+  'mcd22': "McDonald's Collection 2022", 'mcd23': "McDonald's Collection 2023", 'mcd24': "McDonald's Collection 2024",
+  '2021swsh': "McDonald's Collection 2021", '2022swsh': "McDonald's Collection 2022", '2023sv': "McDonald's Collection 2023",
+
   // Special Sets & Promos
   'ru1': 'Pokémon Rumble', 'rumble': 'Pokémon Rumble',
   'pop1': 'POP Series 1', 'pop2': 'POP Series 2', 'pop3': 'POP Series 3', 'pop4': 'POP Series 4', 'pop5': 'POP Series 5',
@@ -1718,19 +1725,16 @@ function getCleanNationalDexName(pokeName, speciesName) {
 }
 
 function resolveSetName(setObj, cardId = '') {
-  // 1. Direct Set ID mapping
   if (setObj?.id) {
     const idLower = String(setObj.id).toLowerCase().trim();
     if (KNOWN_SETS[idLower]) return KNOWN_SETS[idLower];
   }
 
-  // 2. Card ID prefix mapping (e.g., "pfl-022" -> "pfl" -> Phantasmal Flames)
   if (cardId && typeof cardId === 'string' && cardId.includes('-')) {
     const prefix = cardId.split('-')[0].toLowerCase().trim();
     if (KNOWN_SETS[prefix]) return KNOWN_SETS[prefix];
   }
 
-  // 3. Official Set Name provided by API
   if (setObj?.name) {
     const nameClean = String(setObj.name).trim();
     const lowerName = nameClean.toLowerCase();
@@ -1740,7 +1744,6 @@ function resolveSetName(setObj, cardId = '') {
     }
   }
 
-  // 4. Series fallback
   if (setObj?.series && typeof setObj.series === 'string') {
     const sClean = setObj.series.trim();
     if (sClean && !['promo', 'promos'].includes(sClean.toLowerCase())) {
@@ -1760,6 +1763,15 @@ function isDigitalOnlyCard(card) {
   if (DIGITAL_SET_BLACKLIST.has(prefix)) return true;
   if (DIGITAL_EXPANSION_NAMES.some(n => setName.includes(n))) return true;
   return false;
+}
+
+function isValidFrontCardImage(url) {
+  if (!url || typeof url !== 'string') return false;
+  const lower = url.toLowerCase().trim();
+  if (lower.includes('undefined') || lower.includes('/back.') || lower.includes('cardback') || lower.includes('/placeholder.')) {
+    return false;
+  }
+  return true;
 }
 
 function buildLabels() {
@@ -2331,7 +2343,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
           allCards = json.map(c => ({
             id: c.id,
             name: c.name,
-            images: { small: `${c.image}/low.webp`, large: `${c.image}/high.webp` },
+            images: { small: c.image ? `${c.image}/low.webp` : '', large: c.image ? `${c.image}/high.webp` : '' },
             set: { name: c.set?.name || '', id: c.set?.id || '', printedTotal: c.set?.cardCount?.official || 0 },
             number: c.localId || '?',
             rarity: c.rarity || 'Common',
@@ -2345,7 +2357,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const physicalSpeciesCards = allCards
     .filter(c => !isDigitalOnlyCard(c))
     .filter(c => matchesExactPokemonName(c.name, cleanName))
-    .filter(c => c.images?.small && typeof c.images.small === 'string' && !c.images.small.includes('undefined'));
+    .filter(c => isValidFrontCardImage(c.images?.small));
 
   const formattedCards = physicalSpeciesCards.map(c => ({
     id: c.id,

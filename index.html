@@ -1497,15 +1497,16 @@ const KNOWN_SETS = {
   'sm1': 'Sun & Moon', 'sm2': 'Guardians Rising', 'sm3': 'Burning Shadows', 'sm35': 'Shining Legends', 
   'sm4': 'Crimson Invasion', 'sm5': 'Ultra Prism', 'sm6': 'Forbidden Light', 'sm7': 'Celestial Storm', 
   'sm75': 'Dragon Majesty', 'sm8': 'Lost Thunder', 'sm9': 'Team Up', 'sm10': 'Unbroken Bonds', 
-  'sm11': 'Unified Minds', 'sm115': 'Hidden Fates', 'sm12': 'Cosmic Eclipse', 
+  'sm11': 'Unified Minds', 'sm115': 'Hidden Fates', 'sm12': 'Cosmic Eclipse', 'det1': 'Detective Pikachu', 'sma': 'Detective Pikachu',
 
   // Sword & Shield
   'swsh1': 'Sword & Shield', 'swsh2': 'Rebel Clash', 'swsh3': 'Darkness Ablaze', 'swsh35': 'Champion\'s Path', 
   'swsh4': 'Vivid Voltage', 'swsh45': 'Shining Fates', 'swsh5': 'Battle Styles', 'swsh6': 'Chilling Reign', 
-  'swsh7': 'Evolving Skies', 'cel25': 'Celebrations', 'swsh8': 'Fusion Strike', 'swsh9': 'Brilliant Stars', 
-  'swsh9tg': 'Brilliant Stars TG', 'swsh10': 'Astral Radiance', 'swsh10tg': 'Astral Radiance TG', 'pgo': 'Pokémon GO', 
-  'swsh11': 'Lost Origin', 'swsh11tg': 'Lost Origin TG', 'swsh12': 'Silver Tempest', 'swsh12tg': 'Silver Tempest TG', 
-  'swsh12pt5': 'Crown Zenith', 'swsh12pt5gg': 'Crown Zenith Galarian Gallery', 'crzgg': 'Crown Zenith Galarian Gallery', 
+  'swsh7': 'Evolving Skies', 'cel25': 'Celebrations', 'cel25c': 'Celebrations Classic Collection',
+  'swsh8': 'Fusion Strike', 'swsh9': 'Brilliant Stars', 'swsh9tg': 'Brilliant Stars TG', 'swsh10': 'Astral Radiance', 
+  'swsh10tg': 'Astral Radiance TG', 'pgo': 'Pokémon GO', 'swsh11': 'Lost Origin', 'swsh11tg': 'Lost Origin TG', 
+  'swsh12': 'Silver Tempest', 'swsh12tg': 'Silver Tempest TG', 'swsh12pt5': 'Crown Zenith', 
+  'swsh12pt5gg': 'Crown Zenith Galarian Gallery', 'crzgg': 'Crown Zenith Galarian Gallery', 
 
   // Scarlet & Violet
   'sv1': 'Scarlet & Violet', 'sv01': 'Scarlet & Violet', 'sve': 'Scarlet & Violet', 'sv1en': 'Scarlet & Violet',
@@ -1529,7 +1530,10 @@ const KNOWN_SETS = {
   'me04': 'Chaos Rising', 'me4': 'Chaos Rising', 'chr': 'Chaos Rising',
   'me05': 'Pitch Black', 'me5': 'Pitch Black', 'pbl': 'Pitch Black',
 
-  // Promos
+  // Special Sets & Promos
+  'ru1': 'Pokémon Rumble', 'rumble': 'Pokémon Rumble',
+  'pop1': 'POP Series 1', 'pop2': 'POP Series 2', 'pop3': 'POP Series 3', 'pop4': 'POP Series 4', 'pop5': 'POP Series 5',
+  'pop6': 'POP Series 6', 'pop7': 'POP Series 7', 'pop8': 'POP Series 8', 'pop9': 'POP Series 9',
   'smp': 'SM Promos', 'swshp': 'SWSH Promos', 'svp': 'SV Promos', 'mep': 'Mega Evolution Promos',
   'xyp': 'XY Promos', 'bwp': 'BW Promos', 'dpp': 'DP Promos', 'np': 'Nintendo Promos', 'pop': 'POP Series'
 };
@@ -2275,7 +2279,7 @@ function matchesExactPokemonName(cardName, targetName) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2772_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2773_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);

@@ -2231,23 +2231,30 @@ function renderEvolutionChain(chain) {
 function extractCardPriceGBP(card) {
   if (!card) return null;
 
-  // 1. Check TCGDex Pricing Payload
+  // 1. TCGDex / Nested Pricing Payload
   if (card.pricing) {
     if (card.pricing.cardmarket) {
       const cmp = card.pricing.cardmarket;
-      const val = cmp.trend ?? cmp.avg ?? cmp.avg30 ?? cmp.avg7 ?? cmp.low ?? cmp.trendPrice ?? cmp.averageSellPrice;
+      const val = cmp.trend ?? cmp.avg ?? cmp.avg30 ?? cmp.avg7 ?? cmp.low ?? cmp.trendPrice ?? cmp.averageSellPrice ?? cmp['trend-holo'] ?? cmp['avg-holo'];
       const num = parseFloat(val);
       if (!isNaN(num) && num > 0) return (num * EUR_TO_GBP).toFixed(2);
     }
     if (card.pricing.tcgplayer) {
       const tp = card.pricing.tcgplayer;
-      const val = tp.market ?? tp.mid ?? tp.low ?? tp.directLow;
-      const num = parseFloat(val);
+      for (const variant in tp) {
+        if (tp[variant] && typeof tp[variant] === 'object') {
+          const val = tp[variant].marketPrice ?? tp[variant].midPrice ?? tp[variant].directLowPrice ?? tp[variant].lowPrice;
+          const num = parseFloat(val);
+          if (!isNaN(num) && num > 0) return (num * USD_TO_GBP).toFixed(2);
+        }
+      }
+      const directVal = tp.market ?? tp.mid ?? tp.low ?? tp.directLow;
+      const num = parseFloat(directVal);
       if (!isNaN(num) && num > 0) return (num * USD_TO_GBP).toFixed(2);
     }
   }
   
-  // 2. Check Cardmarket Direct Format
+  // 2. Cardmarket Direct Format
   if (card.cardmarket && card.cardmarket.prices) {
     const cp = card.cardmarket.prices;
     const candidates = [
@@ -2260,7 +2267,7 @@ function extractCardPriceGBP(card) {
     }
   }
   
-  // 3. Check TCGPlayer Direct Format
+  // 3. TCGPlayer Direct Format
   if (card.tcgplayer && card.tcgplayer.prices) {
     const p = card.tcgplayer.prices;
     const subCategories = ['holofoil', 'normal', 'reverseHolofoil', '1stEditionHolofoil', 'unlimitedHolofoil', '1stEditionNormal', 'unlimitedNormal'];
@@ -2300,7 +2307,7 @@ function matchesExactPokemonName(cardName, targetName) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2776_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2778_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);
@@ -2349,14 +2356,29 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       if (res.ok) {
         const json = await res.json();
         if (Array.isArray(json)) {
-          allCards = json.map(c => ({
+          // Hydrate individual cards in parallel to pull live TCGplayer/Cardmarket prices from TCGDex
+          const hydratedCards = await Promise.all(
+            json.slice(0, 45).map(async c => {
+              try {
+                const detailRes = await fetch(`https://api.tcgdex.net/v2/en/cards/${c.id}`);
+                if (detailRes.ok) {
+                  return await detailRes.json();
+                }
+              } catch (e) {}
+              return c;
+            })
+          );
+
+          allCards = hydratedCards.map(c => ({
             id: c.id,
             name: c.name,
             images: { small: c.image ? `${c.image}/low.webp` : '', large: c.image ? `${c.image}/high.webp` : '' },
             set: { name: c.set?.name || '', id: c.set?.id || '', printedTotal: c.set?.cardCount?.official || 0 },
             number: c.localId || '?',
             rarity: c.rarity || 'Common',
-            pricing: c.pricing || null
+            pricing: c.pricing || null,
+            cardmarket: c.cardmarket || null,
+            tcgplayer: c.tcgplayer || null
           }));
         }
       }

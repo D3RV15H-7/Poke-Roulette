@@ -2291,7 +2291,7 @@ function matchesExactPokemonName(cardName, targetName) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2773_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2774_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);
@@ -2310,7 +2310,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
     for (let i = 0; i < retries; i++) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const timeoutId = setTimeout(() => controller.abort(), 9000);
         const res = await fetch(url, { headers, signal: controller.signal });
         clearTimeout(timeoutId);
         if (res.ok) return await res.json();
@@ -2326,7 +2326,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
   try {
     const cleanWord = cleanName.replace(/["']/g, '');
-    const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:*${encodeURIComponent(cleanWord)}*&select=id,name,images,set,number,tcgplayer,cardmarket,rarity&pageSize=180`;
+    const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanWord)}"&pageSize=250`;
     const headers = POKEMON_TCG_API_KEY ? { 'X-Api-Key': POKEMON_TCG_API_KEY } : {};
     const json = await fetchWithRetry(queryUrl, headers);
     if (json && json.data && json.data.length > 0) {

@@ -1526,9 +1526,9 @@ const KNOWN_SETS = {
   'me01': 'Mega Evolution', 'meg': 'Mega Evolution', 'me1': 'Mega Evolution',
   'me02': 'Phantasmal Flames', 'pfl': 'Phantasmal Flames', 'me2': 'Phantasmal Flames',
   'me02.5': 'Ascended Heroes', 'me2.5': 'Ascended Heroes', 'me25': 'Ascended Heroes', 'asc': 'Ascended Heroes',
-  'me03': 'Perfect Order', 'me3': 'Perfect Order', 'pfo': 'Perfect Order',
+  'me03': 'Perfect Order', 'me3': 'Perfect Order', 'por': 'Perfect Order', 'pfo': 'Perfect Order', 'per': 'Perfect Order',
   'me04': 'Chaos Rising', 'me4': 'Chaos Rising', 'chr': 'Chaos Rising',
-  'me05': 'Pitch Black', 'me5': 'Pitch Black', 'pbl': 'Pitch Black',
+  'me05': 'Pitch Black', 'me5': 'Pitch Black', 'pbl': 'Pitch Black', 'blk': 'Pitch Black',
 
   // McDonald's Collections
   'mcd11': "McDonald's Collection 2011", 'mcd12': "McDonald's Collection 2012", 'mcd14': "McDonald's Collection 2014",
@@ -1730,9 +1730,11 @@ function resolveSetName(setObj, cardId = '') {
     if (KNOWN_SETS[idLower]) return KNOWN_SETS[idLower];
   }
 
-  if (cardId && typeof cardId === 'string' && cardId.includes('-')) {
-    const prefix = cardId.split('-')[0].toLowerCase().trim();
-    if (KNOWN_SETS[prefix]) return KNOWN_SETS[prefix];
+  if (cardId && typeof cardId === 'string') {
+    const parts = cardId.toLowerCase().split('-');
+    for (const p of parts) {
+      if (KNOWN_SETS[p]) return KNOWN_SETS[p];
+    }
   }
 
   if (setObj?.name) {
@@ -2229,26 +2231,28 @@ function renderEvolutionChain(chain) {
 function extractCardPriceGBP(card) {
   if (!card) return null;
 
+  // 1. Check TCGDex Pricing Payload
   if (card.pricing) {
     if (card.pricing.cardmarket) {
       const cmp = card.pricing.cardmarket;
-      const val = cmp.trend || cmp.avg || cmp.low || cmp.trendPrice || cmp.averageSellPrice;
+      const val = cmp.trend ?? cmp.avg ?? cmp.avg30 ?? cmp.avg7 ?? cmp.low ?? cmp.trendPrice ?? cmp.averageSellPrice;
       const num = parseFloat(val);
       if (!isNaN(num) && num > 0) return (num * EUR_TO_GBP).toFixed(2);
     }
     if (card.pricing.tcgplayer) {
       const tp = card.pricing.tcgplayer;
-      const val = tp.market || tp.mid || tp.low || tp.directLow;
+      const val = tp.market ?? tp.mid ?? tp.low ?? tp.directLow;
       const num = parseFloat(val);
       if (!isNaN(num) && num > 0) return (num * USD_TO_GBP).toFixed(2);
     }
   }
   
+  // 2. Check Cardmarket Direct Format
   if (card.cardmarket && card.cardmarket.prices) {
     const cp = card.cardmarket.prices;
     const candidates = [
       cp.trendPrice, cp.averageSellPrice, cp.avg7, cp.avg30, cp.avg1,
-      cp.lowPrice, cp.reverseHoloTrend, cp.reverseHoloAvg7, cp.reverseHoloAvg30, cp.reverseHoloSell
+      cp.lowPrice, cp.reverseHoloTrend, cp.reverseHoloAvg7, cp.reverseHoloAvg30, cp.reverseHoloSell, cp.suggestedPrice
     ];
     for (const val of candidates) {
       const num = parseFloat(val);
@@ -2256,21 +2260,26 @@ function extractCardPriceGBP(card) {
     }
   }
   
+  // 3. Check TCGPlayer Direct Format
   if (card.tcgplayer && card.tcgplayer.prices) {
     const p = card.tcgplayer.prices;
     const subCategories = ['holofoil', 'normal', 'reverseHolofoil', '1stEditionHolofoil', 'unlimitedHolofoil', '1stEditionNormal', 'unlimitedNormal'];
     for (const cat of subCategories) {
       if (p[cat]) {
-        const val = p[cat].market || p[cat].mid || p[cat].directLow || p[cat].low;
+        const val = p[cat].market ?? p[cat].mid ?? p[cat].directLow ?? p[cat].low;
         const num = parseFloat(val);
-        if (!isNaN(num) && num > 0) return (num * USD_TO_GBP).toFixed(2);
+        if (!isNaN(num) && num > 0) {
+          return (num * USD_TO_GBP).toFixed(2);
+        }
       }
     }
     for (const key in p) {
       if (p[key] && typeof p[key] === 'object') {
-        const val = p[key].market || p[key].mid || p[key].directLow || p[key].low;
+        const val = p[key].market ?? p[key].mid ?? p[key].directLow ?? p[key].low;
         const num = parseFloat(val);
-        if (!isNaN(num) && num > 0) return (num * USD_TO_GBP).toFixed(2);
+        if (!isNaN(num) && num > 0) {
+          return (num * USD_TO_GBP).toFixed(2);
+        }
       }
     }
   }
@@ -2291,7 +2300,7 @@ function matchesExactPokemonName(cardName, targetName) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2774_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2776_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);

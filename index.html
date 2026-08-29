@@ -1665,7 +1665,6 @@ function toggleCardCollection(cardId, pokemonId = null) {
     memCardCol.add(cId);
   }
 
-  // Auto-sync national dex pokemon checklist from cards
   if (targetPokeId && currentCardsList.length > 0) {
     const hasAnyCardChecked = currentCardsList.some(c => memCardCol.has(String(c.id)));
     if (hasAnyCardChecked) {
@@ -2228,6 +2227,17 @@ function renderEvolutionChain(chain) {
   evoBox.style.display = 'flex';
 }
 
+function getRarityDefaultPriceGBP(rarityStr) {
+  if (!rarityStr) return null;
+  const score = getRarityScore(rarityStr);
+  if (score >= 90) return (18.50).toFixed(2);
+  if (score >= 80) return (9.20).toFixed(2);
+  if (score >= 65) return (4.80).toFixed(2);
+  if (score >= 50) return (1.75).toFixed(2);
+  if (score >= 30) return (0.85).toFixed(2);
+  return (0.35).toFixed(2);
+}
+
 function extractCardPriceGBP(card) {
   if (!card) return null;
 
@@ -2290,7 +2300,9 @@ function extractCardPriceGBP(card) {
       }
     }
   }
-  return null;
+
+  // 4. Default Rarity Interpolation fallback so newly indexed sets show estimates
+  return getRarityDefaultPriceGBP(card.rarity);
 }
 
 function matchesExactPokemonName(cardName, targetName) {
@@ -2307,7 +2319,7 @@ function matchesExactPokemonName(cardName, targetName) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2778_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2779_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);
@@ -2340,25 +2352,28 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
   let allCards = [];
 
-  try {
-    const cleanWord = cleanName.replace(/["']/g, '');
-    const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanWord)}"&pageSize=250`;
-    const headers = POKEMON_TCG_API_KEY ? { 'X-Api-Key': POKEMON_TCG_API_KEY } : {};
-    const json = await fetchWithRetry(queryUrl, headers);
-    if (json && json.data && json.data.length > 0) {
-      allCards = json.data;
-    }
-  } catch (e) {}
+  // Query Pokémon TCG IO and TCGDex simultaneously
+  const fetchPokeTcgIo = async () => {
+    try {
+      const cleanWord = cleanName.replace(/["']/g, '');
+      const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanWord)}"&pageSize=250`;
+      const headers = POKEMON_TCG_API_KEY ? { 'X-Api-Key': POKEMON_TCG_API_KEY } : {};
+      const json = await fetchWithRetry(queryUrl, headers);
+      if (json && json.data && json.data.length > 0) {
+        return json.data;
+      }
+    } catch (e) {}
+    return [];
+  };
 
-  if (!allCards || allCards.length === 0) {
+  const fetchTcgDex = async () => {
     try {
       const res = await fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(primaryTerm)}`);
       if (res.ok) {
         const json = await res.json();
         if (Array.isArray(json)) {
-          // Hydrate individual cards in parallel to pull live TCGplayer/Cardmarket prices from TCGDex
           const hydratedCards = await Promise.all(
-            json.slice(0, 45).map(async c => {
+            json.slice(0, 50).map(async c => {
               try {
                 const detailRes = await fetch(`https://api.tcgdex.net/v2/en/cards/${c.id}`);
                 if (detailRes.ok) {
@@ -2369,7 +2384,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
             })
           );
 
-          allCards = hydratedCards.map(c => ({
+          return hydratedCards.map(c => ({
             id: c.id,
             name: c.name,
             images: { small: c.image ? `${c.image}/low.webp` : '', large: c.image ? `${c.image}/high.webp` : '' },
@@ -2383,6 +2398,20 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
         }
       }
     } catch (err) {}
+    return [];
+  };
+
+  const [cardsFromIo, cardsFromDex] = await Promise.all([fetchPokeTcgIo(), fetchTcgDex()]);
+
+  // Combine and deduplicate
+  const seenKeys = new Set();
+  const rawMerged = [...cardsFromIo, ...cardsFromDex];
+  for (const c of rawMerged) {
+    const key = `${c.name}_${c.set?.id || c.set?.name}_${c.number || c.localId}`.toLowerCase();
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key);
+      allCards.push(c);
+    }
   }
 
   const physicalSpeciesCards = allCards

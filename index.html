@@ -2263,7 +2263,7 @@ function matchesExactPokemonName(cardName, targetName) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2780_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2785_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);
@@ -2312,24 +2312,36 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       const res = await fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(primaryTerm)}`);
       if (res.ok) {
         const json = await res.json();
-        if (Array.isArray(json)) {
-          const sample = json.slice(0, 20);
-          const hydratedCards = await Promise.all(
-            sample.map(async c => {
-              try {
-                const detailRes = await fetch(`https://api.tcgdex.net/v2/en/cards/${c.id}`);
-                if (detailRes.ok) return await detailRes.json();
-              } catch (e) {}
-              return c;
-            })
-          );
+        if (Array.isArray(json) && json.length > 0) {
+          const results = [];
+          const chunkSize = 10;
+          for (let i = 0; i < json.length; i += chunkSize) {
+            const chunk = json.slice(i, i + chunkSize);
+            const chunkData = await Promise.all(
+              chunk.map(async c => {
+                try {
+                  const detailRes = await fetch(`https://api.tcgdex.net/v2/en/cards/${c.id}`);
+                  if (detailRes.ok) return await detailRes.json();
+                } catch (e) {}
+                return c;
+              })
+            );
+            results.push(...chunkData);
+          }
 
-          return hydratedCards.map(c => ({
+          return results.map(c => ({
             id: c.id,
             name: c.name,
-            images: { small: c.image ? `${c.image}/low.webp` : '', large: c.image ? `${c.image}/high.webp` : '' },
-            set: { name: c.set?.name || '', id: c.set?.id || '', printedTotal: c.set?.cardCount?.official || 0 },
-            number: c.localId || '?',
+            images: { 
+              small: c.image ? `${c.image}/low.webp` : (c.images?.small || ''), 
+              large: c.image ? `${c.image}/high.webp` : (c.images?.large || c.image || '') 
+            },
+            set: { 
+              name: c.set?.name || '', 
+              id: c.set?.id || '', 
+              printedTotal: c.set?.cardCount?.official || 0 
+            },
+            number: c.localId || c.number || '?',
             rarity: c.rarity || 'Common',
             pricing: c.pricing || null,
             cardmarket: c.cardmarket || null,
@@ -2348,8 +2360,9 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   for (const c of rawMerged) {
     if (isDigitalOnlyCard(c)) continue;
     if (!matchesExactPokemonName(c.name, cleanName)) continue;
-    const smallImg = c.images?.small || '';
-    if (!isValidFrontCardImage(smallImg)) continue;
+    
+    const smallImg = c.images?.small || c.images?.large || '';
+    if (!isValidFrontCardImage(smallImg) && !c.image) continue;
 
     const resolvedSet = resolveSetName(c.set, c.id);
     const resolvedNum = normalizeCardNumber(c.number || c.localId);
@@ -2365,17 +2378,21 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
     }
   }
 
-  const formattedCards = Array.from(mergedMap.values()).map(c => ({
-    id: c.id,
-    name: c.name,
-    smallImg: c.images?.small || '',
-    largeImg: c.images?.large || c.images?.small || '',
-    setName: resolveSetName(c.set, c.id),
-    number: normalizeCardNumber(c.number || c.localId),
-    rarity: c.rarity || 'Common',
-    rarityScore: getRarityScore(c.rarity),
-    priceGBP: extractCardPriceGBP(c)
-  }));
+  const formattedCards = Array.from(mergedMap.values()).map(c => {
+    const smallImg = c.images?.small || c.images?.large || (c.image ? `${c.image}/low.webp` : '');
+    const largeImg = c.images?.large || c.images?.small || (c.image ? `${c.image}/high.webp` : '');
+    return {
+      id: c.id,
+      name: c.name,
+      smallImg: smallImg || largeImg,
+      largeImg: largeImg || smallImg,
+      setName: resolveSetName(c.set, c.id),
+      number: normalizeCardNumber(c.number || c.localId),
+      rarity: c.rarity || 'Common',
+      rarityScore: getRarityScore(c.rarity),
+      priceGBP: extractCardPriceGBP(c)
+    };
+  });
 
   formattedCards.sort((a, b) => {
     if (b.rarityScore !== a.rarityScore) {

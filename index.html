@@ -12,10 +12,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800;900&display=swap" rel="stylesheet">
 <!-- Official Pokémon Title Font -->
 <link href="https://fonts.cdnfonts.com/css/pokemon-solid" rel="stylesheet">
-<!-- Firebase Compatibility SDKs -->
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<!-- Firebase Compatibility SDKs (Deferred for speed) -->
+<script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 <meta name="theme-color" content="#1e293b" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -39,9 +39,8 @@
   -webkit-tap-highlight-color: transparent;
 }
 html, body {
-  width: 100vw;
+  width: 100%;
   height: 100dvh;
-  max-height: 100dvh;
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
@@ -75,7 +74,7 @@ header {
   gap: 0.2rem;
 }
 header h1 {
-  font-family: 'Pokemon Solid', 'Plus Jakarta Sans', sans-serif !important;
+  font-family: 'Pokemon Solid', sans-serif;
   font-weight: normal;
   font-size: clamp(2rem, 4.8dvh, 2.6rem);
   letter-spacing: 2px;
@@ -86,8 +85,6 @@ header h1 {
   transform: scaleY(1.05);
 }
 header h1 span {
-  font-family: 'Pokemon Solid', 'Plus Jakarta Sans', sans-serif !important;
-  font-weight: normal;
   color: #ffffff;
   -webkit-text-stroke: 2px #ef4444;
   text-shadow: 0 4px 0 #991b1b, 0 6px 14px rgba(0,0,0,0.65);
@@ -391,8 +388,6 @@ body.has-active .btn-close {
   text-align: center;
   user-select: none;
   flex: 0 1 auto;
-  height: auto;
-  min-height: 0;
   max-height: calc(100dvh - 170px);
   position: relative;
   animation: custodySlideUp 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -430,6 +425,7 @@ body.has-active .btn-close {
   width: clamp(145px, 22dvh, 195px);
   height: clamp(145px, 22dvh, 195px);
   aspect-ratio: 1 / 1;
+  cursor: pointer;
 }
 .card img.main-art {
   width: 100%;
@@ -462,24 +458,26 @@ body.has-active .btn-close {
   position: absolute;
   top: 2px;
   right: 2px;
-  background: var(--green);
-  color: #fff;
-  width: 19px;
-  height: 19px;
+  background: var(--card);
+  color: transparent;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   font-weight: 900;
-  border: 2px solid #fff;
-  opacity: 0;
-  transform: scale(0.5);
+  border: 2px solid #64748b;
+  cursor: pointer;
+  z-index: 15;
   transition: all 0.25s;
 }
 .tick-badge.active {
-  opacity: 1;
-  transform: scale(1);
+  background: var(--green);
+  border-color: #fff;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
 }
 .poke-name {
   font-size: clamp(1.05rem, 2.1dvh, 1.3rem);
@@ -887,7 +885,6 @@ body.has-active .hub-item-label {
   border-radius: 14px;
   box-shadow: 0 14px 36px rgba(0,0,0,0.75);
   overflow: hidden;
-  transform: none !important;
   background: #1e293b;
 }
 .tcg-zoom-img {
@@ -897,7 +894,6 @@ body.has-active .hub-item-label {
   object-fit: cover;
   display: block;
   pointer-events: none;
-  transform: none !important;
 }
 .zoom-check-circle {
   position: absolute;
@@ -1071,9 +1067,8 @@ body.has-active .hub-item-label {
   text-align: center;
   cursor: pointer;
   position: relative;
-  -webkit-user-select: none;
   user-select: none;
-  -webkit-touch-callout: none;
+  -webkit-user-select: none;
 }
 .dex-item.owned {
   border-color: rgba(16,185,129,0.45);
@@ -1273,10 +1268,10 @@ body.has-active .hub-item-label {
       <button onclick="navigateDex(1)">›</button>
     </div>
     <h2 class="poke-name" id="pokeName">Pokémon</h2>
-    <div class="img-box">
+    <div class="img-box" onclick="toggleMainPokemonCollection()">
       <img class="main-art" id="pokeImg" src="" alt="Artwork" />
       <div class="sparkle" id="sparkle">✨</div>
-      <div class="tick-badge" id="cardTick">✓</div>
+      <div class="tick-badge" id="cardTick" onclick="event.stopPropagation(); toggleMainPokemonCollection();">✓</div>
     </div>
     <div class="card-actions">
       <button class="btn-icon" onclick="playCry()">🔊</button>
@@ -1442,14 +1437,17 @@ try {
 let memCol = new Set();
 let memCardCol = new Set();
 
-try {
-  if (typeof firebase !== 'undefined') {
-    firebase.initializeApp(firebaseConfig);
-    auth = firebase.auth();
-    db = firebase.firestore();
+function initFirebaseIfReady() {
+  try {
+    if (typeof firebase !== 'undefined' && !auth) {
+      firebase.initializeApp(firebaseConfig);
+      auth = firebase.auth();
+      db = firebase.firestore();
+      setupAuthListener();
+    }
+  } catch (e) {
+    console.error("Firebase init error:", e);
   }
-} catch (e) {
-  console.error("Firebase init error:", e);
 }
 
 const TOTAL = 1025;
@@ -1465,41 +1463,28 @@ const COLORS = {
 };
 
 const KNOWN_SETS = { 
-  // Base & Vintage
   'base1': 'Base Set', 'base2': 'Jungle', 'base3': 'Fossil', 'base4': 'Base Set 2', 'base5': 'Team Rocket', 
   'gym1': 'Gym Heroes', 'gym2': 'Gym Challenge', 'neo1': 'Neo Genesis', 'neo2': 'Neo Discovery', 'neo3': 'Neo Revelation', 
   'neo4': 'Neo Destiny', 'si1': 'Southern Islands', 'base6': 'Legendary Collection', 'ecard1': 'Expedition Base Set', 
   'ecard2': 'Aquapolis', 'ecard3': 'Skyridge',
-
-  // EX Series
   'ex1': 'EX Ruby & Sapphire', 'ex2': 'EX Sandstorm', 'ex3': 'EX Dragon', 
   'ex4': 'EX Team Magma vs Team Aqua', 'ex5': 'EX Hidden Legends', 'ex6': 'EX FireRed & LeafGreen', 'ex7': 'EX Team Rocket Returns', 
   'ex8': 'EX Deoxys', 'ex9': 'EX Emerald', 'ex10': 'EX Unseen Forces', 'ex11': 'EX Delta Species', 'ex12': 'EX Legend Maker', 
   'ex13': 'EX Holon Phantoms', 'ex14': 'EX Crystal Guardians', 'ex15': 'EX Dragon Frontiers', 'ex16': 'EX Power Keepers', 
-
-  // DP / Platinum / HGSS
   'dp1': 'Diamond & Pearl', 'dp2': 'Mysterious Treasures', 'dp3': 'Secret Wonders', 'dp4': 'Great Encounters', 
   'dp5': 'Majestic Dawn', 'dp6': 'Legends Awakened', 'dp7': 'Stormfront', 'pl1': 'Platinum', 'pl2': 'Rising Rivals', 
   'pl3': 'Supreme Victors', 'pl4': 'Arceus', 'col1': 'Call of Legends', 'hgss1': 'HeartGold & SoulSilver', 
   'hgss2': 'Unleashed', 'hgss3': 'Undaunted', 'hgss4': 'Triumphant',
-
-  // Black & White
   'bw1': 'Black & White', 'bw2': 'Emerging Powers', 'bw3': 'Noble Victories', 'bw4': 'Next Destinies', 
   'bw5': 'Dark Explorers', 'bw6': 'Dragons Exalted', 'bw7': 'Boundaries Crossed', 'bw8': 'Plasma Storm', 
   'bw9': 'Plasma Freeze', 'bw10': 'Plasma Blast', 'bw11': 'Legendary Treasures', 
-
-  // XY Series
   'xy1': 'XY Base', 'xy2': 'Flashfire', 'xy3': 'Furious Fists', 'xy4': 'Phantom Forces', 
   'xy5': 'Primal Clash', 'xy6': 'Roaring Skies', 'xy7': 'Ancient Origins', 'xy8': 'BREAKthrough', 'xy9': 'BREAKpoint', 
   'xy10': 'Fates Collide', 'xy11': 'Steam Siege', 'xy12': 'Evolutions', 'g1': 'Generations', 
-
-  // Sun & Moon
   'sm1': 'Sun & Moon', 'sm2': 'Guardians Rising', 'sm3': 'Burning Shadows', 'sm35': 'Shining Legends', 
   'sm4': 'Crimson Invasion', 'sm5': 'Ultra Prism', 'sm6': 'Forbidden Light', 'sm7': 'Celestial Storm', 
   'sm75': 'Dragon Majesty', 'sm8': 'Lost Thunder', 'sm9': 'Team Up', 'sm10': 'Unbroken Bonds', 
   'sm11': 'Unified Minds', 'sm115': 'Hidden Fates', 'sm12': 'Cosmic Eclipse', 'det1': 'Detective Pikachu', 'sma': 'Detective Pikachu',
-
-  // Sword & Shield
   'swsh1': 'Sword & Shield', 'swsh2': 'Rebel Clash', 'swsh3': 'Darkness Ablaze', 'swsh35': 'Champion\'s Path', 
   'swsh4': 'Vivid Voltage', 'swsh45': 'Shining Fates', 'swsh5': 'Battle Styles', 'swsh6': 'Chilling Reign', 
   'swsh7': 'Evolving Skies', 'cel25': 'Celebrations', 'cel25c': 'Celebrations Classic Collection',
@@ -1507,8 +1492,6 @@ const KNOWN_SETS = {
   'swsh10tg': 'Astral Radiance TG', 'pgo': 'Pokémon GO', 'swsh11': 'Lost Origin', 'swsh11tg': 'Lost Origin TG', 
   'swsh12': 'Silver Tempest', 'swsh12tg': 'Silver Tempest TG', 'swsh12pt5': 'Crown Zenith', 
   'swsh12pt5gg': 'Crown Zenith Galarian Gallery', 'crzgg': 'Crown Zenith Galarian Gallery', 
-
-  // Scarlet & Violet
   'sv1': 'Scarlet & Violet', 'sv01': 'Scarlet & Violet', 'sve': 'Scarlet & Violet', 'sv1en': 'Scarlet & Violet',
   'sv2': 'Paldea Evolved', 'sv02': 'Paldea Evolved', 'pal': 'Paldea Evolved', 'sv2en': 'Paldea Evolved',
   'sv3': 'Obsidian Flames', 'sv03': 'Obsidian Flames', 'obf': 'Obsidian Flames', 'sv3en': 'Obsidian Flames',
@@ -1521,23 +1504,17 @@ const KNOWN_SETS = {
   'sv7': 'Stellar Crown', 'sv07': 'Stellar Crown', 'scr': 'Stellar Crown', 'sv7en': 'Stellar Crown',
   'sv8': 'Surging Sparks', 'sv08': 'Surging Sparks', 'ssp': 'Surging Sparks', 'sv8en': 'Surging Sparks',
   'sv08.5': 'Prismatic Evolutions', 'sv8pt5': 'Prismatic Evolutions', 'pre': 'Prismatic Evolutions',
-
-  // Mega Evolution Series
   'me01': 'Mega Evolution', 'meg': 'Mega Evolution', 'me1': 'Mega Evolution',
   'me02': 'Phantasmal Flames', 'pfl': 'Phantasmal Flames', 'me2': 'Phantasmal Flames',
   'me02.5': 'Ascended Heroes', 'me2.5': 'Ascended Heroes', 'me25': 'Ascended Heroes', 'asc': 'Ascended Heroes',
   'me03': 'Perfect Order', 'me3': 'Perfect Order', 'por': 'Perfect Order', 'pfo': 'Perfect Order', 'per': 'Perfect Order',
   'me04': 'Chaos Rising', 'me4': 'Chaos Rising', 'chr': 'Chaos Rising',
   'me05': 'Pitch Black', 'me5': 'Pitch Black', 'pbl': 'Pitch Black', 'blk': 'Pitch Black',
-
-  // McDonald's Collections
   'mcd11': "McDonald's Collection 2011", 'mcd12': "McDonald's Collection 2012", 'mcd14': "McDonald's Collection 2014",
   'mcd15': "McDonald's Collection 2015", 'mcd16': "McDonald's Collection 2016", 'mcd17': "McDonald's Collection 2017",
   'mcd18': "McDonald's Collection 2018", 'mcd19': "McDonald's Collection 2019", 'mcd21': "McDonald's Collection 2021",
   'mcd22': "McDonald's Collection 2022", 'mcd23': "McDonald's Collection 2023", 'mcd24': "McDonald's Collection 2024",
   '2021swsh': "McDonald's Collection 2021", '2022swsh': "McDonald's Collection 2022", '2023sv': "McDonald's Collection 2023",
-
-  // Special Sets & Promos
   'ru1': 'Pokémon Rumble', 'rumble': 'Pokémon Rumble',
   'pop1': 'POP Series 1', 'pop2': 'POP Series 2', 'pop3': 'POP Series 3', 'pop4': 'POP Series 4', 'pop5': 'POP Series 5',
   'pop6': 'POP Series 6', 'pop7': 'POP Series 7', 'pop8': 'POP Series 8', 'pop9': 'POP Series 9',
@@ -1550,40 +1527,14 @@ const DIGITAL_EXPANSION_NAMES = [ 'genetic apex', 'mythical island', 'space-time
 const PRESERVED_HYPHEN_POKEMON = new Set([ 'chien-pao', 'ting-lu', 'chi-yu', 'wo-chien', 'porygon-z', 'ho-oh', 'jangmo-o', 'hakamo-o', 'kommo-o' ]);
 
 const RARITY_TIERS = {
-  'hyper rare': 100,
-  'special illustration rare': 95,
-  'secret rare': 90,
-  'illustration rare': 85,
-  'ultra rare': 80,
-  'shining': 78,
-  'star': 78,
-  'rare secret': 75,
-  'rare rainbow': 75,
-  'rare secret classic': 75,
-  'rare ultra': 72,
-  'double rare': 70,
-  'radiant rare': 68,
-  'trainer gallery rare holo': 65,
-  'galarian gallery': 65,
-  'ace spec rare': 60,
-  'rare holo vmax': 55,
-  'rare holo vstar': 55,
-  'rare holo ex': 52,
-  'rare holo gx': 52,
-  'rare holo lv.x': 52,
-  'rare prime': 50,
-  'rare holo v': 48,
-  'rare holo': 45,
-  'rare shiny gx': 45,
-  'rare shiny': 42,
-  'promo': 40,
-  'promo rare': 40,
-  'rare': 30,
-  'rare ace': 30,
-  'rare prism': 30,
-  'rare break': 30,
-  'uncommon': 20,
-  'common': 10
+  'hyper rare': 100, 'special illustration rare': 95, 'secret rare': 90, 'illustration rare': 85,
+  'ultra rare': 80, 'shining': 78, 'star': 78, 'rare secret': 75, 'rare rainbow': 75,
+  'rare secret classic': 75, 'rare ultra': 72, 'double rare': 70, 'radiant rare': 68,
+  'trainer gallery rare holo': 65, 'galarian gallery': 65, 'ace spec rare': 60,
+  'rare holo vmax': 55, 'rare holo vstar': 55, 'rare holo ex': 52, 'rare holo gx': 52,
+  'rare holo lv.x': 52, 'rare prime': 50, 'rare holo v': 48, 'rare holo': 45,
+  'rare shiny gx': 45, 'rare shiny': 42, 'promo': 40, 'promo rare': 40, 'rare': 30,
+  'rare ace': 30, 'rare prism': 30, 'rare break': 30, 'uncommon': 20, 'common': 10
 };
 
 function getRarityScore(rarityStr) {
@@ -1596,7 +1547,7 @@ function getRarityScore(rarityStr) {
   return 15;
 }
 
-let dir = [], rot = 0, audioCtx = null, curPoke = null, isShiny = false, curId = null, tabFilter = 'all', dexQuery = '', activeTcgRequestId = 0, isSpinning = false;
+let dir = [], rot = 0, audioCtx = null, curPoke = null, isShiny = false, curId = null, tabFilter = 'all', dexQuery = '', activeTcgRequestId = 0, activeLoreRequestId = 0, isSpinning = false;
 let currentCardsList = [];
 let currentZoomIndex = 0;
 let activeDexModalPoke = null;
@@ -1624,9 +1575,6 @@ function reloadMemoryFromLocal() {
 }
 reloadMemoryFromLocal();
 
-const getCol = () => memCol;
-const getCardCol = () => memCardCol;
-
 function saveLocalState() {
   try {
     localStorage.setItem(getStorageKey(), JSON.stringify(Array.from(memCol)));
@@ -1647,10 +1595,22 @@ function writeFullCollectionToCloud() {
       cardsCollection: Array.from(memCardCol)
     };
     db.collection("users").doc(currentUser.uid).set(payload, { merge: true })
-      .catch(err => {
-        console.error("Cloud write failed:", err);
-      });
+      .catch(err => console.error("Cloud write failed:", err));
   }
+}
+
+function toggleMainPokemonCollection() {
+  if (!curId) return;
+  initAudio();
+  playTick();
+  const idNum = parseInt(curId, 10);
+  if (memCol.has(idNum)) {
+    memCol.delete(idNum);
+  } else {
+    memCol.add(idNum);
+  }
+  saveLocalState();
+  writeFullCollectionToCloud();
 }
 
 function toggleCardCollection(cardId, pokemonId = null) {
@@ -1769,10 +1729,7 @@ function isDigitalOnlyCard(card) {
 function isValidFrontCardImage(url) {
   if (!url || typeof url !== 'string') return false;
   const lower = url.toLowerCase().trim();
-  if (lower.includes('undefined') || lower.includes('/back.') || lower.includes('cardback') || lower.includes('/placeholder.')) {
-    return false;
-  }
-  return true;
+  return !(lower.includes('undefined') || lower.includes('/back.') || lower.includes('cardback') || lower.includes('/placeholder.'));
 }
 
 function buildLabels() {
@@ -1833,7 +1790,8 @@ function updateCounts() {
 }
 
 let firestoreUnsubscribe = null;
-if (auth) {
+function setupAuthListener() {
+  if (!auth) return;
   auth.onAuthStateChanged(user => {
     if (firestoreUnsubscribe) {
       firestoreUnsubscribe();
@@ -1901,7 +1859,8 @@ if (auth) {
 }
 
 function handleEmailAuth(isSignUp) {
-  if (!auth) return alert("Firebase Auth is not available.");
+  initFirebaseIfReady();
+  if (!auth) return alert("Firebase Auth is loading or unavailable.");
   const email = (document.getElementById('authEmail')?.value || '').trim();
   const pass = document.getElementById('authPassword')?.value || '';
   if (!email || !pass) return showAuthError("Please fill out all fields.");
@@ -1941,6 +1900,7 @@ function openModal(id) {
     renderDex();
   }
   if (id === 'recentModal') renderRecents();
+  if (id === 'accountModal') initFirebaseIfReady();
   const el = document.getElementById(id);
   if (el) el.style.display = 'flex';
 }
@@ -1976,9 +1936,16 @@ function renderDex() {
     const isN = !isNaN(parseInt(dexQuery));
     list = list.filter(p => isN ? (p.id === parseInt(dexQuery) || String(p.id).startsWith(dexQuery)) : p.cleanName.toLowerCase().includes(dexQuery));
   }
-  g.innerHTML = list.length ? '' : '<div style="grid-column:span 4;color:var(--sub);text-align:center;padding:2rem 0;">No Pokémon found!</div>';
+  
+  if (!list.length) {
+    g.innerHTML = '<div style="grid-column:span 4;color:var(--sub);text-align:center;padding:2rem 0;">No Pokémon found!</div>';
+    return;
+  }
+  
+  const frag = document.createDocumentFragment();
   list.forEach(p => {
-    const owned = memCol.has(p.id), d = document.createElement('div');
+    const owned = memCol.has(p.id);
+    const d = document.createElement('div');
     d.className = `dex-item ${owned ? 'owned' : 'unowned'}`;
     d.innerHTML = `${owned ? '<div style="position:absolute;top:3px;right:3px;background:var(--green);color:#fff;font-size:0.52rem;font-weight:900;width:13px;height:13px;border-radius:50%;display:flex;align-items:center;justify-content:center;">✓</div>' : ''}<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png" loading="lazy"/><div style="font-size:0.62rem;font-weight:800;color:var(--sub)">#${String(p.id).padStart(4,'0')}</div><div style="font-size:0.65rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.cleanName}</div>`;
     
@@ -1987,8 +1954,10 @@ function renderDex() {
       playTick();
       openDexCardsModal(p);
     };
-    g.appendChild(d);
+    frag.appendChild(d);
   });
+  g.innerHTML = '';
+  g.appendChild(frag);
 }
 
 async function openDexCardsModal(p, bypassCache = false) {
@@ -2004,8 +1973,12 @@ async function openDexCardsModal(p, bypassCache = false) {
     const cardsList = await fetchTcgCardsData(p.name, p.species?.name, bypassCache);
     currentCardsList = cardsList;
     if (!grid) return;
-    grid.innerHTML = cardsList.length ? '' : '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">No physical cards found</div>';
+    if (!cardsList.length) {
+      grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">No physical cards found</div>';
+      return;
+    }
     
+    const frag = document.createDocumentFragment();
     cardsList.forEach((card, index) => {
       const isOwnedCard = memCardCol.has(String(card.id));
       const cell = document.createElement('div');
@@ -2039,8 +2012,10 @@ async function openDexCardsModal(p, bypassCache = false) {
         openTcgZoom(index, true);
       };
 
-      grid.appendChild(cell);
+      frag.appendChild(cell);
     });
+    grid.innerHTML = '';
+    grid.appendChild(frag);
   } catch (e) {
     if (grid) grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">Failed to load cards. Tap ↻ to retry.</div>';
   }
@@ -2059,17 +2034,23 @@ function closeDexCardsModal() {
 function renderRecents() {
   const l = document.getElementById('recentsList'), r = getRec();
   if (!l) return;
-  l.innerHTML = r.length ? '' : '<div style="color:var(--sub);text-align:center;padding:2rem 0;">No History!</div>';
+  if (!r.length) {
+    l.innerHTML = '<div style="color:var(--sub);text-align:center;padding:2rem 0;">No History!</div>';
+    return;
+  }
+  const frag = document.createDocumentFragment();
   r.forEach(p => {
     const li = document.createElement('li');
     li.className = 'recent-item';
     li.innerHTML = `<img src="${p.sprite}"/><div style="flex:1;"><div style="font-weight:800;font-size:0.95rem;">${p.name}</div><div style="font-size:0.75rem;color:var(--sub);font-weight:700;">#${String(p.id).padStart(4,'0')} · <span style="color:${COLORS[p.type]||'#fff'}">${p.type.toUpperCase()}</span></div></div>${memCol.has(p.id)?'<span style="color:var(--green);font-weight:900;">✓</span>':''}`;
     li.onclick = () => {
       closeModal(null, 'recentModal');
-      loadPoke(p.id, 0, false);
+      loadPoke(p.id, false);
     };
-    l.appendChild(li);
+    frag.appendChild(li);
   });
+  l.innerHTML = '';
+  l.appendChild(frag);
 }
 
 function initAudio() {
@@ -2161,6 +2142,7 @@ function updateCardAura(types) {
 }
 
 async function fetchLoreAndEvolution(speciesUrl, fallbackId) {
+  const reqId = ++activeLoreRequestId;
   const loreBox = document.getElementById('pokeLore');
   const evoBox = document.getElementById('evoChain');
   if (!isSpinning) {
@@ -2175,7 +2157,7 @@ async function fetchLoreAndEvolution(speciesUrl, fallbackId) {
     const res = await fetch(url);
     if (!res.ok) throw new Error("Species error");
     const data = await res.json();
-    if (isSpinning) return;
+    if (isSpinning || reqId !== activeLoreRequestId) return;
     const cleanSpeciesName = getCleanNationalDexName(data.name, (data.names && data.names.find(n => n.language.name === 'en')?.name));
     const pokeName = document.getElementById('pokeName');
     if (pokeName) pokeName.innerText = cleanSpeciesName;
@@ -2184,10 +2166,12 @@ async function fetchLoreAndEvolution(speciesUrl, fallbackId) {
     if (data.evolution_chain?.url) {
       const evoRes = await fetch(data.evolution_chain.url);
       const evoData = await evoRes.json();
-      renderEvolutionChain(evoData.chain);
+      if (reqId === activeLoreRequestId) renderEvolutionChain(evoData.chain);
     }
   } catch (err) {
-    if (!isSpinning && loreBox) loreBox.innerText = "PokéRoulette analyzer synchronized.";
+    if (!isSpinning && reqId === activeLoreRequestId && loreBox) {
+      loreBox.innerText = "PokéRoulette analyzer synchronized.";
+    }
   }
 }
 
@@ -2220,7 +2204,7 @@ function renderEvolutionChain(chain) {
       <span>${getCleanNationalDexName(st.name)}</span>
     `;
     node.onclick = () => {
-      if (st.id !== curId) loadPoke(st.id, 0, false);
+      if (st.id !== curId) loadPoke(st.id, false);
     };
     evoBox.appendChild(node);
   });
@@ -2241,7 +2225,6 @@ function getRarityDefaultPriceGBP(rarityStr) {
 function extractCardPriceGBP(card) {
   if (!card) return null;
 
-  // 1. TCGDex / Nested Pricing Payload
   if (card.pricing) {
     if (card.pricing.cardmarket) {
       const cmp = card.pricing.cardmarket;
@@ -2264,7 +2247,6 @@ function extractCardPriceGBP(card) {
     }
   }
   
-  // 2. Cardmarket Direct Format
   if (card.cardmarket && card.cardmarket.prices) {
     const cp = card.cardmarket.prices;
     const candidates = [
@@ -2277,7 +2259,6 @@ function extractCardPriceGBP(card) {
     }
   }
   
-  // 3. TCGPlayer Direct Format
   if (card.tcgplayer && card.tcgplayer.prices) {
     const p = card.tcgplayer.prices;
     const subCategories = ['holofoil', 'normal', 'reverseHolofoil', '1stEditionHolofoil', 'unlimitedHolofoil', '1stEditionNormal', 'unlimitedNormal'];
@@ -2285,23 +2266,18 @@ function extractCardPriceGBP(card) {
       if (p[cat]) {
         const val = p[cat].market ?? p[cat].mid ?? p[cat].directLow ?? p[cat].low;
         const num = parseFloat(val);
-        if (!isNaN(num) && num > 0) {
-          return (num * USD_TO_GBP).toFixed(2);
-        }
+        if (!isNaN(num) && num > 0) return (num * USD_TO_GBP).toFixed(2);
       }
     }
     for (const key in p) {
       if (p[key] && typeof p[key] === 'object') {
         const val = p[key].market ?? p[key].mid ?? p[key].directLow ?? p[key].low;
         const num = parseFloat(val);
-        if (!isNaN(num) && num > 0) {
-          return (num * USD_TO_GBP).toFixed(2);
-        }
+        if (!isNaN(num) && num > 0) return (num * USD_TO_GBP).toFixed(2);
       }
     }
   }
 
-  // 4. Default Rarity Interpolation fallback so newly indexed sets show estimates
   return getRarityDefaultPriceGBP(card.rarity);
 }
 
@@ -2352,7 +2328,6 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
   let allCards = [];
 
-  // Query Pokémon TCG IO and TCGDex simultaneously
   const fetchPokeTcgIo = async () => {
     try {
       const cleanWord = cleanName.replace(/["']/g, '');
@@ -2372,13 +2347,13 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       if (res.ok) {
         const json = await res.json();
         if (Array.isArray(json)) {
+          // Limit concurrent requests to prevent rate limiting
+          const sample = json.slice(0, 20);
           const hydratedCards = await Promise.all(
-            json.slice(0, 50).map(async c => {
+            sample.map(async c => {
               try {
                 const detailRes = await fetch(`https://api.tcgdex.net/v2/en/cards/${c.id}`);
-                if (detailRes.ok) {
-                  return await detailRes.json();
-                }
+                if (detailRes.ok) return await detailRes.json();
               } catch (e) {}
               return c;
             })
@@ -2403,7 +2378,6 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
   const [cardsFromIo, cardsFromDex] = await Promise.all([fetchPokeTcgIo(), fetchTcgDex()]);
 
-  // Combine and deduplicate
   const seenKeys = new Set();
   const rawMerged = [...cardsFromIo, ...cardsFromDex];
   for (const c of rawMerged) {
@@ -2487,8 +2461,8 @@ function renderTcgCards(cards) {
     return;
   }
   if (countText) countText.innerText = `${cards.length} Card${cards.length === 1 ? '' : 's'}`;
-  strip.innerHTML = '';
   
+  const frag = document.createDocumentFragment();
   cards.forEach((card, index) => {
     const isOwnedCard = memCardCol.has(String(card.id));
     const node = document.createElement('div');
@@ -2519,8 +2493,10 @@ function renderTcgCards(cards) {
       currentCardsList = cards;
       openTcgZoom(index, false);
     };
-    strip.appendChild(node);
+    frag.appendChild(node);
   });
+  strip.innerHTML = '';
+  strip.appendChild(frag);
 }
 
 function openTcgZoom(index, fromModal = false) {
@@ -2569,9 +2545,9 @@ function toggleZoomCardOwned(e) {
   if (curId) renderTcgCards(currentCardsList);
 }
 
-function navigateZoomCard(dir) {
+function navigateZoomCard(d) {
   if (!currentCardsList.length) return;
-  const newIndex = currentZoomIndex + dir;
+  const newIndex = currentZoomIndex + d;
   if (newIndex >= 0 && newIndex < currentCardsList.length) {
     currentZoomIndex = newIndex;
     updateZoomModalContent();
@@ -2587,11 +2563,7 @@ if (zoomViewArea) {
   zoomViewArea.addEventListener('touchend', e => {
     const dX = e.changedTouches[0].screenX - zoomTouchX;
     if (Math.abs(dX) > 40) {
-      if (dX < 0) {
-        navigateZoomCard(1);
-      } else {
-        navigateZoomCard(-1);
-      }
+      navigateZoomCard(dX < 0 ? 1 : -1);
     }
   }, { passive: true });
 }
@@ -2633,13 +2605,16 @@ function handleSearch(val) {
   const isN = !isNaN(parseInt(v));
   const m = dir.filter(p => isN ? (p.id === parseInt(v) || String(p.id).startsWith(v)) : p.cleanName.toLowerCase().includes(v)).slice(0, 7);
   if (!m.length) return l.style.display = 'none';
-  l.innerHTML = '';
+  
+  const frag = document.createDocumentFragment();
   m.forEach(p => {
     const li = document.createElement('li');
     li.innerHTML = `<span><span style="color:var(--sub);font-weight:700;margin-right:0.4rem;">#${String(p.id).padStart(4,'0')}</span>${p.cleanName}</span>${memCol.has(p.id)?'<span style="color:var(--green);font-weight:900;">✓</span>':''}`;
-    li.onmousedown = () => loadPoke(p.id, 0, true);
-    l.appendChild(li);
+    li.onmousedown = () => loadPoke(p.id, true);
+    frag.appendChild(li);
   });
+  l.innerHTML = '';
+  l.appendChild(frag);
   l.style.display = 'block';
 }
 
@@ -2650,7 +2625,7 @@ function submitSearch() {
   f ? f.onmousedown() : handleSearch(sInput ? sInput.value : '');
 }
 
-async function loadPoke(id, dir = 0, log = false) {
+async function loadPoke(id, log = false) {
   const sList = document.getElementById('sList');
   if (sList) sList.style.display = 'none';
   const input = document.getElementById('sInput');
@@ -2668,7 +2643,7 @@ async function loadPoke(id, dir = 0, log = false) {
       rot = targetDeg;
       w.style.transform = `rotate(${rot}deg)`;
     }
-    renderCard(data, dir, false);
+    renderCard(data, false);
     if (log) addRec(data);
   } catch (e) {
     console.error(e);
@@ -2680,7 +2655,7 @@ function navigateDex(d) {
   let next = curId + d;
   if (next < 1) next = TOTAL;
   if (next > TOTAL) next = 1;
-  loadPoke(next, d, false);
+  loadPoke(next, false);
 }
 
 async function spinAndPick() {
@@ -2711,11 +2686,10 @@ async function spinAndPick() {
     const pRes = await fetch(valid[Math.floor(Math.random() * valid.length)].pokemon.url);
     const pData = await pRes.json();
     const shiny = Math.floor(Math.random() * 100) === 0;
-    fetchTcgCards(pData.name, pData.species?.name);
-    fetchLoreAndEvolution(pData.species?.url, pData.id);
+    
     setTimeout(() => {
       isSpinning = false;
-      renderCard(pData, 0, shiny, false);
+      renderCard(pData, shiny);
       addRec(pData);
       playCry();
       if (shiny) triggerSparkle();
@@ -2728,7 +2702,7 @@ async function spinAndPick() {
   }
 }
 
-function renderCard(p, dir = 0, shiny = false) {
+function renderCard(p, shiny = false) {
   curId = p.id;
   curPoke = p;
   isShiny = shiny;
@@ -2792,13 +2766,6 @@ if (cardEl) {
       navigateDex(dX < 0 ? 1 : -1);
     }
   }, { passive: true });
-}
-
-const tcgStripEl = document.getElementById('tcgStrip');
-if (tcgStripEl) {
-  tcgStripEl.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
-  tcgStripEl.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
-  tcgStripEl.addEventListener('touchend', e => e.stopPropagation(), { passive: true });
 }
 
 document.addEventListener('click', e => {

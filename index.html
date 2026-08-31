@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800;900&display=swap" rel="stylesheet">
 <!-- Official Pokémon Title Font -->
 <link href="https://fonts.cdnfonts.com/css/pokemon-solid" rel="stylesheet">
-<!-- Firebase Compatibility SDKs (Deferred for speed) -->
+<!-- Firebase Compatibility SDKs -->
 <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -425,7 +425,6 @@ body.has-active .btn-close {
   width: clamp(145px, 22dvh, 195px);
   height: clamp(145px, 22dvh, 195px);
   aspect-ratio: 1 / 1;
-  cursor: pointer;
 }
 .card img.main-art {
   width: 100%;
@@ -453,31 +452,6 @@ body.has-active .btn-close {
   0% { transform: translate(-50%, -50%) scale(0) rotate(0deg); opacity: 0; }
   50% { transform: translate(-50%, -50%) scale(1.6) rotate(180deg); opacity: 1; filter: drop-shadow(0 0 12px #f59e0b); }
   100% { transform: translate(-50%, -50%) scale(2.2) rotate(360deg); opacity: 0; }
-}
-.tick-badge {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  background: var(--card);
-  color: transparent;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.8rem;
-  font-weight: 900;
-  border: 2px solid #64748b;
-  cursor: pointer;
-  z-index: 15;
-  transition: all 0.25s;
-}
-.tick-badge.active {
-  background: var(--green);
-  border-color: #fff;
-  color: #fff;
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
 }
 .poke-name {
   font-size: clamp(1.05rem, 2.1dvh, 1.3rem);
@@ -1268,10 +1242,9 @@ body.has-active .hub-item-label {
       <button onclick="navigateDex(1)">›</button>
     </div>
     <h2 class="poke-name" id="pokeName">Pokémon</h2>
-    <div class="img-box" onclick="toggleMainPokemonCollection()">
+    <div class="img-box">
       <img class="main-art" id="pokeImg" src="" alt="Artwork" />
       <div class="sparkle" id="sparkle">✨</div>
-      <div class="tick-badge" id="cardTick" onclick="event.stopPropagation(); toggleMainPokemonCollection();">✓</div>
     </div>
     <div class="card-actions">
       <button class="btn-icon" onclick="playCry()">🔊</button>
@@ -1582,7 +1555,6 @@ function saveLocalState() {
   } catch (e) {}
   updateCounts();
   renderRecents();
-  if (curId) updateBtn(memCol.has(parseInt(curId, 10)));
   if (document.getElementById('dexModal').style.display === 'flex') {
     renderDex();
   }
@@ -1597,20 +1569,6 @@ function writeFullCollectionToCloud() {
     db.collection("users").doc(currentUser.uid).set(payload, { merge: true })
       .catch(err => console.error("Cloud write failed:", err));
   }
-}
-
-function toggleMainPokemonCollection() {
-  if (!curId) return;
-  initAudio();
-  playTick();
-  const idNum = parseInt(curId, 10);
-  if (memCol.has(idNum)) {
-    memCol.delete(idNum);
-  } else {
-    memCol.add(idNum);
-  }
-  saveLocalState();
-  writeFullCollectionToCloud();
 }
 
 function toggleCardCollection(cardId, pokemonId = null) {
@@ -1730,6 +1688,16 @@ function isValidFrontCardImage(url) {
   if (!url || typeof url !== 'string') return false;
   const lower = url.toLowerCase().trim();
   return !(lower.includes('undefined') || lower.includes('/back.') || lower.includes('cardback') || lower.includes('/placeholder.'));
+}
+
+function normalizeCardNumber(numStr) {
+  if (!numStr) return '?';
+  const clean = String(numStr).trim().toUpperCase();
+  // Strip leading zeroes for pure numbers (e.g., '065' -> '65')
+  if (/^\d+$/.test(clean)) {
+    return String(parseInt(clean, 10));
+  }
+  return clean;
 }
 
 function buildLabels() {
@@ -1853,7 +1821,6 @@ function setupAuthListener() {
         accountLabel.style.color = 'var(--sub)';
       }
       reloadMemoryFromLocal();
-      if (curId) updateBtn(memCol.has(parseInt(curId, 10)));
     }
   });
 }
@@ -2295,7 +2262,7 @@ function matchesExactPokemonName(cardName, targetName) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2779_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2780_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);
@@ -2326,8 +2293,6 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
     throw new Error("Failed to fetch");
   };
 
-  let allCards = [];
-
   const fetchPokeTcgIo = async () => {
     try {
       const cleanWord = cleanName.replace(/["']/g, '');
@@ -2347,7 +2312,6 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       if (res.ok) {
         const json = await res.json();
         if (Array.isArray(json)) {
-          // Limit concurrent requests to prevent rate limiting
           const sample = json.slice(0, 20);
           const hydratedCards = await Promise.all(
             sample.map(async c => {
@@ -2378,28 +2342,37 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
   const [cardsFromIo, cardsFromDex] = await Promise.all([fetchPokeTcgIo(), fetchTcgDex()]);
 
-  const seenKeys = new Set();
+  // Robust cross-API deduplication by normalized Set Name and Card Number
+  const mergedMap = new Map();
   const rawMerged = [...cardsFromIo, ...cardsFromDex];
   for (const c of rawMerged) {
-    const key = `${c.name}_${c.set?.id || c.set?.name}_${c.number || c.localId}`.toLowerCase();
-    if (!seenKeys.has(key)) {
-      seenKeys.add(key);
-      allCards.push(c);
+    if (isDigitalOnlyCard(c)) continue;
+    if (!matchesExactPokemonName(c.name, cleanName)) continue;
+    const smallImg = c.images?.small || '';
+    if (!isValidFrontCardImage(smallImg)) continue;
+
+    const resolvedSet = resolveSetName(c.set, c.id);
+    const resolvedNum = normalizeCardNumber(c.number || c.localId);
+    const dedupKey = `${resolvedSet.toLowerCase().replace(/[^a-z0-9]/g, '')}_${resolvedNum}`;
+
+    if (!mergedMap.has(dedupKey)) {
+      mergedMap.set(dedupKey, c);
+    } else {
+      // Retain the entry with pricing data if available
+      const existing = mergedMap.get(dedupKey);
+      if (!existing.pricing && !existing.cardmarket && !existing.tcgplayer && (c.pricing || c.cardmarket || c.tcgplayer)) {
+        mergedMap.set(dedupKey, c);
+      }
     }
   }
 
-  const physicalSpeciesCards = allCards
-    .filter(c => !isDigitalOnlyCard(c))
-    .filter(c => matchesExactPokemonName(c.name, cleanName))
-    .filter(c => isValidFrontCardImage(c.images?.small));
-
-  const formattedCards = physicalSpeciesCards.map(c => ({
+  const formattedCards = Array.from(mergedMap.values()).map(c => ({
     id: c.id,
     name: c.name,
     smallImg: c.images?.small || '',
     largeImg: c.images?.large || c.images?.small || '',
     setName: resolveSetName(c.set, c.id),
-    number: c.number || c.localId || '?',
+    number: normalizeCardNumber(c.number || c.localId),
     rarity: c.rarity || 'Common',
     rarityScore: getRarityScore(c.rarity),
     priceGBP: extractCardPriceGBP(c)
@@ -2576,11 +2549,6 @@ function closeTcgZoom() {
   }
 }
 
-function updateBtn(owned) {
-  const cardTick = document.getElementById('cardTick');
-  if (cardTick) cardTick.classList.toggle('active', owned);
-}
-
 function hideActive() {
   document.body.classList.remove('has-active');
   const pokeCard = document.getElementById('pokeCard');
@@ -2744,7 +2712,6 @@ function renderCard(p, shiny = false) {
   if (sAtk) sAtk.innerText = st.attack || '-';
   if (sDef) sDef.innerText = st.defense || '-';
   if (sSpd) sSpd.innerText = st.speed || '-';
-  updateBtn(memCol.has(parseInt(p.id, 10)));
   if (card) card.style.display = 'block';
 }
 

@@ -1455,7 +1455,8 @@ function initFirebaseIfReady() {
     if (typeof firebase !== 'undefined' && !auth) {
       firebase.initializeApp(firebaseConfig);
       auth = firebase.auth();
-      db = firebase.firestore();
+      // Explicitly connect to the named 'pokeroulette' Firestore database
+      db = firebase.app().firestore('pokeroulette');
       
       try {
         db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
@@ -1617,14 +1618,28 @@ function saveLocalState() {
 }
 
 function writeFullCollectionToCloud() {
-  if (currentUser && db) {
-    const payload = {
-      collection: Array.from(memCol),
-      cardsCollection: Array.from(memCardCol)
-    };
-    db.collection("users").doc(currentUser.uid).set(payload, { merge: true })
-      .catch(err => console.error("Cloud write failed:", err));
+  if (!currentUser) {
+    alert("Sync Notice: You are not signed in. Tap Account to log in first!");
+    return;
   }
+  if (!db) {
+    alert("Sync Error: Firestore database object is null.");
+    return;
+  }
+
+  const payload = {
+    collection: Array.from(memCol),
+    cardsCollection: Array.from(memCardCol),
+    lastSync: new Date().toISOString()
+  };
+
+  db.collection("users").doc(currentUser.uid).set(payload, { merge: true })
+    .then(() => {
+      alert("Success! Cloud database updated for UID: " + currentUser.uid.substring(0, 6) + "...");
+    })
+    .catch(err => {
+      alert("Firestore Rejected: " + err.code + " - " + err.message);
+    });
 }
 
 function toggleCardCollection(cardId, pokemonId = null) {
@@ -1911,9 +1926,11 @@ function handleEmailAuth(isSignUp) {
     ? auth.createUserWithEmailAndPassword(email, pass)
     : auth.signInWithEmailAndPassword(email, pass);
 
-  authPromise.then(() => {
+  authPromise.then((cred) => {
+    alert("Authentication Success! Welcome " + (cred.user?.email || "User"));
     closeModal(null, 'accountModal');
   }).catch(err => {
+    alert("Auth Failed: " + err.code + " - " + err.message);
     showAuthError(err.message);
   });
 }

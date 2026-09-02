@@ -2819,6 +2819,7 @@ document.addEventListener('click', e => {
 (async () => {
   buildLabels();
   updateCounts();
+  initFirebaseIfReady(); // <-- Add this line here
   try {
     const res = await fetch(`https://pokeapi.co/api/v2/pokemon?limit=${TOTAL}`);
     const data = await res.json();

@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>PokéRoulette</title>
-<link rel="manifest" href="manifest.json" />
+<link rel="manifest" href="manifest.json?v=3" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,11 +12,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800;900&display=swap" rel="stylesheet">
 <!-- Official Pokémon Title Font -->
 <link href="https://fonts.cdnfonts.com/css/pokemon-solid" rel="stylesheet">
-<!-- Firebase Compatibility SDKs -->
-<script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-<script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-<script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<!-- Firebase Compatibility SDKs (Synchronous to avoid initialization race conditions) -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 <meta name="theme-color" content="#1e293b" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1e293b" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#1e293b" />
 <meta name="msapplication-navbutton-color" content="#1e293b" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -1443,12 +1445,22 @@ try {
 let memCol = new Set();
 let memCardCol = new Set();
 
+function updateBtn(owned) {
+  const cardTick = document.getElementById('cardTick');
+  if (cardTick) cardTick.classList.toggle('active', Boolean(owned));
+}
+
 function initFirebaseIfReady() {
   try {
     if (typeof firebase !== 'undefined' && !auth) {
       firebase.initializeApp(firebaseConfig);
       auth = firebase.auth();
       db = firebase.firestore();
+      
+      try {
+        db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+      } catch (e) {}
+
       setupAuthListener();
     }
   } catch (e) {
@@ -1575,11 +1587,6 @@ function getStorageKey() {
 }
 function getCardStorageKey() {
   return activeUid ? `p_cards_${activeUid}` : `p_cards_guest`;
-}
-
-function updateBtn(owned) {
-  const cardTick = document.getElementById('cardTick');
-  if (cardTick) cardTick.classList.toggle('active', Boolean(owned));
 }
 
 function reloadMemoryFromLocal() {
@@ -1813,20 +1820,22 @@ function updateCounts() {
 let firestoreUnsubscribe = null;
 function setupAuthListener() {
   if (!auth) return;
-  auth.onAuthStateChanged(user => {
+  auth.onAuthStateChanged(async (user) => {
     if (firestoreUnsubscribe) {
       firestoreUnsubscribe();
       firestoreUnsubscribe = null;
     }
     currentUser = user;
+
     const loggedInView = document.getElementById('authLoggedInView');
     const loggedOutView = document.getElementById('authLoggedOutView');
     const emailSpan = document.getElementById('authUserEmail');
     const accountLabel = document.getElementById('accountLabel');
-    
+
     if (user) {
       activeUid = user.uid;
       try { localStorage.setItem('p_last_uid', user.uid); } catch (e) {}
+
       if (loggedInView) loggedInView.style.display = 'flex';
       if (loggedOutView) loggedOutView.style.display = 'none';
       if (emailSpan) emailSpan.innerText = user.email || 'User Account';
@@ -1836,45 +1845,57 @@ function setupAuthListener() {
       }
 
       if (db) {
-        db.collection("users").doc(user.uid).get().then(snap => {
+        try {
+          const docRef = db.collection("users").doc(user.uid);
+          const snap = await docRef.get();
+
           if (snap.exists) {
             const data = snap.data();
             const cloudArr = Array.isArray(data.collection) ? data.collection.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
             const cloudCards = Array.isArray(data.cardsCollection) ? data.cardsCollection.map(String) : [];
+
             memCol = new Set(cloudArr);
             memCardCol = new Set(cloudCards);
             saveLocalState();
+            if (currentCardsList.length > 0) renderTcgCards(currentCardsList);
           } else {
             writeFullCollectionToCloud();
           }
-        }).catch(err => {
-          console.error("Hydration error:", err);
-        });
+        } catch (err) {
+          console.error("Cloud fetch error:", err);
+          reloadMemoryFromLocal();
+        }
 
-        firestoreUnsubscribe = db.collection("users").doc(user.uid).onSnapshot(doc => {
+        firestoreUnsubscribe = db.collection("users").doc(user.uid).onSnapshot((doc) => {
+          if (doc.metadata.hasPendingWrites) return;
           if (doc.exists) {
             const data = doc.data();
             const cloudArr = Array.isArray(data.collection) ? data.collection.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
             const cloudCards = Array.isArray(data.cardsCollection) ? data.cardsCollection.map(String) : [];
+
             memCol = new Set(cloudArr);
             memCardCol = new Set(cloudCards);
             saveLocalState();
+            if (currentCardsList.length > 0) renderTcgCards(currentCardsList);
           }
-        }, err => {
-          console.error("Firestore listener error:", err);
+        }, (err) => {
+          console.error("Firestore live listener error:", err);
         });
       }
     } else {
       activeUid = null;
       try { localStorage.removeItem('p_last_uid'); } catch (e) {}
+
       if (loggedInView) loggedInView.style.display = 'none';
       if (loggedOutView) loggedOutView.style.display = 'flex';
       if (accountLabel) {
         accountLabel.innerText = 'Account';
         accountLabel.style.color = 'var(--sub)';
       }
+
       reloadMemoryFromLocal();
       if (curId) updateBtn(memCol.has(parseInt(curId, 10)));
+      if (currentCardsList.length > 0) renderTcgCards(currentCardsList);
     }
   });
 }
@@ -2316,7 +2337,7 @@ function matchesExactPokemonName(cardName, targetName) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2786_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2787_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);
@@ -2819,7 +2840,7 @@ document.addEventListener('click', e => {
 (async () => {
   buildLabels();
   updateCounts();
-  initFirebaseIfReady(); // <-- Add this line here
+  initFirebaseIfReady();
   try {
     const res = await fetch(`https://pokeapi.co/api/v2/pokemon?limit=${TOTAL}`);
     const data = await res.json();

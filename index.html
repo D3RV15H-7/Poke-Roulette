@@ -17,7 +17,9 @@
 <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 <meta name="theme-color" content="#1e293b" />
+<meta name="msapplication-navbutton-color" content="#1e293b" />
 <meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <style>
 :root {
@@ -42,7 +44,7 @@ html, body {
   width: 100%;
   height: 100dvh;
   overflow: hidden;
-  background: var(--bg);
+  background-color: var(--bg);
   color: var(--text);
 }
 body {
@@ -50,7 +52,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: clamp(0.2rem, 0.8dvh, 0.4rem) clamp(0.4rem, 2vw, 0.8rem);
+  padding: max(clamp(0.2rem, 0.8dvh, 0.4rem), env(safe-area-inset-top)) clamp(0.4rem, 2vw, 0.8rem) max(clamp(0.2rem, 0.8dvh, 0.4rem), env(safe-area-inset-bottom));
 }
 .viewport {
   width: 100%;
@@ -2482,6 +2484,11 @@ async function fetchTcgCards(pokeName, speciesName) {
     currentCardsList = await fetchTcgCardsData(pokeName, speciesName);
     if (!isSpinning && requestId === activeTcgRequestId) {
       renderTcgCards(currentCardsList);
+      if (curId) {
+        const hasCard = currentCardsList.some(c => memCardCol.has(String(c.id)));
+        if (hasCard) memCol.add(parseInt(curId, 10));
+        updateBtn(memCol.has(parseInt(curId, 10)));
+      }
     }
   } catch (err) {
     if (!isSpinning && requestId === activeTcgRequestId) {

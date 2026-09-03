@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>PokéRoulette</title>
-<link rel="manifest" href="manifest.json?v=16" />
+<link rel="manifest" href="manifest.json?v=17" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -631,24 +631,26 @@ body.has-active .btn-close {
   align-items: center;
 }
 .tcg-refresh-strip-btn {
-  flex: 0 0 clamp(32px, 5dvh, 40px);
-  width: clamp(32px, 5dvh, 40px);
-  height: calc(clamp(92px, 13.5dvh, 108px) * (88 / 63));
-  border-radius: 7px;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
   background: #1e293b;
-  border: 1.5px dashed #475569;
+  border: 1.5px solid #475569;
   color: var(--sub);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   font-weight: 900;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+  transition: transform 0.15s, background 0.15s, color 0.15s, border-color 0.15s;
   flex-shrink: 0;
   align-self: center;
 }
 .tcg-refresh-strip-btn:active {
+  transform: scale(0.92);
   background: #334155;
   color: #fff;
   border-color: var(--red);
@@ -2704,7 +2706,7 @@ function renderTcgCards(cards) {
   
   const frag = document.createDocumentFragment();
 
-  // Small, clean square refresh button that matches card dimensions and theme
+  // Small, clean circular refresh button matching theme
   const refreshBtn = document.createElement('div');
   refreshBtn.className = 'tcg-refresh-strip-btn';
   refreshBtn.title = "Refresh Cards";

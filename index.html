@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>PokéRoulette</title>
-<link rel="manifest" href="manifest.json?v=10" />
+<link rel="manifest" href="manifest.json?v=11" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1630,7 +1630,7 @@ const KNOWN_SETS = {
   'sv3': 'Obsidian Flames', 'sv03': 'Obsidian Flames', 'obf': 'Obsidian Flames', 'sv3en': 'Obsidian Flames',
   'sv03.5': '151', 'sv3pt5': '151', 'mew': '151', 'me151': '151',
   'sv4': 'Paradox Rift', 'sv04': 'Paradox Rift', 'par': 'Paradox Rift', 'sv4en': 'Paradox Rift',
-  'sv04.5': 'Paldean Fates', 'sv4pt5': 'Paldean Fates', 'paf': 'Paldean Fates',
+  'sv04.5': 'Paldean Fates', 'sv04pt5': 'Paldean Fates', 'paf': 'Paldean Fates',
   'sv5': 'Temporal Forces', 'sv05': 'Temporal Forces', 'tef': 'Temporal Forces', 'sv5en': 'Temporal Forces',
   'sv6': 'Twilight Masquerade', 'sv06': 'Twilight Masquerade', 'twm': 'Twilight Masquerade', 'sv6en': 'Twilight Masquerade',
   'sv06.5': 'Shrouded Fable', 'sv6pt5': 'Shrouded Fable', 'sfa': 'Shrouded Fable',
@@ -2031,7 +2031,7 @@ function setupAuthListener() {
       if (loggedInView) loggedInView.style.display = 'none';
       if (loggedOutView) loggedOutView.style.display = 'flex';
       if (accountLabel) {
-        accountLabel.innerText = 'Profile';
+        accountLabel.innerText = 'Account';
         accountLabel.style.color = 'var(--sub)';
       }
 

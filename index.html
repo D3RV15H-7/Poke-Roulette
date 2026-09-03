@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>PokéRoulette</title>
-<link rel="manifest" href="manifest.json?v=4" />
+<link rel="manifest" href="manifest.json?v=5" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1433,9 +1433,7 @@ const firebaseConfig = {
   projectId: "poke-roulette-app",
   storageBucket: "poke-roulette-app.firebasestorage.app",
   messagingSenderId: "514395694013",
-  appId: "1:514395694013:web:6250bd0a49674a45af28d4",
-  // Route directly to your named 'pokeroulette' database instance
-  databaseId: "pokeroulette"
+  appId: "1:514395694013:web:6250bd0a49674a45af28d4"
 };
 
 let auth = null, db = null, currentUser = null;
@@ -1457,8 +1455,13 @@ function initFirebaseIfReady() {
     if (typeof firebase !== 'undefined' && !auth) {
       firebase.initializeApp(firebaseConfig);
       auth = firebase.auth();
-      // Initialize Firestore directly with the named database instance
       db = firebase.app().firestore('pokeroulette');
+      
+      // Auto-detect long polling to prevent mobile WebChannel stream stalls
+      db.settings({
+        experimentalAutoDetectLongPolling: true,
+        merge: true
+      });
 
       setupAuthListener();
     }
@@ -1631,12 +1634,28 @@ function writeFullCollectionToCloud() {
     lastSync: new Date().toISOString()
   };
 
+  let finished = false;
+  const timeoutGuard = setTimeout(() => {
+    if (!finished) {
+      finished = true;
+      alert("Connection Timeout: The app cannot reach database 'pokeroulette'. Check that your device is online.");
+    }
+  }, 5000);
+
   db.collection("users").doc(currentUser.uid).set(payload, { merge: true })
     .then(() => {
-      alert("Success! Cloud database updated for " + (currentUser.email || "Account"));
+      if (!finished) {
+        finished = true;
+        clearTimeout(timeoutGuard);
+        alert("Success! Cloud database updated for " + (currentUser.email || "Account"));
+      }
     })
     .catch(err => {
-      alert("Firestore Rejected: " + err.code + " - " + err.message);
+      if (!finished) {
+        finished = true;
+        clearTimeout(timeoutGuard);
+        alert("Firestore Rejected: " + err.code + " - " + err.message);
+      }
     });
 }
 

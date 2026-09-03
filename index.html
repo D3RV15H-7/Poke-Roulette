@@ -630,6 +630,30 @@ body.has-active .btn-close {
   min-height: 135px;
   align-items: center;
 }
+.tcg-refresh-strip-btn {
+  flex: 0 0 36px;
+  width: 36px;
+  height: calc(clamp(92px, 13.5dvh, 108px) * (88 / 63));
+  border-radius: 7px;
+  background: #1e293b;
+  border: 1.5px dashed #475569;
+  color: var(--sub);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 900;
+  gap: 0.2rem;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.tcg-refresh-strip-btn:active {
+  background: #334155;
+  color: #fff;
+  border-color: var(--red);
+}
 .tcg-card-item {
   flex: 0 0 clamp(92px, 13.5dvh, 108px);
   width: clamp(92px, 13.5dvh, 108px);
@@ -1415,7 +1439,7 @@ body.has-active .hub-item-label {
     <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:0.5rem;">
       <h3 id="dexCardsTitle" style="font-size:1.05rem;font-weight:800;text-transform:capitalize;">Card Variations</h3>
       <div style="display:flex;gap:0.45rem;align-items:center;">
-        <button class="btn-header-action" title="Refresh Cards" onclick="refreshCurrentDexCards()">↻</button>
+        <button class="btn-header-action" title="Refresh Cards" onclick="refreshCurrentCardSearch()">↻</button>
         <button class="btn-header-action" onclick="closeDexCardsModal()">✕</button>
       </div>
     </div>
@@ -2213,6 +2237,11 @@ function refreshCurrentDexCards() {
     openDexCardsModal(activeDexModalPoke, true);
   }
 }
+function refreshCurrentCardSearch() {
+  if (curPoke) {
+    fetchTcgCards(curPoke.name, curPoke.species?.name, true);
+  }
+}
 function closeDexCardsModal() {
   const modal = document.getElementById('dexCardsModal');
   if (modal) modal.style.display = 'none';
@@ -2287,7 +2316,6 @@ function toggleShiny() {
   if (!curPoke) return;
   isShiny = !isShiny;
   updateArt();
-  // Removed triggerSparkle() here so manual button clicks do not force the animation
 }
 
 function updateArt() {
@@ -2619,7 +2647,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
     }
     const priceA = parseFloat(a.priceGBP) || 0;
     const priceB = parseFloat(b.priceGBP) || 0;
-    return priceB - priceA;
+    return priceB - priceB;
   });
 
   if (formattedCards.length > 0) {
@@ -2631,7 +2659,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   return formattedCards;
 }
 
-async function fetchTcgCards(pokeName, speciesName) {
+async function fetchTcgCards(pokeName, speciesName, bypassCache = false) {
   const requestId = ++activeTcgRequestId;
   const strip = document.getElementById('tcgStrip');
   const countText = document.getElementById('tcgCountText');
@@ -2647,7 +2675,7 @@ async function fetchTcgCards(pokeName, speciesName) {
     }
   }
   try {
-    currentCardsList = await fetchTcgCardsData(pokeName, speciesName);
+    currentCardsList = await fetchTcgCardsData(pokeName, speciesName, bypassCache);
     if (!isSpinning && requestId === activeTcgRequestId) {
       renderTcgCards(currentCardsList);
       if (curId) {
@@ -2676,6 +2704,21 @@ function renderTcgCards(cards) {
   if (countText) countText.innerText = `${cards.length} Card${cards.length === 1 ? '' : 's'}`;
   
   const frag = document.createDocumentFragment();
+
+  // Slim Refresh Button placed right before the first card in the scroll strip
+  const refreshBtn = document.createElement('div');
+  refreshBtn.className = 'tcg-refresh-strip-btn';
+  refreshBtn.title = "Refresh Cards";
+  refreshBtn.onclick = (e) => {
+    e.stopPropagation();
+    initAudio();
+    playTick();
+    showToast("Refreshing cards...", "warning");
+    refreshCurrentCardSearch();
+  };
+  refreshBtn.innerHTML = `<span>↻</span><span style="font-size:0.5rem;text-transform:uppercase;">Sync</span>`;
+  frag.appendChild(refreshBtn);
+
   cards.forEach((card, index) => {
     const isOwnedCard = isCardCollected(card);
     const node = document.createElement('div');

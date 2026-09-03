@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>PokéRoulette</title>
-<link rel="manifest" href="manifest.json?v=14" />
+<link rel="manifest" href="manifest.json?v=15" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -631,22 +631,19 @@ body.has-active .btn-close {
   align-items: center;
 }
 .tcg-refresh-strip-btn {
-  flex: 0 0 46px;
-  width: 46px;
-  height: 100%;
-  min-height: 122px;
+  flex: 0 0 32px;
+  width: 32px;
+  height: calc(clamp(92px, 13.5dvh, 108px) * (88 / 63));
   border-radius: 7px;
   background: #1e293b;
   border: 1.5px dashed #475569;
   color: var(--sub);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 1rem;
   font-weight: 900;
-  gap: 0.25rem;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
   flex-shrink: 0;
 }
@@ -1316,7 +1313,7 @@ body.has-active .hub-item-label {
   <header>
     <h1>Poké<span>Roulette</span></h1>
     <div class="top-action-bar">
-      <button class="btn-top-reload" onclick="window.location.reload()" title="Reload Page">
+      <button class="btn-top-reload" onclick="window.location.reload()" title="Refresh Page">
         ↻ Refresh Page
       </button>
     </div>
@@ -2706,7 +2703,7 @@ function renderTcgCards(cards) {
   
   const frag = document.createDocumentFragment();
 
-  // Refresh Cards button inline at the start of the scroll strip matching card frame height
+  // Slim icon-only Refresh Cards button perfectly aligned with card frame height
   const refreshBtn = document.createElement('div');
   refreshBtn.className = 'tcg-refresh-strip-btn';
   refreshBtn.title = "Refresh Cards";
@@ -2717,7 +2714,7 @@ function renderTcgCards(cards) {
     showToast("Refreshing cards...", "warning");
     refreshCurrentCardSearch();
   };
-  refreshBtn.innerHTML = `<span style="font-size:1.1rem;">↻</span><span style="font-size:0.48rem;text-transform:uppercase;font-weight:900;text-align:center;line-height:1.1;">Refresh Cards</span>`;
+  refreshBtn.innerHTML = `<span>↻</span>`;
   frag.appendChild(refreshBtn);
 
   cards.forEach((card, index) => {

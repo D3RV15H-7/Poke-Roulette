@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>PokéRoulette</title>
-<link rel="manifest" href="manifest.json?v=9" />
+<link rel="manifest" href="manifest.json?v=10" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -767,11 +767,11 @@ body.has-active .hub-outer-wrap {
 .hub {
   display: flex;
   justify-content: center;
-  gap: 1.4rem;
+  gap: clamp(0.8rem, 3.5vw, 1.3rem);
   width: 100%;
 }
 body.has-active .hub {
-  gap: 1.2rem;
+  gap: clamp(0.7rem, 3vw, 1.1rem);
 }
 .hub-item-wrap {
   display: flex;
@@ -1360,6 +1360,12 @@ body.has-active .hub-item-label {
   <div class="hub-outer-wrap">
     <div class="hub">
       <div class="hub-item-wrap">
+        <button class="btn-hub" onclick="openModal('accountModal')" title="Account Sync" id="btnAccount">
+          <svg viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </button>
+        <span class="hub-item-label" id="accountLabel">Profile</span>
+      </div>
+      <div class="hub-item-wrap">
         <button class="btn-hub" onclick="openModal('dexModal')" title="Collection">
           <svg viewBox="0 0 24 24"><path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-9Z"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M8 10h8v4H8z"/></svg>
           <div class="hub-badge" id="bagBadge">0</div>
@@ -1373,10 +1379,10 @@ body.has-active .hub-item-label {
         <span class="hub-item-label">History</span>
       </div>
       <div class="hub-item-wrap">
-        <button class="btn-hub" onclick="openModal('accountModal')" title="Account Sync" id="btnAccount">
-          <svg viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <button class="btn-hub" onclick="openModal('infoModal')" title="App Info & Legal">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
         </button>
-        <span class="hub-item-label" id="accountLabel">Account</span>
+        <span class="hub-item-label">Info</span>
       </div>
     </div>
     <div class="badge">Collected: <strong id="tCount">0</strong> / 1025</div>
@@ -1468,6 +1474,32 @@ body.has-active .hub-item-label {
         <button class="btn-auth-primary" style="flex:1;background:#334155;" onclick="handleEmailAuth(true)">Sign Up</button>
       </div>
       <div id="authErrorMsg" style="color:var(--red);font-size:0.75rem;text-align:center;display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="infoModal" onclick="closeModal(event, 'infoModal')">
+  <div class="modal-body" style="height: auto; max-height: 80dvh;" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <h3 style="font-size:1.15rem;font-weight:800;">ℹ About PokéRoulette</h3>
+      <button style="background:#334155;color:#fff;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;" onclick="closeModal(null, 'infoModal')">✕</button>
+    </div>
+    <div style="font-size:0.76rem; color:#cbd5e1; line-height:1.5; display:flex; flex-direction:column; gap:0.75rem; padding:0.5rem 0.2rem; overflow-y:auto;">
+      <p><strong style="color:#fff;">PokéRoulette</strong> is an unofficial, non-commercial fan-made project built for collectors to discover Pokémon and track their TCG card binders.</p>
+      
+      <div style="background:#090d16; border:1px solid #334155; border-radius:10px; padding:0.65rem 0.8rem;">
+        <div style="color:var(--gold); font-weight:800; font-size:0.72rem; text-transform:uppercase; margin-bottom:0.3rem;">Data & Media Sources</div>
+        <ul style="list-style:disc; padding-left:1.1rem; color:var(--sub); display:flex; flex-direction:column; gap:0.25rem;">
+          <li>Pokémon species, stats & artwork: <strong style="color:#fff;">PokéAPI</strong></li>
+          <li>Card images & variations: <strong style="color:#fff;">Pokémon TCG API</strong> & <strong style="color:#fff;">TCGdex</strong></li>
+          <li>Estimated values: Market trends converted from TCGplayer & Cardmarket</li>
+        </ul>
+      </div>
+
+      <div style="background:#090d16; border:1px solid #334155; border-radius:10px; padding:0.65rem 0.8rem;">
+        <div style="color:var(--red); font-weight:800; font-size:0.72rem; text-transform:uppercase; margin-bottom:0.3rem;">Legal Disclaimer</div>
+        <p style="color:var(--sub); font-size:0.7rem; line-height:1.4;">Pokémon and Pokémon character names are trademarks and © of Nintendo, Creatures Inc., and Game Freak Inc. PokéRoulette is not affiliated with, endorsed, sponsored, or approved by Nintendo or The Pokémon Company.</p>
+      </div>
     </div>
   </div>
 </div>
@@ -1999,7 +2031,7 @@ function setupAuthListener() {
       if (loggedInView) loggedInView.style.display = 'none';
       if (loggedOutView) loggedOutView.style.display = 'flex';
       if (accountLabel) {
-        accountLabel.innerText = 'Account';
+        accountLabel.innerText = 'Profile';
         accountLabel.style.color = 'var(--sub)';
       }
 

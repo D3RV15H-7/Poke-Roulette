@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>PokéRoulette</title>
-<link rel="manifest" href="manifest.json?v=3" />
+<link rel="manifest" href="manifest.json?v=4" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800;900&display=swap" rel="stylesheet">
 <!-- Official Pokémon Title Font -->
 <link href="https://fonts.cdnfonts.com/css/pokemon-solid" rel="stylesheet">
-<!-- Firebase Compatibility SDKs (Synchronous to avoid initialization race conditions) -->
+<!-- Firebase Compatibility SDKs -->
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -1433,7 +1433,9 @@ const firebaseConfig = {
   projectId: "poke-roulette-app",
   storageBucket: "poke-roulette-app.firebasestorage.app",
   messagingSenderId: "514395694013",
-  appId: "1:514395694013:web:6250bd0a49674a45af28d4"
+  appId: "1:514395694013:web:6250bd0a49674a45af28d4",
+  // Route directly to your named 'pokeroulette' database instance
+  databaseId: "pokeroulette"
 };
 
 let auth = null, db = null, currentUser = null;
@@ -1455,17 +1457,13 @@ function initFirebaseIfReady() {
     if (typeof firebase !== 'undefined' && !auth) {
       firebase.initializeApp(firebaseConfig);
       auth = firebase.auth();
-      // Explicitly connect to the named 'pokeroulette' Firestore database
+      // Initialize Firestore directly with the named database instance
       db = firebase.app().firestore('pokeroulette');
-      
-      try {
-        db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
-      } catch (e) {}
 
       setupAuthListener();
     }
   } catch (e) {
-    console.error("Firebase init error:", e);
+    alert("Firebase Init Crash: " + e.message);
   }
 }
 
@@ -1619,7 +1617,7 @@ function saveLocalState() {
 
 function writeFullCollectionToCloud() {
   if (!currentUser) {
-    alert("Sync Notice: You are not signed in. Tap Account to log in first!");
+    alert("Sync Notice: You are currently a Guest. Sign in under Account to sync your progress across devices!");
     return;
   }
   if (!db) {
@@ -1635,7 +1633,7 @@ function writeFullCollectionToCloud() {
 
   db.collection("users").doc(currentUser.uid).set(payload, { merge: true })
     .then(() => {
-      alert("Success! Cloud database updated for UID: " + currentUser.uid.substring(0, 6) + "...");
+      alert("Success! Cloud database updated for " + (currentUser.email || "Account"));
     })
     .catch(err => {
       alert("Firestore Rejected: " + err.code + " - " + err.message);

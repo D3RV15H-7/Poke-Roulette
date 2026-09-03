@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>PokéRoulette</title>
-<link rel="manifest" href="manifest.json?v=5" />
+<link rel="manifest" href="manifest.json?v=6" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1455,13 +1455,8 @@ function initFirebaseIfReady() {
     if (typeof firebase !== 'undefined' && !auth) {
       firebase.initializeApp(firebaseConfig);
       auth = firebase.auth();
-      db = firebase.app().firestore('pokeroulette');
-      
-      // Auto-detect long polling to prevent mobile WebChannel stream stalls
-      db.settings({
-        experimentalAutoDetectLongPolling: true,
-        merge: true
-      });
+      // Connect to standard (default) Firestore instance
+      db = firebase.firestore();
 
       setupAuthListener();
     }
@@ -1638,7 +1633,7 @@ function writeFullCollectionToCloud() {
   const timeoutGuard = setTimeout(() => {
     if (!finished) {
       finished = true;
-      alert("Connection Timeout: The app cannot reach database 'pokeroulette'. Check that your device is online.");
+      alert("Connection Timeout: Could not reach Firestore (default). Check network connection or database rules.");
     }
   }, 5000);
 

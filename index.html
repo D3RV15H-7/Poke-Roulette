@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>PokéRoulette</title>
-<link rel="manifest" href="manifest.json?v=6" />
+<link rel="manifest" href="manifest.json?v=7" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1237,6 +1237,44 @@ body.has-active .hub-item-label {
   font-weight: 800;
   cursor: pointer;
 }
+
+/* Custom In-App Toast Banners */
+.app-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(40px);
+  background: rgba(15, 23, 42, 0.95);
+  color: var(--text);
+  border: 1.5px solid #334155;
+  padding: 0.65rem 1.25rem;
+  border-radius: 99px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+}
+.app-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.app-toast.toast-success {
+  border-color: var(--green);
+}
+.app-toast.toast-error {
+  border-color: var(--red);
+}
+.app-toast.toast-warning {
+  border-color: var(--gold);
+}
 </style>
 </head>
 <body>
@@ -1424,6 +1462,9 @@ body.has-active .hub-item-label {
   </div>
 </div>
 
+<!-- In-App Toast Banner -->
+<div id="appToast" class="app-toast"></div>
+
 <script>
 const POKEMON_TCG_API_KEY = "";
 
@@ -1445,6 +1486,26 @@ try {
 let memCol = new Set();
 let memCardCol = new Set();
 
+let toastTimer = null;
+function showToast(msg, type = 'success') {
+  const toast = document.getElementById('appToast');
+  if (!toast) return;
+
+  const icons = {
+    success: '✓',
+    error: '✕',
+    warning: '!'
+  };
+
+  toast.className = `app-toast toast-${type} visible`;
+  toast.innerHTML = `<span style="color:var(--${type === 'warning' ? 'gold' : type === 'error' ? 'red' : 'green'}); font-size: 0.9rem;">${icons[type] || '•'}</span> <span>${msg}</span>`;
+
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove('visible');
+  }, 2500);
+}
+
 function updateBtn(owned) {
   const cardTick = document.getElementById('cardTick');
   if (cardTick) cardTick.classList.toggle('active', Boolean(owned));
@@ -1455,13 +1516,12 @@ function initFirebaseIfReady() {
     if (typeof firebase !== 'undefined' && !auth) {
       firebase.initializeApp(firebaseConfig);
       auth = firebase.auth();
-      // Connect to standard (default) Firestore instance
       db = firebase.firestore();
 
       setupAuthListener();
     }
   } catch (e) {
-    alert("Firebase Init Crash: " + e.message);
+    console.error("Firebase init error:", e);
   }
 }
 
@@ -1613,13 +1673,13 @@ function saveLocalState() {
   }
 }
 
-function writeFullCollectionToCloud() {
+function writeFullCollectionToCloud(actionMessage = null) {
   if (!currentUser) {
-    alert("Sync Notice: You are currently a Guest. Sign in under Account to sync your progress across devices!");
+    showToast("Sign in under Account to sync your collection", "warning");
     return;
   }
   if (!db) {
-    alert("Sync Error: Firestore database object is null.");
+    showToast("Database not initialized", "error");
     return;
   }
 
@@ -1629,28 +1689,14 @@ function writeFullCollectionToCloud() {
     lastSync: new Date().toISOString()
   };
 
-  let finished = false;
-  const timeoutGuard = setTimeout(() => {
-    if (!finished) {
-      finished = true;
-      alert("Connection Timeout: Could not reach Firestore (default). Check network connection or database rules.");
-    }
-  }, 5000);
-
   db.collection("users").doc(currentUser.uid).set(payload, { merge: true })
     .then(() => {
-      if (!finished) {
-        finished = true;
-        clearTimeout(timeoutGuard);
-        alert("Success! Cloud database updated for " + (currentUser.email || "Account"));
+      if (actionMessage) {
+        showToast(actionMessage, "success");
       }
     })
     .catch(err => {
-      if (!finished) {
-        finished = true;
-        clearTimeout(timeoutGuard);
-        alert("Firestore Rejected: " + err.code + " - " + err.message);
-      }
+      showToast("Sync failed: " + err.code, "error");
     });
 }
 
@@ -1659,11 +1705,14 @@ function toggleCardCollection(cardId, pokemonId = null) {
   playTick();
   const cId = String(cardId);
   const targetPokeId = parseInt(pokemonId || curId || activeDexModalPoke?.id, 10);
+  let wasAdded = false;
 
   if (memCardCol.has(cId)) {
     memCardCol.delete(cId);
+    wasAdded = false;
   } else {
     memCardCol.add(cId);
+    wasAdded = true;
   }
 
   if (targetPokeId && currentCardsList.length > 0) {
@@ -1676,7 +1725,8 @@ function toggleCardCollection(cardId, pokemonId = null) {
   }
 
   saveLocalState();
-  writeFullCollectionToCloud();
+  const toastMsg = wasAdded ? "Card Added to Dex Collection" : "Card Removed from Dex Collection";
+  writeFullCollectionToCloud(toastMsg);
 }
 
 function toTitleCase(str) {
@@ -1929,7 +1979,7 @@ function setupAuthListener() {
 
 function handleEmailAuth(isSignUp) {
   initFirebaseIfReady();
-  if (!auth) return alert("Firebase Auth is loading or unavailable.");
+  if (!auth) return showToast("Firebase Auth unavailable", "error");
   const email = (document.getElementById('authEmail')?.value || '').trim();
   const pass = document.getElementById('authPassword')?.value || '';
   if (!email || !pass) return showAuthError("Please fill out all fields.");
@@ -1939,10 +1989,10 @@ function handleEmailAuth(isSignUp) {
     : auth.signInWithEmailAndPassword(email, pass);
 
   authPromise.then((cred) => {
-    alert("Authentication Success! Welcome " + (cred.user?.email || "User"));
+    showToast(`Signed in as ${cred.user?.email || "User"}`, "success");
     closeModal(null, 'accountModal');
   }).catch(err => {
-    alert("Auth Failed: " + err.code + " - " + err.message);
+    showToast(err.message, "error");
     showAuthError(err.message);
   });
 }
@@ -1950,6 +2000,7 @@ function handleEmailAuth(isSignUp) {
 function handleSignOut() {
   if (auth) {
     auth.signOut().then(() => {
+      showToast("Signed out", "warning");
       closeModal(null, 'accountModal');
     }).catch(err => console.error("Sign out error:", err));
   }

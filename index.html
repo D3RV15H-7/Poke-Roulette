@@ -1309,6 +1309,45 @@ body.has-active .hub-item-label {
 .app-toast.toast-warning {
   border-color: var(--gold);
 }
+
+/* Full-Screen Shiny Celebration Overlay */
+.shiny-celebration-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.shiny-celebration-overlay.active {
+  opacity: 1;
+}
+.shiny-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255,203,5,0.35) 0%, rgba(239,68,68,0.15) 50%, transparent 80%);
+  animation: shinyFlashAnim 0.8s ease-out forwards;
+}
+@keyframes shinyFlashAnim {
+  0% { transform: scale(0.5); opacity: 0; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+.burst-particle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  font-size: 1.5rem;
+  animation: particleBurst 0.9s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+}
+@keyframes particleBurst {
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+  100% { 
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.4) rotate(360deg); 
+    opacity: 0; 
+  }
+}
 </style>
 </head>
 <body>
@@ -1532,6 +1571,11 @@ body.has-active .hub-item-label {
 <!-- In-App Toast Banner -->
 <div id="appToast" class="app-toast"></div>
 
+<!-- Shiny Celebration Overlay -->
+<div id="shinyOverlay" class="shiny-celebration-overlay">
+  <div class="shiny-flash"></div>
+</div>
+
 <script>
 const POKEMON_TCG_API_KEY = "";
 
@@ -1661,7 +1705,7 @@ const KNOWN_SETS = {
   'sv06.5': 'Shrouded Fable', 'sv6pt5': 'Shrouded Fable', 'sfa': 'Shrouded Fable',
   'sv7': 'Stellar Crown', 'sv07': 'Stellar Crown', 'scr': 'Stellar Crown', 'sv7en': 'Stellar Crown',
   'sv8': 'Surging Sparks', 'sv08': 'Surging Sparks', 'ssp': 'Surging Sparks', 'sv8en': 'Surging Sparks',
-  'sv08.5': 'Prismatic Evolutions', 'sv8pt5': 'Prismatic Evolutions', 'pre': 'Prismatic Evolutions',
+  'sv08.5': 'Prismatic Evolutions', 'sv08pt5': 'Prismatic Evolutions', 'pre': 'Prismatic Evolutions',
   'me01': 'Mega Evolution', 'meg': 'Mega Evolution', 'me1': 'Mega Evolution',
   'me02': 'Phantasmal Flames', 'pfl': 'Phantasmal Flames', 'me2': 'Phantasmal Flames',
   'me02.5': 'Ascended Heroes', 'me2.5': 'Ascended Heroes', 'me25': 'Ascended Heroes', 'asc': 'Ascended Heroes',
@@ -2305,18 +2349,46 @@ function playCry() {
 }
 
 function triggerSparkle() {
-  const s = document.getElementById('sparkle');
-  if (!s) return;
-  s.classList.remove('pop');
-  void s.offsetWidth;
-  s.classList.add('pop');
+  const overlay = document.getElementById('shinyOverlay');
+  if (!overlay) return;
+
+  overlay.innerHTML = '<div class="shiny-flash"></div>';
+  overlay.classList.add('active');
+
+  const emojis = ['✨', '⭐', '💫', '🌟', '💎'];
+  const particleCount = 18;
+  
+  for (let i = 0; i < particleCount; i++) {
+    const p = document.createElement('div');
+    p.className = 'burst-particle';
+    p.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+    
+    const angle = Math.random() * Math.PI * 2;
+    const distance = 80 + Math.random() * 160;
+    const dx = Math.cos(angle) * distance;
+    const dy = Math.sin(angle) * distance;
+    
+    p.style.setProperty('--dx', `${dx}px`);
+    p.style.setProperty('--dy', `${dy}px`);
+    p.style.animationDelay = `${Math.random() * 0.15}s`;
+    
+    overlay.appendChild(p);
+  }
+
   if (navigator.vibrate) navigator.vibrate([40, 60, 40, 60, 80]);
+
+  setTimeout(() => {
+    overlay.classList.remove('active');
+  }, 900);
 }
 
 function toggleShiny() {
   if (!curPoke) return;
   isShiny = !isShiny;
   updateArt();
+  if (isShiny) {
+    triggerSparkle();
+  }
 }
 
 function updateArt() {
@@ -2706,7 +2778,6 @@ function renderTcgCards(cards) {
   
   const frag = document.createDocumentFragment();
 
-  // Small, clean circular refresh button matching theme
   const refreshBtn = document.createElement('div');
   refreshBtn.className = 'tcg-refresh-strip-btn';
   refreshBtn.title = "Refresh Cards";

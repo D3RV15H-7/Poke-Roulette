@@ -1294,7 +1294,6 @@ body.has-active .hub-item-label {
 }
 .btn-auth-primary {
   background: linear-gradient(135deg, var(--red), #dc2626);
-  color: name;
   color: #fff;
   border: none;
   padding: 0.7rem;
@@ -2500,6 +2499,17 @@ function renderEvolutionChain(chain) {
   evoBox.style.display = 'flex';
 }
 
+function getRarityDefaultPriceGBP(rarityStr) {
+  if (!rarityStr) return null;
+  const score = getRarityScore(rarityStr);
+  if (score >= 90) return (18.50).toFixed(2);
+  if (score >= 80) return (9.20).toFixed(2);
+  if (score >= 65) return (4.80).toFixed(2);
+  if (score >= 50) return (1.75).toFixed(2);
+  if (score >= 30) return (0.85).toFixed(2);
+  return (0.35).toFixed(2);
+}
+
 function extractCardPriceGBP(card) {
   if (!card) return null;
 
@@ -2573,7 +2583,7 @@ function matchesExactPokemonName(cardName, targetName) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2789_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2790_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);
@@ -2587,18 +2597,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       }
     } catch (e) {}
   }
-  
-  const searchTerms = [cleanName];
-  if (!cleanName.toLowerCase().includes('mega')) {
-    searchTerms.push(`Mega ${cleanName}`);
-  }
-  if (!cleanName.toLowerCase().includes('ex')) {
-    searchTerms.push(`${cleanName} ex`);
-  }
-  if (!cleanName.toLowerCase().includes('mega') && !cleanName.toLowerCase().includes('ex')) {
-    searchTerms.push(`Mega ${cleanName} ex`);
-  }
-
+  const primaryTerm = cleanName.includes('-') ? cleanName : cleanName.split(' ')[0];
   const fetchWithRetry = async (url, headers = {}, retries = 2, delay = 350) => {
     for (let i = 0; i < retries; i++) {
       try {
@@ -2617,29 +2616,24 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
   const fetchPokeTcgIo = async () => {
     try {
-      let allData = [];
-      for (const term of searchTerms) {
-        const cleanWord = term.replace(/["']/g, '');
-        const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanWord)}"&pageSize=250`;
-        const headers = POKEMON_TCG_API_KEY ? { 'X-Api-Key': POKEMON_TCG_API_KEY } : {};
-        const json = await fetchWithRetry(queryUrl, headers);
-        if (json && json.data && json.data.length > 0) {
-          allData.push(...json.data);
-        }
+      const cleanWord = cleanName.replace(/["']/g, '');
+      const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanWord)}"&pageSize=250`;
+      const headers = POKEMON_TCG_API_KEY ? { 'X-Api-Key': POKEMON_TCG_API_KEY } : {};
+      const json = await fetchWithRetry(queryUrl, headers);
+      if (json && json.data && json.data.length > 0) {
+        return json.data;
       }
-      return allData;
     } catch (e) {}
     return [];
   };
 
   const fetchTcgDex = async () => {
     try {
-      let allDex = [];
-      const primaryTerm = cleanName.includes('-') ? cleanName : cleanName.split(' ')[0];
       const res = await fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(primaryTerm)}`);
       if (res.ok) {
         const json = await res.json();
         if (Array.isArray(json) && json.length > 0) {
+          const results = [];
           const chunkSize = 10;
           for (let i = 0; i < json.length; i += chunkSize) {
             const chunk = json.slice(i, i + chunkSize);
@@ -2652,28 +2646,29 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
                 return c;
               })
             );
-            allDex.push(...chunkData);
+            results.push(...chunkData);
           }
+
+          return results.map(c => ({
+            id: c.id,
+            name: c.name,
+            images: { 
+              small: c.image ? `${c.image}/low.webp` : (c.images?.small || ''), 
+              large: c.image ? `${c.image}/high.webp` : (c.images?.large || c.image || '') 
+            },
+            set: { 
+              name: c.set?.name || '', 
+              id: c.set?.id || '', 
+              printedTotal: c.set?.cardCount?.official || 0 
+            },
+            number: c.localId || c.number || '?',
+            rarity: c.rarity || 'Common',
+            pricing: c.pricing || null,
+            cardmarket: c.cardmarket || null,
+            tcgplayer: c.tcgplayer || null
+          }));
         }
       }
-      return allDex.map(c => ({
-        id: c.id,
-        name: c.name,
-        images: { 
-          small: c.image ? `${c.image}/low.webp` : (c.images?.small || ''), 
-          large: c.image ? `${c.image}/high.webp` : (c.images?.large || c.image || '') 
-        },
-        set: { 
-          name: c.set?.name || '', 
-          id: c.set?.id || '', 
-          printedTotal: c.set?.cardCount?.official || 0 
-        },
-        number: c.localId || c.number || '?',
-        rarity: c.rarity || 'Common',
-        pricing: c.pricing || null,
-        cardmarket: c.cardmarket || null,
-        tcgplayer: c.tcgplayer || null
-      }));
     } catch (err) {}
     return [];
   };
@@ -2684,12 +2679,8 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const rawMerged = [...cardsFromIo, ...cardsFromDex];
   for (const c of rawMerged) {
     if (isDigitalOnlyCard(c)) continue;
+    if (!matchesExactPokemonName(c.name, cleanName)) continue;
     
-    // Looser name verification to safely capture Mega, EX, and Variant cards
-    const cName = (c.name || '').toLowerCase();
-    const isRelevantCard = cName.includes(cleanName.toLowerCase().split(' ')[0]) || matchesExactPokemonName(c.name, cleanName);
-    if (!isRelevantCard) continue;
-
     const smallImg = c.images?.small || c.images?.large || '';
     if (!isValidFrontCardImage(smallImg) && !c.image) continue;
 

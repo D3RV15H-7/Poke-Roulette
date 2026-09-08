@@ -386,15 +386,16 @@ body.has-active .btn-close {
   width: 100%;
   max-width: 440px;
   background: var(--card);
-  border-radius: 18px;
-  padding: clamp(0.3rem, 0.8dvh, 0.55rem) clamp(0.6rem, 2vw, 0.9rem);
+  border-radius: 16px;
+  padding: clamp(0.2rem, 0.6dvh, 0.45rem) clamp(0.5rem, 2vw, 0.8rem);
   border: 2px solid #334155;
   box-shadow: 0 14px 32px rgba(0,0,0,0.5);
   display: none;
   text-align: center;
   user-select: none;
-  flex: 0 1 auto;
-  max-height: calc(100dvh - 170px);
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
   position: relative;
   animation: custodySlideUp 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
   transition: border-color 0.4s ease, box-shadow 0.4s ease;
@@ -428,8 +429,8 @@ body.has-active .btn-close {
   align-items: center;
   justify-content: center;
   margin: 0 auto;
-  width: clamp(145px, 22dvh, 195px);
-  height: clamp(145px, 22dvh, 195px);
+  width: clamp(110px, 17dvh, 165px);
+  height: clamp(110px, 17dvh, 165px);
   aspect-ratio: 1 / 1;
 }
 .card img.main-art {
@@ -528,11 +529,11 @@ body.has-active .btn-close {
   background: #090d16;
   border: 1px solid #334155;
   border-radius: 8px;
-  padding: clamp(0.18rem, 0.4dvh, 0.3rem) 0.55rem;
-  margin-bottom: clamp(0.06rem, 0.2dvh, 0.15rem);
-  font-size: clamp(0.6rem, 1.1dvh, 0.7rem);
+  padding: clamp(0.12rem, 0.3dvh, 0.25rem) 0.5rem;
+  margin-bottom: clamp(0.04rem, 0.15dvh, 0.12rem);
+  font-size: clamp(0.55rem, 1dvh, 0.66rem);
   color: #cbd5e1;
-  line-height: 1.3;
+  line-height: 1.25;
   text-align: center;
   width: 100%;
   word-wrap: break-word;
@@ -590,11 +591,11 @@ body.has-active .btn-close {
 }
 .tcg-section-wrap {
   width: 100%;
-  margin-bottom: clamp(0.12rem, 0.4dvh, 0.25rem);
+  margin-bottom: clamp(0.08rem, 0.3dvh, 0.2rem);
   background: #090d16;
   border: 1px solid #334155;
   border-radius: 10px;
-  padding: 0.35rem 0.45rem;
+  padding: 0.25rem 0.4rem;
   text-align: left;
 }
 .tcg-header-row {
@@ -619,15 +620,15 @@ body.has-active .btn-close {
 }
 .tcg-scroll-strip {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.4rem;
   overflow-x: auto;
   overflow-y: hidden;
-  padding-bottom: 0.2rem;
+  padding-bottom: 0.15rem;
   scrollbar-width: thin;
   scrollbar-color: #334155 transparent;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x;
-  min-height: 135px;
+  min-height: clamp(115px, 16dvh, 130px);
   align-items: center;
 }
 .tcg-refresh-strip-btn {

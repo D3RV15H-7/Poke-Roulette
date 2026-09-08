@@ -461,6 +461,37 @@ body.has-active .btn-close {
   100% { transform: translate(-50%, -50%) scale(2.2) rotate(360deg); opacity: 0; }
 }
 
+/* Orbiting Sparkle Animation around Pokémon */
+.orbiting-sparkle-wrap {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 12;
+  display: none;
+}
+.orbiting-sparkle-wrap.active {
+  display: block;
+}
+.orbiting-star {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  font-size: 1.4rem;
+  animation: orbitSparkle 0.9s cubic-bezier(0.36, 0, 0.66, -0.56) infinite;
+}
+@keyframes orbitSparkle {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg) translate(55px) rotate(0deg);
+    opacity: 0;
+  }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg) translate(55px) rotate(-360deg);
+    opacity: 0;
+  }
+}
+
 .tick-badge {
   position: absolute;
   top: 2px;
@@ -1310,45 +1341,6 @@ body.has-active .hub-item-label {
 .app-toast.toast-warning {
   border-color: var(--gold);
 }
-
-/* Full-Screen Shiny Celebration Overlay */
-.shiny-celebration-overlay {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9999;
-  overflow: hidden;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-.shiny-celebration-overlay.active {
-  opacity: 1;
-}
-.shiny-flash {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle, rgba(255,203,5,0.35) 0%, rgba(239,68,68,0.15) 50%, transparent 80%);
-  animation: shinyFlashAnim 0.8s ease-out forwards;
-}
-@keyframes shinyFlashAnim {
-  0% { transform: scale(0.5); opacity: 0; }
-  50% { transform: scale(1.2); opacity: 1; }
-  100% { transform: scale(1.8); opacity: 0; }
-}
-.burst-particle {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  font-size: 1.5rem;
-  animation: particleBurst 0.9s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
-}
-@keyframes particleBurst {
-  0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
-  100% { 
-    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.4) rotate(360deg); 
-    opacity: 0; 
-  }
-}
 </style>
 </head>
 <body>
@@ -1391,6 +1383,10 @@ body.has-active .hub-item-label {
     <div class="img-box">
       <img class="main-art" id="pokeImg" src="" alt="Artwork" />
       <div class="sparkle" id="sparkle">✨</div>
+      <div class="orbiting-sparkle-wrap" id="orbitingWrap">
+        <div class="orbiting-star" style="animation-delay: 0s;">✨</div>
+        <div class="orbiting-star" style="animation-delay: -0.45s;">⭐</div>
+      </div>
       <div class="tick-badge" id="cardTick">✓</div>
     </div>
     <div class="card-actions">
@@ -1571,11 +1567,6 @@ body.has-active .hub-item-label {
 
 <!-- In-App Toast Banner -->
 <div id="appToast" class="app-toast"></div>
-
-<!-- Shiny Celebration Overlay -->
-<div id="shinyOverlay" class="shiny-celebration-overlay">
-  <div class="shiny-flash"></div>
-</div>
 
 <script>
 const POKEMON_TCG_API_KEY = "";
@@ -2349,38 +2340,50 @@ function playCry() {
   }
 }
 
+function playShinyJingle() {
+  initAudio();
+  if (!audioCtx) return;
+  try {
+    const now = audioCtx.currentTime;
+    // Classic sequential chime notes for shiny encounter
+    const notes = [587.33, 880, 1174.66, 1760]; // D5, A5, D6, A6
+    notes.forEach((freq, idx) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+      
+      gain.gain.setValueAtTime(0, now + idx * 0.08);
+      gain.gain.linearRampToValueAtTime(0.18, now + idx * 0.08 + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.08 + 0.25);
+      
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      
+      osc.start(now + idx * 0.08);
+      osc.stop(now + idx * 0.08 + 0.25);
+    });
+  } catch (e) {}
+}
+
 function triggerSparkle() {
-  const overlay = document.getElementById('shinyOverlay');
-  if (!overlay) return;
+  const s = document.getElementById('sparkle');
+  const orbitWrap = document.getElementById('orbitingWrap');
+  if (!s || !orbitWrap) return;
 
-  overlay.innerHTML = '<div class="shiny-flash"></div>';
-  overlay.classList.add('active');
+  // Pop animation on center
+  s.classList.remove('pop');
+  void s.offsetWidth;
+  s.classList.add('pop');
 
-  const emojis = ['✨', '⭐', '💫', '🌟', '💎'];
-  const particleCount = 18;
-  
-  for (let i = 0; i < particleCount; i++) {
-    const p = document.createElement('div');
-    p.className = 'burst-particle';
-    p.innerText = emojis[Math.floor(Math.random() * emojis.length)];
-    
-    const angle = Math.random() * Math.PI * 2;
-    const distance = 80 + Math.random() * 160;
-    const dx = Math.cos(angle) * distance;
-    const dy = Math.sin(angle) * distance;
-    
-    p.style.setProperty('--dx', `${dx}px`);
-    p.style.setProperty('--dy', `${dy}px`);
-    p.style.animationDelay = `${Math.random() * 0.15}s`;
-    
-    overlay.appendChild(p);
-  }
-
-  if (navigator.vibrate) navigator.vibrate([40, 60, 40, 60, 80]);
-
+  // Turn on orbiting sparkles around the artwork frame
+  orbitWrap.classList.add('active');
   setTimeout(() => {
-    overlay.classList.remove('active');
-  }, 900);
+    orbitWrap.classList.remove('active');
+  }, 1200);
+
+  playShinyJingle();
+  if (navigator.vibrate) navigator.vibrate([40, 60, 40, 60, 80]);
 }
 
 function toggleShiny() {

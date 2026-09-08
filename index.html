@@ -1,6 +1,4 @@
-That happened because querying multiple complex terms ("Mega Darkrai ex", etc.) at the same time caused the API requests to fail or time out, resulting in an empty array.
-To fix this reliably, we can revert back to the robust, working search query mechanism for the Pokémon TCG API and TCGdex, but add a smart lookup fallback for official sets and high-end variants so they pull real market pricing correctly without breaking the search results.
-Here is the corrected code block for your script that fixes the "No cards found" issue while maintaining proper data retrieval:
+
 <!DOCTYPE html>
 <html lang="en">
 <head>

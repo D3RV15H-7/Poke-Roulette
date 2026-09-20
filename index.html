@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>PokéRoulette</title>
-<link rel="manifest" href="manifest.json?v=19" />
+<link rel="manifest" href="manifest.json?v=20" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -305,9 +305,9 @@ body.has-active .wheel-wrap {
 
 .center-hub {
   position: absolute;
-  width: clamp(72px, 12dvh, 92px);
-  height: clamp(72px, 12dvh, 92px);
-  background: rgba(15, 23, 42, 0.92);
+  width: clamp(76px, 12.5dvh, 96px);
+  height: clamp(76px, 12.5dvh, 96px);
+  background: rgba(15, 23, 42, 0.94);
   border-radius: 50%;
   border: 3.5px solid #fff;
   z-index: 5;
@@ -326,10 +326,10 @@ body.has-active .wheel-wrap {
   50% { transform: scale(1.04); box-shadow: 0 6px 25px rgba(239, 68, 68, 0.5); }
 }
 .center-hub-text {
-  font-size: clamp(0.55rem, 1.1dvh, 0.68rem);
+  font-size: clamp(0.5rem, 1.05dvh, 0.62rem);
   font-weight: 900;
   color: #ffcb05;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
   text-transform: uppercase;
   line-height: 1.15;
 }
@@ -1338,9 +1338,9 @@ body.has-active .hub-item-label {
   <div class="wheel-wrap" id="wheelWrap" onclick="handleSpinButtonClick()">
     <div class="pointer"></div>
     <div class="wheel" id="wheel"></div>
-    <div class="center-hub">
-      <div class="center-hub-text">TAP TO</div>
-      <div class="center-hub-sub">SPIN</div>
+    <div class="center-hub" id="centerHub">
+      <div class="center-hub-text" id="hubText">ENCOUNTER</div>
+      <div class="center-hub-sub" id="hubSub">TAP TO SPIN</div>
     </div>
   </div>
 
@@ -2804,10 +2804,18 @@ async function spinAndPick() {
   initAudio();
   const sList = document.getElementById('sList');
   if (sList) sList.style.display = 'none';
-  const btn = document.getElementById('spinBtn'), w = document.getElementById('wheel');
+  const btn = document.getElementById('spinBtn');
+  const w = document.getElementById('wheel');
+  const hubText = document.getElementById('hubText');
+  const hubSub = document.getElementById('hubSub');
+
   if (btn) btn.disabled = true;
   isSpinning = true;
   hideActive();
+
+  if (hubText) hubText.innerText = "WILD";
+  if (hubSub) hubSub.innerText = "SPINNING...";
+
   const idx = Math.floor(Math.random() * TYPES.length);
   const targetDeg = (270 - (idx * 20 + 10) + 360) % 360;
   if (w) {
@@ -2831,6 +2839,8 @@ async function spinAndPick() {
     
     setTimeout(() => {
       isSpinning = false;
+      if (hubText) hubText.innerText = "ENCOUNTER";
+      if (hubSub) hubSub.innerText = "TAP TO SPIN";
       renderCard(pData, shiny);
       addRec(pData);
       playCry();
@@ -2839,6 +2849,8 @@ async function spinAndPick() {
     }, 3200);
   } catch (e) {
     isSpinning = false;
+    if (hubText) hubText.innerText = "ENCOUNTER";
+    if (hubSub) hubSub.innerText = "TAP TO SPIN";
     if (btn) btn.disabled = false;
     showToast("Spin error: Check connection.", "error");
   }

@@ -3097,21 +3097,117 @@ document.addEventListener('click', e => {
   if (!sw && sl) sl.style.display = 'none';
 });
 
+// ─────────────────────────────────────────────
+// Pokédex Directory Cache
+// Keeps the 1,025-Pokémon directory locally so
+// PokeAPI doesn't need to be contacted every visit.
+// ─────────────────────────────────────────────
+
+const DEX_CACHE_KEY = 'pokedex_directory_v1';
+const DEX_CACHE_TIME_KEY = 'pokedex_directory_timestamp';
+const DEX_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+async function loadPokemonDirectory() {
+  const now = Date.now();
+
+  // 1. Try to load a valid cached directory first
+  try {
+    const cached = localStorage.getItem(DEX_CACHE_KEY);
+    const cachedTime = parseInt(
+      localStorage.getItem(DEX_CACHE_TIME_KEY) || '0',
+      10
+    );
+
+    if (cached && cachedTime && (now - cachedTime) < DEX_CACHE_MAX_AGE) {
+      const parsed = JSON.parse(cached);
+
+      if (Array.isArray(parsed) && parsed.length === TOTAL) {
+        dir = parsed;
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('Pokédex cache unavailable:', e);
+  }
+
+  // 2. Cache missing/expired/invalid → fetch a fresh directory
+  try {
+    const res = await fetch(
+      `https://pokeapi.co/api/v2/pokemon?limit=${TOTAL}`
+    );
+
+    if (!res.ok) {
+      throw new Error(`PokéAPI returned HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+
+    const freshDirectory = data.results.map((p, i) => ({
+      id: i + 1,
+      name: p.name,
+      cleanName: getCleanNationalDexName(p.name)
+    }));
+
+    // Make sure we received what we expected
+    if (freshDirectory.length !== TOTAL) {
+      throw new Error(
+        `Expected ${TOTAL} Pokémon but received ${freshDirectory.length}`
+      );
+    }
+
+    dir = freshDirectory;
+
+    // 3. Save the fresh directory locally
+    try {
+      localStorage.setItem(
+        DEX_CACHE_KEY,
+        JSON.stringify(freshDirectory)
+      );
+
+      localStorage.setItem(
+        DEX_CACHE_TIME_KEY,
+        String(now)
+      );
+    } catch (e) {
+      console.warn('Unable to save Pokédex cache:', e);
+    }
+
+  } catch (e) {
+    console.error('Pokédex preload error:', e);
+
+    // 4. If the network failed, try using an older cache
+    // rather than leaving the directory completely empty.
+    try {
+      const oldCache = localStorage.getItem(DEX_CACHE_KEY);
+
+      if (oldCache) {
+        const parsed = JSON.parse(oldCache);
+
+        if (Array.isArray(parsed) && parsed.length === TOTAL) {
+          dir = parsed;
+          console.warn('Using expired Pokédex cache.');
+          return;
+        }
+      }
+    } catch (cacheError) {
+      console.error('Unable to recover old Pokédex cache:', cacheError);
+    }
+
+    // If everything failed, keep dir as-is.
+    dir = [];
+  }
+}
+
+// ─────────────────────────────────────────────
+// App startup
+// ─────────────────────────────────────────────
+
 (async () => {
   buildLabels();
   updateCounts();
   initFirebaseIfReady();
-  try {
-    const res = await fetch(`https://pokeapi.co/api/v2/pokemon?limit=${TOTAL}`);
-    const data = await res.json();
-    dir = data.results.map((p, i) => ({ 
-      id: i + 1, 
-      name: p.name,
-      cleanName: getCleanNationalDexName(p.name)
-    }));
-  } catch (e) {
-    console.error("Pokédex preload error:", e);
-  }
+
+  await loadPokemonDirectory();
 })();
 </script>
 </body>

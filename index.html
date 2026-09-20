@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>PokéRoulette</title>
-<link rel="manifest" href="manifest.json?v=17" />
+<link rel="manifest" href="manifest.json?v=18" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1568,6 +1568,15 @@ body.has-active .hub-item-label {
 <div id="appToast" class="app-toast"></div>
 
 <script>
+// Register Service Worker for robust offline caching
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(err => {
+      console.warn('ServiceWorker registration failed: ', err);
+    });
+  });
+}
+
 const POKEMON_TCG_API_KEY = "";
 
 const firebaseConfig = {
@@ -1578,6 +1587,20 @@ const firebaseConfig = {
   messagingSenderId: "514395694013",
   appId: "1:514395694013:web:6250bd0a49674a45af28d4"
 };
+
+/* 
+  RECOMMENDED FIREBASE SECURITY RULES CHECK:
+  Make sure your Firestore security rules are configured to safeguard user collection documents:
+  
+  rules_version = '2';
+  service cloud.firestore {
+    match /databases/{database}/documents {
+      match /users/{userId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+  }
+*/
 
 let auth = null, db = null, currentUser = null;
 let activeUid = null;
@@ -1640,6 +1663,7 @@ function initFirebaseIfReady() {
     }
   } catch (e) {
     console.error("Firebase init error:", e);
+    showToast("Firebase connection notice: Operating offline mode.", "warning");
   }
 }
 
@@ -1782,7 +1806,9 @@ function saveLocalState() {
   try {
     localStorage.setItem(getStorageKey(), JSON.stringify(Array.from(memCol)));
     localStorage.setItem(getCardStorageKey(), JSON.stringify(Array.from(memCardCol)));
-  } catch (e) {}
+  } catch (e) {
+    showToast("Storage quota warning: Local changes may not persist.", "warning");
+  }
   updateCounts();
   renderRecents();
   if (curId) updateBtn(memCol.has(parseInt(curId, 10)));
@@ -1814,7 +1840,7 @@ function writeFullCollectionToCloud(actionMessage = null) {
       }
     })
     .catch(err => {
-      showToast("Sync failed: " + err.code, "error");
+      showToast("Sync failed: " + (err.message || err.code), "error");
     });
 }
 
@@ -2065,6 +2091,7 @@ function setupAuthListener() {
           }
         } catch (err) {
           console.error("Cloud fetch error:", err);
+          showToast("Offline mode: Using cached local collection.", "warning");
           reloadMemoryFromLocal();
         }
 
@@ -2264,7 +2291,8 @@ async function openDexCardsModal(p, bypassCache = false) {
     grid.innerHTML = '';
     grid.appendChild(frag);
   } catch (e) {
-    if (grid) grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">Failed to load cards. Tap ↻ to retry.</div>';
+    if (grid) grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">Failed to load cards. Check your connection or tap ↻ to retry.</div>';
+    showToast("Network warning: Failed to load card variations.", "error");
   }
 }
 
@@ -2458,7 +2486,7 @@ async function fetchLoreAndEvolution(speciesUrl, fallbackId) {
     }
   } catch (err) {
     if (!isSpinning && reqId === activeLoreRequestId && loreBox) {
-      loreBox.innerText = "PokéRoulette analyzer synchronized.";
+      loreBox.innerText = "PokéRoulette analyzer synchronized (Offline fallback).";
     }
   }
 }
@@ -2581,22 +2609,29 @@ function matchesExactPokemonName(cardName, targetName) {
   return regex1.test(c) || regex2.test(cNormalized);
 }
 
+// TTL Cache Wrapper for TCG requests (Valid for 24 hours to reduce API calls)
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2790_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_ttl_cache_v2800_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheTimeKey = `${cacheKey}_time`;
+  const TTL_MS = 24 * 60 * 60 * 1000;
+  const now = Date.now();
+
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);
     }
     try {
       const stored = localStorage.getItem(cacheKey);
-      if (stored) {
+      const storedTime = parseInt(localStorage.getItem(cacheTimeKey) || '0', 10);
+      if (stored && storedTime && (now - storedTime < TTL_MS)) {
         const cached = JSON.parse(stored);
         memoryTcgCache.set(cacheKey, cached);
         return cached;
       }
     } catch (e) {}
   }
+
   const primaryTerm = cleanName.includes('-') ? cleanName : cleanName.split(' ')[0];
   const fetchWithRetry = async (url, headers = {}, retries = 2, delay = 350) => {
     for (let i = 0; i < retries; i++) {
@@ -2727,6 +2762,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
     memoryTcgCache.set(cacheKey, formattedCards);
     try {
       localStorage.setItem(cacheKey, JSON.stringify(formattedCards));
+      localStorage.setItem(cacheTimeKey, String(now));
     } catch (e) {}
   }
   return formattedCards;
@@ -2761,6 +2797,7 @@ async function fetchTcgCards(pokeName, speciesName, bypassCache = false) {
     if (!isSpinning && requestId === activeTcgRequestId) {
       currentCardsList = [];
       renderTcgCards([]);
+      showToast("Network warning: Could not fetch live TCG cards.", "warning");
     }
   }
 }
@@ -2958,6 +2995,7 @@ async function loadPoke(id, log = false) {
   }
   try {
     const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
+    if (!res.ok) throw new Error("Pokemon not found");
     const data = await res.json();
     const targetDeg = (270 - (TYPES.indexOf(data.types[0].type.name) * 20 + 10) + 360) % 360;
     const w = document.getElementById('wheel');
@@ -2969,7 +3007,7 @@ async function loadPoke(id, log = false) {
     renderCard(data, false);
     if (log) addRec(data);
   } catch (e) {
-    console.error(e);
+    showToast("Failed to load Pokémon data.", "error");
   }
 }
 
@@ -3019,9 +3057,9 @@ async function spinAndPick() {
       if (btn) btn.disabled = false;
     }, 3200);
   } catch (e) {
-    console.error(e);
     isSpinning = false;
     if (btn) btn.disabled = false;
+    showToast("Spin error: Check connection.", "error");
   }
 }
 
@@ -3099,8 +3137,6 @@ document.addEventListener('click', e => {
 
 // ─────────────────────────────────────────────
 // Pokédex Directory Cache
-// Keeps the 1,025-Pokémon directory locally so
-// PokeAPI doesn't need to be contacted every visit.
 // ─────────────────────────────────────────────
 
 const DEX_CACHE_KEY = 'pokedex_directory_v1';
@@ -3110,7 +3146,6 @@ const DEX_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
 async function loadPokemonDirectory() {
   const now = Date.now();
 
-  // 1. Try to load a valid cached directory first
   try {
     const cached = localStorage.getItem(DEX_CACHE_KEY);
     const cachedTime = parseInt(
@@ -3126,11 +3161,8 @@ async function loadPokemonDirectory() {
         return;
       }
     }
-  } catch (e) {
-    console.warn('Pokédex cache unavailable:', e);
-  }
+  } catch (e) {}
 
-  // 2. Cache missing/expired/invalid → fetch a fresh directory
   try {
     const res = await fetch(
       `https://pokeapi.co/api/v2/pokemon?limit=${TOTAL}`
@@ -3148,7 +3180,6 @@ async function loadPokemonDirectory() {
       cleanName: getCleanNationalDexName(p.name)
     }));
 
-    // Make sure we received what we expected
     if (freshDirectory.length !== TOTAL) {
       throw new Error(
         `Expected ${TOTAL} Pokémon but received ${freshDirectory.length}`
@@ -3157,7 +3188,6 @@ async function loadPokemonDirectory() {
 
     dir = freshDirectory;
 
-    // 3. Save the fresh directory locally
     try {
       localStorage.setItem(
         DEX_CACHE_KEY,
@@ -3168,15 +3198,9 @@ async function loadPokemonDirectory() {
         DEX_CACHE_TIME_KEY,
         String(now)
       );
-    } catch (e) {
-      console.warn('Unable to save Pokédex cache:', e);
-    }
+    } catch (e) {}
 
   } catch (e) {
-    console.error('Pokédex preload error:', e);
-
-    // 4. If the network failed, try using an older cache
-    // rather than leaving the directory completely empty.
     try {
       const oldCache = localStorage.getItem(DEX_CACHE_KEY);
 
@@ -3185,15 +3209,11 @@ async function loadPokemonDirectory() {
 
         if (Array.isArray(parsed) && parsed.length === TOTAL) {
           dir = parsed;
-          console.warn('Using expired Pokédex cache.');
           return;
         }
       }
-    } catch (cacheError) {
-      console.error('Unable to recover old Pokédex cache:', cacheError);
-    }
+    } catch (cacheError) {}
 
-    // If everything failed, keep dir as-is.
     dir = [];
   }
 }

@@ -2524,9 +2524,11 @@ function matchesExactPokemonName(cardName, targetName) {
   const cNormalized = c.replace(/[-_]/g, ' ');
   const tNormalized = t.replace(/[-_]/g, ' ');
   
-  // Relaxed inclusion check to successfully capture single-word heavyweight Pokémon (Snorlax, Meowth, etc.) across sets
-  if (cNormalized.includes(tNormalized)) return true;
-
+  if (cNormalized === tNormalized) return true;
+  if (cNormalized.startsWith(tNormalized + ' ') || cNormalized.endsWith(' ' + tNormalized) || cNormalized.includes(' ' + tNormalized + ' ')) {
+    return true;
+  }
+  
   const escapedT = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const regex = new RegExp(`(^|[\\s\\-_/&])${escapedT}([\\s\\-_/&]|$)`, 'i');
   return regex.test(cNormalized);
@@ -2534,7 +2536,7 @@ function matchesExactPokemonName(cardName, targetName) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2798_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2802_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);
@@ -2568,9 +2570,15 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const fetchPokeTcgIo = async () => {
     try {
       const cleanWord = cleanName.replace(/["']/g, '');
-      const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanWord)}"&pageSize=250`;
-      const headers = POKEMON_TCG_API_KEY ? { 'X-Api-Key': POKEMON_TCG_API_KEY } : {};
-      const json = await fetchWithRetry(queryUrl, headers);
+      let queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanWord)}"&pageSize=250`;
+      let headers = POKEMON_TCG_API_KEY ? { 'X-Api-Key': POKEMON_TCG_API_KEY } : {};
+      let json = await fetchWithRetry(queryUrl, headers);
+      
+      if ((!json || !json.data || json.data.length === 0) && curId) {
+        queryUrl = `https://api.pokemontcg.io/v2/cards?q=nationalPokedexNumbers:${curId}&pageSize=250`;
+        json = await fetchWithRetry(queryUrl, headers);
+      }
+
       if (json && json.data && json.data.length > 0) {
         return json.data;
       }

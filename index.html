@@ -2524,14 +2524,13 @@ function matchesExactPokemonName(cardName, targetName) {
   const t = targetName.toLowerCase().trim();
   const cClean = c.replace(/[^a-z0-9]/g, '');
   const tClean = t.replace(/[^a-z0-9]/g, '');
-  
   if (cClean.includes(tClean)) return true;
   return false;
 }
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2807_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2810_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);
@@ -2545,6 +2544,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       }
     } catch (e) {}
   }
+  
   const primaryTerm = cleanName.includes('-') ? cleanName : cleanName.split(' ')[0];
   const fetchWithRetry = async (url, headers = {}, retries = 2, delay = 350) => {
     for (let i = 0; i < retries; i++) {
@@ -2583,11 +2583,11 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
   const fetchTcgDex = async () => {
     try {
+      let allDex = [];
       const res = await fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(primaryTerm)}`);
       if (res.ok) {
         const json = await res.json();
         if (Array.isArray(json) && json.length > 0) {
-          const results = [];
           const chunkSize = 10;
           for (let i = 0; i < json.length; i += chunkSize) {
             const chunk = json.slice(i, i + chunkSize);
@@ -2600,29 +2600,28 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
                 return c;
               })
             );
-            results.push(...chunkData);
+            allDex.push(...chunkData);
           }
-
-          return results.map(c => ({
-            id: c.id,
-            name: c.name,
-            images: { 
-              small: c.image ? `${c.image}/low.webp` : (c.images?.small || ''), 
-              large: c.image ? `${c.image}/high.webp` : (c.images?.large || c.image || '') 
-            },
-            set: { 
-              name: c.set?.name || '', 
-              id: c.set?.id || '', 
-              printedTotal: c.set?.cardCount?.official || 0 
-            },
-            number: c.localId || c.number || '?',
-            rarity: c.rarity || 'Common',
-            pricing: c.pricing || null,
-            cardmarket: c.cardmarket || null,
-            tcgplayer: c.tcgplayer || null
-          }));
         }
       }
+      return allDex.map(c => ({
+        id: c.id,
+        name: c.name,
+        images: { 
+          small: c.image ? `${c.image}/low.webp` : (c.images?.small || ''), 
+          large: c.image ? `${c.image}/high.webp` : (c.images?.large || c.image || '') 
+        },
+        set: { 
+          name: c.set?.name || '', 
+          id: c.set?.id || '', 
+          printedTotal: c.set?.cardCount?.official || 0 
+        },
+        number: c.localId || c.number || '?',
+        rarity: c.rarity || 'Common',
+        pricing: c.pricing || null,
+        cardmarket: c.cardmarket || null,
+        tcgplayer: c.tcgplayer || null
+      }));
     } catch (err) {}
     return [];
   };

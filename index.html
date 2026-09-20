@@ -461,7 +461,7 @@ body.has-active .btn-close {
   100% { transform: translate(-50%, -50%) scale(2.2) rotate(360deg); opacity: 0; }
 }
 
-/* Orbiting Sparkle Animation around Pokémon */
+/* Orbiting Sparkles around Pokémon Frame */
 .orbiting-sparkle-wrap {
   position: absolute;
   inset: 0;
@@ -2367,38 +2367,18 @@ function playShinyJingle() {
 
 function triggerSparkle() {
   const s = document.getElementById('sparkle');
-  const burstWrap = document.getElementById('orbitingWrap');
-  if (!s || !burstWrap) return;
+  const orbitWrap = document.getElementById('orbitingWrap');
+  if (!s || !orbitWrap) return;
 
   s.classList.remove('pop');
   void s.offsetWidth;
   s.classList.add('pop');
 
-  burstWrap.innerHTML = '';
-  burstWrap.classList.add('active');
-
-  const shapes = ['✨', '⭐', '💎', '▫️', '✦', '✧'];
-  const count = 16;
-  for (let i = 0; i < count; i++) {
-    const shape = document.createElement('div');
-    shape.className = 'burst-shape';
-    shape.innerText = shapes[Math.floor(Math.random() * shapes.length)];
-    
-    const angle = (i / count) * Math.PI * 2 + (Math.random() * 0.3);
-    const dist = 60 + Math.random() * 90;
-    const bx = Math.cos(angle) * dist;
-    const by = Math.sin(angle) * dist;
-    
-    shape.style.setProperty('--bx', `${bx}px`);
-    shape.style.setProperty('--by', `${by}px`);
-    shape.style.animationDelay = `${Math.random() * 0.2}s`;
-    
-    burstWrap.appendChild(shape);
-  }
-
+  // Only keep the orbiting sparkles around the Pokémon frame (removed extra trailing shapes)
+  orbitWrap.classList.add('active');
   setTimeout(() => {
-    burstWrap.classList.remove('active');
-  }, 2000);
+    orbitWrap.classList.remove('active');
+  }, 1200);
 
   playShinyJingle();
   if (navigator.vibrate) navigator.vibrate([40, 60, 40, 60, 80]);

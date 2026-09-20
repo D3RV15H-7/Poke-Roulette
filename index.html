@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>PokéRoulette</title>
-<link rel="manifest" href="manifest.json?v=23" />
+<link rel="manifest" href="manifest.json?v=24" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2396,7 +2396,7 @@ function renderEvolutionChain(chain) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_ttl_cache_v2860_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_ttl_cache_v2870_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   const cacheTimeKey = `${cacheKey}_time`;
   const TTL_MS = 24 * 60 * 60 * 1000;
   const now = Date.now();
@@ -2439,7 +2439,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const fetchPokeTcgIo = async () => {
     try {
       const cleanWord = cleanName.replace(/["']/g, '');
-      const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:${encodeURIComponent(cleanWord)}&pageSize=250`;
+      const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:*${encodeURIComponent(cleanWord)}*&pageSize=250`;
       const headers = POKEMON_TCG_API_KEY ? { 'X-Api-Key': POKEMON_TCG_API_KEY } : {};
       const json = await fetchWithRetry(queryUrl, headers);
       if (json && json.data && json.data.length > 0) return json.data;

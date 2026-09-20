@@ -2523,16 +2523,18 @@ function matchesExactPokemonName(cardName, targetName) {
   const t = targetName.toLowerCase().trim();
   const cNormalized = c.replace(/[-_]/g, ' ');
   const tNormalized = t.replace(/[-_]/g, ' ');
+  
+  // Relaxed inclusion check to successfully capture single-word heavyweight Pokémon (Snorlax, Meowth, etc.) across sets
+  if (cNormalized.includes(tNormalized)) return true;
+
   const escapedT = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const escapedNorm = tNormalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const regex1 = new RegExp(`(^|[\\s\\-_/&])${escapedT}([\\s\\-_/&]|$)`, 'i');
-  const regex2 = new RegExp(`(^|[\\s\\-_/&])${escapedNorm}([\\s\\-_/&]|$)`, 'i');
-  return regex1.test(c) || regex2.test(cNormalized);
+  const regex = new RegExp(`(^|[\\s\\-_/&])${escapedT}([\\s\\-_/&]|$)`, 'i');
+  return regex.test(cNormalized);
 }
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2795_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2798_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);
@@ -2628,10 +2630,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const rawMerged = [...cardsFromIo, ...cardsFromDex];
   for (const c of rawMerged) {
     if (isDigitalOnlyCard(c)) continue;
-    const cardNameLower = (c.name || '').toLowerCase();
-    const cleanNameLower = cleanName.toLowerCase();
-    const isMatch = cardNameLower.includes(cleanNameLower) || matchesExactPokemonName(c.name, cleanName);
-    if (!isMatch) continue;
+    if (!matchesExactPokemonName(c.name, cleanName)) continue;
     
     const smallImg = c.images?.small || c.images?.large || '';
     if (!isValidFrontCardImage(smallImg) && !c.image) continue;
@@ -3028,7 +3027,7 @@ async function spinAndPick() {
 function renderCard(p, shiny = false) {
   curId = p.id;
   curPoke = p;
-  isShiny = shiny; // Properly bounded to current spin or toggle state only
+  isShiny = shiny;
   document.body.classList.add('has-active');
   const spinBtn = document.getElementById('spinBtn');
   if (spinBtn) spinBtn.innerText = "SPIN AGAIN";

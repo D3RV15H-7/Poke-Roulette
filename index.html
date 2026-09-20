@@ -348,7 +348,6 @@ body.has-active .wheel-wrap {
 }
 .btn-spin:active {
   transform: scale(0.96);
-  background: #1e293b;
 }
 .btn-spin:disabled {
   opacity: 0.55;
@@ -459,6 +458,41 @@ body.has-active .btn-close {
   0% { transform: translate(-50%, -50%) scale(0) rotate(0deg); opacity: 0; }
   50% { transform: translate(-50%, -50%) scale(1.6) rotate(180deg); opacity: 1; filter: drop-shadow(0 0 12px #f59e0b); }
   100% { transform: translate(-50%, -50%) scale(2.2) rotate(360deg); opacity: 0; }
+}
+
+/* 2-Second Explosive/Spiral Shiny Burst Animation around the Pokémon */
+.shiny-burst-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 15;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.shiny-burst-container.active {
+  display: flex;
+}
+.burst-shape {
+  position: absolute;
+  font-size: 1.2rem;
+  animation: shinyExplodeSpiral 2s cubic-bezier(0.15, 0.85, 0.35, 1) forwards;
+}
+@keyframes shinyExplodeSpiral {
+  0% {
+    transform: translate(0, 0) scale(0.2) rotate(0deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--bx), var(--by)) scale(1.8) rotate(720deg);
+    opacity: 0;
+  }
 }
 
 .tick-badge {
@@ -589,8 +623,6 @@ body.has-active .btn-close {
   font-size: 0.58rem;
   font-weight: 900;
 }
-
-/* TCG Section with Inline Vertical Slide-to-Refresh */
 .tcg-section-wrap {
   width: 100%;
   margin-bottom: clamp(0.12rem, 0.4dvh, 0.25rem);
@@ -620,7 +652,7 @@ body.has-active .btn-close {
   font-weight: 800;
   white-space: nowrap;
 }
-.tcg-scroll-container {
+.tcg-scroll-strip {
   display: flex;
   gap: 0.5rem;
   overflow-x: auto;
@@ -632,26 +664,31 @@ body.has-active .btn-close {
   touch-action: pan-x;
   min-height: 135px;
   align-items: center;
-  position: relative;
 }
-.tcg-refresh-hint {
-  flex: 0 0 auto;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  font-size: 0.5rem;
-  font-weight: 800;
+.tcg-refresh-strip-btn {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #1e293b;
+  border: 1.5px solid #475569;
   color: var(--sub);
-  letter-spacing: 0.5px;
-  text-align: center;
-  padding: 0.2rem 0;
-  user-select: none;
-  opacity: 0.7;
-}
-.tcg-scroll-strip {
   display: flex;
-  gap: 0.5rem;
   align-items: center;
-  transition: transform 0.2s ease;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 900;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+  transition: transform 0.15s, background 0.15s, color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+  align-self: center;
+}
+.tcg-refresh-strip-btn:active {
+  transform: scale(0.92);
+  background: #334155;
+  color: #fff;
+  border-color: var(--red);
 }
 .tcg-card-item {
   flex: 0 0 clamp(92px, 13.5dvh, 108px);
@@ -1349,6 +1386,10 @@ body.has-active .hub-item-label {
     <div class="img-box">
       <img class="main-art" id="pokeImg" src="" alt="Artwork" />
       <div class="sparkle" id="sparkle">✨</div>
+      <div class="orbiting-sparkle-wrap" id="orbitingWrap">
+        <div class="orbiting-star" style="animation-delay: 0s;">✨</div>
+        <div class="orbiting-star" style="animation-delay: -0.45s;">⭐</div>
+      </div>
       <div class="tick-badge" id="cardTick">✓</div>
     </div>
     <div class="card-actions">
@@ -1363,14 +1404,11 @@ body.has-active .hub-item-label {
         <span class="tcg-title-text" id="tcgSectionTitle">🃏 Card Variations</span>
         <span class="tcg-count-text" id="tcgCountText">Loading cards...</span>
       </div>
-      <div class="tcg-scroll-container" id="tcgScrollContainer">
-        <div class="tcg-refresh-hint">SWIPE TO REFRESH</div>
-        <div class="tcg-scroll-strip" id="tcgStrip">
-          <div class="tcg-skeleton-card"></div>
-          <div class="tcg-skeleton-card"></div>
-          <div class="tcg-skeleton-card"></div>
-          <div class="tcg-skeleton-card"></div>
-        </div>
+      <div class="tcg-scroll-strip" id="tcgStrip">
+        <div class="tcg-skeleton-card"></div>
+        <div class="tcg-skeleton-card"></div>
+        <div class="tcg-skeleton-card"></div>
+        <div class="tcg-skeleton-card"></div>
       </div>
     </div>
     <div class="stats">
@@ -2310,7 +2348,8 @@ function playShinyJingle() {
   if (!audioCtx) return;
   try {
     const now = audioCtx.currentTime;
-    const freqs = [659.25, 830.61, 987.77, 1318.51, 1661.22, 2093.00];
+    // High-pitched, magical shimmering chime sequence rising in pitch
+    const freqs = [659.25, 830.61, 987.77, 1318.51, 1661.22, 2093.00]; // E5, G#5, B5, E6, G#6, C7
     freqs.forEach((f, idx) => {
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
@@ -2332,11 +2371,41 @@ function playShinyJingle() {
 
 function triggerSparkle() {
   const s = document.getElementById('sparkle');
-  if (!s) return;
+  const burstWrap = document.getElementById('orbitingWrap');
+  if (!s || !burstWrap) return;
 
+  // Center pop
   s.classList.remove('pop');
   void s.offsetWidth;
   s.classList.add('pop');
+
+  // Populate 2-second sparkling explosion shapes (stars, diamonds, squares)
+  burstWrap.innerHTML = '';
+  burstWrap.classList.add('active');
+
+  const shapes = ['✨', '⭐', '💎', '▫️', '✦', '✧'];
+  const count = 16;
+  for (let i = 0; i < count; i++) {
+    const shape = document.createElement('div');
+    shape.className = 'burst-shape';
+    shape.innerText = shapes[Math.floor(Math.random() * shapes.length)];
+    
+    // Random angle and distance for burst explosion
+    const angle = (i / count) * Math.PI * 2 + (Math.random() * 0.3);
+    const dist = 60 + Math.random() * 90;
+    const bx = Math.cos(angle) * dist;
+    const by = Math.sin(angle) * dist;
+    
+    shape.style.setProperty('--bx', `${bx}px`);
+    shape.style.setProperty('--by', `${by}px`);
+    shape.style.animationDelay = `${Math.random() * 0.2}s`;
+    
+    burstWrap.appendChild(shape);
+  }
+
+  setTimeout(() => {
+    burstWrap.classList.remove('active');
+  }, 2000);
 
   playShinyJingle();
   if (navigator.vibrate) navigator.vibrate([40, 60, 40, 60, 80]);
@@ -2519,18 +2588,20 @@ function extractCardPriceGBP(card) {
 }
 
 function matchesExactPokemonName(cardName, targetName) {
-  if (!cardName || !targetName) return false;
-  const c = cardName.toLowerCase().trim();
+  const c = (cardName || '').toLowerCase().trim();
   const t = targetName.toLowerCase().trim();
-  const cClean = c.replace(/[^a-z0-9]/g, '');
-  const tClean = t.replace(/[^a-z0-9]/g, '');
-  if (cClean.includes(tClean)) return true;
-  return false;
+  const cNormalized = c.replace(/[-_]/g, ' ');
+  const tNormalized = t.replace(/[-_]/g, ' ');
+  const escapedT = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedNorm = tNormalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex1 = new RegExp(`(^|[\\s\\-_/&])${escapedT}([\\s\\-_/&]|$)`, 'i');
+  const regex2 = new RegExp(`(^|[\\s\\-_/&])${escapedNorm}([\\s\\-_/&]|$)`, 'i');
+  return regex1.test(c) || regex2.test(cNormalized);
 }
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2810_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2787_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);
@@ -2544,7 +2615,6 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
       }
     } catch (e) {}
   }
-  
   const primaryTerm = cleanName.includes('-') ? cleanName : cleanName.split(' ')[0];
   const fetchWithRetry = async (url, headers = {}, retries = 2, delay = 350) => {
     for (let i = 0; i < retries; i++) {
@@ -2565,15 +2635,9 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const fetchPokeTcgIo = async () => {
     try {
       const cleanWord = cleanName.replace(/["']/g, '');
-      let queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanWord)}"&pageSize=250`;
-      let headers = POKEMON_TCG_API_KEY ? { 'X-Api-Key': POKEMON_TCG_API_KEY } : {};
-      let json = await fetchWithRetry(queryUrl, headers);
-      
-      if ((!json || !json.data || json.data.length === 0) && curId) {
-        queryUrl = `https://api.pokemontcg.io/v2/cards?q=nationalPokedexNumbers:${curId}&pageSize=250`;
-        json = await fetchWithRetry(queryUrl, headers);
-      }
-
+      const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanWord)}"&pageSize=250`;
+      const headers = POKEMON_TCG_API_KEY ? { 'X-Api-Key': POKEMON_TCG_API_KEY } : {};
+      const json = await fetchWithRetry(queryUrl, headers);
       if (json && json.data && json.data.length > 0) {
         return json.data;
       }
@@ -2583,11 +2647,11 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
   const fetchTcgDex = async () => {
     try {
-      let allDex = [];
       const res = await fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(primaryTerm)}`);
       if (res.ok) {
         const json = await res.json();
         if (Array.isArray(json) && json.length > 0) {
+          const results = [];
           const chunkSize = 10;
           for (let i = 0; i < json.length; i += chunkSize) {
             const chunk = json.slice(i, i + chunkSize);
@@ -2600,28 +2664,29 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
                 return c;
               })
             );
-            allDex.push(...chunkData);
+            results.push(...chunkData);
           }
+
+          return results.map(c => ({
+            id: c.id,
+            name: c.name,
+            images: { 
+              small: c.image ? `${c.image}/low.webp` : (c.images?.small || ''), 
+              large: c.image ? `${c.image}/high.webp` : (c.images?.large || c.image || '') 
+            },
+            set: { 
+              name: c.set?.name || '', 
+              id: c.set?.id || '', 
+              printedTotal: c.set?.cardCount?.official || 0 
+            },
+            number: c.localId || c.number || '?',
+            rarity: c.rarity || 'Common',
+            pricing: c.pricing || null,
+            cardmarket: c.cardmarket || null,
+            tcgplayer: c.tcgplayer || null
+          }));
         }
       }
-      return allDex.map(c => ({
-        id: c.id,
-        name: c.name,
-        images: { 
-          small: c.image ? `${c.image}/low.webp` : (c.images?.small || ''), 
-          large: c.image ? `${c.image}/high.webp` : (c.images?.large || c.image || '') 
-        },
-        set: { 
-          name: c.set?.name || '', 
-          id: c.set?.id || '', 
-          printedTotal: c.set?.cardCount?.official || 0 
-        },
-        number: c.localId || c.number || '?',
-        rarity: c.rarity || 'Common',
-        pricing: c.pricing || null,
-        cardmarket: c.cardmarket || null,
-        tcgplayer: c.tcgplayer || null
-      }));
     } catch (err) {}
     return [];
   };
@@ -2731,6 +2796,19 @@ function renderTcgCards(cards) {
   
   const frag = document.createDocumentFragment();
 
+  const refreshBtn = document.createElement('div');
+  refreshBtn.className = 'tcg-refresh-strip-btn';
+  refreshBtn.title = "Refresh Cards";
+  refreshBtn.onclick = (e) => {
+    e.stopPropagation();
+    initAudio();
+    playTick();
+    showToast("Refreshing cards...", "warning");
+    refreshCurrentCardSearch();
+  };
+  refreshBtn.innerHTML = `<span>↻</span>`;
+  frag.appendChild(refreshBtn);
+
   cards.forEach((card, index) => {
     const isOwnedCard = isCardCollected(card);
     const node = document.createElement('div');
@@ -2765,67 +2843,6 @@ function renderTcgCards(cards) {
   });
   strip.innerHTML = '';
   strip.appendChild(frag);
-}
-
-// Slide-to-Refresh Gesture Handler anywhere along the TCG Strip row
-let startX = 0, currentTranslate = 0, isDraggingContainer = false;
-const scrollContainer = document.getElementById('tcgScrollContainer');
-const tcgStrip = document.getElementById('tcgStrip');
-
-if (scrollContainer && tcgStrip) {
-  scrollContainer.addEventListener('touchstart', (e) => {
-    startX = e.touches[0].clientX;
-    isDraggingContainer = true;
-  }, { passive: true });
-
-  window.addEventListener('touchmove', (e) => {
-    if (!isDraggingContainer) return;
-    const diff = e.touches[0].clientX - startX;
-    if (diff > 0 && diff < 120) {
-      currentTranslate = diff;
-      tcgStrip.style.transform = `translateX(${currentTranslate}px)`;
-    }
-  }, { passive: true });
-
-  window.addEventListener('touchend', () => {
-    if (!isDraggingContainer) return;
-    isDraggingContainer = false;
-    if (currentTranslate > 70) {
-      initAudio();
-      playTick();
-      showToast("Refreshing cards...", "warning");
-      refreshCurrentCardSearch();
-    }
-    currentTranslate = 0;
-    tcgStrip.style.transform = `translateX(0px)`;
-  });
-
-  scrollContainer.addEventListener('mousedown', (e) => {
-    startX = e.clientX;
-    isDraggingContainer = true;
-  });
-
-  window.addEventListener('mousemove', (e) => {
-    if (!isDraggingContainer) return;
-    const diff = e.clientX - startX;
-    if (diff > 0 && diff < 120) {
-      currentTranslate = diff;
-      tcgStrip.style.transform = `translateX(${currentTranslate}px)`;
-    }
-  });
-
-  window.addEventListener('mouseup', () => {
-    if (!isDraggingContainer) return;
-    isDraggingContainer = false;
-    if (currentTranslate > 70) {
-      initAudio();
-      playTick();
-      showToast("Refreshing cards...", "warning");
-      refreshCurrentCardSearch();
-    }
-    currentTranslate = 0;
-    tcgStrip.style.transform = `translateX(0px)`;
-  });
 }
 
 function openTcgZoom(index, fromModal = false) {

@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>PokéRoulette</title>
-<link rel="manifest" href="manifest.json?v=20" />
+<link rel="manifest" href="manifest.json?v=21" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1799,8 +1799,36 @@ function toggleCardCollection(cardId, pokemonId = null) {
   }
 
   saveLocalState();
+  
+  // Re-sort currentCardsList so collected cards bubble immediately to the front
+  sortCardsList(currentCardsList);
+
+  // Refresh active views
+  if (activeDexModalPoke) {
+    renderDexCardsGrid(currentCardsList);
+  }
+  if (curPoke) {
+    renderTcgCards(currentCardsList);
+  }
+
   const toastMsg = wasAdded ? "Card Added to Dex Collection" : "Card Removed from Dex Collection";
   writeFullCollectionToCloud(toastMsg);
+}
+
+function sortCardsList(cards) {
+  cards.sort((a, b) => {
+    const aOwned = isCardCollected(a) ? 1 : 0;
+    const bOwned = isCardCollected(b) ? 1 : 0;
+    if (bOwned !== aOwned) {
+      return bOwned - aOwned; // Collected cards come first
+    }
+    if (b.rarityScore !== a.rarityScore) {
+      return b.rarityScore - a.rarityScore;
+    }
+    const priceA = parseFloat(a.priceGBP) || 0;
+    const priceB = parseFloat(b.priceGBP) || 0;
+    return priceB - priceA;
+  });
 }
 
 function toTitleCase(str) {
@@ -2104,50 +2132,52 @@ async function openDexCardsModal(p, bypassCache = false) {
   try {
     const cardsList = await fetchTcgCardsData(p.name, p.species?.name, bypassCache);
     currentCardsList = cardsList;
-    if (!grid) return;
-    if (!cardsList.length) {
-      grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">No physical cards found</div>';
-      return;
-    }
-    const frag = document.createDocumentFragment();
-    cardsList.forEach((card, index) => {
-      const isOwnedCard = isCardCollected(card);
-      const cell = document.createElement('div');
-      cell.className = 'dex-card-thumb-cell';
-      cell.innerHTML = `
-        <div class="tcg-thumb-frame ${isOwnedCard ? 'card-owned' : ''}" id="modal_frame_${card.id}">
-          <div class="card-check-circle ${isOwnedCard ? 'checked' : ''}" id="modal_chk_${card.id}">✓</div>
-          <img class="tcg-card-thumb" src="${card.smallImg}" loading="lazy" alt="${card.name}" onerror="this.closest('.dex-card-thumb-cell')?.remove()" />
-          ${card.priceGBP ? `<div class="tcg-card-price-badge">£${card.priceGBP}</div>` : ''}
-        </div>
-        <div class="dex-cell-set" title="${card.setName}">${card.setName}</div>
-        <div class="dex-cell-num">#${card.number}</div>
-      `;
-      const checkCircle = cell.querySelector('.card-check-circle');
-      if (checkCircle) {
-        checkCircle.onclick = (e) => {
-          e.stopPropagation();
-          currentCardsList = cardsList;
-          toggleCardCollection(card.id, p.id);
-          const owned = isCardCollected(card);
-          checkCircle.classList.toggle('checked', owned);
-          const tf = cell.querySelector('.tcg-thumb-frame');
-          if (tf) tf.classList.toggle('card-owned', owned);
-        };
-      }
-      cell.onclick = (e) => {
-        if (e.target.closest('.card-check-circle')) return;
-        closeDexCardsModal();
-        currentCardsList = cardsList;
-        openTcgZoom(index, true);
-      };
-      frag.appendChild(cell);
-    });
-    grid.innerHTML = '';
-    grid.appendChild(frag);
+    sortCardsList(currentCardsList);
+    renderDexCardsGrid(currentCardsList);
   } catch (e) {
     if (grid) grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">Failed to load cards. Tap ↻ to retry.</div>';
   }
+}
+
+function renderDexCardsGrid(cardsList) {
+  const grid = document.getElementById('dexCardsGrid');
+  if (!grid) return;
+  if (!cardsList.length) {
+    grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">No physical cards found</div>';
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  cardsList.forEach((card, index) => {
+    const isOwnedCard = isCardCollected(card);
+    const cell = document.createElement('div');
+    cell.className = 'dex-card-thumb-cell';
+    cell.innerHTML = `
+      <div class="tcg-thumb-frame ${isOwnedCard ? 'card-owned' : ''}" id="modal_frame_${card.id}">
+        <div class="card-check-circle ${isOwnedCard ? 'checked' : ''}" id="modal_chk_${card.id}">✓</div>
+        <img class="tcg-card-thumb" src="${card.smallImg}" loading="lazy" alt="${card.name}" onerror="this.closest('.dex-card-thumb-cell')?.remove()" />
+        ${card.priceGBP ? `<div class="tcg-card-price-badge">£${card.priceGBP}</div>` : ''}
+      </div>
+      <div class="dex-cell-set" title="${card.setName}">${card.setName}</div>
+      <div class="dex-cell-num">#${card.number}</div>
+    `;
+    const checkCircle = cell.querySelector('.card-check-circle');
+    if (checkCircle) {
+      checkCircle.onclick = (e) => {
+        e.stopPropagation();
+        currentCardsList = cardsList;
+        toggleCardCollection(card.id, activeDexModalPoke?.id);
+      };
+    }
+    cell.onclick = (e) => {
+      if (e.target.closest('.card-check-circle')) return;
+      closeDexCardsModal();
+      currentCardsList = cardsList;
+      openTcgZoom(index, true);
+    };
+    frag.appendChild(cell);
+  });
+  grid.innerHTML = '';
+  grid.appendChild(frag);
 }
 
 function refreshCurrentCardSearch() {
@@ -2353,73 +2383,6 @@ function renderEvolutionChain(chain) {
   evoBox.style.display = 'flex';
 }
 
-function getRarityDefaultPriceGBP(rarityStr) {
-  if (!rarityStr) return null;
-  const score = getRarityScore(rarityStr);
-  if (score >= 90) return (18.50).toFixed(2);
-  if (score >= 80) return (9.20).toFixed(2);
-  if (score >= 65) return (4.80).toFixed(2);
-  if (score >= 50) return (1.75).toFixed(2);
-  if (score >= 30) return (0.85).toFixed(2);
-  return (0.35).toFixed(2);
-}
-
-function extractCardPriceGBP(card) {
-  if (!card) return null;
-  if (card.pricing) {
-    if (card.pricing.cardmarket) {
-      const cmp = card.pricing.cardmarket;
-      const val = cmp.trend ?? cmp.avg ?? cmp.avg30 ?? cmp.avg7 ?? cmp.low ?? cmp.trendPrice ?? cmp.averageSellPrice ?? cmp['trend-holo'] ?? cmp['avg-holo'];
-      const num = parseFloat(val);
-      if (!isNaN(num) && num > 0) return (num * EUR_TO_GBP).toFixed(2);
-    }
-    if (card.pricing.tcgplayer) {
-      const tp = card.pricing.tcgplayer;
-      for (const variant in tp) {
-        if (tp[variant] && typeof tp[variant] === 'object') {
-          const val = tp[variant].marketPrice ?? tp[variant].midPrice ?? tp[variant].directLowPrice ?? tp[variant].lowPrice;
-          const num = parseFloat(val);
-          if (!isNaN(num) && num > 0) return (num * USD_TO_GBP).toFixed(2);
-        }
-      }
-      const directVal = tp.market ?? tp.mid ?? tp.low ?? tp.directLow;
-      const num = parseFloat(directVal);
-      if (!isNaN(num) && num > 0) return (num * USD_TO_GBP).toFixed(2);
-    }
-  }
-  if (card.cardmarket && card.cardmarket.prices) {
-    const cp = card.cardmarket.prices;
-    const candidates = [cp.trendPrice, cp.averageSellPrice, cp.avg7, cp.avg30, cp.avg1, cp.lowPrice, cp.reverseHoloTrend, cp.suggestedPrice];
-    for (const val of candidates) {
-      const num = parseFloat(val);
-      if (!isNaN(num) && num > 0) return (num * EUR_TO_GBP).toFixed(2);
-    }
-  }
-  if (card.tcgplayer && card.tcgplayer.prices) {
-    const p = card.tcgplayer.prices;
-    for (const cat of ['holofoil', 'normal', 'reverseHolofoil', '1stEditionHolofoil', 'unlimitedHolofoil']) {
-      if (p[cat]) {
-        const val = p[cat].market ?? p[cat].mid ?? p[cat].directLow ?? p[cat].low;
-        const num = parseFloat(val);
-        if (!isNaN(num) && num > 0) return (num * USD_TO_GBP).toFixed(2);
-      }
-    }
-  }
-  return getRarityDefaultPriceGBP(card.rarity);
-}
-
-function matchesExactPokemonName(cardName, targetName) {
-  const c = (cardName || '').toLowerCase().trim();
-  const t = targetName.toLowerCase().trim();
-  const cNormalized = c.replace(/[-_]/g, ' ');
-  const tNormalized = t.replace(/[-_]/g, ' ');
-  const escapedT = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const escapedNorm = tNormalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const regex1 = new RegExp(`(^|[\\s\\-_/&])${escapedT}([\\s\\-_/&]|$)`, 'i');
-  const regex2 = new RegExp(`(^|[\\s\\-_/&])${escapedNorm}([\\s\\-_/&]|$)`, 'i');
-  return regex1.test(c) || regex2.test(cNormalized);
-}
-
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
   const cacheKey = `tcg_ttl_cache_v2850_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
@@ -2428,13 +2391,18 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const now = Date.now();
 
   if (!bypassCache) {
-    if (memoryTcgCache.has(cacheKey)) return memoryTcgCache.get(cacheKey);
+    if (memoryTcgCache.has(cacheKey)) {
+      const cached = memoryTcgCache.get(cacheKey);
+      sortCardsList(cached);
+      return cached;
+    }
     try {
       const stored = localStorage.getItem(cacheKey);
       const storedTime = parseInt(localStorage.getItem(cacheTimeKey) || '0', 10);
       if (stored && storedTime && (now - storedTime < TTL_MS)) {
         const cached = JSON.parse(stored);
         memoryTcgCache.set(cacheKey, cached);
+        sortCardsList(cached);
         return cached;
       }
     } catch (e) {}
@@ -2547,10 +2515,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
     };
   });
 
-  formattedCards.sort((a, b) => {
-    if (b.rarityScore !== a.rarityScore) return b.rarityScore - a.rarityScore;
-    return (parseFloat(b.priceGBP) || 0) - (parseFloat(a.priceGBP) || 0);
-  });
+  sortCardsList(formattedCards);
 
   if (formattedCards.length > 0) {
     memoryTcgCache.set(cacheKey, formattedCards);
@@ -2639,10 +2604,6 @@ function renderTcgCards(cards) {
         e.stopPropagation();
         currentCardsList = cards;
         toggleCardCollection(card.id, curId);
-        const owned = isCardCollected(card);
-        checkCircle.classList.toggle('checked', owned);
-        const tf = node.querySelector('.tcg-thumb-frame');
-        if (tf) tf.classList.toggle('card-owned', owned);
       };
     }
     node.onclick = (e) => {

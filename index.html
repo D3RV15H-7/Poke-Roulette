@@ -2519,13 +2519,13 @@ function extractCardPriceGBP(card) {
 }
 
 function matchesExactPokemonName(cardName, targetName) {
-  const c = (cardName || '').toLowerCase().trim();
+  if (!cardName || !targetName) return false;
+  const c = cardName.toLowerCase().trim();
   const t = targetName.toLowerCase().trim();
   const cNormalized = c.replace(/[-_]/g, ' ');
   const tNormalized = t.replace(/[-_]/g, ' ');
   
-  if (cNormalized === tNormalized) return true;
-  if (cNormalized.startsWith(tNormalized + ' ') || cNormalized.endsWith(' ' + tNormalized) || cNormalized.includes(' ' + tNormalized + ' ')) {
+  if (cNormalized === tNormalized || cNormalized.startsWith(tNormalized + ' ') || cNormalized.endsWith(' ' + tNormalized) || cNormalized.includes(' ' + tNormalized + ' ')) {
     return true;
   }
   
@@ -2536,7 +2536,7 @@ function matchesExactPokemonName(cardName, targetName) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_authoritative_v2802_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_authoritative_v2803_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       return memoryTcgCache.get(cacheKey);

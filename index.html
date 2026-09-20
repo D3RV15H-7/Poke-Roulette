@@ -621,7 +621,7 @@ body.has-active .btn-close {
   font-weight: 900;
 }
 
-/* TCG Section with Slide-to-Refresh Handler */
+/* TCG Section with Inline Vertical Slide-to-Refresh */
 .tcg-section-wrap {
   width: 100%;
   margin-bottom: clamp(0.12rem, 0.4dvh, 0.25rem);
@@ -653,41 +653,6 @@ body.has-active .btn-close {
 }
 .tcg-scroll-container {
   display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  overflow: hidden;
-  position: relative;
-  width: 100%;
-}
-.tcg-refresh-handle {
-  flex: 0 0 28px;
-  width: 28px;
-  height: 120px;
-  background: #161e31;
-  border: 1px dashed #475569;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  font-size: 0.55rem;
-  font-weight: 800;
-  color: var(--sub);
-  cursor: grab;
-  user-select: none;
-  letter-spacing: 0.5px;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
-  flex-shrink: 0;
-}
-.tcg-refresh-handle:active {
-  cursor: grabbing;
-  background: #1e293b;
-  color: #fff;
-  border-color: var(--green);
-}
-.tcg-scroll-strip {
-  display: flex;
   gap: 0.5rem;
   overflow-x: auto;
   overflow-y: hidden;
@@ -698,7 +663,25 @@ body.has-active .btn-close {
   touch-action: pan-x;
   min-height: 135px;
   align-items: center;
-  flex: 1;
+  position: relative;
+}
+.tcg-refresh-hint {
+  flex: 0 0 auto;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 0.5rem;
+  font-weight: 800;
+  color: var(--sub);
+  letter-spacing: 0.5px;
+  text-align: center;
+  padding: 0.2rem 0;
+  user-select: none;
+  opacity: 0.7;
+}
+.tcg-scroll-strip {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
   transition: transform 0.2s ease;
 }
 .tcg-card-item {
@@ -1415,8 +1398,8 @@ body.has-active .hub-item-label {
         <span class="tcg-title-text" id="tcgSectionTitle">🃏 Card Variations</span>
         <span class="tcg-count-text" id="tcgCountText">Loading cards...</span>
       </div>
-      <div class="tcg-scroll-container">
-        <div class="tcg-refresh-handle" id="tcgRefreshHandle" title="Slide right to refresh cards">SWIPE TO REFRESH</div>
+      <div class="tcg-scroll-container" id="tcgScrollContainer">
+        <div class="tcg-refresh-hint">SWIPE TO REFRESH</div>
         <div class="tcg-scroll-strip" id="tcgStrip">
           <div class="tcg-skeleton-card"></div>
           <div class="tcg-skeleton-card"></div>
@@ -2842,31 +2825,29 @@ function renderTcgCards(cards) {
   strip.appendChild(frag);
 }
 
-// Slide-to-Refresh Gesture Handler for TCG Section
-let startX = 0, currentTranslate = 0, isDraggingHandle = false;
-const refreshHandle = document.getElementById('tcgRefreshHandle');
+// Slide-to-Refresh Gesture Handler anywhere along the TCG Strip row
+let startX = 0, currentTranslate = 0, isDraggingContainer = false;
+const scrollContainer = document.getElementById('tcgScrollContainer');
 const tcgStrip = document.getElementById('tcgStrip');
 
-if (refreshHandle && tcgStrip) {
-  refreshHandle.addEventListener('touchstart', (e) => {
+if (scrollContainer && tcgStrip) {
+  scrollContainer.addEventListener('touchstart', (e) => {
     startX = e.touches[0].clientX;
-    isDraggingHandle = true;
+    isDraggingContainer = true;
   }, { passive: true });
 
   window.addEventListener('touchmove', (e) => {
-    if (!isDraggingHandle) return;
-    const currentX = e.touches[0].clientX;
-    const diff = currentX - startX;
+    if (!isDraggingContainer) return;
+    const diff = e.touches[0].clientX - startX;
     if (diff > 0 && diff < 120) {
       currentTranslate = diff;
       tcgStrip.style.transform = `translateX(${currentTranslate}px)`;
-      refreshHandle.style.background = `rgba(16, 185, 129, ${Math.min(diff / 100, 0.8)})`;
     }
   }, { passive: true });
 
   window.addEventListener('touchend', () => {
-    if (!isDraggingHandle) return;
-    isDraggingHandle = false;
+    if (!isDraggingContainer) return;
+    isDraggingContainer = false;
     if (currentTranslate > 70) {
       initAudio();
       playTick();
@@ -2875,17 +2856,15 @@ if (refreshHandle && tcgStrip) {
     }
     currentTranslate = 0;
     tcgStrip.style.transform = `translateX(0px)`;
-    refreshHandle.style.background = '#161e31';
   });
 
-  // Mouse support for testing on desktop
-  refreshHandle.addEventListener('mousedown', (e) => {
+  scrollContainer.addEventListener('mousedown', (e) => {
     startX = e.clientX;
-    isDraggingHandle = true;
+    isDraggingContainer = true;
   });
 
   window.addEventListener('mousemove', (e) => {
-    if (!isDraggingHandle) return;
+    if (!isDraggingContainer) return;
     const diff = e.clientX - startX;
     if (diff > 0 && diff < 120) {
       currentTranslate = diff;
@@ -2894,8 +2873,8 @@ if (refreshHandle && tcgStrip) {
   });
 
   window.addEventListener('mouseup', () => {
-    if (!isDraggingHandle) return;
-    isDraggingHandle = false;
+    if (!isDraggingContainer) return;
+    isDraggingContainer = false;
     if (currentTranslate > 70) {
       initAudio();
       playTick();
@@ -2904,7 +2883,6 @@ if (refreshHandle && tcgStrip) {
     }
     currentTranslate = 0;
     tcgStrip.style.transform = `translateX(0px)`;
-    refreshHandle.style.background = '#161e31';
   });
 }
 

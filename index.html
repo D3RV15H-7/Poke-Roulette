@@ -1,10 +1,11 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>PokéRoulette</title>
-<link rel="manifest" href="manifest.json?v=25" />
+<link rel="manifest" href="manifest.json?v=21" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -650,10 +651,10 @@ body.has-active .wheel-wrap {
   align-items: center;
 }
 .tcg-refresh-strip-btn {
-  flex: 0 0 clamp(38px, 6dvh, 46px);
-  width: clamp(38px, 6dvh, 46px);
-  height: calc(clamp(92px, 13.5dvh, 108px) * (88 / 63));
-  border-radius: 7px;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
   background: #1e293b;
   border: 1.5px solid #475569;
   color: var(--sub);
@@ -661,7 +662,7 @@ body.has-active .wheel-wrap {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 900;
   box-shadow: 0 4px 10px rgba(0,0,0,0.4);
   transition: transform 0.15s, background 0.15s, color 0.15s, border-color 0.15s;
@@ -673,13 +674,6 @@ body.has-active .wheel-wrap {
   background: #334155;
   color: #fff;
   border-color: var(--red);
-}
-.tcg-empty-msg {
-  color: var(--sub);
-  font-size: 0.72rem;
-  text-align: center;
-  flex: 1;
-  padding: 0 0.5rem;
 }
 .tcg-card-item {
   flex: 0 0 clamp(92px, 13.5dvh, 108px);
@@ -1806,8 +1800,11 @@ function toggleCardCollection(cardId, pokemonId = null) {
   }
 
   saveLocalState();
+  
+  // Re-sort currentCardsList so collected cards bubble immediately to the front
   sortCardsList(currentCardsList);
 
+  // Refresh active views
   if (activeDexModalPoke) {
     renderDexCardsGrid(currentCardsList);
   }
@@ -1824,7 +1821,7 @@ function sortCardsList(cards) {
     const aOwned = isCardCollected(a) ? 1 : 0;
     const bOwned = isCardCollected(b) ? 1 : 0;
     if (bOwned !== aOwned) {
-      return bOwned - aOwned;
+      return bOwned - aOwned; // Collected cards come first
     }
     if (b.rarityScore !== a.rarityScore) {
       return b.rarityScore - a.rarityScore;
@@ -2139,7 +2136,7 @@ async function openDexCardsModal(p, bypassCache = false) {
     sortCardsList(currentCardsList);
     renderDexCardsGrid(currentCardsList);
   } catch (e) {
-    if (grid) grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">Failed to load cards. Tap to refresh.</div>';
+    if (grid) grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">Failed to load cards. Tap ↻ to retry.</div>';
   }
 }
 
@@ -2186,7 +2183,6 @@ function renderDexCardsGrid(cardsList) {
 
 function refreshCurrentCardSearch() {
   if (curPoke) fetchTcgCards(curPoke.name, curPoke.species?.name, true);
-  if (activeDexModalPoke) openDexCardsModal(activeDexModalPoke, true);
 }
 function closeDexCardsModal() {
   const modal = document.getElementById('dexCardsModal');
@@ -2390,7 +2386,7 @@ function renderEvolutionChain(chain) {
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_ttl_cache_v2880_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_ttl_cache_v2850_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   const cacheTimeKey = `${cacheKey}_time`;
   const TTL_MS = 24 * 60 * 60 * 1000;
   const now = Date.now();
@@ -2569,10 +2565,14 @@ function renderTcgCards(cards) {
   const strip = document.getElementById('tcgStrip');
   const countText = document.getElementById('tcgCountText');
   if (!strip) return;
-
+  if (!cards || !cards.length) {
+    if (countText) countText.innerText = "0 Cards";
+    strip.innerHTML = '<div class="tcg-empty-msg" style="color:var(--sub);font-size:0.75rem;padding:1.5rem 0;text-align:center;width:100%;">No physical cards found</div>';
+    return;
+  }
+  if (countText) countText.innerText = `${cards.length} Card${cards.length === 1 ? '' : 's'}`;
+  
   const frag = document.createDocumentFragment();
-
-  // Vertical refresh button always present at start of strip
   const refreshBtn = document.createElement('div');
   refreshBtn.className = 'tcg-refresh-strip-btn';
   refreshBtn.title = "Refresh Cards";
@@ -2586,44 +2586,34 @@ function renderTcgCards(cards) {
   refreshBtn.innerHTML = `<span>↻</span>`;
   frag.appendChild(refreshBtn);
 
-  if (!cards || !cards.length) {
-    if (countText) countText.innerText = "0 Cards";
-    const emptyMsg = document.createElement('div');
-    emptyMsg.className = 'tcg-empty-msg';
-    emptyMsg.innerText = "No physical cards found";
-    frag.appendChild(emptyMsg);
-  } else {
-    if (countText) countText.innerText = `${cards.length} Card${cards.length === 1 ? '' : 's'}`;
-    cards.forEach((card, index) => {
-      const isOwnedCard = isCardCollected(card);
-      const node = document.createElement('div');
-      node.className = 'tcg-card-item';
-      node.innerHTML = `
-        <div class="tcg-thumb-frame ${isOwnedCard ? 'card-owned' : ''}">
-          <div class="card-check-circle ${isOwnedCard ? 'checked' : ''}" id="strip_chk_${card.id}">✓</div>
-          <img class="tcg-card-thumb" src="${card.smallImg}" loading="lazy" alt="${card.name}" onerror="this.closest('.tcg-card-item')?.remove()" />
-          ${card.priceGBP ? `<div class="tcg-card-price-badge">£${card.priceGBP}</div>` : ''}
-        </div>
-        <div class="tcg-card-set" title="${card.setName}">${card.setName}</div>
-        <div class="tcg-card-num">#${card.number}</div>
-      `;
-      const checkCircle = node.querySelector('.card-check-circle');
-      if (checkCircle) {
-        checkCircle.onclick = (e) => {
-          e.stopPropagation();
-          currentCardsList = cards;
-          toggleCardCollection(card.id, curId);
-        };
-      }
-      node.onclick = (e) => {
+  cards.forEach((card, index) => {
+    const isOwnedCard = isCardCollected(card);
+    const node = document.createElement('div');
+    node.className = 'tcg-card-item';
+    node.innerHTML = `
+      <div class="tcg-thumb-frame ${isOwnedCard ? 'card-owned' : ''}">
+        <div class="card-check-circle ${isOwnedCard ? 'checked' : ''}" id="strip_chk_${card.id}">✓</div>
+        <img class="tcg-card-thumb" src="${card.smallImg}" loading="lazy" alt="${card.name}" onerror="this.closest('.tcg-card-item')?.remove()" />
+        ${card.priceGBP ? `<div class="tcg-card-price-badge">£${card.priceGBP}</div>` : ''}
+      </div>
+      <div class="tcg-card-set" title="${card.setName}">${card.setName}</div>
+      <div class="tcg-card-num">#${card.number}</div>
+    `;
+    const checkCircle = node.querySelector('.card-check-circle');
+    if (checkCircle) {
+      checkCircle.onclick = (e) => {
         e.stopPropagation();
         currentCardsList = cards;
-        openTcgZoom(index, false);
+        toggleCardCollection(card.id, curId);
       };
-      frag.appendChild(node);
-    });
-  }
-
+    }
+    node.onclick = (e) => {
+      e.stopPropagation();
+      currentCardsList = cards;
+      openTcgZoom(index, false);
+    };
+    frag.appendChild(node);
+  });
   strip.innerHTML = '';
   strip.appendChild(frag);
 }

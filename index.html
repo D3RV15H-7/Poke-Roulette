@@ -2372,14 +2372,31 @@ function playShinyJingle() {
 function triggerSparkle() {
   const s = document.getElementById('sparkle');
   const orbitWrap = document.getElementById('orbitingWrap');
+
   if (!s || !orbitWrap) return;
+
+  // Reset any previous animation
   s.classList.remove('pop');
+  orbitWrap.classList.remove('active');
+
+  // Force browser to recognise the reset
   void s.offsetWidth;
+
+  // Start shiny animations
   s.classList.add('pop');
   orbitWrap.classList.add('active');
-  setTimeout(() => { orbitWrap.classList.remove('active'); }, 1200);
+
+  // Clean up after animation finishes
+  setTimeout(() => {
+    s.classList.remove('pop');
+    orbitWrap.classList.remove('active');
+  }, 1200);
+
   playShinyJingle();
-  if (navigator.vibrate) navigator.vibrate([40, 60, 40, 60, 80]);
+
+  if (navigator.vibrate) {
+    navigator.vibrate([40, 60, 40, 60, 80]);
+  }
 }
 
 function toggleShiny() {
@@ -3423,8 +3440,23 @@ async function spinAndPick() {
   const hubSub = document.getElementById('hubSub');
 
   if (btn) btn.disabled = true;
-  isSpinning = true;
-  hideActive();
+ isSpinning = true;
+
+// Fully reset shiny state before a new encounter
+isShiny = false;
+
+const sparkle = document.getElementById('sparkle');
+const orbitWrap = document.getElementById('orbitingWrap');
+
+if (sparkle) {
+  sparkle.classList.remove('pop');
+}
+
+if (orbitWrap) {
+  orbitWrap.classList.remove('active');
+}
+
+hideActive();
 
   if (hubText) hubText.innerText = "SEARCHING";
   if (hubSub) hubSub.innerText = "SPINNING...";

@@ -206,78 +206,87 @@ header h1 span {
 .suggestions li:last-child {
   border-bottom: none;
 }
-  .search-recents {
-  margin-top: 0.65rem;
-  width: 100%;
+ .search-recents {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+
+  background: var(--card);
+  border: 1px solid #334155;
+  border-radius: 14px;
+
+  padding: 0.65rem;
+
+  box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+
+  z-index: 25;
 }
 
 .search-recents-label {
   display: block;
-  margin: 0 0 0.35rem 0.3rem;
+  margin: 0 0 0.45rem 0.25rem;
+
   color: #94a3b8;
+
   font-size: 0.62rem;
   font-weight: 800;
+
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .search-recents-list {
   display: flex;
-  gap: 0.45rem;
-  width: 100%;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .search-recent-item {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
+
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.3rem;
+  gap: 0.65rem;
 
-  background: var(--card);
-  border: 1px solid #334155;
-  border-radius: 12px;
+  background: transparent;
+  border: none;
+  border-radius: 9px;
 
-  padding: 0.3rem 0.4rem;
+  padding: 0.4rem 0.55rem;
 
   color: #fff;
-  font-size: 0.7rem;
+
+  font-size: 0.8rem;
   font-weight: 700;
 
+  text-align: left;
   cursor: pointer;
 
-  box-shadow: 0 3px 10px rgba(0,0,0,0.25);
-
-  transition:
-    transform 0.15s,
-    border-color 0.15s,
-    background 0.15s;
+  transition: background 0.15s;
 }
 
 .search-recent-item:hover {
-  border-color: var(--red);
   background: #1e293b;
 }
 
 .search-recent-item:active {
-  transform: scale(0.96);
+  background: #334155;
 }
 
 .search-recent-item img {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
+
   object-fit: contain;
+
   image-rendering: pixelated;
 }
 
 .search-recent-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   text-transform: capitalize;
 }
-
 .wheel-wrap {
   position: relative;
   width: clamp(240px, 46dvh, 340px);
@@ -2407,15 +2416,26 @@ function renderSearchRecents() {
       <span class="search-recent-name">${p.name}</span>
     `;
 
-    item.onclick = () => {
-      loadPoke(p.id, false);
-    };
+ item.onclick = () => {
+  wrap.style.display = 'none';
+  loadPoke(p.id, false);
+};
 
     list.appendChild(item);
   });
-
-  wrap.style.display = 'block';
 }
+
+const searchInput = document.getElementById('sInput');
+
+searchInput?.addEventListener('focus', () => {
+  const value = searchInput.value.trim();
+  const recents = document.getElementById('searchRecents');
+
+  if (!value && recents && getRec().length) {
+    renderSearchRecents();
+    recents.style.display = 'block';
+  }
+});
 
 function initAudio() {
   try {
@@ -3548,12 +3568,11 @@ function handleSpinButtonClick() {
 }
 
 function handleSearch(val) {
-  const l = document.getElementById('sList'), v = val.trim().toLowerCase().replace('#','');
-  if (!l) return;
-  if (!v || !dir.length) return l.style.display = 'none';
-  const isN = !isNaN(parseInt(v));
-  const m = dir.filter(p => isN ? (p.id === parseInt(v) || String(p.id).startsWith(v)) : p.cleanName.toLowerCase().includes(v)).slice(0, 7);
-  if (!m.length) return l.style.display = 'none';
+  const recents = document.getElementById('searchRecents');
+
+  if (recents) {
+    recents.style.display = value.trim() ? 'none' : 'block';
+  }
   
   const frag = document.createDocumentFragment();
   m.forEach(p => {

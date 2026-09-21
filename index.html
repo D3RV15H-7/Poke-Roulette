@@ -2279,25 +2279,96 @@ function playCry() {
 function playShinyJingle() {
   initAudio();
   if (!audioCtx) return;
+
   try {
     const now = audioCtx.currentTime;
-    const notes = [587.33, 880, 1174.66, 1760];
-    notes.forEach((freq, idx) => {
+
+    // Retro handheld-style shiny sparkle sequence
+    const notes = [
+      { freq: 1046.50, time: 0.00, duration: 0.09 },
+      { freq: 1318.51, time: 0.07, duration: 0.09 },
+      { freq: 1567.98, time: 0.14, duration: 0.10 },
+      { freq: 2093.00, time: 0.22, duration: 0.16 },
+
+      // Second sparkling flourish
+      { freq: 1567.98, time: 0.34, duration: 0.08 },
+      { freq: 2093.00, time: 0.40, duration: 0.08 },
+      { freq: 2637.02, time: 0.46, duration: 0.20 }
+    ];
+
+    notes.forEach(note => {
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now + idx * 0.08);
-      gain.gain.setValueAtTime(0, now + idx * 0.08);
-      gain.gain.linearRampToValueAtTime(0.18, now + idx * 0.08 + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.08 + 0.25);
+
+      // Square wave gives it the classic handheld/gameboy character
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(
+        note.freq,
+        now + note.time
+      );
+
+      gain.gain.setValueAtTime(
+        0,
+        now + note.time
+      );
+
+      gain.gain.linearRampToValueAtTime(
+        0.07,
+        now + note.time + 0.005
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        now + note.time + note.duration
+      );
+
       osc.connect(gain);
       gain.connect(audioCtx.destination);
-      osc.start(now + idx * 0.08);
-      osc.stop(now + idx * 0.08 + 0.25);
-    });
-  } catch (e) {}
-}
 
+      osc.start(now + note.time);
+      osc.stop(
+        now + note.time + note.duration
+      );
+    });
+
+    // Tiny high-frequency sparkle accents
+    const sparkleTimes = [0.05, 0.12, 0.19, 0.30, 0.39, 0.48];
+
+    sparkleTimes.forEach((time, index) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'square';
+
+      osc.frequency.setValueAtTime(
+        index % 2 === 0 ? 3135.96 : 3520,
+        now + time
+      );
+
+      gain.gain.setValueAtTime(
+        0.035,
+        now + time
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        now + time + 0.045
+      );
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start(now + time);
+      osc.stop(now + time + 0.05);
+    });
+
+  } catch (e) {
+    console.warn(
+      "Unable to play shiny sound:",
+      e
+    );
+  }
+}
 function triggerSparkle() {
   const s = document.getElementById('sparkle');
   const orbitWrap = document.getElementById('orbitingWrap');
@@ -3355,7 +3426,7 @@ async function spinAndPick() {
   isSpinning = true;
   hideActive();
 
-  if (hubText) hubText.innerText = "WILD";
+  if (hubText) hubText.innerText = "SEARCHING";
   if (hubSub) hubSub.innerText = "SPINNING...";
 
   const idx = Math.floor(Math.random() * TYPES.length);

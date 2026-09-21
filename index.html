@@ -206,6 +206,77 @@ header h1 span {
 .suggestions li:last-child {
   border-bottom: none;
 }
+  .search-recents {
+  margin-top: 0.65rem;
+  width: 100%;
+}
+
+.search-recents-label {
+  display: block;
+  margin: 0 0 0.35rem 0.3rem;
+  color: #94a3b8;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.search-recents-list {
+  display: flex;
+  gap: 0.45rem;
+  width: 100%;
+}
+
+.search-recent-item {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+
+  background: var(--card);
+  border: 1px solid #334155;
+  border-radius: 12px;
+
+  padding: 0.3rem 0.4rem;
+
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+
+  transition:
+    transform 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.search-recent-item:hover {
+  border-color: var(--red);
+  background: #1e293b;
+}
+
+.search-recent-item:active {
+  transform: scale(0.96);
+}
+
+.search-recent-item img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.search-recent-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: capitalize;
+}
 
 .wheel-wrap {
   position: relative;
@@ -1334,13 +1405,28 @@ body.has-active .hub-item-label {
     </div>
   </header>
 
-  <div class="search-wrap">
-    <form class="search-box" onsubmit="event.preventDefault(); submitSearch();">
-      <input type="text" id="sInput" placeholder="Type Pokémon Name or Dex #" autocomplete="off" oninput="handleSearch(this.value)" />
-      <button type="submit">Search</button>
-    </form>
-    <ul class="suggestions" id="sList"></ul>
+<div class="search-wrap">
+
+  <form class="search-box" onsubmit="event.preventDefault(); submitSearch();">
+    <input
+      type="text"
+      id="sInput"
+      placeholder="Type Pokémon Name or Dex #"
+      autocomplete="off"
+      oninput="handleSearch(this.value)"
+    />
+    <button type="submit">Search</button>
+  </form>
+
+  <ul class="suggestions" id="sList"></ul>
+
+  <!-- Recent Pokémon -->
+  <div class="search-recents" id="searchRecents" style="display:none;">
+    <span class="search-recents-label">Recent</span>
+    <div class="search-recents-list" id="searchRecentsList"></div>
   </div>
+
+</div>
 
   <div class="wheel-wrap" id="wheelWrap" onclick="handleSpinButtonClick()">
     <div class="pointer"></div>
@@ -2261,10 +2347,11 @@ function closeDexCardsModal() {
 function renderRecents() {
   const l = document.getElementById('recentsList'), r = getRec();
   if (!l) return;
-  if (!r.length) {
-    l.innerHTML = '<div style="color:var(--sub);text-align:center;padding:2rem 0;">No History!</div>';
-    return;
-  }
+ if (!r.length) {
+  l.innerHTML = '<div style="color:var(--sub);text-align:center;padding:2rem 0;">No History!</div>';
+  renderSearchRecents();
+  return;
+}
   const frag = document.createDocumentFragment();
   r.forEach(p => {
     const li = document.createElement('li');
@@ -2273,8 +2360,61 @@ function renderRecents() {
     li.onclick = () => { closeModal(null, 'recentModal'); loadPoke(p.id, false); };
     frag.appendChild(li);
   });
-  l.innerHTML = '';
-  l.appendChild(frag);
+l.innerHTML = '';
+l.appendChild(frag);
+
+renderSearchRecents();
+}
+
+function renderSearchRecents() {
+  const wrap = document.getElementById('searchRecents');
+  const list = document.getElementById('searchRecentsList');
+
+  if (!wrap || !list) return;
+
+  const history = getRec();
+
+  // Get the latest 3 unique Pokémon
+  const seen = new Set();
+  const recent = [];
+
+  for (const p of history) {
+    if (!p || seen.has(p.id)) continue;
+
+    seen.add(p.id);
+    recent.push(p);
+
+    if (recent.length === 3) break;
+  }
+
+  // Hide the section completely if there is no history
+  if (!recent.length) {
+    wrap.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
+
+  list.innerHTML = '';
+
+  recent.forEach(p => {
+    const item = document.createElement('button');
+
+    item.type = 'button';
+    item.className = 'search-recent-item';
+
+    item.innerHTML = `
+      <img src="${p.sprite}" alt="${p.name}">
+      <span class="search-recent-name">${p.name}</span>
+    `;
+
+    item.onclick = () => {
+      loadPoke(p.id, false);
+    };
+
+    list.appendChild(item);
+  });
+
+  wrap.style.display = 'block';
 }
 
 function initAudio() {

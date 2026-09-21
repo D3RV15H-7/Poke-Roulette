@@ -1391,34 +1391,69 @@ body.has-active .hub-item-label {
     </div>
   </div>
 
-  <div class="hub-outer-wrap">
-    <div class="hub">
-      <div class="hub-item-wrap">
-        <button class="btn-hub" onclick="openModal('accountModal')" title="Account Sync" id="btnAccount">
-          <svg viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        </button>
-        <span class="hub-item-label" id="accountLabel">Profile</span>
-      </div>
-      <div class="hub-item-wrap">
-        <button class="btn-hub" onclick="openModal('dexModal')" title="Collection">
-          <svg viewBox="0 0 24 24"><path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-9Z"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M8 10h8v4H8z"/></svg>
-          <div class="hub-badge" id="bagBadge">0</div>
-        </button>
-        <span class="hub-item-label">Dex</span>
-      </div>
-      <div class="hub-item-wrap">
-        <button class="btn-hub" onclick="openModal('recentModal')" title="History">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><polyline points="3 3 3 8 8 8"/></svg>
-        </button>
-        <span class="hub-item-label">History</span>
-      </div>
-      <div class="hub-item-wrap">
-        <button class="btn-hub" onclick="openModal('infoModal')" title="App Info & Legal">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-        </button>
-        <span class="hub-item-label">Info</span>
-      </div>
+ <div class="hub-outer-wrap">
+  <div class="hub">
+
+    <div class="hub-item-wrap">
+      <button class="btn-hub" onclick="openModal('accountModal')" title="Account Sync" id="btnAccount">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+      </button>
+      <span class="hub-item-label" id="accountLabel">Profile</span>
     </div>
+
+    <div class="hub-item-wrap">
+      <button class="btn-hub" onclick="openModal('dexModal')" title="Collection">
+        <svg viewBox="0 0 24 24">
+          <path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-9Z"/>
+          <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+          <path d="M8 10h8v4H8z"/>
+        </svg>
+        <div class="hub-badge" id="bagBadge">0</div>
+      </button>
+      <span class="hub-item-label">Dex</span>
+    </div>
+
+    <!-- NEW SETS BUTTON -->
+    <div class="hub-item-wrap">
+      <button class="btn-hub" onclick="openModal('setsModal')" title="Card Sets">
+        <svg viewBox="0 0 24 24">
+          <rect x="4" y="5" width="14" height="16" rx="2"/>
+          <path d="M8 5V3h12v16h-2"/>
+          <line x1="8" y1="10" x2="14" y2="10"/>
+          <line x1="8" y1="14" x2="14" y2="14"/>
+        </svg>
+      </button>
+      <span class="hub-item-label">Sets</span>
+    </div>
+
+    <div class="hub-item-wrap">
+      <button class="btn-hub" onclick="openModal('recentModal')" title="History">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9"/>
+          <polyline points="12 7 12 12 15 15"/>
+          <path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/>
+          <polyline points="3 3 3 8 8 8"/>
+        </svg>
+      </button>
+      <span class="hub-item-label">History</span>
+    </div>
+
+    <div class="hub-item-wrap">
+      <button class="btn-hub" onclick="openModal('infoModal')" title="App Info & Legal">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="16" x2="12" y2="12"/>
+          <line x1="12" y1="8" x2="12.01" y2="8"/>
+        </svg>
+      </button>
+      <span class="hub-item-label">Info</span>
+    </div>
+
+  </div>
+</div>
     <div class="badge">Collected: <strong id="tCount">0</strong> / 1025</div>
     <div class="micro-disclaimer">Fan project. Not affiliated with Nintendo, Creatures, or Game Freak.</div>
   </div>

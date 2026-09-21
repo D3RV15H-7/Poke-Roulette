@@ -2185,7 +2185,38 @@ function renderDexCardsGrid(cardsList) {
 }
 
 function refreshCurrentCardSearch() {
-  if (curPoke) fetchTcgCards(curPoke.name, curPoke.species?.name, true);
+  const dexModal =
+    document.getElementById('dexCardsModal');
+
+  if (
+    activeDexModalPoke &&
+    dexModal?.style.display === 'flex'
+  ) {
+    showToast(
+      "Refreshing cards...",
+      "warning"
+    );
+
+    openDexCardsModal(
+      activeDexModalPoke,
+      true
+    );
+
+    return;
+  }
+
+  if (curPoke) {
+    showToast(
+      "Refreshing cards...",
+      "warning"
+    );
+
+    fetchTcgCards(
+      curPoke.name,
+      curPoke.species?.name,
+      true
+    );
+  }
 }
 function closeDexCardsModal() {
   const modal = document.getElementById('dexCardsModal');
@@ -2387,147 +2418,687 @@ function renderEvolutionChain(chain) {
   evoBox.style.display = 'flex';
 }
 
-async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
-  const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_ttl_cache_v2890_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+function normalizePokemonCardName(name) {
+  return String(name || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[♀]/g, ' female ')
+    .replace(/[♂]/g, ' male ')
+    .replace(/[‐-‒–—]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function escapeRegex(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function matchesExactPokemonName(cardName, pokemonName) {
+  if (!cardName || !pokemonName) return false;
+
+  const card = normalizePokemonCardName(cardName);
+  const pokemon = normalizePokemonCardName(pokemonName);
+
+  if (card === pokemon) return true;
+
+  const escapedPokemon = escapeRegex(pokemon);
+
+  // Standard variants:
+  // Pikachu ex, Pikachu V, Pikachu VMAX, Charizard-GX etc.
+  const directMatch = new RegExp(
+    `^${escapedPokemon}(?:\\s|-|$)`,
+    'i'
+  );
+
+  if (directMatch.test(card)) return true;
+
+  // Older named cards such as Blaine's Charizard etc.
+  const words = card
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .split(/[\s-]+/)
+    .filter(Boolean);
+
+  const pokemonWords = pokemon
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .split(/[\s-]+/)
+    .filter(Boolean);
+
+  if (pokemonWords.length === 1) {
+    return words.includes(pokemonWords[0]);
+  }
+
+  return card.includes(pokemon);
+}
+
+function getNumericPrice(value) {
+  const num = parseFloat(value);
+  return Number.isFinite(num) && num > 0 ? num : null;
+}
+
+function extractCardPriceGBP(card) {
+  if (!card) return null;
+
+  let gbpPrice = null;
+
+  // Pokémon TCG API / TCGplayer - USD
+  const tcgPrices = card.tcgplayer?.prices;
+
+  if (tcgPrices && typeof tcgPrices === 'object') {
+    const usdCandidates = [];
+
+    Object.values(tcgPrices).forEach(priceObj => {
+      if (!priceObj) return;
+
+      const market = getNumericPrice(priceObj.market);
+      const mid = getNumericPrice(priceObj.mid);
+      const low = getNumericPrice(priceObj.low);
+
+      if (market) usdCandidates.push(market);
+      else if (mid) usdCandidates.push(mid);
+      else if (low) usdCandidates.push(low);
+    });
+
+    if (usdCandidates.length) {
+      gbpPrice = Math.max(...usdCandidates) * USD_TO_GBP;
+    }
+  }
+
+  // Cardmarket - EUR
+  if (!gbpPrice && card.cardmarket?.prices) {
+    const prices = card.cardmarket.prices;
+
+    const eurCandidates = [
+      getNumericPrice(prices.trendPrice),
+      getNumericPrice(prices.averageSellPrice),
+      getNumericPrice(prices.avg7),
+      getNumericPrice(prices.avg30),
+      getNumericPrice(prices.lowPrice),
+      getNumericPrice(prices.lowPriceExPlus)
+    ].filter(Boolean);
+
+    if (eurCandidates.length) {
+      gbpPrice = eurCandidates[0] * EUR_TO_GBP;
+    }
+  }
+
+  // TCGdex pricing fallback
+  if (!gbpPrice && card.pricing) {
+    const pricing = card.pricing;
+
+    const possiblePrices = [
+      pricing.cardmarket?.trend,
+      pricing.cardmarket?.avg,
+      pricing.cardmarket?.avg7,
+      pricing.cardmarket?.avg30,
+      pricing.cardmarket?.low,
+      pricing.trend,
+      pricing.average,
+      pricing.avg,
+      pricing.low
+    ]
+      .map(getNumericPrice)
+      .filter(Boolean);
+
+    if (possiblePrices.length) {
+      gbpPrice = possiblePrices[0] * EUR_TO_GBP;
+    }
+  }
+
+  if (!gbpPrice || !Number.isFinite(gbpPrice)) {
+    return null;
+  }
+
+  return gbpPrice.toFixed(2);
+}
+
+async function fetchTcgCardsData(
+  pokeName,
+  speciesName,
+  bypassCache = false
+) {
+  const cleanName = getCleanNationalDexName(
+    pokeName,
+    speciesName
+  );
+
+  /*
+    v3000 is intentional.
+
+    Your previous v2890 cache may contain old/broken
+    results. Changing the cache version means the app
+    immediately performs a fresh card lookup.
+  */
+  const cacheKey =
+    `tcg_ttl_cache_v3000_${cleanName
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '')}`;
+
   const cacheTimeKey = `${cacheKey}_time`;
   const TTL_MS = 24 * 60 * 60 * 1000;
   const now = Date.now();
 
+  /* ==============================
+     CACHE
+     ============================== */
+
   if (!bypassCache) {
     if (memoryTcgCache.has(cacheKey)) {
       const cached = memoryTcgCache.get(cacheKey);
-      sortCardsList(cached);
-      return cached;
-    }
-    try {
-      const stored = localStorage.getItem(cacheKey);
-      const storedTime = parseInt(localStorage.getItem(cacheTimeKey) || '0', 10);
-      if (stored && storedTime && (now - storedTime < TTL_MS)) {
-        const cached = JSON.parse(stored);
-        memoryTcgCache.set(cacheKey, cached);
+
+      if (Array.isArray(cached)) {
         sortCardsList(cached);
         return cached;
       }
-    } catch (e) {}
+    }
+
+    try {
+      const stored = localStorage.getItem(cacheKey);
+
+      const storedTime = parseInt(
+        localStorage.getItem(cacheTimeKey) || '0',
+        10
+      );
+
+      if (
+        stored &&
+        storedTime &&
+        now - storedTime < TTL_MS
+      ) {
+        const cached = JSON.parse(stored);
+
+        if (Array.isArray(cached)) {
+          memoryTcgCache.set(cacheKey, cached);
+          sortCardsList(cached);
+          return cached;
+        }
+      }
+    } catch (err) {
+      console.warn(
+        '[TCG] Unable to read card cache:',
+        err
+      );
+    }
   }
 
-  const primaryTerm = cleanName.includes('-') ? cleanName : cleanName.split(' ')[0];
-  const fetchWithRetry = async (url, headers = {}, retries = 2, delay = 350) => {
-    for (let i = 0; i < retries; i++) {
+  const primaryTerm = cleanName.trim();
+
+  /* ==============================
+     FETCH WITH RETRY
+     ============================== */
+
+  const fetchWithRetry = async (
+    url,
+    headers = {},
+    retries = 2,
+    delay = 400
+  ) => {
+    let lastError = null;
+
+    for (let attempt = 0; attempt < retries; attempt++) {
+      const controller = new AbortController();
+
+      const timeoutId = setTimeout(
+        () => controller.abort(),
+        12000
+      );
+
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 9000);
-        const res = await fetch(url, { headers, signal: controller.signal });
+        const response = await fetch(url, {
+          headers,
+          signal: controller.signal
+        });
+
         clearTimeout(timeoutId);
-        if (res.ok) return await res.json();
-      } catch (e) {
-        if (i === retries - 1) throw e;
-        await new Promise(r => setTimeout(r, delay * Math.pow(1.3, i)));
+
+        if (!response.ok) {
+          throw new Error(
+            `HTTP ${response.status} ${response.statusText}`
+          );
+        }
+
+        return await response.json();
+
+      } catch (err) {
+        clearTimeout(timeoutId);
+        lastError = err;
+
+        console.warn(
+          `[TCG] Request attempt ${attempt + 1} failed:`,
+          url,
+          err
+        );
+
+        if (attempt < retries - 1) {
+          await new Promise(resolve =>
+            setTimeout(
+              resolve,
+              delay * Math.pow(1.5, attempt)
+            )
+          );
+        }
       }
     }
-    throw new Error("Failed to fetch");
+
+    throw lastError || new Error(
+      'TCG request failed'
+    );
   };
+
+  /* ==============================
+     POKÉMON TCG API
+     ============================== */
 
   const fetchPokeTcgIo = async () => {
     try {
-      const cleanWord = cleanName.replace(/["']/g, '');
-      const queryUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanWord)}"&pageSize=250`;
-      const headers = POKEMON_TCG_API_KEY ? { 'X-Api-Key': POKEMON_TCG_API_KEY } : {};
-      const json = await fetchWithRetry(queryUrl, headers);
-      if (json && json.data && json.data.length > 0) return json.data;
-    } catch (e) {}
+      const cleanWord = cleanName
+        .replace(/["']/g, '')
+        .trim();
+
+      const query = `name:"${cleanWord}"`;
+
+      const queryUrl =
+        `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}&pageSize=250`;
+
+      const headers = {};
+
+      if (POKEMON_TCG_API_KEY) {
+        headers['X-Api-Key'] = POKEMON_TCG_API_KEY;
+      }
+
+      const json = await fetchWithRetry(
+        queryUrl,
+        headers
+      );
+
+      if (json && Array.isArray(json.data)) {
+        console.log(
+          `[TCG] Pokémon TCG API returned ${json.data.length} cards for ${cleanName}`
+        );
+
+        return json.data;
+      }
+
+    } catch (err) {
+      console.error(
+        `[TCG] Pokémon TCG API failed for ${cleanName}:`,
+        err
+      );
+    }
+
     return [];
   };
+
+  /* ==============================
+     TCGDEX
+     ============================== */
 
   const fetchTcgDex = async () => {
     try {
-      const res = await fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(primaryTerm)}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (Array.isArray(json) && json.length > 0) {
-          const results = [];
-          const chunkSize = 10;
-          for (let i = 0; i < json.length; i += chunkSize) {
-            const chunk = json.slice(i, i + chunkSize);
-            const chunkData = await Promise.all(
-              chunk.map(async c => {
-                try {
-                  const detailRes = await fetch(`https://api.tcgdex.net/v2/en/cards/${c.id}`);
-                  if (detailRes.ok) return await detailRes.json();
-                } catch (e) {}
-                return c;
-              })
-            );
-            results.push(...chunkData);
-          }
-          return results.map(c => ({
-            id: c.id,
-            name: c.name,
-            images: { 
-              small: c.image ? `${c.image}/low.webp` : (c.images?.small || ''), 
-              large: c.image ? `${c.image}/high.webp` : (c.images?.large || c.image || '') 
-            },
-            set: { name: c.set?.name || '', id: c.set?.id || '', printedTotal: c.set?.cardCount?.official || 0 },
-            number: c.localId || c.number || '?',
-            rarity: c.rarity || 'Common',
-            pricing: c.pricing || null,
-            cardmarket: c.cardmarket || null,
-            tcgplayer: c.tcgplayer || null
-          }));
-        }
+      const searchUrl =
+        `https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(primaryTerm)}`;
+
+      const searchResults = await fetchWithRetry(
+        searchUrl,
+        {},
+        2,
+        400
+      );
+
+      if (
+        !Array.isArray(searchResults) ||
+        searchResults.length === 0
+      ) {
+        console.log(
+          `[TCG] TCGdex returned 0 cards for ${cleanName}`
+        );
+
+        return [];
       }
-    } catch (err) {}
-    return [];
+
+      console.log(
+        `[TCG] TCGdex returned ${searchResults.length} references for ${cleanName}`
+      );
+
+      const results = [];
+      const chunkSize = 10;
+
+      for (
+        let i = 0;
+        i < searchResults.length;
+        i += chunkSize
+      ) {
+        const chunk = searchResults.slice(
+          i,
+          i + chunkSize
+        );
+
+        const chunkData = await Promise.all(
+          chunk.map(async cardBrief => {
+            try {
+              const detailUrl =
+                `https://api.tcgdex.net/v2/en/cards/${encodeURIComponent(cardBrief.id)}`;
+
+              return await fetchWithRetry(
+                detailUrl,
+                {},
+                2,
+                250
+              );
+
+            } catch (err) {
+              console.warn(
+                '[TCG] TCGdex detail failed:',
+                cardBrief.id,
+                err
+              );
+
+              return cardBrief;
+            }
+          })
+        );
+
+        results.push(...chunkData);
+      }
+
+      return results.map(c => {
+        const baseImage = c.image || '';
+
+        return {
+          id: c.id,
+
+          name: c.name,
+
+          images: {
+            small: baseImage
+              ? `${baseImage}/low.webp`
+              : (c.images?.small || ''),
+
+            large: baseImage
+              ? `${baseImage}/high.webp`
+              : (
+                  c.images?.large ||
+                  c.images?.small ||
+                  ''
+                )
+          },
+
+          set: {
+            name: c.set?.name || '',
+            id: c.set?.id || '',
+            printedTotal:
+              c.set?.cardCount?.official || 0
+          },
+
+          number:
+            c.localId ||
+            c.number ||
+            '?',
+
+          rarity:
+            c.rarity ||
+            'Common',
+
+          pricing:
+            c.pricing || null,
+
+          cardmarket:
+            c.cardmarket || null,
+
+          tcgplayer:
+            c.tcgplayer || null
+        };
+      });
+
+    } catch (err) {
+      console.error(
+        `[TCG] TCGdex failed for ${cleanName}:`,
+        err
+      );
+
+      return [];
+    }
   };
 
-  const [cardsFromIo, cardsFromDex] = await Promise.all([fetchPokeTcgIo(), fetchTcgDex()]);
-  const mergedMap = new Map();
-  for (const c of [...cardsFromIo, ...cardsFromDex]) {
-    if (isDigitalOnlyCard(c)) continue;
-    if (!matchesExactPokemonName(c.name, cleanName)) continue;
-    const smallImg = c.images?.small || c.images?.large || '';
-    if (!isValidFrontCardImage(smallImg) && !c.image) continue;
+  /* ==============================
+     RUN BOTH SOURCES
+     ============================== */
 
-    const resolvedSet = resolveSetName(c.set, c.id);
-    const resolvedNum = normalizeCardNumber(c.number || c.localId);
-    const dedupKey = `${resolvedSet.toLowerCase().replace(/[^a-z0-9]/g, '')}_${resolvedNum}`;
+  const results = await Promise.allSettled([
+    fetchPokeTcgIo(),
+    fetchTcgDex()
+  ]);
+
+  const cardsFromIo =
+    results[0].status === 'fulfilled'
+      ? results[0].value
+      : [];
+
+  const cardsFromDex =
+    results[1].status === 'fulfilled'
+      ? results[1].value
+      : [];
+
+  if (results[0].status === 'rejected') {
+    console.error(
+      '[TCG] Pokémon TCG API rejected:',
+      results[0].reason
+    );
+  }
+
+  if (results[1].status === 'rejected') {
+    console.error(
+      '[TCG] TCGdex rejected:',
+      results[1].reason
+    );
+  }
+
+  console.log(
+    '[TCG] API results:',
+    {
+      pokemon: cleanName,
+      pokemonTcgIo: cardsFromIo.length,
+      tcgDex: cardsFromDex.length
+    }
+  );
+
+  /* ==============================
+     MERGE / FILTER / DEDUPLICATE
+     ============================== */
+
+  const mergedMap = new Map();
+
+  const allCards = [
+    ...cardsFromIo,
+    ...cardsFromDex
+  ];
+
+  for (const card of allCards) {
+    if (!card) continue;
+
+    if (isDigitalOnlyCard(card)) {
+      continue;
+    }
+
+    if (
+      !matchesExactPokemonName(
+        card.name,
+        cleanName
+      )
+    ) {
+      continue;
+    }
+
+    const smallImg =
+      card.images?.small ||
+      card.images?.large ||
+      (
+        card.image
+          ? `${card.image}/low.webp`
+          : ''
+      );
+
+    if (!isValidFrontCardImage(smallImg)) {
+      continue;
+    }
+
+    const resolvedSet =
+      resolveSetName(
+        card.set,
+        card.id
+      );
+
+    const resolvedNum =
+      normalizeCardNumber(
+        card.number ||
+        card.localId
+      );
+
+    const dedupKey =
+      `${resolvedSet
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')}_${resolvedNum}`;
 
     if (!mergedMap.has(dedupKey)) {
-      mergedMap.set(dedupKey, c);
-    } else {
-      const existing = mergedMap.get(dedupKey);
-      if (!existing.pricing && !existing.cardmarket && !existing.tcgplayer && (c.pricing || c.cardmarket || c.tcgplayer)) {
-        mergedMap.set(dedupKey, c);
-      }
+      mergedMap.set(
+        dedupKey,
+        card
+      );
+
+      continue;
+    }
+
+    const existing =
+      mergedMap.get(dedupKey);
+
+    const existingHasPricing =
+      Boolean(
+        existing.pricing ||
+        existing.cardmarket ||
+        existing.tcgplayer
+      );
+
+    const incomingHasPricing =
+      Boolean(
+        card.pricing ||
+        card.cardmarket ||
+        card.tcgplayer
+      );
+
+    if (
+      !existingHasPricing &&
+      incomingHasPricing
+    ) {
+      mergedMap.set(
+        dedupKey,
+        card
+      );
     }
   }
 
-  const formattedCards = Array.from(mergedMap.values()).map(c => {
-    const smallImg = c.images?.small || c.images?.large || (c.image ? `${c.image}/low.webp` : '');
-    const largeImg = c.images?.large || c.images?.small || (c.image ? `${c.image}/high.webp` : '');
-    return {
-      id: c.id,
-      name: c.name,
-      smallImg: smallImg || largeImg,
-      largeImg: largeImg || smallImg,
-      setName: resolveSetName(c.set, c.id),
-      number: normalizeCardNumber(c.number || c.localId),
-      rarity: c.rarity || 'Common',
-      rarityScore: getRarityScore(c.rarity),
-      priceGBP: extractCardPriceGBP(c)
-    };
-  });
+  /* ==============================
+     FORMAT FOR APP
+     ============================== */
+
+  const formattedCards =
+    Array.from(
+      mergedMap.values()
+    ).map(card => {
+      const smallImg =
+        card.images?.small ||
+        card.images?.large ||
+        (
+          card.image
+            ? `${card.image}/low.webp`
+            : ''
+        );
+
+      const largeImg =
+        card.images?.large ||
+        card.images?.small ||
+        (
+          card.image
+            ? `${card.image}/high.webp`
+            : ''
+        );
+
+      return {
+        id:
+          String(card.id),
+
+        name:
+          card.name ||
+          cleanName,
+
+        smallImg:
+          smallImg ||
+          largeImg,
+
+        largeImg:
+          largeImg ||
+          smallImg,
+
+        setName:
+          resolveSetName(
+            card.set,
+            card.id
+          ),
+
+        number:
+          normalizeCardNumber(
+            card.number ||
+            card.localId
+          ),
+
+        rarity:
+          card.rarity ||
+          'Common',
+
+        rarityScore:
+          getRarityScore(
+            card.rarity
+          ),
+
+        priceGBP:
+          extractCardPriceGBP(card)
+      };
+    });
 
   sortCardsList(formattedCards);
 
+  console.log(
+    `[TCG] ${formattedCards.length} physical cards retained for ${cleanName}`
+  );
+
+  /* ==============================
+     CACHE VALID RESULTS
+     ============================== */
+
   if (formattedCards.length > 0) {
-    memoryTcgCache.set(cacheKey, formattedCards);
+    memoryTcgCache.set(
+      cacheKey,
+      formattedCards
+    );
+
     try {
-      localStorage.setItem(cacheKey, JSON.stringify(formattedCards));
-      localStorage.setItem(cacheTimeKey, String(now));
-    } catch (e) {}
+      localStorage.setItem(
+        cacheKey,
+        JSON.stringify(formattedCards)
+      );
+
+      localStorage.setItem(
+        cacheTimeKey,
+        String(now)
+      );
+
+    } catch (err) {
+      console.warn(
+        '[TCG] Unable to save card cache:',
+        err
+      );
+    }
   }
+
   return formattedCards;
 }
 

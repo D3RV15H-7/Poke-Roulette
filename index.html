@@ -3034,7 +3034,46 @@ const percentage = totalCount > 0
   renderCurrentSetCards();
 }
 
+function updateCurrentSetProgress() {
+  if (!activeTcgSet || !currentCardsList.length) return;
+
+  const collectedCount = currentCardsList.filter(card =>
+    isSetCardCollected(card)
+  ).length;
+
+  const totalCount = currentCardsList.length;
+
+  const percentage = totalCount > 0
+    ? Math.round((collectedCount / totalCount) * 100)
+    : 0;
+
+  const progressInfo =
+    document.querySelector('.tcg-set-detail-head .tcg-set-progress-info');
+
+  const progressFill =
+    document.querySelector('.tcg-set-detail-head .tcg-set-progress-fill');
+
+  if (progressInfo) {
+    progressInfo.innerHTML = `
+      <span>${collectedCount} / ${totalCount} collected</span>
+      <span>${percentage}%</span>
+    `;
+  }
+
+  if (progressFill) {
+    progressFill.style.width = `${percentage}%`;
+  }
+}
+
 function renderCurrentSetCards() {
+  const cardGrid =
+    document.getElementById('tcgSetCards');
+
+  if (!cardGrid) return;
+
+  updateCurrentSetProgress();
+
+  cardGrid.innerHTML = '';
   const cardGrid =
     document.getElementById('tcgSetCards');
 

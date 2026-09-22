@@ -1525,18 +1525,6 @@ body.has-active .hub-item-label {
     </div>
 
     <div class="hub-item-wrap">
-      <button class="btn-hub" onclick="openModal('recentModal')" title="History">
-        <svg viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="9"/>
-          <polyline points="12 7 12 12 15 15"/>
-          <path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/>
-          <polyline points="3 3 3 8 8 8"/>
-        </svg>
-      </button>
-      <span class="hub-item-label">History</span>
-    </div>
-
-    <div class="hub-item-wrap">
       <button class="btn-hub" onclick="openModal('infoModal')" title="App Info & Legal">
         <svg viewBox="0 0 24 24">
           <circle cx="12" cy="12" r="10"/>
@@ -1615,6 +1603,33 @@ body.has-active .hub-item-label {
       </div>
     </div>
     <ul class="list-view" id="recentsList"></ul>
+  </div>
+</div>
+
+<div class="modal" id="setsModal" onclick="closeModal(event, 'setsModal')">
+  <div class="modal-body" onclick="event.stopPropagation()">
+
+    <div class="modal-head">
+      <div>
+        <h3 style="font-size:1.15rem;font-weight:800;">Pokémon TCG Sets</h3>
+        <div style="font-size:0.75rem;color:var(--sub);font-weight:600;margin-top:0.15rem;">
+          Browse physical card sets
+        </div>
+      </div>
+
+      <button
+        style="background:#334155;color:#fff;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;"
+        onclick="closeModal(null, 'setsModal')">
+        ✕
+      </button>
+    </div>
+
+    <div id="setsLoading" style="text-align:center;color:var(--sub);padding:2rem 0;">
+      Loading card sets...
+    </div>
+
+    <div id="setsGrid"></div>
+
   </div>
 </div>
 

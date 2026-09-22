@@ -2199,11 +2199,14 @@ function saveLocalState() {
 
 function writeFullCollectionToCloud(actionMessage = null) {
   if (!currentUser || !db) return;
+  
   const payload = {
-    collection: Array.from(memCol),
-    cardsCollection: Array.from(memCardCol),
-    lastSync: new Date().toISOString()
-  };
+  collection: Array.from(memCol),
+  cardsCollection: Array.from(memCardCol),
+  setsCardsCollection: Array.from(memSetCardCol),
+  lastSync: new Date().toISOString()
+};
+  
   db.collection("users").doc(currentUser.uid).set(payload, { merge: true })
     .then(() => { if (actionMessage) showToast(actionMessage, "success"); })
     .catch(err => {});
@@ -2269,6 +2272,8 @@ function toggleSetCardCollection(card) {
     (cardId && memSetCardCol.has(cardId)) ||
     (fingerprint && memSetCardCol.has(fingerprint));
 
+  let wasAdded = false;
+
   if (isCurrentlyOwned) {
     if (cardId) {
       memSetCardCol.delete(cardId);
@@ -2278,12 +2283,7 @@ function toggleSetCardCollection(card) {
       memSetCardCol.delete(fingerprint);
     }
 
-    saveLocalState();
-
-    showToast(
-      "Card Removed from Sets Collection",
-      "warning"
-    );
+    wasAdded = false;
 
   } else {
     if (cardId) {
@@ -2294,13 +2294,16 @@ function toggleSetCardCollection(card) {
       memSetCardCol.add(fingerprint);
     }
 
-    saveLocalState();
-
-    showToast(
-      "Card Added to Sets Collection",
-      "success"
-    );
+    wasAdded = true;
   }
+
+  saveLocalState();
+
+  const toastMsg = wasAdded
+    ? "Card Added to Sets Collection"
+    : "Card Removed from Sets Collection";
+
+  writeFullCollectionToCloud(toastMsg);
 }
 
 function sortCardsList(cards) {
@@ -3120,8 +3123,9 @@ function setupAuthListener() {
           if (snap.exists) {
             const data = snap.data();
             memCol = new Set(Array.isArray(data.collection) ? data.collection.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : []);
-            memCardCol = new Set(Array.isArray(data.cardsCollection) ? data.cardsCollection.map(String) : []);
-            saveLocalState();
+memCardCol = new Set(Array.isArray(data.cardsCollection) ? data.cardsCollection.map(String) : []);
+memSetCardCol = new Set(Array.isArray(data.setsCardsCollection) ? data.setsCardsCollection.map(String) : []);
+saveLocalState();
             if (currentCardsList.length > 0) renderTcgCards(currentCardsList);
           } else { writeFullCollectionToCloud(); }
         } catch (err) { reloadMemoryFromLocal(); }
@@ -3131,8 +3135,9 @@ function setupAuthListener() {
           if (doc.exists) {
             const data = doc.data();
             memCol = new Set(Array.isArray(data.collection) ? data.collection.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : []);
-            memCardCol = new Set(Array.isArray(data.cardsCollection) ? data.cardsCollection.map(String) : []);
-            saveLocalState();
+memCardCol = new Set(Array.isArray(data.cardsCollection) ? data.cardsCollection.map(String) : []);
+memSetCardCol = new Set(Array.isArray(data.setsCardsCollection) ? data.setsCardsCollection.map(String) : []);
+saveLocalState();
             if (currentCardsList.length > 0) renderTcgCards(currentCardsList);
           }
         }, (err) => {});

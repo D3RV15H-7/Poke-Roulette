@@ -23,6 +23,9 @@
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  /* ==============================
+     CSS
+     ============================== */
 <style>
 :root {
   --bg: #1e293b;
@@ -1454,6 +1457,87 @@ body.has-active .hub-item-label {
   font-weight: 600;
 }  
 
+.tcg-set-detail-head {
+  text-align: center;
+  padding: 0.4rem 0 1rem;
+}
+
+.tcg-set-back {
+  display: block;
+  background: none;
+  border: none;
+  color: var(--sub);
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  margin-bottom: 0.7rem;
+}
+
+.tcg-set-detail-head img {
+  display: block;
+  width: 150px;
+  max-height: 75px;
+  object-fit: contain;
+  margin: 0 auto 0.5rem;
+}
+
+.tcg-set-detail-title {
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.tcg-set-detail-meta {
+  margin-top: 0.2rem;
+  color: var(--sub);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.tcg-set-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.tcg-set-card {
+  min-width: 0;
+  background: none;
+  border: none;
+  color: #fff;
+  padding: 0;
+  cursor: pointer;
+  text-align: center;
+}
+
+.tcg-set-card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2.5 / 3.5;
+  object-fit: contain;
+  border-radius: 7px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+}
+
+.tcg-set-card-number {
+  margin-top: 0.3rem;
+  color: var(--sub);
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.tcg-set-card-name {
+  margin-top: 0.1rem;
+  font-size: 0.65rem;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+  
+  /* ==============================
+     CSS END
+     ============================== */ 
+  
 </style>
 </head>
 <body>
@@ -2198,6 +2282,210 @@ async function fetchPhysicalTcgSets(forceRefresh = false) {
   }
 }
 
+async function fetchCardsForSet(setId) {
+  try {
+    const headers = {};
+
+    if (POKEMON_TCG_API_KEY) {
+      headers['X-Api-Key'] = POKEMON_TCG_API_KEY;
+    }
+
+    const query = `set.id:${setId}`;
+
+    const url =
+      `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}&pageSize=250&orderBy=number`;
+
+    const response = await fetch(url, { headers });
+
+    if (!response.ok) {
+      throw new Error(
+        `Pokémon TCG API returned ${response.status}`
+      );
+    }
+
+    const json = await response.json();
+
+    const cards = Array.isArray(json?.data)
+      ? json.data
+      : [];
+
+    const formatted = cards
+      .filter(card => !isDigitalOnlyCard(card))
+      .filter(card =>
+        isValidFrontCardImage(
+          card.images?.small || card.images?.large
+        )
+      )
+      .map(card => ({
+        id: card.id,
+
+        name: card.name || 'Unknown',
+
+        smallImg:
+          card.images?.small ||
+          card.images?.large ||
+          '',
+
+        largeImg:
+          card.images?.large ||
+          card.images?.small ||
+          '',
+
+        setName:
+          card.set?.name ||
+          'Unknown Set',
+
+        number:
+          normalizeCardNumber(card.number),
+
+        rarity:
+          card.rarity ||
+          'Common',
+
+        rarityScore:
+          getRarityScore
+            ? getRarityScore(card.rarity)
+            : 0,
+
+        priceGBP:
+          extractCardPriceGBP(card)
+      }));
+
+    // Correct card-number ordering
+    formatted.sort((a, b) => {
+      const aNum = parseInt(a.number, 10);
+      const bNum = parseInt(b.number, 10);
+
+      const aNumeric = Number.isFinite(aNum);
+      const bNumeric = Number.isFinite(bNum);
+
+      if (aNumeric && bNumeric) {
+        return aNum - bNum;
+      }
+
+      if (aNumeric) return -1;
+      if (bNumeric) return 1;
+
+      return String(a.number).localeCompare(
+        String(b.number),
+        undefined,
+        {
+          numeric: true,
+          sensitivity: 'base'
+        }
+      );
+    });
+
+    console.log(
+      `[SETS] ${formatted.length} cards loaded for ${setId}`
+    );
+
+    return formatted;
+
+  } catch (error) {
+    console.error(
+      `[SETS] Failed to load cards for ${setId}:`,
+      error
+    );
+
+    return [];
+  }
+}
+
+async function openTcgSet(set) {
+  const grid = document.getElementById('setsGrid');
+  const loading = document.getElementById('setsLoading');
+
+  if (!grid || !loading) return;
+
+  grid.innerHTML = '';
+
+  loading.style.display = 'block';
+  loading.textContent = `Loading ${set.name}...`;
+
+  const cards = await fetchCardsForSet(set.id);
+
+  loading.style.display = 'none';
+
+  if (!cards.length) {
+    grid.innerHTML = `
+      <div style="
+        text-align:center;
+        color:var(--sub);
+        padding:2rem 0;
+      ">
+        No cards found for this set.
+      </div>
+    `;
+    return;
+  }
+
+  currentCardsList = cards;
+
+  grid.innerHTML = `
+    <div class="tcg-set-detail-head">
+
+      <button
+        type="button"
+        class="tcg-set-back"
+        onclick="renderTcgSets()">
+        ← Sets
+      </button>
+
+      ${
+        set.logo
+          ? `<img src="${set.logo}" alt="${set.name}">`
+          : ''
+      }
+
+      <div class="tcg-set-detail-title">
+        ${set.name}
+      </div>
+
+      <div class="tcg-set-detail-meta">
+        ${set.releaseDate || ''}
+        ·
+        ${cards.length} cards
+      </div>
+
+    </div>
+
+    <div class="tcg-set-cards" id="tcgSetCards"></div>
+  `;
+
+  const cardGrid =
+    document.getElementById('tcgSetCards');
+
+  cards.forEach((card, index) => {
+    const item = document.createElement('button');
+
+    item.type = 'button';
+    item.className = 'tcg-set-card';
+
+    item.innerHTML = `
+      <img
+        src="${card.smallImg}"
+        alt="${card.name}"
+        loading="lazy"
+      >
+
+      <div class="tcg-set-card-number">
+        #${card.number}
+      </div>
+
+      <div class="tcg-set-card-name">
+        ${card.name}
+      </div>
+    `;
+
+    item.onclick = () => {
+      openTcgZoom(index, false);
+    };
+
+    cardGrid.appendChild(item);
+  });
+}
+  
 async function renderTcgSets() {
   const loading = document.getElementById('setsLoading');
   const grid = document.getElementById('setsGrid');
@@ -2244,6 +2532,9 @@ async function renderTcgSets() {
       </div>
     `;
 
+  item.onclick = () => {
+  openTcgSet(set);
+};
     frag.appendChild(item);
   });
 

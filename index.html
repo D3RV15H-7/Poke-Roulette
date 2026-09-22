@@ -2502,6 +2502,7 @@ async function fetchWithRetry(url, options = {}, retries = 2) {
 }
 let tcgSetsCache = null;
 let activeTcgSet = null;
+  let activeTcgSetFilter = 'all';
   
 async function fetchPhysicalTcgSets(forceRefresh = false) {
   const CACHE_KEY = 'pokeroulette_tcg_sets_v1';
@@ -2889,6 +2890,7 @@ async function fetchCardsForSet(setId, forceRefresh = false) {
 
 async function openTcgSet(set) {
   activeTcgSet = set;
+  activeTcgSetFilter = 'all';
   
   const grid = document.getElementById('setsGrid');
   const loading = document.getElementById('setsLoading');
@@ -2970,10 +2972,33 @@ const percentage = totalCount > 0
 
 </div>
 
+<div class="tcg-set-filter">
+  <button
+    type="button"
+    class="tcg-set-filter-btn active"
+    data-filter="all">
+    All
+  </button>
+
+  <button
+    type="button"
+    class="tcg-set-filter-btn"
+    data-filter="owned">
+    Owned
+  </button>
+
+  <button
+    type="button"
+    class="tcg-set-filter-btn"
+    data-filter="not-owned">
+    Not Owned
+  </button>
 </div>
 
-    <div class="tcg-set-cards" id="tcgSetCards"></div>
-  `;
+</div>
+
+<div class="tcg-set-cards" id="tcgSetCards"></div>
+`;
 
   renderCurrentSetCards();
 }

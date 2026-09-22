@@ -2275,7 +2275,8 @@ async function fetchWithRetry(url, options = {}, retries = 2) {
   throw lastError || new Error('Request failed');
 }
 let tcgSetsCache = null;
-
+let activeTcgSet = null;
+  
 async function fetchPhysicalTcgSets(forceRefresh = false) {
   const CACHE_KEY = 'pokeroulette_tcg_sets_v1';
   const CACHE_TIME = 24 * 60 * 60 * 1000;
@@ -2623,6 +2624,8 @@ async function fetchCardsForSet(setId, forceRefresh = false) {
 }
 
 async function openTcgSet(set) {
+  activeTcgSet = set;
+  
   const grid = document.getElementById('setsGrid');
   const loading = document.getElementById('setsLoading');
 
@@ -2717,6 +2720,8 @@ async function openTcgSet(set) {
 }
   
 async function renderTcgSets() {
+  activeTcgSet = null;
+  
   const loading = document.getElementById('setsLoading');
   const grid = document.getElementById('setsGrid');
 
@@ -2981,17 +2986,93 @@ async function refreshSetsView() {
   const loading = document.getElementById('setsLoading');
   const grid = document.getElementById('setsGrid');
 
-  // Clear memory cache
+  // =====================================
+  // INSIDE A SPECIFIC SET
+  // =====================================
+
+  if (activeTcgSet) {
+    const set = activeTcgSet;
+    const setId = set.id;
+
+    console.log(
+      `[SETS] Force refreshing ${set.name}`
+    );
+
+    // Clear memory cache for this set only
+    if (window.tcgSetCardsCache) {
+      delete window.tcgSetCardsCache[setId];
+    }
+
+    // Clear saved cache for this set only
+    try {
+      localStorage.removeItem(
+        `pokeroulette_set_cards_v1_${setId}`
+      );
+    } catch (error) {
+      console.warn(
+        `[SETS] Could not clear cache for ${setId}:`,
+        error
+      );
+    }
+
+    if (grid) {
+      grid.innerHTML = '';
+    }
+
+    if (loading) {
+      loading.style.display = 'block';
+      loading.textContent =
+        `Refreshing ${set.name}...`;
+    }
+
+    const cards = await fetchCardsForSet(
+      setId,
+      true
+    );
+
+    if (!cards.length) {
+      if (loading) {
+        loading.style.display = 'none';
+      }
+
+      if (grid) {
+        grid.innerHTML = `
+          <div style="
+            text-align:center;
+            color:var(--sub);
+            padding:2rem 0;
+          ">
+            Unable to refresh this set.
+          </div>
+        `;
+      }
+
+      return;
+    }
+
+    // Re-open the set using the freshly cached cards
+    await openTcgSet(set);
+
+    return;
+  }
+
+  // =====================================
+  // MAIN SETS CATALOGUE
+  // =====================================
+
+  console.log(
+    '[SETS] Force refreshing set catalogue'
+  );
+
   tcgSetsCache = null;
 
-  // Clear saved set catalogue cache
   try {
     localStorage.removeItem(
       'pokeroulette_tcg_sets_v1'
     );
   } catch (error) {
     console.warn(
-      '[SETS] Could not clear set cache:',
+      '[SETS] Could not clear catalogue cache:',
       error
     );
   }
@@ -3002,7 +3083,8 @@ async function refreshSetsView() {
 
   if (loading) {
     loading.style.display = 'block';
-    loading.textContent = 'Refreshing card sets...';
+    loading.textContent =
+      'Refreshing card sets...';
   }
 
   await renderTcgSets();

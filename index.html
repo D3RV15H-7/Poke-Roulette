@@ -2921,11 +2921,9 @@ function renderCurrentSetCards() {
           loading="lazy"
         >
 
-        ${
-          owned
-            ? `<div class="tcg-set-owned-check">✓</div>`
-            : ''
-        }
+        <div class="tcg-set-owned-check ${owned ? 'checked' : ''}">
+          ✓
+        </div>
 
       </div>
 
@@ -2937,6 +2935,16 @@ function renderCurrentSetCards() {
         ${card.name}
       </div>
     `;
+    const checkCircle = item.querySelector('.tcg-set-owned-check');
+
+if (checkCircle) {
+  checkCircle.onclick = (e) => {
+    e.stopPropagation();
+
+    toggleSetCardCollection(card);
+    renderCurrentSetCards();
+  };
+}
 
     item.onclick = () => {
       openTcgZoom(index, false);

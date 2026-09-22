@@ -4452,7 +4452,7 @@ function handleSearch(val) {
   }
 
   // Find matching Pokémon
-  const m = pokeIndex
+  const m = dir
     .filter(p => {
       const name = String(
         p.cleanName || p.name || ''
@@ -4519,10 +4519,55 @@ function handleSearch(val) {
 }
 
 function submitSearch() {
-  const sList = document.getElementById('sList');
-  const f = sList ? sList.querySelector('li') : null;
-  const sInput = document.getElementById('sInput');
-  f ? f.onmousedown() : handleSearch(sInput ? sInput.value : '');
+  const input = document.getElementById('sInput');
+
+  if (!input) return;
+
+  const query = input.value
+    .trim()
+    .toLowerCase();
+
+  if (!query) return;
+
+  // Search directly by National Dex number
+  if (/^\d+$/.test(query)) {
+    const id = parseInt(query, 10);
+
+    if (id >= 1 && id <= TOTAL) {
+      loadPoke(id, true);
+      return;
+    }
+  }
+
+  // Exact Pokémon name
+  const exact = dir.find(p =>
+    String(p.name || '').toLowerCase() === query ||
+    String(p.cleanName || '').toLowerCase() === query
+  );
+
+  if (exact) {
+    loadPoke(exact.id, true);
+    return;
+  }
+
+  // Partial name match
+  const partial = dir.find(p => {
+    const name = String(
+      p.cleanName || p.name || ''
+    ).toLowerCase();
+
+    return name.includes(query);
+  });
+
+  if (partial) {
+    loadPoke(partial.id, true);
+    return;
+  }
+
+  showToast(
+    "Pokémon not found.",
+    "error"
+  );
 }
 
 async function loadPoke(id, log = false) {

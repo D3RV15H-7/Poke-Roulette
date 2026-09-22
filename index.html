@@ -3074,13 +3074,7 @@ function renderCurrentSetCards() {
   updateCurrentSetProgress();
 
   cardGrid.innerHTML = '';
-  const cardGrid =
-    document.getElementById('tcgSetCards');
-
-  if (!cardGrid) return;
-
-  cardGrid.innerHTML = '';
-
+  
   // Update filter button states
   const filterButtons =
     document.querySelectorAll('.tcg-set-filter-btn');

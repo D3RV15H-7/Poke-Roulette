@@ -2437,6 +2437,23 @@ searchInput?.addEventListener('focus', () => {
   }
 });
 
+// Close search dropdowns when clicking outside the search area
+document.addEventListener('click', (event) => {
+  const searchWrap = document.querySelector('.search-wrap');
+  const recents = document.getElementById('searchRecents');
+  const suggestions = document.getElementById('sList');
+
+  if (!searchWrap || searchWrap.contains(event.target)) return;
+
+  if (recents) {
+    recents.style.display = 'none';
+  }
+
+  if (suggestions) {
+    suggestions.style.display = 'none';
+  }
+});
+
 function initAudio() {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();

@@ -3042,7 +3042,45 @@ function renderCurrentSetCards() {
 
   cardGrid.innerHTML = '';
 
-  currentCardsList.forEach((card, index) => {
+  // Update filter button states
+  const filterButtons =
+    document.querySelectorAll('.tcg-set-filter-btn');
+
+  filterButtons.forEach(btn => {
+    const filter = btn.dataset.filter;
+
+    btn.classList.toggle(
+      'active',
+      filter === activeTcgSetFilter
+    );
+
+    btn.onclick = () => {
+      activeTcgSetFilter = filter;
+      renderCurrentSetCards();
+    };
+  });
+
+  // Work out which cards should currently be shown
+  const visibleCards = currentCardsList
+    .map((card, originalIndex) => ({
+      card,
+      originalIndex
+    }))
+    .filter(({ card }) => {
+      const owned = isSetCardCollected(card);
+
+      if (activeTcgSetFilter === 'owned') {
+        return owned;
+      }
+
+      if (activeTcgSetFilter === 'not-owned') {
+        return !owned;
+      }
+
+      return true;
+    });
+
+  visibleCards.forEach(({ card, originalIndex }) => {
     const item =
       document.createElement('button');
 
@@ -3090,8 +3128,8 @@ if (checkCircle) {
 }
 
     item.onclick = () => {
-      openTcgZoom(index, false);
-    };
+  openTcgZoom(originalIndex, false);
+};
 
     cardGrid.appendChild(item);
   });

@@ -2099,23 +2099,60 @@ function isSetCardCollected(card) {
 
 function reloadMemoryFromLocal() {
   try {
-    const raw = JSON.parse(localStorage.getItem(getStorageKey()) || '[]');
-    memCol = new Set(raw.map(id => parseInt(id, 10)).filter(id => !isNaN(id)));
-    const rawCards = JSON.parse(localStorage.getItem(getCardStorageKey()) || '[]');
-    memCardCol = new Set(rawCards.map(String));
+    const raw = JSON.parse(
+      localStorage.getItem(getStorageKey()) || '[]'
+    );
+
+    memCol = new Set(
+      raw
+        .map(id => parseInt(id, 10))
+        .filter(id => !isNaN(id))
+    );
+
+    const rawCards = JSON.parse(
+      localStorage.getItem(getCardStorageKey()) || '[]'
+    );
+
+    memCardCol = new Set(
+      rawCards.map(String)
+    );
+
+    const rawSetCards = JSON.parse(
+      localStorage.getItem(getSetCardStorageKey()) || '[]'
+    );
+
+    memSetCardCol = new Set(
+      rawSetCards.map(String)
+    );
+
   } catch (e) {
     memCol = new Set();
     memCardCol = new Set();
+    memSetCardCol = new Set();
   }
+
   updateCounts();
 }
 reloadMemoryFromLocal();
 
 function saveLocalState() {
   try {
-    localStorage.setItem(getStorageKey(), JSON.stringify(Array.from(memCol)));
-    localStorage.setItem(getCardStorageKey(), JSON.stringify(Array.from(memCardCol)));
-  } catch (e) {}
+  localStorage.setItem(
+    getStorageKey(),
+    JSON.stringify(Array.from(memCol))
+  );
+
+  localStorage.setItem(
+    getCardStorageKey(),
+    JSON.stringify(Array.from(memCardCol))
+  );
+
+  localStorage.setItem(
+    getSetCardStorageKey(),
+    JSON.stringify(Array.from(memSetCardCol))
+  );
+
+} catch (e) {}
   updateCounts();
   renderRecents();
   if (curId) updateBtn(memCol.has(parseInt(curId, 10)));

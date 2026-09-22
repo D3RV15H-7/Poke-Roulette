@@ -1531,6 +1531,19 @@ body.has-active .hub-item-label {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+  /* Sets modal mobile scrolling */
+#setsModal {
+  overflow: hidden;
+}
+
+#setsModal .modal-body {
+  max-height: 90vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}  
 </style>
 </head>
 <body>
@@ -1739,21 +1752,31 @@ body.has-active .hub-item-label {
 <div class="modal" id="setsModal" onclick="closeModal(event, 'setsModal')">
   <div class="modal-body" onclick="event.stopPropagation()">
 
-    <div class="modal-head">
-      <div>
-        <h3 style="font-size:1.15rem;font-weight:800;">Pokémon TCG Sets</h3>
-        <div style="font-size:0.75rem;color:var(--sub);font-weight:600;margin-top:0.15rem;">
-          Browse physical card sets
-        </div>
-      </div>
-
-      <button
-        style="background:#334155;color:#fff;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;"
-        onclick="closeModal(null, 'setsModal')">
-        ✕
-      </button>
+ <div class="modal-head">
+  <div>
+    <h3 style="font-size:1.15rem;font-weight:800;">Pokémon TCG Sets</h3>
+    <div style="font-size:0.75rem;color:var(--sub);font-weight:600;margin-top:0.15rem;">
+      Browse physical card sets
     </div>
+  </div>
 
+  <div style="display:flex;align-items:center;gap:0.45rem;">
+
+    <button
+      style="background:#334155;color:#fff;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1rem;"
+      onclick="refreshSetsView()"
+      title="Refresh">
+      ↻
+    </button>
+
+    <button
+      style="background:#334155;color:#fff;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;"
+      onclick="closeModal(null, 'setsModal')">
+      ✕
+    </button>
+
+  </div>
+</div>
     <div id="setsLoading" style="text-align:center;color:var(--sub);padding:2rem 0;">
       Loading card sets...
     </div>
@@ -2952,6 +2975,37 @@ function renderDex() {
   });
   g.innerHTML = '';
   g.appendChild(frag);
+}
+
+async function refreshSetsView() {
+  const loading = document.getElementById('setsLoading');
+  const grid = document.getElementById('setsGrid');
+
+  // Clear memory cache
+  tcgSetsCache = null;
+
+  // Clear saved set catalogue cache
+  try {
+    localStorage.removeItem(
+      'pokeroulette_tcg_sets_v1'
+    );
+  } catch (error) {
+    console.warn(
+      '[SETS] Could not clear set cache:',
+      error
+    );
+  }
+
+  if (grid) {
+    grid.innerHTML = '';
+  }
+
+  if (loading) {
+    loading.style.display = 'block';
+    loading.textContent = 'Refreshing card sets...';
+  }
+
+  await renderTcgSets();
 }
 
 async function openDexCardsModal(p, bypassCache = false) {

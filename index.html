@@ -4571,7 +4571,9 @@ function updateZoomModalContent() {
   
   const zoomCheckCircle = document.getElementById('zoomCheckCircle');
   const zoomContainer = document.getElementById('zoomContainer');
-  const isOwned = isCardCollected(card);
+  const isOwned = activeTcgSet
+  ? isSetCardCollected(card)
+  : isCardCollected(card);
   if (zoomCheckCircle && zoomContainer) {
     zoomCheckCircle.classList.toggle('checked', isOwned);
     zoomContainer.classList.toggle('card-owned', isOwned);
@@ -4588,6 +4590,21 @@ function toggleZoomCardOwned(e) {
 
   const card = currentCardsList[currentZoomIndex];
 
+  // ==============================
+  // SETS COLLECTION
+  // ==============================
+  if (activeTcgSet) {
+    toggleSetCardCollection(card);
+
+    updateZoomModalContent();
+    renderCurrentSetCards();
+
+    return;
+  }
+
+  // ==============================
+  // EXISTING DEX COLLECTION
+  // ==============================
   const targetPokeId =
     card.pokemonId ||
     activeDexModalPoke?.id ||
@@ -4608,14 +4625,8 @@ function toggleZoomCardOwned(e) {
 
   updateZoomModalContent();
 
-  // Existing Pokémon card view
-  if (curId && !activeTcgSet) {
+  if (curId) {
     renderTcgCards(currentCardsList);
-  }
-
-  // Sets view
-  if (activeTcgSet) {
-    renderCurrentSetCards();
   }
 }
 

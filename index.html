@@ -1453,7 +1453,44 @@ body.has-active .hub-item-label {
   color: var(--sub);
   font-size: 0.7rem;
   font-weight: 600;
-}  
+} 
+
+/* Sets collection progress */
+.tcg-set-progress {
+  margin-top: 8px;
+}
+
+.tcg-set-progress-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 5px;
+
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--sub);
+}
+
+.tcg-set-progress-bar {
+  width: 100%;
+  height: 7px;
+
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+
+  overflow: hidden;
+}
+
+.tcg-set-progress-fill {
+  height: 100%;
+  width: 0%;
+
+  background: var(--green);
+  border-radius: 999px;
+
+  transition: width 0.25s ease;
+}
 
 .tcg-set-detail-head {
   text-align: center;
@@ -3003,39 +3040,79 @@ async function renderTcgSets() {
 
   const frag = document.createDocumentFragment();
 
-  sets.forEach(set => {
-    const item = document.createElement('button');
+ for (const set of sets) {
+  const item = document.createElement('button');
 
-    item.type = 'button';
-    item.className = 'tcg-set-item';
+  item.type = 'button';
+  item.className = 'tcg-set-item';
 
-    item.innerHTML = `
-      ${
-        set.logo
-          ? `<img class="tcg-set-logo" src="${set.logo}" alt="${set.name}">`
-          : ''
-      }
+  // Work out collection progress for this set
+  let collectedCount = 0;
+  let totalCount = Number(set.printedTotal) || 0;
 
-      <div class="tcg-set-info">
-        <div class="tcg-set-name">${set.name}</div>
+  try {
+    const cacheKey = `pokeroulette_set_cards_v1_${set.id}`;
+    const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
-        <div class="tcg-set-meta">
-          ${set.releaseDate || ''}
-          ·
-          ${set.printedTotal} cards
-        </div>
+    if (cached && Array.isArray(cached.data)) {
+      const cards = cached.data;
+
+      totalCount = cards.length || totalCount;
+
+      collectedCount = cards.filter(card =>
+        isSetCardCollected(card)
+      ).length;
+    }
+  } catch (e) {}
+
+  const percentage = totalCount > 0
+    ? Math.round((collectedCount / totalCount) * 100)
+    : 0;
+
+  item.innerHTML = `
+    ${
+      set.logo
+        ? `<img class="tcg-set-logo" src="${set.logo}" alt="${set.name}">`
+        : ''
+    }
+
+    <div class="tcg-set-info">
+      <div class="tcg-set-name">${set.name}</div>
+
+      <div class="tcg-set-meta">
+        ${set.releaseDate || ''}
+        ·
+        ${set.printedTotal} cards
       </div>
-    `;
+
+      <div class="tcg-set-progress">
+
+        <div class="tcg-set-progress-info">
+          <span>${collectedCount} / ${totalCount} collected</span>
+          <span>${percentage}%</span>
+        </div>
+
+        <div class="tcg-set-progress-bar">
+          <div
+            class="tcg-set-progress-fill"
+            style="width: ${percentage}%"
+          ></div>
+        </div>
+
+      </div>
+    </div>
+  `;
 
   item.onclick = () => {
-  openTcgSet(set);
-};
-    frag.appendChild(item);
-  });
+    openTcgSet(set);
+  };
 
-  grid.appendChild(frag);
+  frag.appendChild(item);
 }
 
+grid.appendChild(frag);
+}
+  
 function isValidFrontCardImage(url) {
   if (!url || typeof url !== 'string') return false;
   const lower = url.toLowerCase().trim();

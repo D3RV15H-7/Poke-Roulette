@@ -1560,15 +1560,37 @@ body.has-active .hub-item-label {
   align-items: center;
   justify-content: center;
 
-  background: var(--green);
-  color: #fff;
-
   border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+
+  /* UNSELECTED STATE */
+  background: rgba(15, 23, 42, 0.8);
+  color: transparent;
 
   font-size: 0.8rem;
   font-weight: 900;
 
-  box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+  cursor: pointer;
+  z-index: 5;
+
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.45);
+
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+/* SELECTED STATE */
+.tcg-set-owned-check.checked {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+
+.tcg-set-owned-check:active {
+  transform: scale(0.88);
 }
 
 /* Uncollected cards in Sets */

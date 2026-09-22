@@ -4422,18 +4422,97 @@ function handleSpinButtonClick() {
 
 function handleSearch(val) {
   const recents = document.getElementById('searchRecents');
+  const l = document.getElementById('sList');
 
-  if (recents) {
-    recents.style.display = value.trim() ? 'none' : 'block';
+  if (!l) return;
+
+  const query = String(val || '')
+    .trim()
+    .toLowerCase();
+
+  // Empty search = show Recents
+  if (!query) {
+    l.style.display = 'none';
+    l.innerHTML = '';
+
+    if (recents) {
+      renderSearchRecents();
+
+      if (getRec().length) {
+        recents.style.display = 'block';
+      }
+    }
+
+    return;
   }
-  
-  const frag = document.createDocumentFragment();
+
+  // User is typing = hide Recents
+  if (recents) {
+    recents.style.display = 'none';
+  }
+
+  // Find matching Pokémon
+  const m = pokeIndex
+    .filter(p => {
+      const name = String(
+        p.cleanName || p.name || ''
+      ).toLowerCase();
+
+      const id = String(p.id);
+
+      return (
+        name.includes(query) ||
+        id.startsWith(query)
+      );
+    })
+    .slice(0, 8);
+
+  // Nothing found
+  if (!m.length) {
+    l.innerHTML = `
+      <li style="color:var(--sub);cursor:default;">
+        No Pokémon found
+      </li>
+    `;
+
+    l.style.display = 'block';
+    return;
+  }
+
+  // Build suggestions
+  const frag =
+    document.createDocumentFragment();
+
   m.forEach(p => {
     const li = document.createElement('li');
-    li.innerHTML = `<span><span style="color:var(--sub);font-weight:700;margin-right:0.4rem;">#${String(p.id).padStart(4,'0')}</span>${p.cleanName}</span>${memCol.has(p.id)?'<span style="color:var(--green);font-weight:900;">✓</span>':''}`;
-    li.onmousedown = () => loadPoke(p.id, true);
+
+    li.innerHTML = `
+      <span>
+        <span style="
+          color:var(--sub);
+          font-weight:700;
+          margin-right:0.4rem;
+        ">
+          #${String(p.id).padStart(4, '0')}
+        </span>
+
+        ${p.cleanName}
+      </span>
+
+      ${
+        memCol.has(p.id)
+          ? '<span style="color:var(--green);font-weight:900;">✓</span>'
+          : ''
+      }
+    `;
+
+    li.onmousedown = () => {
+      loadPoke(p.id, true);
+    };
+
     frag.appendChild(li);
   });
+
   l.innerHTML = '';
   l.appendChild(frag);
   l.style.display = 'block';

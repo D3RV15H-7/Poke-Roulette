@@ -1571,7 +1571,21 @@ body.has-active .hub-item-label {
   box-shadow: 0 2px 8px rgba(0,0,0,0.45);
 }
 
+/* Uncollected cards in Sets */
+.tcg-set-card img {
+  filter: saturate(0.35) brightness(0.82);
+  opacity: 0.68;
+  transition:
+    filter 0.2s ease,
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    outline 0.2s ease;
+}
+
+/* Collected cards in Sets */
 .tcg-set-card.card-owned img {
+  filter: none;
+  opacity: 1;
   outline: 2px solid var(--green);
   outline-offset: 2px;
 }

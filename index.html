@@ -1543,7 +1543,39 @@ body.has-active .hub-item-label {
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-}  
+}
+  .tcg-set-card-image-wrap {
+  position: relative;
+}
+
+.tcg-set-owned-check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+
+  width: 24px;
+  height: 24px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: var(--green);
+  color: #fff;
+
+  border-radius: 50%;
+
+  font-size: 0.8rem;
+  font-weight: 900;
+
+  box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+}
+
+.tcg-set-card.card-owned img {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+  
 </style>
 </head>
 <body>
@@ -2418,6 +2450,42 @@ async function fetchPhysicalTcgSets(forceRefresh = false) {
     return [];
   }
 }
+
+function getPokemonIdFromCardName(cardName) {
+  if (!cardName || !Array.isArray(dir) || !dir.length) {
+    return null;
+  }
+
+  const normalized = String(cardName)
+    .toLowerCase()
+    .trim();
+
+  // Exact API name
+  let match = dir.find(p =>
+    String(p.name || '').toLowerCase() === normalized
+  );
+
+  if (match) return match.id;
+
+  // Clean display name
+  match = dir.find(p =>
+    String(p.cleanName || '').toLowerCase() === normalized
+  );
+
+  if (match) return match.id;
+
+  // TCG cards can have suffixes such as ex, V, VMAX, VSTAR, GX etc.
+  const stripped = normalized
+    .replace(/\s+(ex|gx|v|vmax|vstar)$/i, '')
+    .trim();
+
+  match = dir.find(p =>
+    String(p.name || '').toLowerCase() === stripped ||
+    String(p.cleanName || '').toLowerCase() === stripped
+  );
+
+  return match ? match.id : null;
+}
   
 async function fetchCardsForSet(setId, forceRefresh = false) {
   const CACHE_KEY = `pokeroulette_set_cards_v1_${setId}`;
@@ -2513,6 +2581,8 @@ async function fetchCardsForSet(setId, forceRefresh = false) {
 
         name: card.name || 'Unknown',
 
+        pokemonId: getPokemonIdFromCardName(card.name),
+        
         smallImg:
           card.images?.small ||
           card.images?.large ||
@@ -2686,21 +2756,45 @@ async function openTcgSet(set) {
     <div class="tcg-set-cards" id="tcgSetCards"></div>
   `;
 
+renderCurrentSetCards();
+
+ function renderCurrentSetCards() {
   const cardGrid =
     document.getElementById('tcgSetCards');
 
-  cards.forEach((card, index) => {
-    const item = document.createElement('button');
+  if (!cardGrid) return;
+
+  cardGrid.innerHTML = '';
+
+  currentCardsList.forEach((card, index) => {
+    const item =
+      document.createElement('button');
 
     item.type = 'button';
     item.className = 'tcg-set-card';
 
+    const owned = isCardCollected(card);
+
+    if (owned) {
+      item.classList.add('card-owned');
+    }
+
     item.innerHTML = `
-      <img
-        src="${card.smallImg}"
-        alt="${card.name}"
-        loading="lazy"
-      >
+      <div class="tcg-set-card-image-wrap">
+
+        <img
+          src="${card.smallImg}"
+          alt="${card.name}"
+          loading="lazy"
+        >
+
+        ${
+          owned
+            ? `<div class="tcg-set-owned-check">✓</div>`
+            : ''
+        }
+
+      </div>
 
       <div class="tcg-set-card-number">
         #${card.number}
@@ -2717,7 +2811,7 @@ async function openTcgSet(set) {
 
     cardGrid.appendChild(item);
   });
-}
+} 
   
 async function renderTcgSets() {
   activeTcgSet = null;
@@ -4372,11 +4466,38 @@ function updateZoomModalContent() {
 function toggleZoomCardOwned(e) {
   if (e) e.stopPropagation();
   if (!currentCardsList.length) return;
+
   const card = currentCardsList[currentZoomIndex];
-  const targetPokeId = activeDexModalPoke?.id || curId;
-  toggleCardCollection(card.id, targetPokeId);
+
+  const targetPokeId =
+    card.pokemonId ||
+    activeDexModalPoke?.id ||
+    curId;
+
+  if (!targetPokeId) {
+    showToast(
+      "Unable to identify this Pokémon.",
+      "error"
+    );
+    return;
+  }
+
+  toggleCardCollection(
+    card.id,
+    targetPokeId
+  );
+
   updateZoomModalContent();
-  if (curId) renderTcgCards(currentCardsList);
+
+  // Existing Pokémon card view
+  if (curId && !activeTcgSet) {
+    renderTcgCards(currentCardsList);
+  }
+
+  // Sets view
+  if (activeTcgSet) {
+    renderCurrentSetCards();
+  }
 }
 
 function navigateZoomCard(d) {

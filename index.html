@@ -2217,6 +2217,56 @@ function toggleCardCollection(cardId, pokemonId = null) {
   writeFullCollectionToCloud(toastMsg);
 }
 
+function toggleSetCardCollection(card) {
+  if (!card) return;
+
+  initAudio();
+  playTick();
+
+  const cardId = String(card.id || '')
+    .toLowerCase()
+    .trim();
+
+  const fingerprint = getCardFingerprint(card);
+
+  const isCurrentlyOwned =
+    (cardId && memSetCardCol.has(cardId)) ||
+    (fingerprint && memSetCardCol.has(fingerprint));
+
+  if (isCurrentlyOwned) {
+    if (cardId) {
+      memSetCardCol.delete(cardId);
+    }
+
+    if (fingerprint) {
+      memSetCardCol.delete(fingerprint);
+    }
+
+    saveLocalState();
+
+    showToast(
+      "Card Removed from Sets Collection",
+      "warning"
+    );
+
+  } else {
+    if (cardId) {
+      memSetCardCol.add(cardId);
+    }
+
+    if (fingerprint) {
+      memSetCardCol.add(fingerprint);
+    }
+
+    saveLocalState();
+
+    showToast(
+      "Card Added to Sets Collection",
+      "success"
+    );
+  }
+}
+
 function sortCardsList(cards) {
   cards.sort((a, b) => {
     const aOwned = isCardCollected(a) ? 1 : 0;
@@ -2842,7 +2892,7 @@ function renderCurrentSetCards() {
     item.type = 'button';
     item.className = 'tcg-set-card';
 
-    const owned = isCardCollected(card);
+    const owned = isSetCardCollected(card);
 
     if (owned) {
       item.classList.add('card-owned');

@@ -1897,6 +1897,7 @@ try {
 
 let memCol = new Set();
 let memCardCol = new Set();
+let memSetCardCol = new Set();
 
 let toastTimer = null;
 function showToast(msg, type = 'success') {
@@ -2065,6 +2066,36 @@ function getStorageKey() {
 function getCardStorageKey() {
   return activeUid ? `p_cards_${activeUid}` : `p_cards_guest`;
 }
+function getSetCardStorageKey() {
+  return activeUid
+    ? `p_set_cards_${activeUid}`
+    : `p_set_cards_guest`;
+}
+
+function isSetCardCollected(card) {
+  if (!card) return false;
+
+  const rawId = String(card.id || '')
+    .toLowerCase()
+    .trim();
+
+  if (
+    rawId &&
+    (
+      memSetCardCol.has(rawId) ||
+      memSetCardCol.has(String(card.id))
+    )
+  ) {
+    return true;
+  }
+
+  const fingerprint = getCardFingerprint(card);
+
+  return Boolean(
+    fingerprint &&
+    memSetCardCol.has(fingerprint)
+  );
+}  
 
 function reloadMemoryFromLocal() {
   try {

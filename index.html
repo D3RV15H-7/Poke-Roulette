@@ -2395,7 +2395,57 @@ async function fetchPhysicalTcgSets(forceRefresh = false) {
   }
 }
   
-async function fetchCardsForSet(setId) {
+async function fetchCardsForSet(setId, forceRefresh = false) {
+  const CACHE_KEY = `pokeroulette_set_cards_v1_${setId}`;
+  const CACHE_TIME = 24 * 60 * 60 * 1000;
+
+  // Keep set cards in memory while the app is open
+  if (!window.tcgSetCardsCache) {
+    window.tcgSetCardsCache = {};
+  }
+
+  // 1. Memory cache
+  if (
+    window.tcgSetCardsCache[setId] &&
+    !forceRefresh
+  ) {
+    console.log(
+      `[SETS] ${setId} loaded from memory cache`
+    );
+
+    return window.tcgSetCardsCache[setId];
+  }
+
+  // 2. Browser cache
+  if (!forceRefresh) {
+    try {
+      const cached = JSON.parse(
+        localStorage.getItem(CACHE_KEY)
+      );
+
+      if (
+        cached &&
+        Array.isArray(cached.data) &&
+        cached.data.length &&
+        Date.now() - cached.savedAt < CACHE_TIME
+      ) {
+        window.tcgSetCardsCache[setId] = cached.data;
+
+        console.log(
+          `[SETS] ${setId} loaded from saved cache`
+        );
+
+        return cached.data;
+      }
+    } catch (error) {
+      console.warn(
+        `[SETS] Could not read cache for ${setId}:`,
+        error
+      );
+    }
+  }
+
+  // 3. Live API
   try {
     const headers = {};
 
@@ -2406,15 +2456,13 @@ async function fetchCardsForSet(setId) {
     const query = `set.id:${setId}`;
 
     const url =
-      `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}&pageSize=250&orderBy=number`;
+      `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}&pageSize=250`;
 
-    const response = await fetch(url, { headers });
-
-    if (!response.ok) {
-      throw new Error(
-        `Pokémon TCG API returned ${response.status}`
-      );
-    }
+    const response = await fetchWithRetry(
+      url,
+      { headers },
+      2
+    );
 
     const json = await response.json();
 
@@ -2422,11 +2470,18 @@ async function fetchCardsForSet(setId) {
       ? json.data
       : [];
 
+    if (!cards.length) {
+      throw new Error(
+        `API returned no cards for ${setId}`
+      );
+    }
+
     const formatted = cards
       .filter(card => !isDigitalOnlyCard(card))
       .filter(card =>
         isValidFrontCardImage(
-          card.images?.small || card.images?.large
+          card.images?.small ||
+          card.images?.large
         )
       )
       .map(card => ({
@@ -2456,7 +2511,7 @@ async function fetchCardsForSet(setId) {
           'Common',
 
         rarityScore:
-          getRarityScore
+          typeof getRarityScore === 'function'
             ? getRarityScore(card.rarity)
             : 0,
 
@@ -2464,21 +2519,14 @@ async function fetchCardsForSet(setId) {
           extractCardPriceGBP(card)
       }));
 
+    if (!formatted.length) {
+      throw new Error(
+        `No usable cards returned for ${setId}`
+      );
+    }
+
     // Correct card-number ordering
     formatted.sort((a, b) => {
-      const aNum = parseInt(a.number, 10);
-      const bNum = parseInt(b.number, 10);
-
-      const aNumeric = Number.isFinite(aNum);
-      const bNumeric = Number.isFinite(bNum);
-
-      if (aNumeric && bNumeric) {
-        return aNum - bNum;
-      }
-
-      if (aNumeric) return -1;
-      if (bNumeric) return 1;
-
       return String(a.number).localeCompare(
         String(b.number),
         undefined,
@@ -2489,6 +2537,25 @@ async function fetchCardsForSet(setId) {
       );
     });
 
+    // 4. Save successful result in memory
+    window.tcgSetCardsCache[setId] = formatted;
+
+    // 5. Save successful result on device
+    try {
+      localStorage.setItem(
+        CACHE_KEY,
+        JSON.stringify({
+          savedAt: Date.now(),
+          data: formatted
+        })
+      );
+    } catch (error) {
+      console.warn(
+        `[SETS] Could not save cache for ${setId}:`,
+        error
+      );
+    }
+
     console.log(
       `[SETS] ${formatted.length} cards loaded for ${setId}`
     );
@@ -2497,9 +2564,36 @@ async function fetchCardsForSet(setId) {
 
   } catch (error) {
     console.error(
-      `[SETS] Failed to load cards for ${setId}:`,
+      `[SETS] Live card request failed for ${setId}:`,
       error
     );
+
+    // 6. If live request failed, accept an expired cache
+    try {
+      const cached = JSON.parse(
+        localStorage.getItem(CACHE_KEY)
+      );
+
+      if (
+        cached &&
+        Array.isArray(cached.data) &&
+        cached.data.length
+      ) {
+        console.warn(
+          `[SETS] Using expired cache for ${setId}`
+        );
+
+        window.tcgSetCardsCache[setId] =
+          cached.data;
+
+        return cached.data;
+      }
+    } catch (cacheError) {
+      console.error(
+        `[SETS] Backup cache unavailable for ${setId}:`,
+        cacheError
+      );
+    }
 
     return [];
   }

@@ -1569,6 +1569,37 @@ body.has-active .hub-item-label {
   white-space: nowrap;
 }
 
+  /* Sets - All / Owned / Not Owned filter */
+.tcg-set-filter {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+  width: 100%;
+}
+
+.tcg-set-filter-btn {
+  flex: 1;
+  padding: 8px 10px;
+
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--sub);
+
+  font-size: 0.75rem;
+  font-weight: 800;
+  font-family: inherit;
+
+  cursor: pointer;
+}
+
+.tcg-set-filter-btn.active {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+
   /* Sets modal mobile scrolling */
 #setsModal {
   overflow: hidden;

@@ -1741,7 +1741,8 @@ body.has-active .hub-item-label {
   box-sizing: border-box;
 
   z-index: 20;
-
+  pointer-events: auto;
+  
   box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.55);
 }
@@ -1756,6 +1757,10 @@ body.has-active .hub-item-label {
   color: var(--sub);
 
   cursor: pointer;
+
+  pointer-events: auto;
+  position: relative;
+  z-index: 21;
 }
 
 .tcg-variant-circle {
@@ -3420,11 +3425,12 @@ if (checkCircle) {
     renderCurrentSetCards();
   };
 }
-    const variantOptions =
+const variantOptions =
   item.querySelectorAll('.tcg-variant-option');
 
 variantOptions.forEach(option => {
-  option.onclick = (e) => {
+  option.addEventListener('click', (e) => {
+    e.preventDefault();
     e.stopPropagation();
 
     const variant = option.dataset.variant;
@@ -3432,7 +3438,7 @@ variantOptions.forEach(option => {
     toggleSetCardVariant(card, variant);
 
     renderCurrentSetCards();
-  };
+  });
 });
 
     item.onclick = () => {

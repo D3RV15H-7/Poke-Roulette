@@ -4356,10 +4356,16 @@ async function fetchTcgCardsData(
   const fetchPokeTcgIo = async () => {
     try {
       const cleanWord = cleanName
-        .replace(/["']/g, '')
-        .trim();
+  .replace(/["']/g, '')
+  .trim();
 
-      const query = `name:"${cleanWord}"`;
+const searchName =
+  cleanWord.toLowerCase() === 'type: null'
+    ? 'Type Null'
+    : cleanWord;
+
+      console.log('TCG Search:', searchName);
+      const query = `name:"${searchName}"`;
 
       const queryUrl =
         `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}&pageSize=250`;

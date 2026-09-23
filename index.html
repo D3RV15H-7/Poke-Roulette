@@ -3377,25 +3377,53 @@ function renderCurrentSetCards() {
       ? `
         <div class="tcg-variant-selector">
 
-          <div class="tcg-variant-option">
-            <span>Standard</span>
-            <span class="tcg-variant-circle"></span>
-          </div>
+          <div
+  class="tcg-variant-option"
+  data-variant="standard"
+>
+  <span>Standard</span>
+  <span class="tcg-variant-circle ${
+    isSetCardVariantOwned(card, 'standard')
+      ? 'checked'
+      : ''
+  }">✓</span>
+</div>
 
-          <div class="tcg-variant-option">
-            <span>Holo</span>
-            <span class="tcg-variant-circle"></span>
-          </div>
+<div
+  class="tcg-variant-option"
+  data-variant="holo"
+>
+  <span>Holo</span>
+  <span class="tcg-variant-circle ${
+    isSetCardVariantOwned(card, 'holo')
+      ? 'checked'
+      : ''
+  }">✓</span>
+</div>
 
-          <div class="tcg-variant-option">
-            <span>Reverse Holo</span>
-            <span class="tcg-variant-circle"></span>
-          </div>
+<div
+  class="tcg-variant-option"
+  data-variant="reverseHolo"
+>
+  <span>Reverse Holo</span>
+  <span class="tcg-variant-circle ${
+    isSetCardVariantOwned(card, 'reverseHolo')
+      ? 'checked'
+      : ''
+  }">✓</span>
+</div>
 
-          <div class="tcg-variant-option">
-            <span>Other Variant</span>
-            <span class="tcg-variant-circle"></span>
-          </div>
+<div
+  class="tcg-variant-option"
+  data-variant="other"
+>
+  <span>Other Variant</span>
+  <span class="tcg-variant-circle ${
+    isSetCardVariantOwned(card, 'other')
+      ? 'checked'
+      : ''
+  }">✓</span>
+</div>
 
         </div>
       `

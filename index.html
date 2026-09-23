@@ -1498,14 +1498,39 @@ body.has-active .hub-item-label {
 }
 
 .tcg-set-back {
-  display: block;
-  background: none;
-  border: none;
-  color: var(--sub);
-  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+
+  padding: 7px 12px;
+  margin-bottom: 0.9rem;
+
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+
+  color: #fff;
+
+  font-size: 0.78rem;
   font-weight: 800;
+  font-family: inherit;
+
   cursor: pointer;
-  margin-bottom: 0.7rem;
+
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.tcg-set-back:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.tcg-set-back:active {
+  transform: scale(0.95);
 }
 
 .tcg-set-detail-head img {
@@ -1678,6 +1703,12 @@ body.has-active .hub-item-label {
   opacity: 1;
   outline: 2px solid var(--green);
   outline-offset: 2px;
+}
+
+/* Completed TCG set */
+.tcg-set-item.set-complete {
+  outline: 2px solid var(--green);
+  outline-offset: -2px;
 }
   
 </style>
@@ -3220,7 +3251,11 @@ async function renderTcgSets() {
   const percentage = totalCount > 0
     ? Math.round((collectedCount / totalCount) * 100)
     : 0;
-
+   
+if (totalCount > 0 && collectedCount >= totalCount) {
+  item.classList.add('set-complete');
+}
+   
   item.innerHTML = `
     ${
       set.logo

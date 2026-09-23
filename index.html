@@ -2035,6 +2035,7 @@ try {
 let memCol = new Set();
 let memCardCol = new Set();
 let memSetCardCol = new Set();
+let memSetCardVariants = new Set();
 
 let toastTimer = null;
 function showToast(msg, type = 'success') {
@@ -2200,14 +2201,32 @@ const memoryTcgCache = new Map();
 function getStorageKey() {
   return activeUid ? `p_col_${activeUid}` : `p_col_guest`;
 }
+  
 function getCardStorageKey() {
   return activeUid ? `p_cards_${activeUid}` : `p_cards_guest`;
 }
+  
 function getSetCardStorageKey() {
   return activeUid
     ? `p_set_cards_${activeUid}`
     : `p_set_cards_guest`;
 }
+  
+function getSetCardVariantsStorageKey() {
+  return activeUid
+    ? `p_set_card_variants_${activeUid}`
+    : `p_set_card_variants_guest`;
+}
+
+function getSetCardVariantKey(card, variant) {
+  if (!card || !variant) return '';
+
+  const fingerprint = getCardFingerprint(card);
+
+  if (!fingerprint) return '';
+
+  return `${fingerprint}__${variant}`;
+}  
 
 function isSetCardCollected(card) {
   if (!card) return false;
@@ -2235,38 +2254,39 @@ function isSetCardCollected(card) {
 }  
 
 function reloadMemoryFromLocal() {
-  try {
-    const raw = JSON.parse(
+ try {
+  memCol = new Set(
+    JSON.parse(
       localStorage.getItem(getStorageKey()) || '[]'
-    );
+    )
+  );
 
-    memCol = new Set(
-      raw
-        .map(id => parseInt(id, 10))
-        .filter(id => !isNaN(id))
-    );
-
-    const rawCards = JSON.parse(
+  memCardCol = new Set(
+    JSON.parse(
       localStorage.getItem(getCardStorageKey()) || '[]'
-    );
+    )
+  );
 
-    memCardCol = new Set(
-      rawCards.map(String)
-    );
-
-    const rawSetCards = JSON.parse(
+  memSetCardCol = new Set(
+    JSON.parse(
       localStorage.getItem(getSetCardStorageKey()) || '[]'
-    );
+    )
+  );
 
-    memSetCardCol = new Set(
-      rawSetCards.map(String)
-    );
+  memSetCardVariants = new Set(
+    JSON.parse(
+      localStorage.getItem(
+        getSetCardVariantsStorageKey()
+      ) || '[]'
+    )
+  );
 
-  } catch (e) {
-    memCol = new Set();
-    memCardCol = new Set();
-    memSetCardCol = new Set();
-  }
+} catch (e) {
+  memCol = new Set();
+  memCardCol = new Set();
+  memSetCardCol = new Set();
+  memSetCardVariants = new Set();
+}
 
   updateCounts();
 }
@@ -2274,30 +2294,42 @@ reloadMemoryFromLocal();
 
 function saveLocalState() {
   try {
-  localStorage.setItem(
-    getStorageKey(),
-    JSON.stringify(Array.from(memCol))
-  );
+    localStorage.setItem(
+      getStorageKey(),
+      JSON.stringify(Array.from(memCol))
+    );
 
-  localStorage.setItem(
-    getCardStorageKey(),
-    JSON.stringify(Array.from(memCardCol))
-  );
+    localStorage.setItem(
+      getCardStorageKey(),
+      JSON.stringify(Array.from(memCardCol))
+    );
 
-  localStorage.setItem(
-    getSetCardStorageKey(),
-    JSON.stringify(Array.from(memSetCardCol))
-  );
+    localStorage.setItem(
+      getSetCardStorageKey(),
+      JSON.stringify(Array.from(memSetCardCol))
+    );
 
-} catch (e) {}
+    localStorage.setItem(
+      getSetCardVariantsStorageKey(),
+      JSON.stringify(Array.from(memSetCardVariants))
+    );
+
+  } catch (e) {}
+
   updateCounts();
   renderRecents();
-  if (curId) updateBtn(memCol.has(parseInt(curId, 10)));
-  if (document.getElementById('dexModal').style.display === 'flex') {
+
+  if (curId) {
+    updateBtn(memCol.has(parseInt(curId, 10)));
+  }
+
+  if (
+    document.getElementById('dexModal').style.display === 'flex'
+  ) {
     renderDex();
   }
 }
-
+  
 function writeFullCollectionToCloud(actionMessage = null) {
   if (!currentUser || !db) return;
   

@@ -3497,18 +3497,29 @@ function renderCurrentSetCards() {
     }
 
     const variantOptions =
-      item.querySelectorAll('.tcg-variant-option');
+  item.querySelectorAll('.tcg-variant-option');
 
-    variantOptions.forEach(option => {
-      option.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+variantOptions.forEach(option => {
+  option.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
 
-        alert(
-          `Clicked: ${option.dataset.variant}`
-        );
-      });
-    });
+    const variant =
+      option.dataset.variant;
+
+    toggleSetCardVariant(card, variant);
+
+    const circle =
+      option.querySelector('.tcg-variant-circle');
+
+    if (circle) {
+      circle.classList.toggle(
+        'checked',
+        isSetCardVariantOwned(card, variant)
+      );
+    }
+  });
+});
 
     item.onclick = () => {
       openTcgZoom(originalIndex, false);

@@ -3373,7 +3373,7 @@ function renderCurrentSetCards() {
     </div>
 
     ${
-      activeSetVariantCardId === card.id
+      activeSetVariantCardId === getCardFingerprint(card)
         ? `
           <div class="tcg-variant-selector">
 
@@ -3446,10 +3446,12 @@ if (checkCircle) {
   checkCircle.onclick = (e) => {
     e.stopPropagation();
 
-    activeSetVariantCardId =
-      activeSetVariantCardId === card.id
-        ? null
-        : card.id;
+    const cardKey = getCardFingerprint(card);
+
+activeSetVariantCardId =
+  activeSetVariantCardId === cardKey
+    ? null
+    : cardKey;
 
     renderCurrentSetCards();
   };

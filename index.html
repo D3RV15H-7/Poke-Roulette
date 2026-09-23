@@ -2434,8 +2434,20 @@ function toTitleCase(str) {
 
 function getCleanNationalDexName(pokeName, speciesName) {
   let target = (speciesName || pokeName || '').toLowerCase().trim();
-  if (PRESERVED_HYPHEN_POKEMON.has(target)) return toTitleCase(target);
-  if (speciesName) return toTitleCase(speciesName);
+
+  // Special official Pokémon names
+  if (target === 'type-null') {
+    return 'Type: Null';
+  }
+
+  if (PRESERVED_HYPHEN_POKEMON.has(target)) {
+    return toTitleCase(target);
+  }
+
+  if (speciesName) {
+    return toTitleCase(speciesName);
+  }
+
   if (!target) return '';
 
   const multiWordSuffixes = [
@@ -4234,7 +4246,7 @@ async function fetchTcgCardsData(
     immediately performs a fresh card lookup.
   */
   const cacheKey =
-    `tcg_ttl_cache_v3000_${cleanName
+    `tcg_ttl_cache_v3001_${cleanName
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '')}`;
 
@@ -4359,13 +4371,9 @@ async function fetchTcgCardsData(
   .replace(/["']/g, '')
   .trim();
 
-const searchName =
-  cleanWord.toLowerCase() === 'type: null'
-    ? 'Type Null'
-    : cleanWord;
-
-      console.log('TCG Search:', searchName);
-      const query = `name:"${searchName}"`;
+      console.log('TCG Search:', cleanWord);
+      
+      const query = `name:"${cleanWord}"`;
 
       const queryUrl =
         `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}&pageSize=250`;

@@ -1498,21 +1498,22 @@ body.has-active .hub-item-label {
 }
 
 .tcg-set-back {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
 
-  padding: 7px 12px;
-  margin-bottom: 0.9rem;
+  width: fit-content;
 
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 999px;
+  padding: 5px 9px;
+  margin: 0 0 0.7rem 0;
 
-  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
 
-  font-size: 0.78rem;
+  color: var(--sub);
+
+  font-size: 0.68rem;
   font-weight: 800;
   font-family: inherit;
 
@@ -1525,14 +1526,15 @@ body.has-active .hub-item-label {
 }
 
 .tcg-set-back:hover {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #fff;
 }
 
 .tcg-set-back:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
 }
-
+  
 .tcg-set-detail-head img {
   display: block;
   width: 150px;
@@ -2999,7 +3001,7 @@ const percentage = totalCount > 0
         type="button"
         class="tcg-set-back"
         onclick="renderTcgSets()">
-        ← Sets
+        ← Back to Sets
       </button>
 
       ${

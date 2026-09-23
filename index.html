@@ -1754,6 +1754,8 @@ body.has-active .hub-item-label {
   font-size: 0.68rem;
   font-weight: 800;
   color: var(--sub);
+
+  cursor: pointer;
 }
 
 .tcg-variant-circle {
@@ -1762,12 +1764,47 @@ body.has-active .hub-item-label {
 
   flex: 0 0 17px;
 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
   border: 2px solid rgba(255, 255, 255, 0.75);
   border-radius: 50%;
 
   background: rgba(255, 255, 255, 0.04);
+  color: transparent;
+
+  font-size: 0.7rem;
+  font-weight: 900;
 
   box-sizing: border-box;
+}
+
+.tcg-variant-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: transparent;
+
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.tcg-variant-circle.checked {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+
+.tcg-variant-option {
+  cursor: pointer;
+}
+
+.tcg-variant-circle.checked {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
 }
   
 </style>
@@ -2495,6 +2532,25 @@ function toggleSetCardCollection(card) {
 
   writeFullCollectionToCloud(toastMsg);
 }
+
+ function toggleSetCardVariant(card, variant) {
+  if (!card || !variant) return;
+
+  initAudio();
+  playTick();
+
+  const key = getSetCardVariantKey(card, variant);
+
+  if (!key) return;
+
+  if (memSetCardVariants.has(key)) {
+    memSetCardVariants.delete(key);
+  } else {
+    memSetCardVariants.add(key);
+  }
+
+  saveLocalState();
+} 
 
 function sortCardsList(cards) {
   cards.sort((a, b) => {
@@ -3364,6 +3420,20 @@ if (checkCircle) {
     renderCurrentSetCards();
   };
 }
+    const variantOptions =
+  item.querySelectorAll('.tcg-variant-option');
+
+variantOptions.forEach(option => {
+  option.onclick = (e) => {
+    e.stopPropagation();
+
+    const variant = option.dataset.variant;
+
+    toggleSetCardVariant(card, variant);
+
+    renderCurrentSetCards();
+  };
+});
 
     item.onclick = () => {
   openTcgZoom(originalIndex, false);

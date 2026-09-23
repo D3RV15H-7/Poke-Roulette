@@ -2326,6 +2326,32 @@ function getSetCardVariantKey(card, variant) {
 
   return `${fingerprint}__${variant}`;
 }
+  
+function isSetCardVariantOwned(card, variant) {
+  const key = getSetCardVariantKey(card, variant);
+
+  return Boolean(
+    key &&
+    memSetCardVariants.has(key)
+  );
+}
+
+function getOwnedSetCardVariants(card) {
+  const variants = [
+    'standard',
+    'holo',
+    'reverseHolo',
+    'other'
+  ];
+
+  return variants.filter(variant =>
+    isSetCardVariantOwned(card, variant)
+  );
+}
+
+function hasAnySetCardVariant(card) {
+  return getOwnedSetCardVariants(card).length > 0;
+}
 
 function isSetCardCollected(card) {
   if (!card) return false;

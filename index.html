@@ -3347,10 +3347,11 @@ function renderCurrentSetCards() {
 
   visibleCards.forEach(({ card, originalIndex }) => {
     const item =
-      document.createElement('button');
+      document.createElement('div');
 
-    item.type = 'button';
     item.className = 'tcg-set-card';
+    item.setAttribute('role', 'button');
+    item.setAttribute('tabindex', '0');
 
     const owned = isSetCardCollected(card);
 

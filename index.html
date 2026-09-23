@@ -1713,21 +1713,34 @@ body.has-active .hub-item-label {
   outline-offset: -2px;
 }
 
-  /* TCG Set card variant selector */
-.tcg-variant-selector {
-  width: 100%;
-  margin-top: 8px;
-  padding: 8px;
+/* TCG Set card variant selector */
+.tcg-set-card-image-wrap {
+  position: relative;
+}
 
-  background: rgba(15, 23, 42, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+.tcg-variant-selector {
+  position: absolute;
+
+  top: 38px;
+  right: 6px;
+
+  width: 150px;
+  padding: 9px 10px;
+
+  background: rgba(15, 23, 42, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 10px;
 
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
 
   box-sizing: border-box;
+
+  z-index: 20;
+
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.55);
 }
 
 .tcg-variant-option {
@@ -3266,57 +3279,57 @@ function renderCurrentSetCards() {
     }
 
     item.innerHTML = `
-      <div class="tcg-set-card-image-wrap">
+     <div class="tcg-set-card-image-wrap">
 
-        <img
-          src="${card.smallImg}"
-          alt="${card.name}"
-          loading="lazy"
-        >
+  <img
+    src="${card.smallImg}"
+    alt="${card.name}"
+    loading="lazy"
+  >
 
-        <div class="tcg-set-owned-check ${owned ? 'checked' : ''}">
-          ✓
+  <div class="tcg-set-owned-check ${owned ? 'checked' : ''}">
+    ✓
+  </div>
+
+  ${
+    activeSetVariantCardId === card.id
+      ? `
+        <div class="tcg-variant-selector">
+
+          <div class="tcg-variant-option">
+            <span>Standard</span>
+            <span class="tcg-variant-circle"></span>
+          </div>
+
+          <div class="tcg-variant-option">
+            <span>Holo</span>
+            <span class="tcg-variant-circle"></span>
+          </div>
+
+          <div class="tcg-variant-option">
+            <span>Reverse Holo</span>
+            <span class="tcg-variant-circle"></span>
+          </div>
+
+          <div class="tcg-variant-option">
+            <span>Other Variant</span>
+            <span class="tcg-variant-circle"></span>
+          </div>
+
         </div>
+      `
+      : ''
+  }
 
-      </div>
-
-      <div class="tcg-set-card-number">
-        #${card.number}
-      </div>
-
-      <div class="tcg-set-card-name">
-  ${card.name}
 </div>
 
-${
-  activeSetVariantCardId === card.id
-    ? `
-      <div class="tcg-variant-selector">
+<div class="tcg-set-card-number">
+  #${card.number}
+</div>
 
-        <div class="tcg-variant-option">
-          <span>Standard</span>
-          <span class="tcg-variant-circle"></span>
-        </div>
-
-        <div class="tcg-variant-option">
-          <span>Holo</span>
-          <span class="tcg-variant-circle"></span>
-        </div>
-
-        <div class="tcg-variant-option">
-          <span>Reverse Holo</span>
-          <span class="tcg-variant-circle"></span>
-        </div>
-
-        <div class="tcg-variant-option">
-          <span>Other Variant</span>
-          <span class="tcg-variant-circle"></span>
-        </div>
-
-      </div>
-    `
-    : ''
-}
+<div class="tcg-set-card-name">
+  ${card.name}
+</div>
 `;
     const checkCircle = item.querySelector('.tcg-set-owned-check');
 

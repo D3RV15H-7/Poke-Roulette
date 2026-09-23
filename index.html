@@ -2759,7 +2759,7 @@ function getPokemonIdFromCardName(cardName) {
 }
   
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v1_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v2_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -2876,12 +2876,32 @@ async function fetchCardsForSet(setId, forceRefresh = false) {
           'Common',
 
         rarityScore:
-          typeof getRarityScore === 'function'
-            ? getRarityScore(card.rarity)
-            : 0,
+  typeof getRarityScore === 'function'
+    ? getRarityScore(card.rarity)
+    : 0,
 
-        priceGBP:
-          extractCardPriceGBP(card)
+priceGBP:
+  extractCardPriceGBP(card),
+
+variants: {
+  standard: Boolean(
+    card.tcgplayer?.prices?.normal
+  ),
+
+  holo: Boolean(
+    card.tcgplayer?.prices?.holofoil
+  ),
+
+  reverseHolo: Boolean(
+    card.tcgplayer?.prices?.reverseHolofoil
+  ),
+
+  other: Boolean(
+    card.tcgplayer?.prices?.['1stEditionHolofoil'] ||
+    card.tcgplayer?.prices?.['1stEditionNormal'] ||
+    card.tcgplayer?.prices?.unlimitedHolofoil
+  )
+}
       }));
 
     if (!formatted.length) {

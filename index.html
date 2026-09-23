@@ -2669,6 +2669,21 @@ let tcgSetsCache = null;
 let activeTcgSet = null;
   let activeTcgSetFilter = 'all';
   let activeSetVariantCardId = null;
+  document.addEventListener('click', (e) => {
+  if (!activeSetVariantCardId) return;
+
+  const selector = e.target.closest('.tcg-variant-selector');
+  const check = e.target.closest('.tcg-set-owned-check');
+
+  // Clicking inside the popup or on its trigger should not close it
+  if (selector || check) return;
+
+  activeSetVariantCardId = null;
+
+  if (activeTcgSet) {
+    renderCurrentSetCards();
+  }
+});
   
 async function fetchPhysicalTcgSets(forceRefresh = false) {
   const CACHE_KEY = 'pokeroulette_tcg_sets_v1';
@@ -3077,6 +3092,7 @@ variants: {
 async function openTcgSet(set) {
   activeTcgSet = set;
   activeTcgSetFilter = 'all';
+  activeSetVariantCardId = null;
   
   const grid = document.getElementById('setsGrid');
   const loading = document.getElementById('setsLoading');
@@ -3359,6 +3375,7 @@ if (checkCircle) {
   
 async function renderTcgSets() {
   activeTcgSet = null;
+  activeSetVariantCardId = null;
   
   const loading = document.getElementById('setsLoading');
   const grid = document.getElementById('setsGrid');

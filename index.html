@@ -1712,6 +1712,47 @@ body.has-active .hub-item-label {
   outline: 2px solid var(--green);
   outline-offset: -2px;
 }
+
+  /* TCG Set card variant selector */
+.tcg-variant-selector {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+
+  box-sizing: border-box;
+}
+
+.tcg-variant-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--sub);
+}
+
+.tcg-variant-circle {
+  width: 17px;
+  height: 17px;
+
+  flex: 0 0 17px;
+
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  border-radius: 50%;
+
+  background: rgba(255, 255, 255, 0.04);
+
+  box-sizing: border-box;
+}
   
 </style>
 </head>
@@ -2611,6 +2652,7 @@ async function fetchWithRetry(url, options = {}, retries = 2) {
 let tcgSetsCache = null;
 let activeTcgSet = null;
   let activeTcgSetFilter = 'all';
+  let activeSetVariantCardId = null;
   
 async function fetchPhysicalTcgSets(forceRefresh = false) {
   const CACHE_KEY = 'pokeroulette_tcg_sets_v1';
@@ -3243,16 +3285,50 @@ function renderCurrentSetCards() {
       </div>
 
       <div class="tcg-set-card-name">
-        ${card.name}
+  ${card.name}
+</div>
+
+${
+  activeSetVariantCardId === card.id
+    ? `
+      <div class="tcg-variant-selector">
+
+        <div class="tcg-variant-option">
+          <span>Standard</span>
+          <span class="tcg-variant-circle"></span>
+        </div>
+
+        <div class="tcg-variant-option">
+          <span>Holo</span>
+          <span class="tcg-variant-circle"></span>
+        </div>
+
+        <div class="tcg-variant-option">
+          <span>Reverse Holo</span>
+          <span class="tcg-variant-circle"></span>
+        </div>
+
+        <div class="tcg-variant-option">
+          <span>Other Variant</span>
+          <span class="tcg-variant-circle"></span>
+        </div>
+
       </div>
-    `;
+    `
+    : ''
+}
+`;
     const checkCircle = item.querySelector('.tcg-set-owned-check');
 
 if (checkCircle) {
   checkCircle.onclick = (e) => {
     e.stopPropagation();
 
-    toggleSetCardCollection(card);
+    activeSetVariantCardId =
+      activeSetVariantCardId === card.id
+        ? null
+        : card.id;
+
     renderCurrentSetCards();
   };
 }

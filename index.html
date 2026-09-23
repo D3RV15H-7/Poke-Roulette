@@ -3440,20 +3440,14 @@ function renderCurrentSetCards() {
     ${card.name}
   </div>
 `;
-    const checkCircle = item.querySelector('.tcg-set-owned-check');
+const checkCircle = item.querySelector('.tcg-set-owned-check');
 
 if (checkCircle) {
   checkCircle.onclick = (e) => {
+    e.preventDefault();
     e.stopPropagation();
 
-    const cardKey = getCardFingerprint(card);
-
-activeSetVariantCardId =
-  activeSetVariantCardId === cardKey
-    ? null
-    : cardKey;
-
-    renderCurrentSetCards();
+    alert('Checkbox clicked');
   };
 }
 const variantOptions =

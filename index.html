@@ -3447,7 +3447,79 @@ if (checkCircle) {
     e.preventDefault();
     e.stopPropagation();
 
-    alert('Checkbox clicked');
+    const existingSelector =
+      item.querySelector('.tcg-variant-selector');
+
+    // If this card already has a selector, close it
+    if (existingSelector) {
+      existingSelector.remove();
+      return;
+    }
+
+    // Close any other selector that is currently open
+    document
+      .querySelectorAll('.tcg-variant-selector')
+      .forEach(selector => selector.remove());
+
+    const selector =
+      document.createElement('div');
+
+    selector.className = 'tcg-variant-selector';
+
+    selector.innerHTML = `
+      <div
+        class="tcg-variant-option"
+        data-variant="standard"
+      >
+        <span>Standard</span>
+        <span class="tcg-variant-circle ${
+          isSetCardVariantOwned(card, 'standard')
+            ? 'checked'
+            : ''
+        }">✓</span>
+      </div>
+
+      <div
+        class="tcg-variant-option"
+        data-variant="holo"
+      >
+        <span>Holo</span>
+        <span class="tcg-variant-circle ${
+          isSetCardVariantOwned(card, 'holo')
+            ? 'checked'
+            : ''
+        }">✓</span>
+      </div>
+
+      <div
+        class="tcg-variant-option"
+        data-variant="reverseHolo"
+      >
+        <span>Reverse Holo</span>
+        <span class="tcg-variant-circle ${
+          isSetCardVariantOwned(card, 'reverseHolo')
+            ? 'checked'
+            : ''
+        }">✓</span>
+      </div>
+
+      <div
+        class="tcg-variant-option"
+        data-variant="other"
+      >
+        <span>Other Variant</span>
+        <span class="tcg-variant-circle ${
+          isSetCardVariantOwned(card, 'other')
+            ? 'checked'
+            : ''
+        }">✓</span>
+      </div>
+    `;
+
+    const imageWrap =
+      item.querySelector('.tcg-set-card-image-wrap');
+
+    imageWrap.appendChild(selector);
   };
 }
 const variantOptions =

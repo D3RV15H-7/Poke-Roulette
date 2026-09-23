@@ -2353,9 +2353,59 @@ function hasAnySetCardVariant(card) {
   return getOwnedSetCardVariants(card).length > 0;
 }
 
+// One-time bridge from the original Sets ownership system to variants.
+// Any previously-owned numbered card becomes Standard, then its old Sets
+// ownership keys are removed so the new variant data becomes the source of truth.
+function migrateLegacySetCardOwnership(cards) {
+  if (!Array.isArray(cards) || !cards.length) return false;
+
+  let changed = false;
+
+  cards.forEach(card => {
+    if (!card) return;
+
+    const rawId = String(card.id || '').toLowerCase().trim();
+    const originalId = String(card.id || '');
+    const fingerprint = getCardFingerprint(card);
+
+    const legacyOwned = Boolean(
+      (rawId && memSetCardCol.has(rawId)) ||
+      (originalId && memSetCardCol.has(originalId)) ||
+      (fingerprint && memSetCardCol.has(fingerprint))
+    );
+
+    if (!legacyOwned) return;
+
+    // Preserve an old tick as Standard unless this card already has
+    // one or more explicit variant selections.
+    if (!hasAnySetCardVariant(card)) {
+      const standardKey = getSetCardVariantKey(card, 'standard');
+      if (standardKey) {
+        memSetCardVariants.add(standardKey);
+        changed = true;
+      }
+    }
+
+    if (rawId && memSetCardCol.delete(rawId)) changed = true;
+    if (originalId && memSetCardCol.delete(originalId)) changed = true;
+    if (fingerprint && memSetCardCol.delete(fingerprint)) changed = true;
+  });
+
+  if (changed) {
+    saveLocalState();
+    writeFullCollectionToCloud();
+  }
+
+  return changed;
+}
+
 function isSetCardCollected(card) {
   if (!card) return false;
 
+  // New Sets ownership: any owned variant means the numbered card is owned.
+  if (hasAnySetCardVariant(card)) return true;
+
+  // Temporary legacy fallback until a cached/opened set has been migrated.
   const rawId = String(card.id || '')
     .toLowerCase()
     .trim();
@@ -2462,6 +2512,7 @@ function writeFullCollectionToCloud(actionMessage = null) {
   collection: Array.from(memCol),
   cardsCollection: Array.from(memCardCol),
   setsCardsCollection: Array.from(memSetCardCol),
+  setsCardVariantsCollection: Array.from(memSetCardVariants),
   lastSync: new Date().toISOString()
 };
   
@@ -2581,6 +2632,7 @@ function toggleSetCardCollection(card) {
   }
 
   saveLocalState();
+  writeFullCollectionToCloud();
 } 
 
 function sortCardsList(cards) {
@@ -3209,6 +3261,10 @@ async function openTcgSet(set) {
   }
 
   currentCardsList = cards;
+
+  // Convert any ownership saved by the old Sets checkbox into Standard variants.
+  migrateLegacySetCardOwnership(cards);
+
   const collectedCount = cards.filter(card =>
   isSetCardCollected(card)
 ).length;
@@ -3518,6 +3574,20 @@ variantOptions.forEach(option => {
         isSetCardVariantOwned(card, variant)
       );
     }
+
+    const cardOwned = hasAnySetCardVariant(card);
+    item.classList.toggle('card-owned', cardOwned);
+
+    if (checkCircle) {
+      checkCircle.classList.toggle('checked', cardOwned);
+    }
+
+    updateCurrentSetProgress();
+
+    // If the user is viewing a filtered list, move the card in/out immediately.
+    if (activeTcgSetFilter !== 'all') {
+      renderCurrentSetCards();
+    }
   });
 });
 
@@ -3570,6 +3640,9 @@ async function renderTcgSets() {
 
     if (cached && Array.isArray(cached.data)) {
       const cards = cached.data;
+
+      // Migrate old Sets ticks as soon as cached card data is available.
+      migrateLegacySetCardOwnership(cards);
 
       totalCount = cards.length || totalCount;
 
@@ -3720,6 +3793,9 @@ function setupAuthListener() {
             memCol = new Set(Array.isArray(data.collection) ? data.collection.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : []);
 memCardCol = new Set(Array.isArray(data.cardsCollection) ? data.cardsCollection.map(String) : []);
 memSetCardCol = new Set(Array.isArray(data.setsCardsCollection) ? data.setsCardsCollection.map(String) : []);
+if (Array.isArray(data.setsCardVariantsCollection)) {
+  memSetCardVariants = new Set(data.setsCardVariantsCollection.map(String));
+}
 saveLocalState();
             if (currentCardsList.length > 0) renderTcgCards(currentCardsList);
           } else { writeFullCollectionToCloud(); }
@@ -3732,6 +3808,9 @@ saveLocalState();
             memCol = new Set(Array.isArray(data.collection) ? data.collection.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : []);
 memCardCol = new Set(Array.isArray(data.cardsCollection) ? data.cardsCollection.map(String) : []);
 memSetCardCol = new Set(Array.isArray(data.setsCardsCollection) ? data.setsCardsCollection.map(String) : []);
+if (Array.isArray(data.setsCardVariantsCollection)) {
+  memSetCardVariants = new Set(data.setsCardVariantsCollection.map(String));
+}
 saveLocalState();
             if (currentCardsList.length > 0) renderTcgCards(currentCardsList);
           }

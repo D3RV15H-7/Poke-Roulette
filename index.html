@@ -3497,19 +3497,42 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
 
         if (!localId) return card;
 
-        const paddedLocalId =
-          String(localId).padStart(3, '0');
+        const naturalLocalId =
+              String(localId);
 
-        const tcgDexCardId =
-          `${dexSet.id}-${paddedLocalId}`;
+            const paddedLocalId =
+              naturalLocalId.padStart(3, '0');
 
-        const res = await fetch(
-          `https://api.tcgdex.net/v2/en/cards/${encodeURIComponent(tcgDexCardId)}`
-        );
+            // TCGdex card IDs vary by era: e.g. xy12-1 vs me03-021.
+            // Try the source card's natural local ID first, then the padded
+            // form when it is different.
+            const tcgDexCardIds = [
+              `${dexSet.id}-${naturalLocalId}`,
+              `${dexSet.id}-${paddedLocalId}`
+            ].filter(
+              (id, index, ids) =>
+                id && ids.indexOf(id) === index
+            );
 
-        if (!res.ok) {
-          return card;
-        }
+            let res = null;
+            let tcgDexCardId = '';
+
+            for (const candidateId of tcgDexCardIds) {
+              const candidateRes = await fetch(
+                `https://api.tcgdex.net/v2/en/cards/${encodeURIComponent(candidateId)}`
+              );
+
+              if (candidateRes.ok) {
+                res = candidateRes;
+                tcgDexCardId = candidateId;
+                break;
+              }
+            }
+
+            if (!res) {
+              return card;
+            }
+
 
         const dexCard = await res.json();
         const finishEvidence =
@@ -3559,7 +3582,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
 }
 
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v14_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v15_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -4143,7 +4166,7 @@ async function renderTcgSets() {
   let totalCount = Number(set.printedTotal) || 0;
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v14_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v15_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -4450,7 +4473,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v14_${setId}`
+        `pokeroulette_set_cards_v15_${setId}`
       );
     } catch (error) {
       console.warn(

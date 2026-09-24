@@ -3104,11 +3104,48 @@ function hasUsableTcgDexPriceBucket(bucket) {
 
 function getTcgDexFinishEvidence(card) {
   const variants = card?.variants || {};
+  const detailed = Array.isArray(card?.variants_detailed)
+    ? card.variants_detailed
+    : [];
+
+  // Strongest source: TCGdex's per-printing variant records.
+  // These distinguish normal/non-holo, holo and reverse as actual
+  // physical printings rather than inferring them from rarity.
+  if (detailed.length) {
+    const standardDetailed = detailed.filter(v =>
+      v?.type === 'normal' &&
+      (!v?.size || v.size === 'standard')
+    );
+
+    const holoDetailed = detailed.filter(v =>
+      v?.type === 'holo' &&
+      (!v?.size || v.size === 'standard')
+    );
+
+    const reverseDetailed = detailed.filter(v =>
+      v?.type === 'reverse' &&
+      (!v?.size || v.size === 'standard')
+    );
+
+    const otherDetailed = detailed.filter(v =>
+      !['normal', 'holo', 'reverse'].includes(v?.type) ||
+      (v?.size && v.size !== 'standard') ||
+      (Array.isArray(v?.stamp) && v.stamp.length > 0) ||
+      Boolean(v?.subtype)
+    );
+
+    return {
+      standard: standardDetailed.length > 0,
+      holo: holoDetailed.length > 0,
+      reverseHolo: reverseDetailed.length > 0,
+      other: otherDetailed.length > 0,
+      source: 'tcgdex-variants-detailed'
+    };
+  }
+
   const buckets =
     getTcgDexTcgPlayerFinishBuckets(card);
 
-  // A marketplace finish-specific bucket is stronger evidence than
-  // the generic variants flags because it is tied to that exact finish.
   const hasStandardPrice =
     hasUsableTcgDexPriceBucket(buckets.standard);
 
@@ -3123,6 +3160,7 @@ function getTcgDexFinishEvidence(card) {
     hasHoloPrice ||
     hasReversePrice;
 
+  // Second-best source: explicit marketplace finish buckets.
   if (hasFinishSpecificPricing) {
     return {
       standard: hasStandardPrice,
@@ -3137,8 +3175,7 @@ function getTcgDexFinishEvidence(card) {
     };
   }
 
-  // If finish-specific marketplace records are unavailable, fall back
-  // to TCGdex's explicit known-variant flags.
+  // Last resort only: legacy TCGdex boolean flags.
   return {
     standard: variants.normal === true,
     holo: variants.holo === true,
@@ -3332,7 +3369,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
 }
 
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v7_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v8_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -3916,7 +3953,7 @@ async function renderTcgSets() {
   let totalCount = Number(set.printedTotal) || 0;
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v7_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v8_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -4223,7 +4260,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v7_${setId}`
+        `pokeroulette_set_cards_v8_${setId}`
       );
     } catch (error) {
       console.warn(

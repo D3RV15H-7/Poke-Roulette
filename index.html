@@ -2360,7 +2360,7 @@ function getAvailableSetCardVariants(card) {
   const definitions = [
     { key: 'standard', label: 'Standard' },
     { key: 'holo', label: 'Holo' },
-    { key: 'reverseHolo', label: 'Reverse Holo' },
+    { key: 'reverseHolo', label: 'Reverse' },
     { key: 'other', label: 'Other Variant' }
   ];
 
@@ -3028,97 +3028,213 @@ function getPokemonIdFromCardName(cardName) {
 }
   
 
-function inferSetCardVariants(card) {
+function inferSetCardVariantsFromPokemonTcg(card) {
   const tcgPrices = card?.tcgplayer?.prices || {};
   const cmPrices = card?.cardmarket?.prices || {};
-  const rarity = String(card?.rarity || '').toLowerCase().trim();
-  const setName = String(card?.set?.name || '').toLowerCase().trim();
-  const setId = String(card?.set?.id || '').toLowerCase().trim();
-  const name = String(card?.name || '').toLowerCase().trim();
-  const subtypes = Array.isArray(card?.subtypes)
-    ? card.subtypes.map(value => String(value).toLowerCase())
-    : [];
 
-  const hasExLikeSubtype = subtypes.some(value =>
-    ['ex', 'gx', 'v', 'vmax', 'vstar', 'break', 'mega'].includes(value)
-  );
+  return {
+    standard: Boolean(
+      tcgPrices.normal ||
+      tcgPrices['1stEditionNormal']
+    ),
+    holo: Boolean(
+      tcgPrices.holofoil ||
+      tcgPrices['1stEditionHolofoil'] ||
+      tcgPrices.unlimitedHolofoil
+    ),
+    reverseHolo: Boolean(
+      tcgPrices.reverseHolofoil ||
+      cmPrices.reverseHoloSell ||
+      cmPrices.reverseHoloLow ||
+      cmPrices.reverseHoloTrend ||
+      cmPrices.reverseHoloAvg1 ||
+      cmPrices.reverseHoloAvg7 ||
+      cmPrices.reverseHoloAvg30
+    ),
+    other: Boolean(
+      tcgPrices['1stEditionHolofoil'] ||
+      tcgPrices['1stEditionNormal']
+    )
+  };
+}
 
-  const isSpecialRarity =
-    /illustration|special illustration|ultra|secret|rainbow|shiny|amazing|ace|double rare|hyper rare|black white rare/.test(rarity) ||
-    hasExLikeSubtype ||
-    /\bex\b/.test(name);
+function getTcgDexBasePriceGBP(card) {
+  const pricing = card?.pricing || {};
+  const variants = card?.variants || {};
+  const tcg = pricing.tcgplayer || {};
+  const cm = pricing.cardmarket || {};
 
-  let standard = Boolean(
-    tcgPrices.normal ||
-    tcgPrices['1stEditionNormal'] ||
-    cmPrices.averageSellPrice ||
-    cmPrices.lowPrice ||
-    cmPrices.trendPrice
-  );
+  // Main/base printing only. Reverse pricing is intentionally ignored.
+  const baseIsHolo =
+    variants.holo === true &&
+    variants.normal !== true;
 
-  let holo = Boolean(
-    tcgPrices.holofoil ||
-    tcgPrices['1stEditionHolofoil'] ||
-    tcgPrices.unlimitedHolofoil
-  );
+  const tcgBucket = baseIsHolo
+    ? (tcg.holofoil || tcg.holo)
+    : tcg.normal;
 
-  let reverseHolo = Boolean(
-    tcgPrices.reverseHolofoil ||
-    cmPrices.reverseHoloSell ||
-    cmPrices.reverseHoloLow ||
-    cmPrices.reverseHoloTrend ||
-    cmPrices.reverseHoloAvg1 ||
-    cmPrices.reverseHoloAvg7 ||
-    cmPrices.reverseHoloAvg30
-  );
+  if (tcgBucket) {
+    const usd =
+      getNumericPrice(tcgBucket.market) ??
+      getNumericPrice(tcgBucket.mid) ??
+      getNumericPrice(tcgBucket.low);
 
-  const other = Boolean(
-    tcgPrices['1stEditionHolofoil'] ||
-    tcgPrices['1stEditionNormal']
-  );
-
-  // Modern Mega Evolution-era booster-set fallback.
-  // For the regular numbered rarity structure:
-  // Common/Uncommon = Standard + Reverse Holo.
-  // Rare/Rare Holo = Holo + Reverse Holo.
-  //
-  // Keep special rarities/ex-style cards out of this fallback so their
-  // explicitly reported API variant data remains authoritative.
-  const isModernMegaEraSet =
-    /^me\d+/i.test(setId) ||
-    setName.includes('mega evolution') ||
-    setName.includes('perfect order') ||
-    setName.includes('pitch black');
-
-  if (isModernMegaEraSet && !isSpecialRarity) {
-    if (rarity === 'common' || rarity === 'uncommon') {
-      standard = true;
-      holo = false;
-      reverseHolo = true;
-    } else if (
-      rarity === 'rare' ||
-      rarity === 'rare holo' ||
-      rarity.includes('rare holo')
-    ) {
-      standard = false;
-      holo = true;
-      reverseHolo = true;
+    if (usd != null) {
+      return usd * USD_TO_GBP;
     }
   }
 
-  if (rarity.includes('holo')) {
-    holo = true;
+  // Cardmarket fallback. These are the card's main listing prices;
+  // reverse-holo-specific fields are never selected.
+  const eur =
+    getNumericPrice(cm.trendPrice) ??
+    getNumericPrice(cm.averageSellPrice) ??
+    getNumericPrice(cm.avg7) ??
+    getNumericPrice(cm.lowPrice);
+
+  return eur != null
+    ? eur * EUR_TO_GBP
+    : null;
+}
+
+function normalizeSetMatchName(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/pok[eé]mon/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+async function findTcgDexSetForPokemonTcgSet(setId, setName) {
+  try {
+    if (!window.tcgDexSetsCache) {
+      const res = await fetch(
+        'https://api.tcgdex.net/v2/en/sets'
+      );
+
+      if (!res.ok) {
+        throw new Error(`TCGdex sets ${res.status}`);
+      }
+
+      window.tcgDexSetsCache = await res.json();
+    }
+
+    const sets = Array.isArray(window.tcgDexSetsCache)
+      ? window.tcgDexSetsCache
+      : [];
+
+    const wantedName = normalizeSetMatchName(setName);
+
+    return sets.find(set => {
+      const candidateName =
+        normalizeSetMatchName(set?.name);
+
+      return (
+        candidateName === wantedName ||
+        String(set?.id || '').toLowerCase() ===
+          String(setId || '').toLowerCase()
+      );
+    }) || null;
+
+  } catch (error) {
+    console.warn(
+      '[TCGdex] Could not resolve set:',
+      setName,
+      error
+    );
+    return null;
+  }
+}
+
+async function enrichSetCardsWithTcgDex(cards, setId, setName) {
+  if (!Array.isArray(cards) || !cards.length) {
+    return cards;
   }
 
-  if (!standard && !holo && !reverseHolo && !other) {
-    standard = true;
+  const dexSet =
+    await findTcgDexSetForPokemonTcgSet(
+      setId,
+      setName
+    );
+
+  if (!dexSet?.id) {
+    console.warn(
+      '[TCGdex] No matching set found:',
+      setName
+    );
+    return cards;
   }
 
-  return { standard, holo, reverseHolo, other };
+  const enriched = await Promise.all(
+    cards.map(async card => {
+      try {
+        const localId =
+          String(card.number || '')
+            .split('/')[0]
+            .trim();
+
+        if (!localId) return card;
+
+        const res = await fetch(
+          `https://api.tcgdex.net/v2/en/sets/${encodeURIComponent(dexSet.id)}/${encodeURIComponent(localId)}`
+        );
+
+        if (!res.ok) {
+          return card;
+        }
+
+        const dexCard = await res.json();
+        const dexVariants =
+          dexCard?.variants || {};
+
+        const hasVariantData =
+          typeof dexVariants.normal === 'boolean' ||
+          typeof dexVariants.holo === 'boolean' ||
+          typeof dexVariants.reverse === 'boolean';
+
+        const variants = hasVariantData
+          ? {
+              standard:
+                dexVariants.normal === true,
+              holo:
+                dexVariants.holo === true,
+              reverseHolo:
+                dexVariants.reverse === true,
+              other: Boolean(
+                dexVariants.firstEdition ||
+                dexVariants.preRelease ||
+                dexVariants.wPromo
+              )
+            }
+          : card.variants;
+
+        const basePriceGBP =
+          getTcgDexBasePriceGBP(dexCard);
+
+        return {
+          ...card,
+          variants,
+          priceGBP:
+            basePriceGBP ??
+            card.priceGBP
+        };
+
+      } catch (error) {
+        console.warn(
+          '[TCGdex] Card enrichment failed:',
+          card?.name,
+          error
+        );
+        return card;
+      }
+    })
+  );
+
+  return enriched;
 }
 
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v5_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v6_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -3198,7 +3314,7 @@ async function fetchCardsForSet(setId, forceRefresh = false) {
       );
     }
 
-    const formatted = cards
+    let formatted = cards
       .filter(card => !isDigitalOnlyCard(card))
       .filter(card =>
         isValidFrontCardImage(
@@ -3242,7 +3358,7 @@ async function fetchCardsForSet(setId, forceRefresh = false) {
 priceGBP:
   extractCardPriceGBP(card),
 
-variants: inferSetCardVariants(card)
+variants: inferSetCardVariantsFromPokemonTcg(card)
       }));
 
     if (!formatted.length) {
@@ -3250,6 +3366,14 @@ variants: inferSetCardVariants(card)
         `No usable cards returned for ${setId}`
       );
     }
+
+    // Enrich each card with TCGdex's explicit physical variant flags
+    // and main/base-printing price before caching.
+    formatted = await enrichSetCardsWithTcgDex(
+      formatted,
+      setId,
+      formatted[0]?.setName || ''
+    );
 
     // Correct card-number ordering
     formatted.sort((a, b) => {
@@ -3694,7 +3818,7 @@ async function renderTcgSets() {
   let totalCount = Number(set.printedTotal) || 0;
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v5_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v6_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -4001,7 +4125,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v5_${setId}`
+        `pokeroulette_set_cards_v6_${setId}`
       );
     } catch (error) {
       console.warn(

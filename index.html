@@ -3077,16 +3077,23 @@ function inferSetCardVariants(card) {
     tcgPrices['1stEditionNormal']
   );
 
-  // Published Pitch Black checklist fallback:
+  // Modern Mega Evolution-era booster-set fallback.
+  // For the regular numbered rarity structure:
   // Common/Uncommon = Standard + Reverse Holo.
   // Rare/Rare Holo = Holo + Reverse Holo.
-  const isPitchBlack =
-    setName.includes('pitch black') ||
-    setId.includes('me05');
+  //
+  // Keep special rarities/ex-style cards out of this fallback so their
+  // explicitly reported API variant data remains authoritative.
+  const isModernMegaEraSet =
+    /^me\d+/i.test(setId) ||
+    setName.includes('mega evolution') ||
+    setName.includes('perfect order') ||
+    setName.includes('pitch black');
 
-  if (isPitchBlack && !isSpecialRarity) {
+  if (isModernMegaEraSet && !isSpecialRarity) {
     if (rarity === 'common' || rarity === 'uncommon') {
       standard = true;
+      holo = false;
       reverseHolo = true;
     } else if (
       rarity === 'rare' ||
@@ -3111,7 +3118,7 @@ function inferSetCardVariants(card) {
 }
 
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v4_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v5_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -3687,7 +3694,7 @@ async function renderTcgSets() {
   let totalCount = Number(set.printedTotal) || 0;
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v4_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v5_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -3994,7 +4001,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v4_${setId}`
+        `pokeroulette_set_cards_v5_${setId}`
       );
     } catch (error) {
       console.warn(

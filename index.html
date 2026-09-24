@@ -3058,39 +3058,148 @@ function inferSetCardVariantsFromPokemonTcg(card) {
   };
 }
 
-function getTcgDexBasePriceGBP(card) {
-  const pricing = card?.pricing || {};
+function getTcgDexTcgPlayerFinishBuckets(card) {
+  const tcg = card?.pricing?.tcgplayer || {};
+
+  return {
+    standard:
+      tcg.normal ||
+      tcg.unlimited ||
+      tcg['1st-edition'] ||
+      null,
+
+    holo:
+      tcg.holofoil ||
+      tcg.holo ||
+      tcg['unlimited-holofoil'] ||
+      tcg['1st-edition-holofoil'] ||
+      null,
+
+    reverse:
+      tcg['reverse-holofoil'] ||
+      tcg.reverse ||
+      tcg.reverseHolofoil ||
+      null
+  };
+}
+
+function hasUsableTcgDexPriceBucket(bucket) {
+  if (!bucket || typeof bucket !== 'object') {
+    return false;
+  }
+
+  return [
+    bucket.marketPrice,
+    bucket.market,
+    bucket.midPrice,
+    bucket.mid,
+    bucket.lowPrice,
+    bucket.low,
+    bucket.highPrice,
+    bucket.high
+  ].some(value =>
+    getNumericPrice(value) != null
+  );
+}
+
+function getTcgDexFinishEvidence(card) {
   const variants = card?.variants || {};
-  const tcg = pricing.tcgplayer || {};
-  const cm = pricing.cardmarket || {};
+  const buckets =
+    getTcgDexTcgPlayerFinishBuckets(card);
 
-  // Main/base printing only. Reverse pricing is intentionally ignored.
-  const baseIsHolo =
-    variants.holo === true &&
-    variants.normal !== true;
+  // A marketplace finish-specific bucket is stronger evidence than
+  // the generic variants flags because it is tied to that exact finish.
+  const hasStandardPrice =
+    hasUsableTcgDexPriceBucket(buckets.standard);
 
-  const tcgBucket = baseIsHolo
-    ? (tcg.holofoil || tcg.holo)
-    : tcg.normal;
+  const hasHoloPrice =
+    hasUsableTcgDexPriceBucket(buckets.holo);
 
-  if (tcgBucket) {
+  const hasReversePrice =
+    hasUsableTcgDexPriceBucket(buckets.reverse);
+
+  const hasFinishSpecificPricing =
+    hasStandardPrice ||
+    hasHoloPrice ||
+    hasReversePrice;
+
+  if (hasFinishSpecificPricing) {
+    return {
+      standard: hasStandardPrice,
+      holo: hasHoloPrice,
+      reverseHolo: hasReversePrice,
+      other: Boolean(
+        variants.firstEdition ||
+        variants.preRelease ||
+        variants.wPromo
+      ),
+      source: 'tcgplayer-finishes'
+    };
+  }
+
+  // If finish-specific marketplace records are unavailable, fall back
+  // to TCGdex's explicit known-variant flags.
+  return {
+    standard: variants.normal === true,
+    holo: variants.holo === true,
+    reverseHolo: variants.reverse === true,
+    other: Boolean(
+      variants.firstEdition ||
+      variants.preRelease ||
+      variants.wPromo
+    ),
+    source: 'tcgdex-variants'
+  };
+}
+
+function getTcgDexBasePriceGBP(card, finishEvidence) {
+  const buckets =
+    getTcgDexTcgPlayerFinishBuckets(card);
+
+  const evidence =
+    finishEvidence ||
+    getTcgDexFinishEvidence(card);
+
+  // Main/base finish priority:
+  // Standard first when it genuinely exists; otherwise Holo.
+  // Reverse is deliberately never selected as the displayed base price.
+  const baseBucket = evidence.standard
+    ? buckets.standard
+    : evidence.holo
+      ? buckets.holo
+      : null;
+
+  if (baseBucket) {
     const usd =
-      getNumericPrice(tcgBucket.market) ??
-      getNumericPrice(tcgBucket.mid) ??
-      getNumericPrice(tcgBucket.low);
+      getNumericPrice(baseBucket.marketPrice) ??
+      getNumericPrice(baseBucket.market) ??
+      getNumericPrice(baseBucket.midPrice) ??
+      getNumericPrice(baseBucket.mid) ??
+      getNumericPrice(baseBucket.lowPrice) ??
+      getNumericPrice(baseBucket.low);
 
     if (usd != null) {
       return usd * USD_TO_GBP;
     }
   }
 
-  // Cardmarket fallback. These are the card's main listing prices;
-  // reverse-holo-specific fields are never selected.
-  const eur =
-    getNumericPrice(cm.trendPrice) ??
-    getNumericPrice(cm.averageSellPrice) ??
-    getNumericPrice(cm.avg7) ??
-    getNumericPrice(cm.lowPrice);
+  const cm = card?.pricing?.cardmarket || {};
+
+  // Cardmarket fallback for the main finish only.
+  // TCGdex exposes separate non-foil and foil values.
+  const eur = evidence.holo && !evidence.standard
+    ? (
+        getNumericPrice(cm['trend-holo']) ??
+        getNumericPrice(cm['avg-holo']) ??
+        getNumericPrice(cm['avg7-holo']) ??
+        getNumericPrice(cm['low-holo'])
+      )
+    : (
+        getNumericPrice(cm.trend) ??
+        getNumericPrice(cm.avg) ??
+        getNumericPrice(cm.avg7) ??
+        getNumericPrice(cm.low)
+      );
 
   return eur != null
     ? eur * EUR_TO_GBP
@@ -3184,32 +3293,21 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
         }
 
         const dexCard = await res.json();
-        const dexVariants =
-          dexCard?.variants || {};
+        const finishEvidence =
+          getTcgDexFinishEvidence(dexCard);
 
-        const hasVariantData =
-          typeof dexVariants.normal === 'boolean' ||
-          typeof dexVariants.holo === 'boolean' ||
-          typeof dexVariants.reverse === 'boolean';
-
-        const variants = hasVariantData
-          ? {
-              standard:
-                dexVariants.normal === true,
-              holo:
-                dexVariants.holo === true,
-              reverseHolo:
-                dexVariants.reverse === true,
-              other: Boolean(
-                dexVariants.firstEdition ||
-                dexVariants.preRelease ||
-                dexVariants.wPromo
-              )
-            }
-          : card.variants;
+        const variants = {
+          standard: finishEvidence.standard,
+          holo: finishEvidence.holo,
+          reverseHolo: finishEvidence.reverseHolo,
+          other: finishEvidence.other
+        };
 
         const basePriceGBP =
-          getTcgDexBasePriceGBP(dexCard);
+          getTcgDexBasePriceGBP(
+            dexCard,
+            finishEvidence
+          );
 
         return {
           ...card,
@@ -3234,7 +3332,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
 }
 
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v6_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v7_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -3818,7 +3916,7 @@ async function renderTcgSets() {
   let totalCount = Number(set.printedTotal) || 0;
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v6_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v7_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -4125,7 +4223,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v6_${setId}`
+        `pokeroulette_set_cards_v7_${setId}`
       );
     } catch (error) {
       console.warn(

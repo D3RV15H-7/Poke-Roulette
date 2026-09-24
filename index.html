@@ -3166,10 +3166,25 @@ function getTcgDexFinishEvidence(card) {
       const size =
         String(v?.size || 'standard').toLowerCase();
 
+      const stamps =
+        Array.isArray(v?.stamp)
+          ? v.stamp.map(stamp =>
+              String(stamp || '').toLowerCase()
+            )
+          : [];
+
+      // Player Rewards Program stamped printings are intentionally excluded
+      // from PokéRoulette's collectible variant model. Other stamped
+      // printings can still qualify for Other Variant.
+      const meaningfulStamps =
+        stamps.filter(stamp =>
+          stamp !== 'player-rewards-program'
+        );
+
       return (
         !['normal', 'holo', 'reverse'].includes(type) ||
         size !== 'standard' ||
-        (Array.isArray(v?.stamp) && v.stamp.length > 0) ||
+        meaningfulStamps.length > 0 ||
         Boolean(v?.subtype)
       );
     });
@@ -3544,7 +3559,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
 }
 
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v13_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v14_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -4128,7 +4143,7 @@ async function renderTcgSets() {
   let totalCount = Number(set.printedTotal) || 0;
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v13_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v14_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -4435,7 +4450,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v13_${setId}`
+        `pokeroulette_set_cards_v14_${setId}`
       );
     } catch (error) {
       console.warn(

@@ -2359,7 +2359,6 @@ function hasAnySetCardVariant(card) {
 function getAvailableSetCardVariants(card) {
   const definitions = [
     { key: 'standard', label: 'Standard' },
-    { key: 'holo', label: 'Holo' },
     { key: 'reverseHolo', label: 'Reverse' },
     { key: 'other', label: 'Other Variant' }
   ];
@@ -3109,22 +3108,22 @@ function getTcgDexFinishEvidence(card) {
     : [];
 
   if (detailed.length) {
-    const standard = detailed.some(v =>
+    const normalPrintings = detailed.filter(v =>
       String(v?.type || '').toLowerCase() === 'normal' &&
       (!v?.size || String(v.size).toLowerCase() === 'standard')
     );
 
-    const holo = detailed.some(v =>
+    const holoPrintings = detailed.filter(v =>
       String(v?.type || '').toLowerCase() === 'holo' &&
       (!v?.size || String(v.size).toLowerCase() === 'standard')
     );
 
-    const reverseHolo = detailed.some(v =>
+    const reversePrintings = detailed.filter(v =>
       String(v?.type || '').toLowerCase() === 'reverse' &&
       (!v?.size || String(v.size).toLowerCase() === 'standard')
     );
 
-    const other = detailed.some(v => {
+    const unusualPrintings = detailed.filter(v => {
       const type =
         String(v?.type || '').toLowerCase();
 
@@ -3139,43 +3138,72 @@ function getTcgDexFinishEvidence(card) {
       );
     });
 
+    const hasNormal =
+      normalPrintings.length > 0;
+
+    const hasHolo =
+      holoPrintings.length > 0;
+
+    // "Standard" means the card's ordinary/base printing in PokéRoulette.
+    // That base may physically be normal/non-holo OR holo.
+    const standard =
+      hasNormal || hasHolo;
+
+    const reverseHolo =
+      reversePrintings.length > 0;
+
+    // If both normal and holo printings exist, one is the base and the
+    // additional physical finish belongs under Other rather than becoming
+    // a second "Holo" ownership category.
+    const other =
+      unusualPrintings.length > 0 ||
+      (hasNormal && hasHolo);
+
+    // Retain the physical base finish as metadata for pricing.
+    // Normal is preferred when both normal and holo are explicitly present;
+    // otherwise Holo is the base when it is the only base-style printing.
+    const baseFinish =
+      hasNormal
+        ? 'normal'
+        : hasHolo
+          ? 'holo'
+          : null;
+
     return {
       standard,
-      holo,
       reverseHolo,
       other,
-      source: 'canonical-variants-detailed'
+      baseFinish,
+      source: 'canonical-base-variant-model'
     };
   }
 
-  // Only when detailed physical-printing records do not exist do we
-  // fall back to TCGdex's legacy boolean variant flags.
-  const hasLegacyVariantData =
-    typeof variants.normal === 'boolean' ||
-    typeof variants.holo === 'boolean' ||
-    typeof variants.reverse === 'boolean';
+  const hasNormal =
+    variants.normal === true;
 
-  if (hasLegacyVariantData) {
-    return {
-      standard: variants.normal === true,
-      holo: variants.holo === true,
-      reverseHolo: variants.reverse === true,
-      other: Boolean(
-        variants.firstEdition ||
-        variants.preRelease ||
-        variants.wPromo
-      ),
-      source: 'tcgdex-variants'
-    };
-  }
+  const hasHolo =
+    variants.holo === true;
 
-  // Last fallback only if TCGdex has no variant metadata at all.
+  const standard =
+    hasNormal || hasHolo;
+
   return {
-    standard: false,
-    holo: false,
-    reverseHolo: false,
-    other: false,
-    source: 'none'
+    standard,
+    reverseHolo:
+      variants.reverse === true,
+    other: Boolean(
+      (hasNormal && hasHolo) ||
+      variants.firstEdition ||
+      variants.preRelease ||
+      variants.wPromo
+    ),
+    baseFinish:
+      hasNormal
+        ? 'normal'
+        : hasHolo
+          ? 'holo'
+          : null,
+    source: 'tcgdex-base-variant-fallback'
   };
 }
 
@@ -3227,11 +3255,8 @@ function getTcgDexBasePriceGBP(card, finishEvidence) {
     // Main displayed price:
     // use Normal when it genuinely exists; otherwise Holo.
     // Never choose Reverse as the single displayed card price.
-    const baseType = evidence.standard
-      ? 'normal'
-      : evidence.holo
-        ? 'holo'
-        : null;
+    const baseType =
+      evidence.baseFinish || null;
 
     if (baseType) {
       const baseVariant = detailed.find(v =>
@@ -3255,11 +3280,12 @@ function getTcgDexBasePriceGBP(card, finishEvidence) {
   const buckets =
     getTcgDexTcgPlayerFinishBuckets(card);
 
-  const baseBucket = evidence.standard
-    ? buckets.standard
-    : evidence.holo
-      ? buckets.holo
-      : null;
+  const baseBucket =
+    evidence.baseFinish === 'normal'
+      ? buckets.standard
+      : evidence.baseFinish === 'holo'
+        ? buckets.holo
+        : null;
 
   if (baseBucket) {
     const usd =
@@ -3277,7 +3303,7 @@ function getTcgDexBasePriceGBP(card, finishEvidence) {
 
   const cm = card?.pricing?.cardmarket || {};
 
-  const eur = evidence.holo && !evidence.standard
+  const eur = evidence.baseFinish === 'holo'
     ? (
         getNumericPrice(cm['trend-holo']) ??
         getNumericPrice(cm['avg-holo']) ??
@@ -3402,7 +3428,6 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
 
         const variants = {
           standard: finishEvidence.standard,
-          holo: finishEvidence.holo,
           reverseHolo: finishEvidence.reverseHolo,
           other: finishEvidence.other
         };
@@ -3416,6 +3441,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
         return {
           ...card,
           variants,
+          baseFinish: finishEvidence.baseFinish,
           priceGBP:
             basePriceGBP ??
             card.priceGBP
@@ -3436,7 +3462,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
 }
 
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v10_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v11_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -4020,7 +4046,7 @@ async function renderTcgSets() {
   let totalCount = Number(set.printedTotal) || 0;
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v10_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v11_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -4327,7 +4353,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v10_${setId}`
+        `pokeroulette_set_cards_v11_${setId}`
       );
     } catch (error) {
       console.warn(

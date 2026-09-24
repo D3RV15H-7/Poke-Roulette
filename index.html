@@ -3106,6 +3106,37 @@ function hasUsableTcgDexPriceBucket(bucket) {
   );
 }
 
+function getTcgDexVariantThirdPartyId(variant, provider) {
+  const value = variant?.thirdParty?.[provider];
+
+  return value == null
+    ? ''
+    : String(value);
+}
+
+function variantsShareMarketplaceProduct(a, b) {
+  if (!a || !b) return false;
+
+  const providers = [
+    'tcgplayer',
+    'cardmarket'
+  ];
+
+  return providers.some(provider => {
+    const aId =
+      getTcgDexVariantThirdPartyId(a, provider);
+
+    const bId =
+      getTcgDexVariantThirdPartyId(b, provider);
+
+    return Boolean(
+      aId &&
+      bId &&
+      aId === bId
+    );
+  });
+}
+
 function getTcgDexFinishEvidence(card) {
   const variants = card?.variants || {};
   const detailed = Array.isArray(card?.variants_detailed)
@@ -3149,37 +3180,83 @@ function getTcgDexFinishEvidence(card) {
     const hasHolo =
       holoPrintings.length > 0;
 
-    // "Standard" means the card's ordinary/base printing in PokéRoulette.
-    // That base may physically be normal/non-holo OR holo.
-    const standard =
-      hasNormal || hasHolo;
-
-    const reverseHolo =
+    const hasReverse =
       reversePrintings.length > 0;
 
-    // If both normal and holo printings exist, one is the base and the
-    // additional physical finish belongs under Other rather than becoming
-    // a second "Holo" ownership category.
+    let baseFinish = null;
+
+    if (hasNormal && !hasHolo) {
+      baseFinish = 'normal';
+    } else if (hasHolo && !hasNormal) {
+      baseFinish = 'holo';
+    } else if (hasNormal && hasHolo) {
+      // When both Normal and Holo exist, use the Reverse printing's
+      // marketplace product relationship to identify the main/base finish.
+      //
+      // Example: Voltaic Lightning Energy has Holo + Reverse sharing the
+      // same Cardmarket/TCGplayer product IDs, while its separate Non-Holo
+      // printing has different IDs. In that case Holo is the base and the
+      // Normal printing belongs under Other Variant.
+      const reversePrinting =
+        reversePrintings[0] || null;
+
+      const normalMatchesReverse =
+        reversePrinting &&
+        normalPrintings.some(v =>
+          variantsShareMarketplaceProduct(
+            v,
+            reversePrinting
+          )
+        );
+
+      const holoMatchesReverse =
+        reversePrinting &&
+        holoPrintings.some(v =>
+          variantsShareMarketplaceProduct(
+            v,
+            reversePrinting
+          )
+        );
+
+      if (
+        holoMatchesReverse &&
+        !normalMatchesReverse
+      ) {
+        baseFinish = 'holo';
+      } else if (
+        normalMatchesReverse &&
+        !holoMatchesReverse
+      ) {
+        baseFinish = 'normal';
+      } else {
+        // Preserve the previous behaviour when the marketplace evidence
+        // cannot distinguish the two physical printings.
+        baseFinish = 'normal';
+      }
+    }
+
+    const standard =
+      Boolean(baseFinish);
+
+    const reverseHolo =
+      hasReverse;
+
+    // If both Normal and Holo exist, whichever is not the selected base
+    // is represented by Other Variant. Other unusual physical printings
+    // also remain grouped under Other Variant.
     const other =
       unusualPrintings.length > 0 ||
       (hasNormal && hasHolo);
-
-    // Retain the physical base finish as metadata for pricing.
-    // Normal is preferred when both normal and holo are explicitly present;
-    // otherwise Holo is the base when it is the only base-style printing.
-    const baseFinish =
-      hasNormal
-        ? 'normal'
-        : hasHolo
-          ? 'holo'
-          : null;
 
     return {
       standard,
       reverseHolo,
       other,
       baseFinish,
-      source: 'canonical-base-variant-model'
+      source:
+        hasNormal && hasHolo
+          ? 'canonical-marketplace-base-model'
+          : 'canonical-base-variant-model'
     };
   }
 
@@ -3467,7 +3544,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
 }
 
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v12_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v13_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -4051,7 +4128,7 @@ async function renderTcgSets() {
   let totalCount = Number(set.printedTotal) || 0;
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v12_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v13_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -4358,7 +4435,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v12_${setId}`
+        `pokeroulette_set_cards_v13_${setId}`
       );
     } catch (error) {
       console.warn(

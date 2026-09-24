@@ -3106,6 +3106,78 @@ function hasUsableTcgDexPriceBucket(bucket) {
   );
 }
 
+// Curated physical-printing supplements.
+//
+// This layer is intentionally additive and narrowly scoped. It exists for
+// cards where the live TCGdex record is known to omit or misclassify a
+// physical printing. Cards not listed here continue through the v15 logic
+// unchanged.
+const CARD_VARIANT_SUPPLEMENTS = Object.freeze({
+  'xy12-1': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false
+  }),
+
+  'xy12-3': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true
+  })
+});
+
+function getCardVariantSupplement(card) {
+  const cardId =
+    String(card?.id || '')
+      .trim()
+      .toLowerCase();
+
+  return (
+    CARD_VARIANT_SUPPLEMENTS[cardId] ||
+    null
+  );
+}
+
+function applyCardVariantSupplement(card, evidence) {
+  const supplement =
+    getCardVariantSupplement(card);
+
+  if (!supplement) {
+    return evidence;
+  }
+
+  const next = {
+    ...evidence
+  };
+
+  if (
+    supplement.baseFinish === 'normal' ||
+    supplement.baseFinish === 'holo'
+  ) {
+    next.baseFinish =
+      supplement.baseFinish;
+
+    next.standard = true;
+  }
+
+  if (
+    typeof supplement.reverseHolo === 'boolean'
+  ) {
+    next.reverseHolo =
+      supplement.reverseHolo;
+  }
+
+  if (
+    typeof supplement.other === 'boolean'
+  ) {
+    next.other =
+      supplement.other;
+  }
+
+  next.source =
+    `${evidence?.source || 'variant-model'}+supplement`;
+
+  return next;
+}
+
 function getTcgDexVariantThirdPartyId(variant, provider) {
   const value = variant?.thirdParty?.[provider];
 
@@ -3536,7 +3608,10 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
 
         const dexCard = await res.json();
         const finishEvidence =
-          getTcgDexFinishEvidence(dexCard);
+              applyCardVariantSupplement(
+                dexCard,
+                getTcgDexFinishEvidence(dexCard)
+              );
 
         console.log('[TCGdex Variant]', {
           card: card.name,
@@ -3582,7 +3657,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
 }
 
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v15_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v16_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -4166,7 +4241,7 @@ async function renderTcgSets() {
   let totalCount = Number(set.printedTotal) || 0;
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v15_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v16_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -4473,7 +4548,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v15_${setId}`
+        `pokeroulette_set_cards_v16_${setId}`
       );
     } catch (error) {
       console.warn(

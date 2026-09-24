@@ -3115,12 +3115,650 @@ function hasUsableTcgDexPriceBucket(bucket) {
 const CARD_VARIANT_SUPPLEMENTS = Object.freeze({
   'xy12-1': Object.freeze({
     baseFinish: 'holo',
-    reverseHolo: false
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-2': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
   }),
 
   'xy12-3': Object.freeze({
     baseFinish: 'normal',
-    reverseHolo: true
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-4': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-5': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-6': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-7': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-8': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-9': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-10': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-11': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-12': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-13': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-14': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-15': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-16': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-17': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-18': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-19': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-20': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-21': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-22': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-23': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-24': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-25': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-26': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-27': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-28': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-29': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-30': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-31': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-32': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-33': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-34': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-35': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-36': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-37': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-38': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-39': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-40': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-41': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-42': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-43': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-44': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-45': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-46': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-47': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-48': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-49': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-50': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-51': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-52': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-53': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-54': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-55': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-56': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-57': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-58': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-59': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-60': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-61': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-62': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-63': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-64': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-65': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-66': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-67': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-68': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-69': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-70': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-71': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-72': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-73': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-74': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-75': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-76': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-77': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-78': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-79': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-80': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-81': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-82': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-83': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-84': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-85': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-86': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-87': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-88': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-89': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-90': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-91': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-92': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-93': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-94': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-95': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-96': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-97': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-98': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-99': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: false
+  }),
+
+  'xy12-100': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-101': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-102': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-103': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-104': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-105': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-106': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-107': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy12-108': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
   })
 });
 
@@ -3657,7 +4295,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
 }
 
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v16_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v17_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -4241,7 +4879,7 @@ async function renderTcgSets() {
   let totalCount = Number(set.printedTotal) || 0;
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v16_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v17_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -4548,7 +5186,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v16_${setId}`
+        `pokeroulette_set_cards_v17_${setId}`
       );
     } catch (error) {
       console.warn(

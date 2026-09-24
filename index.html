@@ -3108,98 +3108,153 @@ function getTcgDexFinishEvidence(card) {
     ? card.variants_detailed
     : [];
 
-  // Strongest source: TCGdex's per-printing variant records.
-  // These distinguish normal/non-holo, holo and reverse as actual
-  // physical printings rather than inferring them from rarity.
   if (detailed.length) {
-    const standardDetailed = detailed.filter(v =>
-      v?.type === 'normal' &&
-      (!v?.size || v.size === 'standard')
+    const standard = detailed.some(v =>
+      String(v?.type || '').toLowerCase() === 'normal' &&
+      (!v?.size || String(v.size).toLowerCase() === 'standard')
     );
 
-    const holoDetailed = detailed.filter(v =>
-      v?.type === 'holo' &&
-      (!v?.size || v.size === 'standard')
+    const holo = detailed.some(v =>
+      String(v?.type || '').toLowerCase() === 'holo' &&
+      (!v?.size || String(v.size).toLowerCase() === 'standard')
     );
 
-    const reverseDetailed = detailed.filter(v =>
-      v?.type === 'reverse' &&
-      (!v?.size || v.size === 'standard')
+    const reverseHolo = detailed.some(v =>
+      String(v?.type || '').toLowerCase() === 'reverse' &&
+      (!v?.size || String(v.size).toLowerCase() === 'standard')
     );
 
-    const otherDetailed = detailed.filter(v =>
-      !['normal', 'holo', 'reverse'].includes(v?.type) ||
-      (v?.size && v.size !== 'standard') ||
-      (Array.isArray(v?.stamp) && v.stamp.length > 0) ||
-      Boolean(v?.subtype)
-    );
+    const other = detailed.some(v => {
+      const type =
+        String(v?.type || '').toLowerCase();
+
+      const size =
+        String(v?.size || 'standard').toLowerCase();
+
+      return (
+        !['normal', 'holo', 'reverse'].includes(type) ||
+        size !== 'standard' ||
+        (Array.isArray(v?.stamp) && v.stamp.length > 0) ||
+        Boolean(v?.subtype)
+      );
+    });
 
     return {
-      standard: standardDetailed.length > 0,
-      holo: holoDetailed.length > 0,
-      reverseHolo: reverseDetailed.length > 0,
-      other: otherDetailed.length > 0,
-      source: 'tcgdex-variants-detailed'
+      standard,
+      holo,
+      reverseHolo,
+      other,
+      source: 'canonical-variants-detailed'
     };
   }
 
-  const buckets =
-    getTcgDexTcgPlayerFinishBuckets(card);
+  // Only when detailed physical-printing records do not exist do we
+  // fall back to TCGdex's legacy boolean variant flags.
+  const hasLegacyVariantData =
+    typeof variants.normal === 'boolean' ||
+    typeof variants.holo === 'boolean' ||
+    typeof variants.reverse === 'boolean';
 
-  const hasStandardPrice =
-    hasUsableTcgDexPriceBucket(buckets.standard);
-
-  const hasHoloPrice =
-    hasUsableTcgDexPriceBucket(buckets.holo);
-
-  const hasReversePrice =
-    hasUsableTcgDexPriceBucket(buckets.reverse);
-
-  const hasFinishSpecificPricing =
-    hasStandardPrice ||
-    hasHoloPrice ||
-    hasReversePrice;
-
-  // Second-best source: explicit marketplace finish buckets.
-  if (hasFinishSpecificPricing) {
+  if (hasLegacyVariantData) {
     return {
-      standard: hasStandardPrice,
-      holo: hasHoloPrice,
-      reverseHolo: hasReversePrice,
+      standard: variants.normal === true,
+      holo: variants.holo === true,
+      reverseHolo: variants.reverse === true,
       other: Boolean(
         variants.firstEdition ||
         variants.preRelease ||
         variants.wPromo
       ),
-      source: 'tcgplayer-finishes'
+      source: 'tcgdex-variants'
     };
   }
 
-  // Last resort only: legacy TCGdex boolean flags.
+  // Last fallback only if TCGdex has no variant metadata at all.
   return {
-    standard: variants.normal === true,
-    holo: variants.holo === true,
-    reverseHolo: variants.reverse === true,
-    other: Boolean(
-      variants.firstEdition ||
-      variants.preRelease ||
-      variants.wPromo
-    ),
-    source: 'tcgdex-variants'
+    standard: false,
+    holo: false,
+    reverseHolo: false,
+    other: false,
+    source: 'none'
   };
 }
 
-function getTcgDexBasePriceGBP(card, finishEvidence) {
-  const buckets =
-    getTcgDexTcgPlayerFinishBuckets(card);
+function getPriceFromTcgDexVariantPricing(pricing) {
+  if (!pricing || typeof pricing !== 'object') {
+    return null;
+  }
 
+  const tcg = pricing.tcgplayer || {};
+  const cm = pricing.cardmarket || {};
+
+  const usd =
+    getNumericPrice(tcg.marketPrice) ??
+    getNumericPrice(tcg.market) ??
+    getNumericPrice(tcg.midPrice) ??
+    getNumericPrice(tcg.mid) ??
+    getNumericPrice(tcg.lowPrice) ??
+    getNumericPrice(tcg.low);
+
+  if (usd != null) {
+    return usd * USD_TO_GBP;
+  }
+
+  const eur =
+    getNumericPrice(cm.trend) ??
+    getNumericPrice(cm.avg) ??
+    getNumericPrice(cm.avg7) ??
+    getNumericPrice(cm.low) ??
+    getNumericPrice(pricing.trend) ??
+    getNumericPrice(pricing.avg) ??
+    getNumericPrice(pricing.avg7) ??
+    getNumericPrice(pricing.low);
+
+  return eur != null
+    ? eur * EUR_TO_GBP
+    : null;
+}
+
+function getTcgDexBasePriceGBP(card, finishEvidence) {
   const evidence =
     finishEvidence ||
     getTcgDexFinishEvidence(card);
 
-  // Main/base finish priority:
-  // Standard first when it genuinely exists; otherwise Holo.
-  // Reverse is deliberately never selected as the displayed base price.
+  const detailed = Array.isArray(card?.variants_detailed)
+    ? card.variants_detailed
+    : [];
+
+  if (detailed.length) {
+    // Main displayed price:
+    // use Normal when it genuinely exists; otherwise Holo.
+    // Never choose Reverse as the single displayed card price.
+    const baseType = evidence.standard
+      ? 'normal'
+      : evidence.holo
+        ? 'holo'
+        : null;
+
+    if (baseType) {
+      const baseVariant = detailed.find(v =>
+        String(v?.type || '').toLowerCase() === baseType &&
+        (!v?.size || String(v.size).toLowerCase() === 'standard')
+      );
+
+      const detailedPrice =
+        getPriceFromTcgDexVariantPricing(
+          baseVariant?.pricing
+        );
+
+      if (detailedPrice != null) {
+        return detailedPrice;
+      }
+    }
+  }
+
+  // Fallback to top-level finish-specific pricing only when the
+  // detailed variant does not carry a usable price.
+  const buckets =
+    getTcgDexTcgPlayerFinishBuckets(card);
+
   const baseBucket = evidence.standard
     ? buckets.standard
     : evidence.holo
@@ -3222,8 +3277,6 @@ function getTcgDexBasePriceGBP(card, finishEvidence) {
 
   const cm = card?.pricing?.cardmarket || {};
 
-  // Cardmarket fallback for the main finish only.
-  // TCGdex exposes separate non-foil and foil values.
   const eur = evidence.holo && !evidence.standard
     ? (
         getNumericPrice(cm['trend-holo']) ??
@@ -3321,8 +3374,11 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
 
         if (!localId) return card;
 
+        const tcgDexCardId =
+          `${dexSet.id}-${localId}`;
+
         const res = await fetch(
-          `https://api.tcgdex.net/v2/en/sets/${encodeURIComponent(dexSet.id)}/${encodeURIComponent(localId)}`
+          `https://api.tcgdex.net/v2/en/cards/${encodeURIComponent(tcgDexCardId)}`
         );
 
         if (!res.ok) {
@@ -3332,6 +3388,14 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
         const dexCard = await res.json();
         const finishEvidence =
           getTcgDexFinishEvidence(dexCard);
+
+        console.log('[TCGdex Variant]', {
+          card: card.name,
+          cardId: dexCard.id,
+          variants: dexCard.variants,
+          variantsDetailed: dexCard.variants_detailed,
+          resolved: finishEvidence
+        });
 
         const variants = {
           standard: finishEvidence.standard,
@@ -3369,7 +3433,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
 }
 
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v8_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v9_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -3953,7 +4017,7 @@ async function renderTcgSets() {
   let totalCount = Number(set.printedTotal) || 0;
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v8_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v9_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -4260,7 +4324,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v8_${setId}`
+        `pokeroulette_set_cards_v9_${setId}`
       );
     } catch (error) {
       console.warn(

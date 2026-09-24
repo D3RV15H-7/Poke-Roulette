@@ -3036,29 +3036,85 @@ function inferSetCardVariantsFromPokemonTcg(card) {
   const tcgPrices = card?.tcgplayer?.prices || {};
   const cmPrices = card?.cardmarket?.prices || {};
 
+  const hasNormal = Boolean(
+    tcgPrices.normal ||
+    tcgPrices['1stEditionNormal']
+  );
+
+  const hasHolo = Boolean(
+    tcgPrices.holofoil ||
+    tcgPrices['1stEditionHolofoil'] ||
+    tcgPrices.unlimitedHolofoil
+  );
+
+  const hasReverse = Boolean(
+    tcgPrices.reverseHolofoil ||
+    cmPrices.reverseHoloSell ||
+    cmPrices.reverseHoloLow ||
+    cmPrices.reverseHoloTrend ||
+    cmPrices.reverseHoloAvg1 ||
+    cmPrices.reverseHoloAvg7 ||
+    cmPrices.reverseHoloAvg30
+  );
+
   return {
-    standard: Boolean(
-      tcgPrices.normal ||
-      tcgPrices['1stEditionNormal']
-    ),
-    holo: Boolean(
-      tcgPrices.holofoil ||
-      tcgPrices['1stEditionHolofoil'] ||
-      tcgPrices.unlimitedHolofoil
-    ),
-    reverseHolo: Boolean(
-      tcgPrices.reverseHolofoil ||
-      cmPrices.reverseHoloSell ||
-      cmPrices.reverseHoloLow ||
-      cmPrices.reverseHoloTrend ||
-      cmPrices.reverseHoloAvg1 ||
-      cmPrices.reverseHoloAvg7 ||
-      cmPrices.reverseHoloAvg30
-    ),
+    // PokéRoulette's `standard` key means the card's main/base printing slot.
+    // The visible label is decided by baseFinish (Standard or Holo).
+    standard: hasNormal || hasHolo,
+    holo: hasHolo,
+    reverseHolo: hasReverse,
     other: Boolean(
       tcgPrices['1stEditionHolofoil'] ||
       tcgPrices['1stEditionNormal']
-    )
+    ),
+    baseFinish:
+      hasHolo && !hasNormal
+        ? 'holo'
+        : hasNormal && !hasHolo
+          ? 'normal'
+          : null,
+    hasNormal,
+    hasHolo,
+    source: 'pokemontcg-tcgplayer-evidence'
+  };
+}
+
+// v18 evidence fusion: use the Pokémon TCG/TCGplayer printing buckets when
+// they unambiguously identify the base finish, while retaining TCGdex's richer
+// physical-printing model for ambiguous/special cases. Curated supplements are
+// applied afterwards, so our regression-tested exceptions remain authoritative.
+function mergePhysicalVariantEvidence(sourceEvidence, dexEvidence) {
+  const source = sourceEvidence || {};
+  const dex = dexEvidence || {};
+
+  const sourceBase =
+    source.baseFinish === 'normal' || source.baseFinish === 'holo'
+      ? source.baseFinish
+      : null;
+
+  const dexBase =
+    dex.baseFinish === 'normal' || dex.baseFinish === 'holo'
+      ? dex.baseFinish
+      : null;
+
+  const baseFinish = sourceBase || dexBase;
+
+  return {
+    standard: Boolean(
+      baseFinish ||
+      source.standard ||
+      dex.standard
+    ),
+    reverseHolo: Boolean(
+      source.reverseHolo ||
+      dex.reverseHolo
+    ),
+    other: Boolean(
+      source.other ||
+      dex.other
+    ),
+    baseFinish,
+    source: `v18-fusion:${source.source || 'none'}+${dex.source || 'none'}`
   };
 }
 
@@ -3110,7 +3166,7 @@ function hasUsableTcgDexPriceBucket(bucket) {
 //
 // This layer is intentionally additive and narrowly scoped. It exists for
 // cards where the live TCGdex record is known to omit or misclassify a
-// physical printing. Cards not listed here continue through the v15 logic
+// physical printing. Cards not listed here continue through the v18 evidence-fusion logic
 // unchanged.
 const CARD_VARIANT_SUPPLEMENTS = Object.freeze({
   'xy12-1': Object.freeze({
@@ -4245,11 +4301,29 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
 
 
         const dexCard = await res.json();
+
+        const sourceEvidence = {
+          standard: Boolean(card?.variants?.standard),
+          reverseHolo: Boolean(card?.variants?.reverseHolo),
+          other: Boolean(card?.variants?.other),
+          baseFinish:
+            card?.baseFinish === 'normal' || card?.baseFinish === 'holo'
+              ? card.baseFinish
+              : null,
+          source: 'pokemontcg-tcgplayer-evidence'
+        };
+
+        const fusedEvidence =
+          mergePhysicalVariantEvidence(
+            sourceEvidence,
+            getTcgDexFinishEvidence(dexCard)
+          );
+
         const finishEvidence =
-              applyCardVariantSupplement(
-                dexCard,
-                getTcgDexFinishEvidence(dexCard)
-              );
+          applyCardVariantSupplement(
+            dexCard,
+            fusedEvidence
+          );
 
         console.log('[TCGdex Variant]', {
           card: card.name,
@@ -4295,7 +4369,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
 }
 
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v17_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v18_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -4419,7 +4493,10 @@ async function fetchCardsForSet(setId, forceRefresh = false) {
 priceGBP:
   extractCardPriceGBP(card),
 
-variants: inferSetCardVariantsFromPokemonTcg(card)
+variants: inferSetCardVariantsFromPokemonTcg(card),
+
+baseFinish:
+  inferSetCardVariantsFromPokemonTcg(card).baseFinish
       }));
 
     if (!formatted.length) {
@@ -4879,7 +4956,7 @@ async function renderTcgSets() {
   let totalCount = Number(set.printedTotal) || 0;
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v17_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v18_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -5186,7 +5263,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v17_${setId}`
+        `pokeroulette_set_cards_v18_${setId}`
       );
     } catch (error) {
       console.warn(

@@ -3028,7 +3028,7 @@ function getPokemonIdFromCardName(cardName) {
 }
   
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v2_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v3_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -3152,25 +3152,41 @@ async function fetchCardsForSet(setId, forceRefresh = false) {
 priceGBP:
   extractCardPriceGBP(card),
 
-variants: {
-  standard: Boolean(
-    card.tcgplayer?.prices?.normal
-  ),
+variants: (() => {
+  const tcgPrices = card.tcgplayer?.prices || {};
+  const cmPrices = card.cardmarket?.prices || {};
 
-  holo: Boolean(
-    card.tcgplayer?.prices?.holofoil
-  ),
+  return {
+    standard: Boolean(
+      tcgPrices.normal ||
+      tcgPrices['1stEditionNormal'] ||
+      cmPrices.averageSellPrice ||
+      cmPrices.lowPrice ||
+      cmPrices.trendPrice
+    ),
 
-  reverseHolo: Boolean(
-    card.tcgplayer?.prices?.reverseHolofoil
-  ),
+    holo: Boolean(
+      tcgPrices.holofoil ||
+      tcgPrices['1stEditionHolofoil'] ||
+      tcgPrices.unlimitedHolofoil
+    ),
 
-  other: Boolean(
-    card.tcgplayer?.prices?.['1stEditionHolofoil'] ||
-    card.tcgplayer?.prices?.['1stEditionNormal'] ||
-    card.tcgplayer?.prices?.unlimitedHolofoil
-  )
-}
+    reverseHolo: Boolean(
+      tcgPrices.reverseHolofoil ||
+      cmPrices.reverseHoloSell ||
+      cmPrices.reverseHoloLow ||
+      cmPrices.reverseHoloTrend ||
+      cmPrices.reverseHoloAvg1 ||
+      cmPrices.reverseHoloAvg7 ||
+      cmPrices.reverseHoloAvg30
+    ),
+
+    other: Boolean(
+      tcgPrices['1stEditionHolofoil'] ||
+      tcgPrices['1stEditionNormal']
+    )
+  };
+})()
       }));
 
     if (!formatted.length) {
@@ -3622,7 +3638,7 @@ async function renderTcgSets() {
   let totalCount = Number(set.printedTotal) || 0;
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v2_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v3_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -3929,7 +3945,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v1_${setId}`
+        `pokeroulette_set_cards_v3_${setId}`
       );
     } catch (error) {
       console.warn(

@@ -3169,6 +3169,19 @@ function hasUsableTcgDexPriceBucket(bucket) {
 // physical printing. Cards not listed here continue through the v18 evidence-fusion logic
 // unchanged.
 const CARD_VARIANT_SUPPLEMENTS = Object.freeze({
+  // Roaring Skies verified physical printings.
+  'xy6-16': Object.freeze({
+    baseFinish: 'normal',
+    reverseHolo: true,
+    other: true
+  }),
+
+  'xy6-26': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
   'xy12-1': Object.freeze({
     baseFinish: 'holo',
     reverseHolo: false,
@@ -4369,7 +4382,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
 }
 
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v18_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v18_1_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -4457,7 +4470,13 @@ async function fetchCardsForSet(setId, forceRefresh = false) {
           card.images?.large
         )
       )
-      .map(card => ({
+      .map(card => {
+        // v18.1: calculate source finish evidence while the raw
+        // tcgplayer/cardmarket fields are still present.
+        const sourceVariantEvidence =
+          inferSetCardVariantsFromPokemonTcg(card);
+
+        return {
         id: card.id,
 
         name: card.name || 'Unknown',
@@ -4493,11 +4512,12 @@ async function fetchCardsForSet(setId, forceRefresh = false) {
 priceGBP:
   extractCardPriceGBP(card),
 
-variants: inferSetCardVariantsFromPokemonTcg(card),
+variants: sourceVariantEvidence,
 
 baseFinish:
-  inferSetCardVariantsFromPokemonTcg(card).baseFinish
-      }));
+  sourceVariantEvidence.baseFinish
+        };
+      });
 
     if (!formatted.length) {
       throw new Error(
@@ -4956,7 +4976,7 @@ async function renderTcgSets() {
   let totalCount = Number(set.printedTotal) || 0;
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v18_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v18_1_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -5263,7 +5283,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v18_${setId}`
+        `pokeroulette_set_cards_v18_1_${setId}`
       );
     } catch (error) {
       console.warn(

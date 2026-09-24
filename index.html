@@ -3027,8 +3027,91 @@ function getPokemonIdFromCardName(cardName) {
   return match ? match.id : null;
 }
   
+
+function inferSetCardVariants(card) {
+  const tcgPrices = card?.tcgplayer?.prices || {};
+  const cmPrices = card?.cardmarket?.prices || {};
+  const rarity = String(card?.rarity || '').toLowerCase().trim();
+  const setName = String(card?.set?.name || '').toLowerCase().trim();
+  const setId = String(card?.set?.id || '').toLowerCase().trim();
+  const name = String(card?.name || '').toLowerCase().trim();
+  const subtypes = Array.isArray(card?.subtypes)
+    ? card.subtypes.map(value => String(value).toLowerCase())
+    : [];
+
+  const hasExLikeSubtype = subtypes.some(value =>
+    ['ex', 'gx', 'v', 'vmax', 'vstar', 'break', 'mega'].includes(value)
+  );
+
+  const isSpecialRarity =
+    /illustration|special illustration|ultra|secret|rainbow|shiny|amazing|ace|double rare|hyper rare|black white rare/.test(rarity) ||
+    hasExLikeSubtype ||
+    /\bex\b/.test(name);
+
+  let standard = Boolean(
+    tcgPrices.normal ||
+    tcgPrices['1stEditionNormal'] ||
+    cmPrices.averageSellPrice ||
+    cmPrices.lowPrice ||
+    cmPrices.trendPrice
+  );
+
+  let holo = Boolean(
+    tcgPrices.holofoil ||
+    tcgPrices['1stEditionHolofoil'] ||
+    tcgPrices.unlimitedHolofoil
+  );
+
+  let reverseHolo = Boolean(
+    tcgPrices.reverseHolofoil ||
+    cmPrices.reverseHoloSell ||
+    cmPrices.reverseHoloLow ||
+    cmPrices.reverseHoloTrend ||
+    cmPrices.reverseHoloAvg1 ||
+    cmPrices.reverseHoloAvg7 ||
+    cmPrices.reverseHoloAvg30
+  );
+
+  const other = Boolean(
+    tcgPrices['1stEditionHolofoil'] ||
+    tcgPrices['1stEditionNormal']
+  );
+
+  // Published Pitch Black checklist fallback:
+  // Common/Uncommon = Standard + Reverse Holo.
+  // Rare/Rare Holo = Holo + Reverse Holo.
+  const isPitchBlack =
+    setName.includes('pitch black') ||
+    setId.includes('me05');
+
+  if (isPitchBlack && !isSpecialRarity) {
+    if (rarity === 'common' || rarity === 'uncommon') {
+      standard = true;
+      reverseHolo = true;
+    } else if (
+      rarity === 'rare' ||
+      rarity === 'rare holo' ||
+      rarity.includes('rare holo')
+    ) {
+      standard = false;
+      holo = true;
+      reverseHolo = true;
+    }
+  }
+
+  if (rarity.includes('holo')) {
+    holo = true;
+  }
+
+  if (!standard && !holo && !reverseHolo && !other) {
+    standard = true;
+  }
+
+  return { standard, holo, reverseHolo, other };
+}
+
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v3_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v4_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -3152,41 +3235,7 @@ async function fetchCardsForSet(setId, forceRefresh = false) {
 priceGBP:
   extractCardPriceGBP(card),
 
-variants: (() => {
-  const tcgPrices = card.tcgplayer?.prices || {};
-  const cmPrices = card.cardmarket?.prices || {};
-
-  return {
-    standard: Boolean(
-      tcgPrices.normal ||
-      tcgPrices['1stEditionNormal'] ||
-      cmPrices.averageSellPrice ||
-      cmPrices.lowPrice ||
-      cmPrices.trendPrice
-    ),
-
-    holo: Boolean(
-      tcgPrices.holofoil ||
-      tcgPrices['1stEditionHolofoil'] ||
-      tcgPrices.unlimitedHolofoil
-    ),
-
-    reverseHolo: Boolean(
-      tcgPrices.reverseHolofoil ||
-      cmPrices.reverseHoloSell ||
-      cmPrices.reverseHoloLow ||
-      cmPrices.reverseHoloTrend ||
-      cmPrices.reverseHoloAvg1 ||
-      cmPrices.reverseHoloAvg7 ||
-      cmPrices.reverseHoloAvg30
-    ),
-
-    other: Boolean(
-      tcgPrices['1stEditionHolofoil'] ||
-      tcgPrices['1stEditionNormal']
-    )
-  };
-})()
+variants: inferSetCardVariants(card)
       }));
 
     if (!formatted.length) {
@@ -3638,7 +3687,7 @@ async function renderTcgSets() {
   let totalCount = Number(set.printedTotal) || 0;
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v3_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v4_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -3945,7 +3994,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v3_${setId}`
+        `pokeroulette_set_cards_v4_${setId}`
       );
     } catch (error) {
       console.warn(

@@ -2917,7 +2917,7 @@ let activeTcgSet = null;
 });
   
 async function fetchPhysicalTcgSets(forceRefresh = false) {
-  const CACHE_KEY = 'pokeroulette_tcg_sets_v2_yellow_a';
+  const CACHE_KEY = 'pokeroulette_tcg_sets_v3_yellow_a_logo';
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // 1. Use memory cache first
@@ -5290,8 +5290,8 @@ if (totalCount > 0 && collectedCount >= totalCount) {
    
   item.innerHTML = `
     ${
-      set.logo
-        ? `<img class="tcg-set-logo" src="${set.logo}" alt="${set.name}">`
+      (set.id === YELLOW_A_SET_ID ? YELLOW_A_VIRTUAL_SET.logo : set.logo)
+        ? `<img class="tcg-set-logo" src="${set.id === YELLOW_A_SET_ID ? YELLOW_A_VIRTUAL_SET.logo : set.logo}" alt="${set.name}">`
         : ''
     }
 

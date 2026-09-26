@@ -1819,6 +1819,47 @@ body.has-active .hub-item-label {
 .tcg-set-search-input::placeholder{color:#8190a7;}
 .tcg-set-search-input:focus{border-color:#20c997;box-shadow:0 0 0 2px rgba(32,201,151,.14);}
 .tcg-set-search-empty{padding:24px 12px;text-align:center;color:#94a3b8;font-weight:700;}
+
+.tcg-zoom-variants{
+  width:min(100%,320px);
+  background:#0f172a;
+  border:1px solid #334155;
+  border-radius:12px;
+  padding:0.35rem 0.55rem;
+  margin:0.1rem 0;
+}
+.tcg-zoom-variant-option{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:0.75rem;
+  padding:0.42rem 0.15rem;
+  color:var(--sub);
+  font-size:0.76rem;
+  font-weight:800;
+  cursor:pointer;
+}
+.tcg-zoom-variant-option + .tcg-zoom-variant-option{
+  border-top:1px solid #263247;
+}
+.tcg-zoom-variant-circle{
+  width:21px;
+  height:21px;
+  border-radius:50%;
+  border:2px solid #94a3b8;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:transparent;
+  flex-shrink:0;
+}
+.tcg-zoom-variant-circle.checked{
+  background:var(--green);
+  border-color:var(--green);
+  color:#fff;
+}
+
 </style>
 </head>
 <body>
@@ -1973,6 +2014,7 @@ body.has-active .hub-item-label {
     </div>
     <div class="tcg-zoom-title" id="tcgZoomTitle">Card Title</div>
     <div class="tcg-zoom-meta" id="tcgZoomMeta">Set · Number</div>
+    <div class="tcg-zoom-variants" id="tcgZoomVariants" style="display:none;"></div>
     <div class="tcg-zoom-price-row" id="tcgZoomPrice">
       <span>Est. Value:</span> <strong id="tcgZoomPriceVal">£--.--</strong>
     </div>
@@ -6979,6 +7021,40 @@ function updateZoomModalContent() {
   
   const zoomCheckCircle = document.getElementById('zoomCheckCircle');
   const zoomContainer = document.getElementById('zoomContainer');
+  const zoomVariants = document.getElementById('tcgZoomVariants');
+
+  if (zoomVariants) {
+    if (activeTcgSet) {
+      zoomVariants.style.display = 'block';
+      zoomVariants.innerHTML = getAvailableSetCardVariants(card)
+        .map(({ key, label }) => `
+          <div class="tcg-zoom-variant-option" data-variant="${key}">
+            <span>${label}</span>
+            <span class="tcg-zoom-variant-circle ${
+              isSetCardVariantOwned(card, key) ? 'checked' : ''
+            }">✓</span>
+          </div>
+        `)
+        .join('');
+
+      zoomVariants
+        .querySelectorAll('.tcg-zoom-variant-option')
+        .forEach(option => {
+          option.onclick = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+
+            toggleSetCardVariant(card, option.dataset.variant);
+            updateZoomModalContent();
+            renderCurrentSetCards();
+          };
+        });
+    } else {
+      zoomVariants.style.display = 'none';
+      zoomVariants.innerHTML = '';
+    }
+  }
+
   const isOwned = activeTcgSet
   ? isSetCardCollected(card)
   : isCardCollected(card);
@@ -7002,10 +7078,29 @@ function toggleZoomCardOwned(e) {
   // SETS COLLECTION
   // ==============================
   if (activeTcgSet) {
-    toggleSetCardCollection(card);
+    const availableVariants =
+      getAvailableSetCardVariants(card);
 
-    updateZoomModalContent();
-    renderCurrentSetCards();
+    if (availableVariants.length === 1) {
+      toggleSetCardVariant(
+        card,
+        availableVariants[0].key
+      );
+
+      updateZoomModalContent();
+      renderCurrentSetCards();
+      return;
+    }
+
+    const zoomVariants =
+      document.getElementById('tcgZoomVariants');
+
+    if (zoomVariants) {
+      zoomVariants.style.display = 'block';
+      const firstOption =
+        zoomVariants.querySelector('.tcg-zoom-variant-option');
+      if (firstOption) firstOption.focus?.();
+    }
 
     return;
   }

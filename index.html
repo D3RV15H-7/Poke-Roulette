@@ -2847,6 +2847,55 @@ async function fetchWithRetry(url, options = {}, retries = 2) {
 
   throw lastError || new Error('Request failed');
 }
+
+// v18.7 — Yellow A Alternate cards are a real cross-expansion release group.
+// The source API files these cards under their original expansion because they
+// retain that expansion symbol/number. PokéRoulette exposes them as one
+// dedicated 79-card collection and removes them from those source-set views.
+const YELLOW_A_SET_ID = 'yellow-a-alternate';
+const YELLOW_A_CARD_IDS = Object.freeze([
+  'xyp-xy67a','xyp-xy150a','xyp-xy177a','xyp-xy198a','xyp-xy200a',
+  'xy2-88a','xy3-55a','xy4-24a','xy4-65a','xy6-77a','xy6-92a',
+  'xy7-75a','xy8-146a','xy9-98a','xy9-98b','xy9-107a',
+  'g1-28a','g1-73a','xy10-43a','xy10-54a','xy10-105a','xy10-111a',
+  'smp-sm30a','smp-sm103a','smp-sm104a','sm1-101a',
+  'sm2-19a','sm2-21a','sm2-51a','sm2-60a','sm2-92a','sm2-121a',
+  'sm2-124a','sm2-125a','sm2-128a','sm2-130a','sm2-157a',
+  'sm3-18a','sm3-39a','sm3-88a','sm3-92a','sm3-105a','sm3-112a',
+  'sm3-115a','sm3-116a','sm35-10a','sm35-68a','sm35-77a',
+  'sm4-63a','sm4-84a','sm5-119a','sm5-122a','sm5-125a','sm5-135a',
+  'sm5-153a','sm6-2a','sm6-102a','sm6-112a','sm6-113a',
+  'sm7-10a','sm7-123a','sm7-148a','sm7-177a','sm75-40a','sm75-60a',
+  'sm8-172a','sm8-187a','sm8-188a','sm8-189a',
+  'sm9-152a','sm9-152b','sm10-182a','sm10-182b','sm10-189a','sm10-195a',
+  'sm11-79a','sm11-191a','sm11-206a','sm12-143a'
+].map(id => id.toLowerCase()));
+
+const YELLOW_A_CARD_ID_SET = new Set(YELLOW_A_CARD_IDS);
+
+const YELLOW_A_VIRTUAL_SET = Object.freeze({
+  id: YELLOW_A_SET_ID,
+  name: 'Yellow A Alternate',
+  series: 'Alternate Promos',
+  printedTotal: 79,
+  total: 79,
+  releaseDate: '2017/05/19',
+  symbol: '',
+  logo: '',
+  virtualSet: 'yellow-a'
+});
+
+function isYellowAAlternateCard(cardOrId) {
+  const id =
+    typeof cardOrId === 'string'
+      ? cardOrId
+      : cardOrId?.id;
+
+  return YELLOW_A_CARD_ID_SET.has(
+    String(id || '').trim().toLowerCase()
+  );
+}
+
 let tcgSetsCache = null;
 let activeTcgSet = null;
   let activeTcgSetFilter = 'all';
@@ -2868,7 +2917,7 @@ let activeTcgSet = null;
 });
   
 async function fetchPhysicalTcgSets(forceRefresh = false) {
-  const CACHE_KEY = 'pokeroulette_tcg_sets_v1';
+  const CACHE_KEY = 'pokeroulette_tcg_sets_v2_yellow_a';
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // 1. Use memory cache first
@@ -2942,6 +2991,13 @@ async function fetchPhysicalTcgSets(forceRefresh = false) {
           String(a.releaseDate)
         )
       );
+
+    // The API does not expose Yellow A as a standalone set even though it is
+    // collected as a 79-card release group, so add that release explicitly.
+    physicalSets.push({ ...YELLOW_A_VIRTUAL_SET });
+    physicalSets.sort((a, b) =>
+      String(b.releaseDate).localeCompare(String(a.releaseDate))
+    );
 
     if (!physicalSets.length) {
       throw new Error(
@@ -3212,9 +3268,7 @@ const CARD_AUXILIARY_PRINTINGS = Object.freeze({
   'xy6-52': Object.freeze(['non-holo-theme-deck', 'cosmos-holo-blister']),
   'xy6-57': Object.freeze(['non-holo-theme-deck', 'cosmos-holo-blister']),
   'xy6-67': Object.freeze(['build-a-bear-stamp']),
-  'xy6-72': Object.freeze(['non-holo-theme-deck']),
-  'xy6-77a': Object.freeze(['alternate-art']),
-  'xy6-92a': Object.freeze(['alternate-art-sheen-holo', 'alternate-art-non-holo'])
+  'xy6-72': Object.freeze(['non-holo-theme-deck'])
 });
 
 function getCardAuxiliaryPrintings(card) {
@@ -4439,8 +4493,182 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
   return enriched;
 }
 
+
+async function fetchYellowAAlternateCards(forceRefresh = false) {
+  const CACHE_KEY = 'pokeroulette_set_cards_v18_7_yellow-a-alternate';
+  const CACHE_TIME = 24 * 60 * 60 * 1000;
+
+  if (!window.tcgSetCardsCache) {
+    window.tcgSetCardsCache = {};
+  }
+
+  if (window.tcgSetCardsCache[YELLOW_A_SET_ID] && !forceRefresh) {
+    return window.tcgSetCardsCache[YELLOW_A_SET_ID];
+  }
+
+  if (!forceRefresh) {
+    try {
+      const cached = JSON.parse(localStorage.getItem(CACHE_KEY));
+      if (
+        cached &&
+        Array.isArray(cached.data) &&
+        cached.data.length === YELLOW_A_CARD_IDS.length &&
+        Date.now() - cached.savedAt < CACHE_TIME
+      ) {
+        window.tcgSetCardsCache[YELLOW_A_SET_ID] = cached.data;
+        return cached.data;
+      }
+    } catch (error) {}
+  }
+
+  const headers = {};
+  if (POKEMON_TCG_API_KEY) {
+    headers['X-Api-Key'] = POKEMON_TCG_API_KEY;
+  }
+
+  const rawCards = [];
+
+  // Keep the query comfortably below Lucene clause/URL limits.
+  for (let i = 0; i < YELLOW_A_CARD_IDS.length; i += 24) {
+    const ids = YELLOW_A_CARD_IDS.slice(i, i + 24);
+    const query = ids.map(id => `id:${id}`).join(' OR ');
+    const url =
+      `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}&pageSize=250`;
+
+    const response = await fetchWithRetry(url, { headers }, 2);
+    const json = await response.json();
+
+    if (Array.isArray(json?.data)) {
+      rawCards.push(...json.data);
+    }
+  }
+
+  const unique = new Map();
+  rawCards.forEach(card => {
+    const id = String(card?.id || '').toLowerCase();
+    if (YELLOW_A_CARD_ID_SET.has(id)) {
+      unique.set(id, card);
+    }
+  });
+
+  let formatted = Array.from(unique.values())
+    .filter(card => !isDigitalOnlyCard(card))
+    .filter(card =>
+      isValidFrontCardImage(card.images?.small || card.images?.large)
+    )
+    .map(card => {
+      const sourceVariantEvidence =
+        inferSetCardVariantsFromPokemonTcg(card);
+
+      return {
+        id: card.id,
+        name: card.name || 'Unknown',
+        pokemonId: getPokemonIdFromCardName(card.name),
+        smallImg: card.images?.small || card.images?.large || '',
+        largeImg: card.images?.large || card.images?.small || '',
+        setName: YELLOW_A_VIRTUAL_SET.name,
+        sourceSetName: card.set?.name || '',
+        number: normalizeCardNumber(card.number),
+        rarity: card.rarity || 'Promo',
+        rarityScore:
+          typeof getRarityScore === 'function'
+            ? getRarityScore(card.rarity)
+            : 0,
+        priceGBP: extractCardPriceGBP(card),
+        variants: sourceVariantEvidence,
+        baseFinish: sourceVariantEvidence.baseFinish
+      };
+    });
+
+  // These are separate alternate-art printings, not variants of the original
+  // numbered cards. Run normal finish enrichment on each alternate printing.
+  formatted = await Promise.all(
+    formatted.map(async card => {
+      try {
+        const dexSet = await findTcgDexSetForPokemonTcgSet(
+          String(card.id).split('-').slice(0, -1).join('-'),
+          card.sourceSetName
+        );
+        if (!dexSet) return card;
+
+        const suffix = String(card.id).split('-').pop();
+        const candidates = [
+          `${dexSet.id}-${suffix}`,
+          `${dexSet.id}-${String(suffix).padStart(3, '0')}`
+        ];
+
+        let dexCard = null;
+        for (const candidate of candidates) {
+          try {
+            const response = await fetchWithRetry(
+              `https://api.tcgdex.net/v2/en/cards/${encodeURIComponent(candidate)}`,
+              {},
+              1
+            );
+            if (response.ok) {
+              dexCard = await response.json();
+              if (dexCard) break;
+            }
+          } catch (error) {}
+        }
+
+        if (!dexCard) return card;
+
+        const fused = mergePhysicalVariantEvidence(
+          card.variants,
+          getTcgDexFinishEvidence(dexCard),
+          dexCard
+        );
+
+        return {
+          ...card,
+          variants: {
+            standard: fused.standard !== false,
+            reverseHolo: Boolean(fused.reverseHolo),
+            other: false
+          },
+          baseFinish: fused.baseFinish,
+          priceGBP:
+            getTcgDexBasePriceGBP(dexCard, fused) ??
+            card.priceGBP
+        };
+      } catch (error) {
+        return card;
+      }
+    })
+  );
+
+  // Yellow A is a release checklist, so preserve its cross-expansion collector
+  // numbering rather than pretending it is one conventional numbered set.
+  formatted.sort((a, b) =>
+    String(a.number).localeCompare(String(b.number), undefined, {
+      numeric: true,
+      sensitivity: 'base'
+    })
+  );
+
+  window.tcgSetCardsCache[YELLOW_A_SET_ID] = formatted;
+
+  try {
+    localStorage.setItem(
+      CACHE_KEY,
+      JSON.stringify({ savedAt: Date.now(), data: formatted })
+    );
+  } catch (error) {}
+
+  console.log(
+    `[SETS] Yellow A loaded ${formatted.length}/${YELLOW_A_CARD_IDS.length} cards`
+  );
+
+  return formatted;
+}
+
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v18_6_${setId}`;
+  if (setId === YELLOW_A_SET_ID) {
+    return fetchYellowAAlternateCards(forceRefresh);
+  }
+
+  const CACHE_KEY = `pokeroulette_set_cards_v18_7_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -4522,6 +4750,7 @@ async function fetchCardsForSet(setId, forceRefresh = false) {
 
     let formatted = cards
       .filter(card => !isDigitalOnlyCard(card))
+      .filter(card => !isYellowAAlternateCard(card))
       .filter(card =>
         isValidFrontCardImage(
           card.images?.small ||
@@ -5034,7 +5263,7 @@ async function renderTcgSets() {
   let totalCount = Number(set.printedTotal) || 0;
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v18_6_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v18_7_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -5341,7 +5570,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v18_6_${setId}`
+        `pokeroulette_set_cards_v18_7_${setId}`
       );
     } catch (error) {
       console.warn(

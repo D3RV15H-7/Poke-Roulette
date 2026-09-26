@@ -5786,7 +5786,7 @@ function renderDexCardsGrid(cardsList) {
       <div class="tcg-thumb-frame ${isOwnedCard ? 'card-owned' : ''}" id="modal_frame_${card.id}">
         <div class="card-check-circle ${isOwnedCard ? 'checked' : ''}" id="modal_chk_${card.id}">✓</div>
         <img class="tcg-card-thumb" src="${card.smallImg}" loading="lazy" alt="${card.name}" onerror="this.closest('.dex-card-thumb-cell')?.remove()" />
-        ${card.priceGBP ? `<div class="tcg-card-price-badge">£${card.priceGBP}</div>` : ''}
+        ${card.priceGBP ? `<div class="tcg-card-price-badge">£${Number(card.priceGBP).toFixed(2)}</div>` : ''}
       </div>
       <div class="dex-cell-set" title="${card.setName}">${card.setName}</div>
       <div class="dex-cell-num">#${card.number}</div>
@@ -6971,7 +6971,7 @@ function renderTcgCards(cards) {
         <div class="tcg-thumb-frame ${isOwnedCard ? 'card-owned' : ''}">
           <div class="card-check-circle ${isOwnedCard ? 'checked' : ''}" id="strip_chk_${card.id}">✓</div>
           <img class="tcg-card-thumb" src="${card.smallImg}" loading="lazy" alt="${card.name}" onerror="this.closest('.tcg-card-item')?.remove()" />
-          ${card.priceGBP ? `<div class="tcg-card-price-badge">£${card.priceGBP}</div>` : ''}
+          ${card.priceGBP ? `<div class="tcg-card-price-badge">£${Number(card.priceGBP).toFixed(2)}</div>` : ''}
         </div>
         <div class="tcg-card-set" title="${card.setName}">${card.setName}</div>
         <div class="tcg-card-num">#${card.number}</div>
@@ -7017,7 +7017,7 @@ function updateZoomModalContent() {
   if (tcgZoomMeta) tcgZoomMeta.innerText = `${card.setName} · #${card.number}`;
   if (tcgZoomCounter) tcgZoomCounter.innerText = `${currentZoomIndex + 1} / ${currentCardsList.length}`;
   const priceValEl = document.getElementById('tcgZoomPriceVal');
-  if (priceValEl) priceValEl.innerText = card.priceGBP ? `£${card.priceGBP}` : 'Market N/A';
+  if (priceValEl) priceValEl.innerText = card.priceGBP ? `£${Number(card.priceGBP).toFixed(2)}` : 'Market N/A';
   
   const zoomCheckCircle = document.getElementById('zoomCheckCircle');
   const zoomContainer = document.getElementById('zoomContainer');

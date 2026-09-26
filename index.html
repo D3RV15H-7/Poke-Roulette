@@ -2327,6 +2327,104 @@ body.has-active .spin-action-row-external {
   bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 0.8rem) !important;
 }
 
+
+/* v18.23 — consistent Safari / Home Screen dock + encounter card layout */
+:root {
+  --bottom-nav-height: 78px;
+}
+
+/* Do not give the fixed dock a forced content height. On iOS standalone mode
+   that was turning the safe-area into a large empty panel below the icons. */
+.hub-outer-wrap,
+body.has-active .hub-outer-wrap {
+  position: fixed !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  height: auto !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  padding: 0.42rem max(0.7rem, env(safe-area-inset-right)) max(0.38rem, env(safe-area-inset-bottom)) max(0.7rem, env(safe-area-inset-left)) !important;
+  justify-content: center !important;
+}
+
+.hub {
+  flex: 0 0 auto !important;
+  min-height: 0 !important;
+}
+
+/* Reserve only the real dock + iOS safe area in the document. */
+.viewport {
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: auto !important;
+  padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 0.35rem) !important;
+  box-sizing: border-box;
+}
+
+/* Keep the disclaimer immediately above the actual dock in both Safari and
+   standalone Home Screen mode. */
+.micro-disclaimer {
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 0.15rem) !important;
+}
+
+/* Encounter view: reserve room for the dock instead of compressing the TCG strip. */
+body.has-active #pokeCard {
+  max-height: calc(100dvh - var(--bottom-nav-height) - env(safe-area-inset-bottom) - 9.7rem) !important;
+  overflow: hidden !important;
+}
+
+/* Cards keep their physical portrait ratio and scroll horizontally. */
+#pokeCard .tcg-scroll-strip {
+  height: auto !important;
+  min-height: 190px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  align-items: flex-start !important;
+  padding-bottom: 0.2rem !important;
+}
+#pokeCard .tcg-card-item {
+  flex: 0 0 112px !important;
+  width: 112px !important;
+  min-width: 112px !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+#pokeCard .tcg-thumb-frame {
+  width: 112px !important;
+  min-width: 112px !important;
+  height: auto !important;
+  min-height: 0 !important;
+  aspect-ratio: 63 / 88 !important;
+  flex: none !important;
+  overflow: hidden !important;
+}
+#pokeCard .tcg-card-thumb {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  aspect-ratio: 63 / 88 !important;
+  object-fit: cover !important;
+}
+
+/* Re-spin follows the corrected dock position. */
+body.has-active .spin-action-row-external {
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 0.7rem) !important;
+}
+
+/* Standalone iOS gets the same compact dock; only the genuine home-indicator
+   inset remains below it. */
+@media (display-mode: standalone) {
+  :root { --bottom-nav-height: 78px; }
+  .hub-outer-wrap,
+  body.has-active .hub-outer-wrap {
+    min-height: 0 !important;
+    height: auto !important;
+  }
+}
+
 </style>
 </head>
 <body>

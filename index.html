@@ -3101,34 +3101,34 @@ function mergePhysicalVariantEvidence(sourceEvidence, dexEvidence) {
   const source = sourceEvidence || {};
   const dex = dexEvidence || {};
 
-  const sourceBase =
-    source.baseFinish === 'normal' || source.baseFinish === 'holo'
-      ? source.baseFinish
-      : null;
+  // v18.4: when the main PokemonTCG/TCGplayer product gives us a clear
+  // base finish, it is authoritative for Standard/Holo + Reverse.
+  // TCGdex is fallback only when the market evidence cannot identify a base.
+  const hasAuthoritativeSource =
+    source.baseFinish === 'normal' ||
+    source.baseFinish === 'holo';
 
-  const dexBase =
-    dex.baseFinish === 'normal' || dex.baseFinish === 'holo'
-      ? dex.baseFinish
-      : null;
-
-  const baseFinish = sourceBase || dexBase;
+  if (hasAuthoritativeSource) {
+    return {
+      standard: true,
+      reverseHolo: Boolean(source.reverseHolo),
+      other: Boolean(source.other),
+      baseFinish: source.baseFinish,
+      source: `v18.4-authoritative:${source.source || 'pokemontcg'}`
+    };
+  }
 
   return {
-    standard: Boolean(
-      baseFinish ||
-      source.standard ||
-      dex.standard
-    ),
-    reverseHolo: Boolean(
-      source.reverseHolo ||
-      dex.reverseHolo
-    ),
-    other: Boolean(
-      source.other ||
-      dex.other
-    ),
-    baseFinish,
-    source: `v18-fusion:${source.source || 'none'}+${dex.source || 'none'}`
+    standard: Boolean(dex.standard),
+    reverseHolo: Boolean(dex.reverseHolo),
+    other: Boolean(dex.other),
+    baseFinish:
+      dex.baseFinish === 'holo'
+        ? 'holo'
+        : dex.baseFinish === 'normal'
+          ? 'normal'
+          : null,
+    source: `v18.4-tcgdex-fallback:${dex.source || 'none'}`
   };
 }
 
@@ -3214,6 +3214,19 @@ function applyCardAuxiliaryPrintingEvidence(card, evidence) {
 }
 
 const CARD_VARIANT_SUPPLEMENTS = Object.freeze({
+  // Roaring Skies: these EX cards have a Holofoil main printing only.
+  'xy6-34': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
+  'xy6-35': Object.freeze({
+    baseFinish: 'holo',
+    reverseHolo: false,
+    other: false
+  }),
+
   // Roaring Skies verified physical printings.
   'xy6-16': Object.freeze({
     baseFinish: 'normal',
@@ -4428,7 +4441,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
 }
 
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v18_2_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v18_4_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -5022,7 +5035,7 @@ async function renderTcgSets() {
   let totalCount = Number(set.printedTotal) || 0;
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v18_2_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v18_4_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -5329,7 +5342,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v18_2_${setId}`
+        `pokeroulette_set_cards_v18_4_${setId}`
       );
     } catch (error) {
       console.warn(

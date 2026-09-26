@@ -3062,13 +3062,7 @@ function inferSetCardVariantsFromPokemonTcg(card) {
   );
 
   const hasReverse = Boolean(
-    tcgPrices.reverseHolofoil ||
-    cmPrices.reverseHoloSell ||
-    cmPrices.reverseHoloLow ||
-    cmPrices.reverseHoloTrend ||
-    cmPrices.reverseHoloAvg1 ||
-    cmPrices.reverseHoloAvg7 ||
-    cmPrices.reverseHoloAvg30
+    tcgPrices.reverseHolofoil
   );
 
   return {
@@ -4399,10 +4393,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
         const finishEvidence =
           applyCardAuxiliaryPrintingEvidence(
             dexCard,
-            applyCardVariantSupplement(
-              dexCard,
-              fusedEvidence
-            )
+            fusedEvidence
           );
 
         console.log('[TCGdex Variant]', {
@@ -4449,7 +4440,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
 }
 
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v18_5_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v18_6_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -5043,7 +5034,7 @@ async function renderTcgSets() {
   let totalCount = Number(set.printedTotal) || 0;
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v18_5_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v18_6_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -5350,7 +5341,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v18_5_${setId}`
+        `pokeroulette_set_cards_v18_6_${setId}`
       );
     } catch (error) {
       console.warn(

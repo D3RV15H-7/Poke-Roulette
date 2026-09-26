@@ -2067,6 +2067,179 @@ header {
   }
 }
 
+
+/* v18.21 — fixed app navigation, encounter-only re-spin, larger TCG cards */
+:root {
+  --bottom-nav-height: 76px;
+}
+
+/* Reserve space for the fixed navigation so page content never sits behind it. */
+.viewport {
+  padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+}
+
+/* App-style navigation fixed to the bottom of the screen. */
+.hub-outer-wrap {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 90;
+  width: 100%;
+  margin: 0;
+  padding: 0.45rem max(0.75rem, env(safe-area-inset-left)) max(0.35rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-right));
+  background: rgba(15, 23, 42, 0.96);
+  border-top: 1px solid #334155;
+  box-shadow: 0 -8px 24px rgba(0,0,0,0.28);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.hub {
+  max-width: 440px;
+  margin: 0 auto;
+  justify-content: space-around;
+  gap: 0;
+}
+
+.hub-item-wrap {
+  flex: 1 1 25%;
+  gap: 0.12rem;
+}
+
+.btn-hub {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  box-shadow: none;
+}
+
+.hub-item-label,
+body.has-active .hub-item-label {
+  font-size: 0.56rem;
+}
+
+/* Disclaimer sits immediately above the fixed navigation. */
+.micro-disclaimer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 2px);
+  z-index: 80;
+  pointer-events: none;
+  margin: 0;
+}
+
+/* Re-spin is not part of the empty roulette screen. */
+.spin-action-row-external {
+  display: none;
+  width: auto;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+body.has-active .spin-action-row-external {
+  display: flex;
+  position: absolute;
+  right: max(0.8rem, calc((100vw - 440px) / 2 + 0.8rem));
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1.15rem);
+  z-index: 85;
+}
+
+.spin-action-row-external .btn-spin-again {
+  width: 50px;
+  height: 50px;
+  min-width: 50px;
+  padding: 0;
+  margin: 0;
+  border-radius: 50%;
+  font-size: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(255,255,255,0.88);
+  box-shadow: 0 7px 20px rgba(239,68,68,0.48), 0 4px 12px rgba(0,0,0,0.45);
+}
+
+.spin-action-row-external .btn-spin-again::before {
+  content: '↻';
+  font-size: 1.55rem;
+  line-height: 1;
+  font-weight: 900;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.spin-action-row-external .btn-spin-again:active {
+  transform: scale(0.91) rotate(-18deg);
+}
+
+/* Let the encounter card use the space reclaimed by the old full-width button/nav. */
+body.has-active #pokeCard {
+  margin-bottom: 0.25rem;
+  padding-bottom: 0.45rem;
+}
+
+/* Card Variations: make the artwork a focal point and never allow flexbox to squeeze it. */
+#pokeCard .tcg-scroll-strip {
+  min-height: 184px;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.15rem 0.1rem 0.25rem;
+  scroll-snap-type: x proximity;
+}
+
+#pokeCard .tcg-card-item,
+#pokeCard .tcg-skeleton-card {
+  flex: 0 0 132px !important;
+  width: 132px !important;
+  min-width: 132px !important;
+  scroll-snap-align: start;
+}
+
+#pokeCard .tcg-thumb-frame,
+#pokeCard .tcg-skeleton-card {
+  width: 132px !important;
+  min-width: 132px !important;
+  height: auto !important;
+  aspect-ratio: 63 / 88;
+}
+
+#pokeCard .tcg-card-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+#pokeCard .tcg-card-set {
+  font-size: 0.61rem;
+  margin-top: 0.22rem;
+}
+
+#pokeCard .tcg-card-num {
+  font-size: 0.54rem;
+}
+
+/* Earlier short-screen rules must not shrink card artwork again. */
+@media (max-height: 740px), (max-width: 375px), (max-width: 360px) {
+  body.has-active #pokeCard .tcg-card-item,
+  body.has-active #pokeCard .tcg-skeleton-card,
+  #pokeCard .tcg-card-item,
+  #pokeCard .tcg-skeleton-card {
+    flex: 0 0 124px !important;
+    width: 124px !important;
+    min-width: 124px !important;
+  }
+  body.has-active #pokeCard .tcg-thumb-frame,
+  #pokeCard .tcg-thumb-frame {
+    width: 124px !important;
+    min-width: 124px !important;
+    height: auto !important;
+  }
+  #pokeCard .tcg-scroll-strip { min-height: 173px; }
+}
+
 </style>
 </head>
 <body>

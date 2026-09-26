@@ -4663,12 +4663,38 @@ async function fetchYellowAAlternateCards(forceRefresh = false) {
   return formatted;
 }
 
+
+function isolateNumberedSetVariants(setId, cards) {
+  const normalizedSetId = String(setId || '').trim().toLowerCase();
+
+  // 30th Celebration (30C): product promos / alternate releases are separate
+  // cards, not variants of the numbered expansion card.
+  const is30thCelebration =
+    normalizedSetId === 'me6' ||
+    cards.some(card =>
+      String(card?.setName || '').trim().toLowerCase() === '30th celebration'
+    );
+
+  if (is30thCelebration) {
+    return cards.map(card => ({
+      ...card,
+      variants: {
+        ...(card.variants || {}),
+        standard: true,
+        other: false
+      }
+    }));
+  }
+
+  return cards;
+}
+
 async function fetchCardsForSet(setId, forceRefresh = false) {
   if (setId === YELLOW_A_SET_ID) {
     return fetchYellowAAlternateCards(forceRefresh);
   }
 
-  const CACHE_KEY = `pokeroulette_set_cards_v18_7_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v18_11_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -4818,6 +4844,13 @@ baseFinish:
       formatted,
       setId,
       formatted[0]?.setName || ''
+    );
+
+    // Keep separate product/promotional printings out of numbered-set
+    // variant menus where the release defines them as separate cards.
+    formatted = isolateNumberedSetVariants(
+      setId,
+      formatted
     );
 
     // Correct card-number ordering

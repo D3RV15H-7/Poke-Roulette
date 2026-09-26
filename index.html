@@ -2001,6 +2001,72 @@ header {
   }
 }
 
+
+/* v18.20 — card-focus main layout */
+.spin-action-row-external {
+  width: min(100%, 440px);
+  padding: 0 0.35rem;
+  box-sizing: border-box;
+  margin-top: clamp(0.15rem, 0.6dvh, 0.4rem);
+}
+.spin-action-row-external .btn-spin-again {
+  margin-top: 0;
+}
+
+/* Trading cards are sized from available width, not viewport height.
+   Keep them prominent and let the strip scroll horizontally. */
+#pokeCard .tcg-scroll-strip {
+  gap: clamp(0.45rem, 1.8cqw, 0.65rem);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+#pokeCard .tcg-card-item,
+#pokeCard .tcg-thumb-frame,
+#pokeCard .tcg-skeleton-card {
+  width: clamp(104px, 30cqw, 124px);
+}
+#pokeCard .tcg-card-item,
+#pokeCard .tcg-skeleton-card {
+  flex: 0 0 clamp(104px, 30cqw, 124px);
+}
+#pokeCard .tcg-thumb-frame,
+#pokeCard .tcg-skeleton-card {
+  height: auto;
+  aspect-ratio: 63 / 88;
+}
+
+/* Smaller phones keep cards useful; surrounding spacing gives way first. */
+@media (max-width: 375px) {
+  #pokeCard .tcg-card-item,
+  #pokeCard .tcg-thumb-frame,
+  #pokeCard .tcg-skeleton-card {
+    width: clamp(100px, 30.5cqw, 114px);
+  }
+  #pokeCard .tcg-card-item,
+  #pokeCard .tcg-skeleton-card {
+    flex-basis: clamp(100px, 30.5cqw, 114px);
+  }
+  .spin-action-row-external {
+    padding-inline: 0.4rem;
+  }
+}
+
+/* Short screens compress surrounding elements, never the TCG card artwork. */
+@media (max-height: 740px) {
+  body.has-active #pokeCard .tcg-card-item,
+  body.has-active #pokeCard .tcg-thumb-frame,
+  body.has-active #pokeCard .tcg-skeleton-card {
+    width: clamp(100px, 30cqw, 116px);
+  }
+  body.has-active #pokeCard .tcg-card-item,
+  body.has-active #pokeCard .tcg-skeleton-card {
+    flex-basis: clamp(100px, 30cqw, 116px);
+  }
+  .spin-action-row-external {
+    margin-top: 0.1rem;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -2084,9 +2150,10 @@ header {
         <div class="tcg-skeleton-card"></div>
       </div>
     </div>
-    <div class="spin-action-row">
-      <button class="btn-spin-again" id="spinBtn" onclick="handleSpinButtonClick()">SPIN AGAIN</button>
-    </div>
+  </div>
+
+  <div class="spin-action-row spin-action-row-external">
+    <button class="btn-spin-again" id="spinBtn" onclick="handleSpinButtonClick()">SPIN AGAIN</button>
   </div>
 
  <div class="hub-outer-wrap">

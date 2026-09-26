@@ -2425,6 +2425,65 @@ body.has-active .spin-action-row-external {
   }
 }
 
+
+/* v18.24 — true viewport-edge dock for Safari + iOS Home Screen */
+html, body {
+  width: 100% !important;
+  min-height: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+}
+body {
+  padding-bottom: 0 !important;
+}
+
+/* The dock is attached to the visual viewport itself. Its own safe-area padding
+   protects the controls from the Home indicator; no extra panel is reserved below it. */
+.hub-outer-wrap,
+body.has-active .hub-outer-wrap {
+  position: fixed !important;
+  z-index: 1000 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  top: auto !important;
+  width: 100vw !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0.42rem max(0.7rem, env(safe-area-inset-right)) max(0.42rem, env(safe-area-inset-bottom)) max(0.7rem, env(safe-area-inset-left)) !important;
+  transform: translate3d(0,0,0);
+  -webkit-transform: translate3d(0,0,0);
+}
+
+/* JS writes the measured dock height here, so every device reserves exactly
+   the space its own dock occupies rather than relying on a guessed pixel height. */
+:root { --measured-dock-height: 78px; }
+.viewport {
+  height: 100% !important;
+  min-height: 100% !important;
+  padding-bottom: calc(var(--measured-dock-height) + 0.35rem) !important;
+}
+.micro-disclaimer {
+  bottom: calc(var(--measured-dock-height) + 0.15rem) !important;
+}
+body.has-active .spin-action-row-external {
+  bottom: calc(var(--measured-dock-height) + 0.7rem) !important;
+}
+body.has-active #pokeCard {
+  max-height: calc(100dvh - var(--measured-dock-height) - 9.7rem) !important;
+}
+
+@media (display-mode: standalone) {
+  html, body, .viewport {
+    height: 100% !important;
+    min-height: 100% !important;
+  }
+  .hub-outer-wrap, body.has-active .hub-outer-wrap {
+    bottom: 0 !important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -8237,6 +8296,23 @@ function filterTcgSetsBySearch() {
 document.addEventListener('input', event => {
   if (event.target?.id === 'tcgSetSearchInput') filterTcgSetsBySearch();
 });
+
+
+// v18.24: measure the real dock instead of guessing a device/browser height.
+function syncBottomDockToViewport() {
+  const dock = document.querySelector('.hub-outer-wrap');
+  if (!dock) return;
+  const h = Math.ceil(dock.getBoundingClientRect().height);
+  if (h > 0) document.documentElement.style.setProperty('--measured-dock-height', `${h}px`);
+}
+window.addEventListener('load', syncBottomDockToViewport);
+window.addEventListener('resize', syncBottomDockToViewport);
+window.addEventListener('orientationchange', () => setTimeout(syncBottomDockToViewport, 80));
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', syncBottomDockToViewport);
+  window.visualViewport.addEventListener('scroll', syncBottomDockToViewport);
+}
+requestAnimationFrame(syncBottomDockToViewport);
 </script>
 </body>
 </html>

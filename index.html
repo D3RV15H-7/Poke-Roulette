@@ -2896,6 +2896,20 @@ function isYellowAAlternateCard(cardOrId) {
   );
 }
 
+const THIRTIETH_CLASSIC_COLLECTION_COUNT = 30;
+
+function is30thClassicCollectionSet(set) {
+  return String(set?.name || '').trim().toLowerCase() ===
+    '30th celebration: classic collection';
+}
+
+function getDisplayedSetCardTotal(set) {
+  if (is30thClassicCollectionSet(set)) {
+    return THIRTIETH_CLASSIC_COLLECTION_COUNT;
+  }
+  return Number(set?.printedTotal || set?.total) || 0;
+}
+
 let tcgSetsCache = null;
 let activeTcgSet = null;
   let activeTcgSetFilter = 'all';
@@ -2917,7 +2931,7 @@ let activeTcgSet = null;
 });
   
 async function fetchPhysicalTcgSets(forceRefresh = false) {
-  const CACHE_KEY = 'pokeroulette_tcg_sets_v4_yellow_a_new_logo';
+  const CACHE_KEY = 'pokeroulette_tcg_sets_v5_refresh_classics';
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // 1. Use memory cache first
@@ -2980,8 +2994,16 @@ async function fetchPhysicalTcgSets(forceRefresh = false) {
         id: set.id,
         name: set.name,
         series: set.series || '',
-        printedTotal: set.printedTotal || 0,
-        total: set.total || set.printedTotal || 0,
+        printedTotal:
+          String(set.name || '').trim().toLowerCase() ===
+            '30th celebration: classic collection'
+              ? THIRTIETH_CLASSIC_COLLECTION_COUNT
+              : (set.printedTotal || 0),
+        total:
+          String(set.name || '').trim().toLowerCase() ===
+            '30th celebration: classic collection'
+              ? THIRTIETH_CLASSIC_COLLECTION_COUNT
+              : (set.total || set.printedTotal || 0),
         releaseDate: set.releaseDate || '',
         symbol: set.images?.symbol || '',
         logo: set.images?.logo || ''
@@ -5260,7 +5282,7 @@ variantOptions.forEach(option => {
   });
 }
   
-async function renderTcgSets() {
+async function renderTcgSets(forceRefresh = false) {
   activeTcgSet = null;
   activeSetVariantCardId = null;
   
@@ -5274,7 +5296,7 @@ async function renderTcgSets() {
 
   grid.innerHTML = '';
 
-  const sets = await fetchPhysicalTcgSets();
+  const sets = await fetchPhysicalTcgSets(forceRefresh);
 
   if (!sets.length) {
     loading.textContent = 'Unable to load card sets.';
@@ -5293,10 +5315,10 @@ async function renderTcgSets() {
 
   // Work out collection progress for this set
   let collectedCount = 0;
-  let totalCount = Number(set.printedTotal) || 0;
+  let totalCount = getDisplayedSetCardTotal(set);
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v18_7_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v18_11_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -5334,7 +5356,7 @@ if (totalCount > 0 && collectedCount >= totalCount) {
       <div class="tcg-set-meta">
         ${formatTcgSetDisplayDate(set.releaseDate)}
         ·
-        ${set.printedTotal} cards
+        ${getDisplayedSetCardTotal(set)} cards
       </div>
 
       <div class="tcg-set-progress">
@@ -5603,7 +5625,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v18_7_${setId}`
+        `pokeroulette_set_cards_v18_11_${setId}`
       );
     } catch (error) {
       console.warn(
@@ -5665,7 +5687,7 @@ async function refreshSetsView() {
 
   try {
     localStorage.removeItem(
-      'pokeroulette_tcg_sets_v1'
+      'pokeroulette_tcg_sets_v4_yellow_a_new_logo'
     );
   } catch (error) {
     console.warn(
@@ -5684,7 +5706,7 @@ async function refreshSetsView() {
       'Refreshing card sets...';
   }
 
-  await renderTcgSets();
+  await renderTcgSets(true);
 }
 
 async function openDexCardsModal(p, bypassCache = false) {

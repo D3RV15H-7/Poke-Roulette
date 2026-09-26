@@ -3097,38 +3097,65 @@ function inferSetCardVariantsFromPokemonTcg(card) {
 // they unambiguously identify the base finish, while retaining TCGdex's richer
 // physical-printing model for ambiguous/special cases. Curated supplements are
 // applied afterwards, so our regression-tested exceptions remain authoritative.
-function mergePhysicalVariantEvidence(sourceEvidence, dexEvidence) {
+function mergePhysicalVariantEvidence(sourceEvidence, dexEvidence, card = null) {
   const source = sourceEvidence || {};
   const dex = dexEvidence || {};
 
-  // v18.4: when the main PokemonTCG/TCGplayer product gives us a clear
-  // base finish, it is authoritative for Standard/Holo + Reverse.
-  // TCGdex is fallback only when the market evidence cannot identify a base.
-  const hasAuthoritativeSource =
+  const rarity =
+    String(card?.rarity || '')
+      .trim()
+      .toLowerCase();
+
+  const subtypes =
+    Array.isArray(card?.subtypes)
+      ? card.subtypes.map(value => String(value || '').toLowerCase())
+      : [];
+
+  // Pokémon TCG API exposes TCGplayer finish buckets directly. When those
+  // buckets identify a base finish, they are the authority for base/reverse.
+  const hasPrimaryFinishEvidence =
     source.baseFinish === 'normal' ||
     source.baseFinish === 'holo';
 
-  if (hasAuthoritativeSource) {
+  if (hasPrimaryFinishEvidence) {
     return {
       standard: true,
       reverseHolo: Boolean(source.reverseHolo),
       other: Boolean(source.other),
       baseFinish: source.baseFinish,
-      source: `v18.4-authoritative:${source.source || 'pokemontcg'}`
+      source: `v18.5-primary:${source.source || 'pokemontcg'}`
+    };
+  }
+
+  // Historical APIs sometimes attach a generic reverse flag to EX/GX/V-era
+  // rule-box cards even where no reverse printing exists. For clearly
+  // special-rule / ultra-rare cards, absence of primary finish evidence must
+  // not manufacture a Reverse option from that weaker flag.
+  const specialRuleCard =
+    /\b(ex|gx|v|vmax|vstar|ultra rare|secret rare|rainbow rare|rare holo)\b/.test(rarity) ||
+    subtypes.some(type =>
+      ['ex','mega','gx','v','vmax','vstar','tera'].includes(type)
+    );
+
+  if (specialRuleCard) {
+    return {
+      standard: true,
+      reverseHolo: false,
+      other: false,
+      baseFinish: 'holo',
+      source: 'v18.5-special-rule-fallback'
     };
   }
 
   return {
-    standard: Boolean(dex.standard),
+    standard: dex.standard !== false,
     reverseHolo: Boolean(dex.reverseHolo),
     other: Boolean(dex.other),
     baseFinish:
       dex.baseFinish === 'holo'
         ? 'holo'
-        : dex.baseFinish === 'normal'
-          ? 'normal'
-          : null,
-    source: `v18.4-tcgdex-fallback:${dex.source || 'none'}`
+        : 'normal',
+    source: `v18.5-tcgdex-fallback:${dex.source || 'none'}`
   };
 }
 
@@ -3215,28 +3242,8 @@ function applyCardAuxiliaryPrintingEvidence(card, evidence) {
 
 const CARD_VARIANT_SUPPLEMENTS = Object.freeze({
   // Roaring Skies: these EX cards have a Holofoil main printing only.
-  'xy6-34': Object.freeze({
-    baseFinish: 'holo',
-    reverseHolo: false,
-    other: false
-  }),
-
-  'xy6-35': Object.freeze({
-    baseFinish: 'holo',
-    reverseHolo: false,
-    other: false
-  }),
 
   // Roaring Skies verified physical printings.
-  'xy6-16': Object.freeze({
-    baseFinish: 'normal',
-    reverseHolo: true
-  }),
-
-  'xy6-26': Object.freeze({
-    baseFinish: 'holo',
-    reverseHolo: false
-  }),
 
   'xy12-1': Object.freeze({
     baseFinish: 'holo',
@@ -4385,7 +4392,8 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
         const fusedEvidence =
           mergePhysicalVariantEvidence(
             sourceEvidence,
-            getTcgDexFinishEvidence(dexCard)
+            getTcgDexFinishEvidence(dexCard),
+            dexCard
           );
 
         const finishEvidence =
@@ -4441,7 +4449,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
 }
 
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v18_4_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v18_5_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -5035,7 +5043,7 @@ async function renderTcgSets() {
   let totalCount = Number(set.printedTotal) || 0;
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v18_4_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v18_5_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -5342,7 +5350,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v18_4_${setId}`
+        `pokeroulette_set_cards_v18_5_${setId}`
       );
     } catch (error) {
       console.warn(

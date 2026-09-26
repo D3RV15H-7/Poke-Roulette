@@ -1812,6 +1812,13 @@ body.has-active .hub-item-label {
   color: #fff;
 }
   
+
+.tcg-set-search-wrap{position:relative;margin:10px 0 14px;}
+.tcg-set-search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:22px;pointer-events:none;}
+.tcg-set-search-input{width:100%;box-sizing:border-box;border:1px solid rgba(148,163,184,.28);border-radius:14px;background:#0d1729;color:#f8fafc;padding:12px 42px;font:inherit;font-size:16px;outline:none;}
+.tcg-set-search-input::placeholder{color:#8190a7;}
+.tcg-set-search-input:focus{border-color:#20c997;box-shadow:0 0 0 2px rgba(32,201,151,.14);}
+.tcg-set-search-empty{padding:24px 12px;text-align:center;color:#94a3b8;font-weight:700;}
 </style>
 </head>
 <body>
@@ -2047,6 +2054,13 @@ body.has-active .hub-item-label {
 </div>
     <div id="setsLoading" style="text-align:center;color:var(--sub);padding:2rem 0;">
       Loading card sets...
+    </div>
+
+    <div class="tcg-set-search-wrap">
+      <span class="tcg-set-search-icon">⌕</span>
+      <input id="tcgSetSearchInput" class="tcg-set-search-input" type="search"
+        placeholder="Search sets..." autocomplete="off" spellcheck="false"
+        aria-label="Search Pokémon TCG sets">
     </div>
 
     <div id="setsGrid"></div>
@@ -7129,6 +7143,41 @@ async function loadPokemonDirectory() {
   initFirebaseIfReady();
   await loadPokemonDirectory();
 })();
+
+function filterTcgSetsBySearch() {
+  const input = document.getElementById('tcgSetSearchInput');
+  const grid = document.getElementById('setsGrid');
+  if (!input || !grid) return;
+
+  const query = String(input.value || '').trim().toLowerCase();
+  const cards = Array.from(grid.children).filter(el =>
+    !el.classList.contains('tcg-set-search-empty')
+  );
+
+  let visible = 0;
+  cards.forEach(card => {
+    const show = !query || String(card.textContent || '').toLowerCase().includes(query);
+    card.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+
+  let empty = grid.querySelector('.tcg-set-search-empty');
+  if (query && visible === 0) {
+    if (!empty) {
+      empty = document.createElement('div');
+      empty.className = 'tcg-set-search-empty';
+      empty.textContent = 'No sets found';
+      grid.appendChild(empty);
+    }
+    empty.style.display = '';
+  } else if (empty) {
+    empty.style.display = 'none';
+  }
+}
+
+document.addEventListener('input', event => {
+  if (event.target?.id === 'tcgSetSearchInput') filterTcgSetsBySearch();
+});
 </script>
 </body>
 </html>

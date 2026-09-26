@@ -1940,17 +1940,81 @@ body.main-search-focused .viewport {
   #pokeCard { max-width: 460px; }
 }
 
+
+/* v18.19 — card-priority responsive tuning */
+.app-title-refresh {
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.app-title-refresh:active {
+  transform: scale(0.985);
+}
+
+/* Keep TCG cards a meaningful focal size across phones.
+   Width drives sizing; short screens no longer shrink the cards. */
+#pokeCard .tcg-card-item,
+#pokeCard .tcg-thumb-frame,
+#pokeCard .tcg-skeleton-card {
+  width: clamp(94px, 27cqw, 112px);
+}
+#pokeCard .tcg-card-item,
+#pokeCard .tcg-skeleton-card {
+  flex-basis: clamp(94px, 27cqw, 112px);
+}
+#pokeCard .tcg-thumb-frame,
+#pokeCard .tcg-skeleton-card {
+  height: auto;
+  aspect-ratio: 63 / 88;
+}
+
+/* Reclaim vertical space from the removed refresh/status controls rather
+   than sacrificing the card artwork on shorter devices. */
+header {
+  margin-bottom: clamp(0.05rem, 0.45dvh, 0.3rem);
+}
+@media (max-height: 740px) {
+  body.has-active #pokeCard .tcg-card-item,
+  body.has-active #pokeCard .tcg-thumb-frame,
+  body.has-active #pokeCard .tcg-skeleton-card {
+    width: clamp(92px, 27cqw, 108px);
+  }
+  body.has-active #pokeCard .tcg-card-item,
+  body.has-active #pokeCard .tcg-skeleton-card {
+    flex-basis: clamp(92px, 27cqw, 108px);
+  }
+  body.has-active #pokeCard .tcg-thumb-frame,
+  body.has-active #pokeCard .tcg-skeleton-card {
+    height: auto;
+  }
+}
+@media (max-width: 360px) {
+  #pokeCard .tcg-card-item,
+  #pokeCard .tcg-thumb-frame,
+  #pokeCard .tcg-skeleton-card {
+    width: clamp(90px, 28cqw, 104px);
+  }
+  #pokeCard .tcg-card-item,
+  #pokeCard .tcg-skeleton-card {
+    flex-basis: clamp(90px, 28cqw, 104px);
+  }
+}
+
 </style>
 </head>
 <body>
 <div class="viewport">
   <header>
-    <h1>Poké<span>Roulette</span></h1>
-    <div class="top-action-bar">
-      <button class="btn-top-reload" onclick="window.location.reload()" title="Refresh Page">
-        ↻ Refresh Page
-      </button>
-    </div>
+    <h1
+      class="app-title-refresh"
+      role="button"
+      tabindex="0"
+      title="Refresh Page"
+      aria-label="Refresh PokéRoulette"
+      onclick="window.location.reload()"
+      onkeydown="if(event.key === 'Enter' || event.key === ' '){ event.preventDefault(); window.location.reload(); }"
+    >Poké<span>Roulette</span></h1>
   </header>
 
 <div class="search-wrap">
@@ -2076,7 +2140,7 @@ body.main-search-focused .viewport {
 
   </div>
 </div>
-    <div class="badge">Collected: <strong id="tCount">0</strong> / 1025</div>
+    
     <div class="micro-disclaimer">Fan project. Not affiliated with Nintendo, Creatures, or Game Freak.</div>
   </div>
 </div>

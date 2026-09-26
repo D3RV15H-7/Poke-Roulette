@@ -3168,18 +3168,47 @@ function hasUsableTcgDexPriceBucket(bucket) {
 // cards where the live TCGdex record is known to omit or misclassify a
 // physical printing. Cards not listed here continue through the v18 evidence-fusion logic
 // unchanged.
+// v18.2 — verified auxiliary English physical printings.
+// These are distinct collectible printings outside the ordinary booster product.
+const CARD_AUXILIARY_PRINTINGS = Object.freeze({
+  'xy6-16': Object.freeze(['cracked-ice-holo']),
+  'xy6-20': Object.freeze(['build-a-bear-stamp']),
+  'xy6-23': Object.freeze(['cracked-ice-holo']),
+  'xy6-52': Object.freeze(['non-holo-theme-deck', 'cosmos-holo-blister']),
+  'xy6-57': Object.freeze(['non-holo-theme-deck', 'cosmos-holo-blister']),
+  'xy6-67': Object.freeze(['build-a-bear-stamp']),
+  'xy6-72': Object.freeze(['non-holo-theme-deck']),
+  'xy6-77a': Object.freeze(['alternate-art']),
+  'xy6-92a': Object.freeze(['alternate-art-sheen-holo', 'alternate-art-non-holo'])
+});
+
+function getCardAuxiliaryPrintings(card) {
+  const cardId = String(card?.id || '').trim().toLowerCase();
+  return CARD_AUXILIARY_PRINTINGS[cardId] || [];
+}
+
+function applyCardAuxiliaryPrintingEvidence(card, evidence) {
+  const printings = getCardAuxiliaryPrintings(card);
+  if (!printings.length) return evidence;
+
+  return {
+    ...evidence,
+    other: true,
+    auxiliaryPrintings: [...printings],
+    source: `${evidence?.source || 'variant-model'}+auxiliary-printings`
+  };
+}
+
 const CARD_VARIANT_SUPPLEMENTS = Object.freeze({
   // Roaring Skies verified physical printings.
   'xy6-16': Object.freeze({
     baseFinish: 'normal',
-    reverseHolo: true,
-    other: true
+    reverseHolo: true
   }),
 
   'xy6-26': Object.freeze({
     baseFinish: 'holo',
-    reverseHolo: false,
-    other: false
+    reverseHolo: false
   }),
 
   'xy12-1': Object.freeze({
@@ -4333,9 +4362,12 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
           );
 
         const finishEvidence =
-          applyCardVariantSupplement(
+          applyCardAuxiliaryPrintingEvidence(
             dexCard,
-            fusedEvidence
+            applyCardVariantSupplement(
+              dexCard,
+              fusedEvidence
+            )
           );
 
         console.log('[TCGdex Variant]', {
@@ -4382,7 +4414,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
 }
 
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v18_1_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v18_2_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -4976,7 +5008,7 @@ async function renderTcgSets() {
   let totalCount = Number(set.printedTotal) || 0;
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v18_1_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v18_2_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -5283,7 +5315,7 @@ async function refreshSetsView() {
     // Clear saved cache for this set only
     try {
       localStorage.removeItem(
-        `pokeroulette_set_cards_v18_1_${setId}`
+        `pokeroulette_set_cards_v18_2_${setId}`
       );
     } catch (error) {
       console.warn(

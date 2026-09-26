@@ -5006,7 +5006,23 @@ baseFinish:
   }
 }
 
+
+function resetSetsScrollToTop() {
+  const setsBody =
+    document.querySelector('#setsModal .modal-body');
+
+  if (setsBody) {
+    setsBody.scrollTop = 0;
+    setsBody.scrollTo?.({
+      top: 0,
+      left: 0,
+      behavior: 'auto'
+    });
+  }
+}
+
 async function openTcgSet(set) {
+  resetSetsScrollToTop();
   activeTcgSet = set;
   activeTcgSetFilter = 'all';
   activeSetVariantCardId = null;
@@ -5340,6 +5356,7 @@ variantOptions.forEach(option => {
 }
   
 async function renderTcgSets(forceRefresh = false) {
+  resetSetsScrollToTop();
   activeTcgSet = null;
   activeSetVariantCardId = null;
   
@@ -5614,6 +5631,12 @@ function closeModal(e, id) {
   if (!e || e.target.id === id) {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
+
+    if (id === 'setsModal') {
+      resetSetsScrollToTop();
+      activeTcgSet = null;
+      activeSetVariantCardId = null;
+    }
   }
 }
 

@@ -7023,6 +7023,11 @@ function updateZoomModalContent() {
   const zoomContainer = document.getElementById('zoomContainer');
   const zoomVariants = document.getElementById('tcgZoomVariants');
 
+  if (zoomCheckCircle) {
+    zoomCheckCircle.style.display =
+      activeTcgSet ? 'none' : 'flex';
+  }
+
   if (zoomVariants) {
     if (activeTcgSet) {
       zoomVariants.style.display = 'block';

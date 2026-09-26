@@ -1875,6 +1875,71 @@ body.main-search-focused .viewport {
   overflow: hidden;
 }
 
+
+/* v18.18 — responsive main result composition.
+   Keep the reference-phone appearance; scale only when available space changes. */
+.viewport {
+  --result-card-width: min(100%, 440px);
+  min-height: 0;
+}
+#pokeCard {
+  width: var(--result-card-width);
+  min-height: 0;
+  max-height: none;
+  flex: 1 1 auto;
+  overscroll-behavior-y: contain;
+}
+#pokeCard .img-box {
+  width: clamp(108px, min(40vw, 20dvh), 185px);
+  height: clamp(108px, min(40vw, 20dvh), 185px);
+}
+#pokeCard .tcg-card-item,
+#pokeCard .tcg-thumb-frame,
+#pokeCard .tcg-skeleton-card {
+  width: clamp(76px, min(25vw, 13.5dvh), 108px);
+  flex-basis: clamp(76px, min(25vw, 13.5dvh), 108px);
+}
+#pokeCard .tcg-thumb-frame,
+#pokeCard .tcg-skeleton-card {
+  height: auto;
+  aspect-ratio: 63 / 88;
+}
+#pokeCard .tcg-scroll-strip { min-height: 0; }
+#pokeCard .tcg-card-item { min-width: 0; }
+#pokeCard .lore-box { font-size: clamp(0.64rem, 1.1dvh, 0.75rem); }
+#pokeCard .tcg-title-text { font-size: clamp(0.59rem, 1.6vw, 0.68rem); }
+#pokeCard .tcg-count-text { font-size: clamp(0.55rem, 1.5vw, 0.65rem); }
+#pokeCard .spin-action-row { position: relative; }
+@media (max-width: 375px) {
+  .viewport { gap: 0.18rem; }
+  header h1 { font-size: clamp(1.75rem, 8vw, 2.25rem); letter-spacing: 1px; }
+  .search-box { min-width: 0; }
+  #pokeCard { padding-inline: 0.4rem; }
+  #pokeCard .tcg-section-wrap { padding-inline: 0.3rem; }
+  #pokeCard .tcg-scroll-strip { gap: 0.35rem; }
+  .hub { gap: clamp(0.45rem, 3vw, 0.8rem); }
+}
+@media (max-height: 740px) {
+  body.has-active .viewport { gap: 0.15rem; }
+  body.has-active header h1 { font-size: clamp(1.7rem, 4.5dvh, 2.2rem); }
+  body.has-active #pokeCard .img-box {
+    width: clamp(98px, min(35vw, 17dvh), 150px);
+    height: clamp(98px, min(35vw, 17dvh), 150px);
+  }
+  body.has-active #pokeCard .tcg-card-item,
+  body.has-active #pokeCard .tcg-thumb-frame,
+  body.has-active #pokeCard .tcg-skeleton-card {
+    width: clamp(74px, 12dvh, 98px);
+    flex-basis: clamp(74px, 12dvh, 98px);
+  }
+  body.has-active #pokeCard .tcg-thumb-frame,
+  body.has-active #pokeCard .tcg-skeleton-card { height: auto; }
+}
+@media (min-width: 600px) {
+  .viewport { max-width: 480px; }
+  #pokeCard { max-width: 460px; }
+}
+
 </style>
 </head>
 <body>

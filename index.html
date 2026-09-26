@@ -2484,6 +2484,53 @@ body.has-active #pokeCard {
   }
 }
 
+
+
+/* v18.25 — compact set detail / zoom controls + visual-viewport dock */
+/* Hide set search while browsing inside one specific set. */
+#setsModal.viewing-set .tcg-set-search-wrap { display:none !important; }
+#setsModal.viewing-set .tcg-set-detail-head { padding:0.15rem 0 0.55rem !important; }
+#setsModal.viewing-set .tcg-set-back { font-size:0.58rem !important; padding:4px 7px !important; margin-bottom:0.38rem !important; }
+#setsModal.viewing-set .tcg-set-detail-head img { width:118px !important; max-height:52px !important; margin-bottom:0.25rem !important; }
+#setsModal.viewing-set .tcg-set-detail-title { font-size:0.88rem !important; }
+#setsModal.viewing-set .tcg-set-detail-meta { font-size:0.61rem !important; margin-top:0.1rem !important; }
+#setsModal.viewing-set .tcg-set-progress { margin-top:0.45rem !important; }
+#setsModal.viewing-set .tcg-set-progress-info { font-size:0.61rem !important; margin-bottom:0.22rem !important; }
+#setsModal.viewing-set .tcg-set-filter { margin-top:0.48rem !important; gap:0.35rem !important; }
+#setsModal.viewing-set .tcg-set-filter-btn { min-height:34px !important; padding:0.4rem 0.55rem !important; font-size:0.68rem !important; }
+
+/* Smaller encounter regenerate button. */
+.spin-action-row-external .btn-spin-again {
+  width:42px !important; height:42px !important; min-width:42px !important;
+  border-width:2px !important;
+}
+.spin-action-row-external .btn-spin-again::before { font-size:1.28rem !important; }
+
+/* More compact Standard / Reverse / etc controls in card zoom. */
+.tcg-zoom-variants {
+  width:min(100%,280px) !important;
+  padding:0.18rem 0.45rem !important;
+  margin:0.05rem 0 !important;
+  border-radius:10px !important;
+}
+.tcg-zoom-variant-option {
+  padding:0.28rem 0.1rem !important;
+  font-size:0.66rem !important;
+  gap:0.5rem !important;
+}
+.tcg-zoom-variant-circle {
+  width:18px !important; height:18px !important; border-width:1.5px !important;
+  font-size:0.66rem !important;
+}
+.tcg-zoom-price-row { margin-top:0.15rem !important; }
+
+/* JS positions this against the actual iOS visual viewport, not the larger layout viewport. */
+.hub-outer-wrap,
+body.has-active .hub-outer-wrap {
+  bottom:auto !important;
+  top:var(--dock-visual-top, auto) !important;
+}
+
 </style>
 </head>
 <body>
@@ -5635,6 +5682,7 @@ function resetSetsScrollToTop() {
 }
 
 async function openTcgSet(set) {
+  document.getElementById('setsModal')?.classList.add('viewing-set');
   resetSetsScrollToTop();
   activeTcgSet = set;
   activeTcgSetFilter = 'all';
@@ -5969,6 +6017,7 @@ variantOptions.forEach(option => {
 }
   
 async function renderTcgSets(forceRefresh = false) {
+  document.getElementById('setsModal')?.classList.remove('viewing-set');
   resetSetsScrollToTop();
   activeTcgSet = null;
   activeSetVariantCardId = null;
@@ -8313,6 +8362,32 @@ if (window.visualViewport) {
   window.visualViewport.addEventListener('scroll', syncBottomDockToViewport);
 }
 requestAnimationFrame(syncBottomDockToViewport);
+
+
+// v18.25: pin bottom navigation to the *visible* iOS viewport.
+// Safari's browser chrome and Home Screen mode expose different visual heights,
+// so using visualViewport prevents a dead strip appearing beneath the dock.
+function positionDockToVisualViewport() {
+  const dock = document.querySelector('.hub-outer-wrap');
+  if (!dock) return;
+  const vv = window.visualViewport;
+  const viewportTop = vv ? vv.offsetTop : 0;
+  const viewportHeight = vv ? vv.height : window.innerHeight;
+  const dockHeight = dock.getBoundingClientRect().height || dock.offsetHeight || 78;
+  const top = Math.max(0, viewportTop + viewportHeight - dockHeight);
+  document.documentElement.style.setProperty('--dock-visual-top', `${top}px`);
+  document.documentElement.style.setProperty('--measured-dock-height', `${dockHeight}px`);
+}
+window.addEventListener('load', positionDockToVisualViewport);
+window.addEventListener('resize', positionDockToVisualViewport);
+window.addEventListener('orientationchange', () => setTimeout(positionDockToVisualViewport, 120));
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', positionDockToVisualViewport);
+  window.visualViewport.addEventListener('scroll', positionDockToVisualViewport);
+}
+setTimeout(positionDockToVisualViewport, 0);
+setTimeout(positionDockToVisualViewport, 250);
+
 </script>
 </body>
 </html>

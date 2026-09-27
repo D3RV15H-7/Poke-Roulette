@@ -96,47 +96,6 @@ header h1 span {
   -webkit-text-stroke: 2px #ef4444;
   text-shadow: 0 4px 0 #991b1b, 0 6px 14px rgba(0,0,0,0.65);
 }
-.top-action-bar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.badge {
-  display: inline-flex;
-  align-items: center;
-  background: var(--card);
-  border: 1px solid #334155;
-  color: var(--sub);
-  font-size: 0.68rem;
-  font-weight: 800;
-  padding: 0.2rem 0.75rem;
-  border-radius: 99px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
-  margin-top: 0.15rem;
-}
-.badge strong {
-  color: var(--green);
-}
-.btn-top-reload {
-  background: var(--card);
-  border: 1px solid #334155;
-  color: var(--sub);
-  font-size: 0.68rem;
-  font-weight: 800;
-  padding: 0.15rem 0.6rem;
-  border-radius: 99px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
-  transition: transform 0.15s, color 0.15s, border-color 0.15s;
-}
-.btn-top-reload:active {
-  transform: scale(0.94);
-  color: #fff;
-  border-color: var(--red);
-}
 .search-wrap {
   position: relative;
   width: 100%;
@@ -1876,11 +1835,20 @@ body.main-search-focused .viewport {
 }
 
 
-/* v18.18 — responsive main result composition.
-   Keep the reference-phone appearance; scale only when available space changes. */
+/* v18.26 — consolidated responsive/app-shell rules
+   Replaces the superseded v18.18–v18.25 override chain. */
+
+:root {
+  --bottom-nav-height: 78px;
+  --measured-dock-height: 78px;
+}
+
+/* Main result composition */
 .viewport {
   --result-card-width: min(100%, 440px);
-  min-height: 0;
+  min-height: 100%;
+  height: 100%;
+  padding-bottom: calc(var(--measured-dock-height) + 0.35rem);
 }
 #pokeCard {
   width: var(--result-card-width);
@@ -1889,248 +1857,143 @@ body.main-search-focused .viewport {
   flex: 1 1 auto;
   overscroll-behavior-y: contain;
 }
+body.has-active #pokeCard {
+  margin-bottom: 0.25rem;
+  padding-bottom: 0.45rem;
+  max-height: calc(100dvh - var(--measured-dock-height) - 9.7rem);
+  overflow: hidden;
+}
 #pokeCard .img-box {
   width: clamp(108px, min(40vw, 20dvh), 185px);
   height: clamp(108px, min(40vw, 20dvh), 185px);
 }
-#pokeCard .tcg-card-item,
-#pokeCard .tcg-thumb-frame,
-#pokeCard .tcg-skeleton-card {
-  width: clamp(76px, min(25vw, 13.5dvh), 108px);
-  flex-basis: clamp(76px, min(25vw, 13.5dvh), 108px);
-}
-#pokeCard .tcg-thumb-frame,
-#pokeCard .tcg-skeleton-card {
-  height: auto;
-  aspect-ratio: 63 / 88;
-}
-#pokeCard .tcg-scroll-strip { min-height: 0; }
-#pokeCard .tcg-card-item { min-width: 0; }
 #pokeCard .lore-box { font-size: clamp(0.64rem, 1.1dvh, 0.75rem); }
 #pokeCard .tcg-title-text { font-size: clamp(0.59rem, 1.6vw, 0.68rem); }
 #pokeCard .tcg-count-text { font-size: clamp(0.55rem, 1.5vw, 0.65rem); }
-#pokeCard .spin-action-row { position: relative; }
-@media (max-width: 375px) {
-  .viewport { gap: 0.18rem; }
-  header h1 { font-size: clamp(1.75rem, 8vw, 2.25rem); letter-spacing: 1px; }
-  .search-box { min-width: 0; }
-  #pokeCard { padding-inline: 0.4rem; }
-  #pokeCard .tcg-section-wrap { padding-inline: 0.3rem; }
-  #pokeCard .tcg-scroll-strip { gap: 0.35rem; }
-  .hub { gap: clamp(0.45rem, 3vw, 0.8rem); }
-}
-@media (max-height: 740px) {
-  body.has-active .viewport { gap: 0.15rem; }
-  body.has-active header h1 { font-size: clamp(1.7rem, 4.5dvh, 2.2rem); }
-  body.has-active #pokeCard .img-box {
-    width: clamp(98px, min(35vw, 17dvh), 150px);
-    height: clamp(98px, min(35vw, 17dvh), 150px);
-  }
-  body.has-active #pokeCard .tcg-card-item,
-  body.has-active #pokeCard .tcg-thumb-frame,
-  body.has-active #pokeCard .tcg-skeleton-card {
-    width: clamp(74px, 12dvh, 98px);
-    flex-basis: clamp(74px, 12dvh, 98px);
-  }
-  body.has-active #pokeCard .tcg-thumb-frame,
-  body.has-active #pokeCard .tcg-skeleton-card { height: auto; }
-}
-@media (min-width: 600px) {
-  .viewport { max-width: 480px; }
-  #pokeCard { max-width: 460px; }
-}
 
-
-/* v18.19 — card-priority responsive tuning */
 .app-title-refresh {
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
-.app-title-refresh:active {
-  transform: scale(0.985);
-}
+.app-title-refresh:active { transform: scale(0.985); }
 
-/* Keep TCG cards a meaningful focal size across phones.
-   Width drives sizing; short screens no longer shrink the cards. */
-#pokeCard .tcg-card-item,
-#pokeCard .tcg-thumb-frame,
-#pokeCard .tcg-skeleton-card {
-  width: clamp(94px, 27cqw, 112px);
-}
-#pokeCard .tcg-card-item,
-#pokeCard .tcg-skeleton-card {
-  flex-basis: clamp(94px, 27cqw, 112px);
-}
-#pokeCard .tcg-thumb-frame,
-#pokeCard .tcg-skeleton-card {
-  height: auto;
-  aspect-ratio: 63 / 88;
-}
+header { margin-bottom: clamp(0.05rem, 0.45dvh, 0.3rem); }
 
-/* Reclaim vertical space from the removed refresh/status controls rather
-   than sacrificing the card artwork on shorter devices. */
-header {
-  margin-bottom: clamp(0.05rem, 0.45dvh, 0.3rem);
-}
-@media (max-height: 740px) {
-  body.has-active #pokeCard .tcg-card-item,
-  body.has-active #pokeCard .tcg-thumb-frame,
-  body.has-active #pokeCard .tcg-skeleton-card {
-    width: clamp(92px, 27cqw, 108px);
-  }
-  body.has-active #pokeCard .tcg-card-item,
-  body.has-active #pokeCard .tcg-skeleton-card {
-    flex-basis: clamp(92px, 27cqw, 108px);
-  }
-  body.has-active #pokeCard .tcg-thumb-frame,
-  body.has-active #pokeCard .tcg-skeleton-card {
-    height: auto;
-  }
-}
-@media (max-width: 360px) {
-  #pokeCard .tcg-card-item,
-  #pokeCard .tcg-thumb-frame,
-  #pokeCard .tcg-skeleton-card {
-    width: clamp(90px, 28cqw, 104px);
-  }
-  #pokeCard .tcg-card-item,
-  #pokeCard .tcg-skeleton-card {
-    flex-basis: clamp(90px, 28cqw, 104px);
-  }
-}
-
-
-/* v18.20 — card-focus main layout */
-.spin-action-row-external {
-  width: min(100%, 440px);
-  padding: 0 0.35rem;
-  box-sizing: border-box;
-  margin-top: clamp(0.15rem, 0.6dvh, 0.4rem);
-}
-.spin-action-row-external .btn-spin-again {
-  margin-top: 0;
-}
-
-/* Trading cards are sized from available width, not viewport height.
-   Keep them prominent and let the strip scroll horizontally. */
+/* Main encounter TCG strip: fixed useful card size, horizontal scroll. */
 #pokeCard .tcg-scroll-strip {
-  gap: clamp(0.45rem, 1.8cqw, 0.65rem);
+  height: auto;
+  min-height: 190px;
+  gap: 0.65rem;
   overflow-x: auto;
   overflow-y: hidden;
+  align-items: flex-start;
+  padding: 0.15rem 0.1rem 0.25rem;
+  scroll-snap-type: x proximity;
 }
-#pokeCard .tcg-card-item,
-#pokeCard .tcg-thumb-frame,
-#pokeCard .tcg-skeleton-card {
-  width: clamp(104px, 30cqw, 124px);
+#pokeCard .tcg-card-item {
+  flex: 0 0 112px;
+  width: 112px;
+  min-width: 112px;
+  min-height: 0;
+  scroll-snap-align: start;
 }
-#pokeCard .tcg-card-item,
-#pokeCard .tcg-skeleton-card {
-  flex: 0 0 clamp(104px, 30cqw, 124px);
-}
-#pokeCard .tcg-thumb-frame,
-#pokeCard .tcg-skeleton-card {
+#pokeCard .tcg-thumb-frame {
+  width: 112px;
+  min-width: 112px;
   height: auto;
+  min-height: 0;
+  aspect-ratio: 63 / 88;
+  flex: none;
+  overflow: hidden;
+}
+#pokeCard .tcg-card-thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 63 / 88;
+  object-fit: cover;
+}
+#pokeCard .tcg-skeleton-card {
+  flex: 0 0 112px;
+  width: 112px;
+  min-width: 112px;
+  height: auto;
+  min-height: 0;
   aspect-ratio: 63 / 88;
 }
-
-/* Smaller phones keep cards useful; surrounding spacing gives way first. */
-@media (max-width: 375px) {
-  #pokeCard .tcg-card-item,
-  #pokeCard .tcg-thumb-frame,
-  #pokeCard .tcg-skeleton-card {
-    width: clamp(100px, 30.5cqw, 114px);
-  }
-  #pokeCard .tcg-card-item,
-  #pokeCard .tcg-skeleton-card {
-    flex-basis: clamp(100px, 30.5cqw, 114px);
-  }
-  .spin-action-row-external {
-    padding-inline: 0.4rem;
-  }
+#pokeCard .tcg-card-set {
+  font-size: 0.61rem;
+  margin-top: 0.22rem;
 }
+#pokeCard .tcg-card-num { font-size: 0.54rem; }
 
-/* Short screens compress surrounding elements, never the TCG card artwork. */
-@media (max-height: 740px) {
-  body.has-active #pokeCard .tcg-card-item,
-  body.has-active #pokeCard .tcg-thumb-frame,
-  body.has-active #pokeCard .tcg-skeleton-card {
-    width: clamp(100px, 30cqw, 116px);
-  }
-  body.has-active #pokeCard .tcg-card-item,
-  body.has-active #pokeCard .tcg-skeleton-card {
-    flex-basis: clamp(100px, 30cqw, 116px);
-  }
-  .spin-action-row-external {
-    margin-top: 0.1rem;
-  }
+/* Fixed bottom app navigation. JS places it against the visual viewport on iOS. */
+html, body {
+  width: 100%;
+  min-height: 100%;
+  height: 100%;
+  margin: 0;
 }
+body { padding-bottom: 0; }
 
-
-/* v18.21 — fixed app navigation, encounter-only re-spin, larger TCG cards */
-:root {
-  --bottom-nav-height: 76px;
-}
-
-/* Reserve space for the fixed navigation so page content never sits behind it. */
-.viewport {
-  padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
-}
-
-/* App-style navigation fixed to the bottom of the screen. */
-.hub-outer-wrap {
+.hub-outer-wrap,
+body.has-active .hub-outer-wrap {
   position: fixed;
+  z-index: 1000;
   left: 0;
   right: 0;
-  bottom: 0;
-  z-index: 90;
-  width: 100%;
+  bottom: auto;
+  top: var(--dock-visual-top, auto);
+  width: 100vw;
+  height: auto;
+  min-height: 0;
   margin: 0;
-  padding: 0.45rem max(0.75rem, env(safe-area-inset-left)) max(0.35rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-right));
+  padding: 0.42rem max(0.7rem, env(safe-area-inset-right))
+           max(0.42rem, env(safe-area-inset-bottom))
+           max(0.7rem, env(safe-area-inset-left));
+  justify-content: center;
   background: rgba(15, 23, 42, 0.96);
   border-top: 1px solid #334155;
   box-shadow: 0 -8px 24px rgba(0,0,0,0.28);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  transform: translate3d(0,0,0);
+  -webkit-transform: translate3d(0,0,0);
 }
-
 .hub {
+  flex: 0 0 auto;
+  min-height: 0;
   max-width: 440px;
   margin: 0 auto;
   justify-content: space-around;
   gap: 0;
 }
-
 .hub-item-wrap {
   flex: 1 1 25%;
   gap: 0.12rem;
 }
-
 .btn-hub {
   width: 42px;
   height: 42px;
   border-radius: 13px;
   box-shadow: none;
 }
-
 .hub-item-label,
-body.has-active .hub-item-label {
-  font-size: 0.56rem;
-}
+body.has-active .hub-item-label { font-size: 0.56rem; }
 
-/* Disclaimer sits immediately above the fixed navigation. */
 .micro-disclaimer {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 2px);
+  bottom: calc(var(--measured-dock-height) + 0.15rem);
   z-index: 80;
   pointer-events: none;
   margin: 0;
 }
 
-/* Re-spin is not part of the empty roulette screen. */
+/* Encounter-only re-spin control. */
 .spin-action-row-external {
   display: none;
   width: auto;
@@ -2138,141 +2001,45 @@ body.has-active .hub-item-label {
   margin: 0;
   flex-shrink: 0;
 }
-
 body.has-active .spin-action-row-external {
   display: flex;
-  position: absolute;
+  position: fixed;
   right: max(0.8rem, calc((100vw - 440px) / 2 + 0.8rem));
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1.15rem);
+  bottom: calc(var(--measured-dock-height) + 0.7rem);
   z-index: 85;
 }
-
 .spin-action-row-external .btn-spin-again {
-  width: 50px;
-  height: 50px;
-  min-width: 50px;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
   padding: 0;
   margin: 0;
   border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.88);
   font-size: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid rgba(255,255,255,0.88);
   box-shadow: 0 7px 20px rgba(239,68,68,0.48), 0 4px 12px rgba(0,0,0,0.45);
 }
-
 .spin-action-row-external .btn-spin-again::before {
   content: '↻';
-  font-size: 1.55rem;
+  font-size: 1.28rem;
   line-height: 1;
   font-weight: 900;
   color: #fff;
   transform: translateY(-1px);
 }
-
 .spin-action-row-external .btn-spin-again:active {
   transform: scale(0.91) rotate(-18deg);
 }
 
-/* Let the encounter card use the space reclaimed by the old full-width button/nav. */
-body.has-active #pokeCard {
-  margin-bottom: 0.25rem;
-  padding-bottom: 0.45rem;
-}
-
-/* Card Variations: make the artwork a focal point and never allow flexbox to squeeze it. */
-#pokeCard .tcg-scroll-strip {
-  min-height: 184px;
-  align-items: flex-start;
-  gap: 0.65rem;
-  padding: 0.15rem 0.1rem 0.25rem;
-  scroll-snap-type: x proximity;
-}
-
-#pokeCard .tcg-card-item,
-#pokeCard .tcg-skeleton-card {
-  flex: 0 0 132px !important;
-  width: 132px !important;
-  min-width: 132px !important;
-  scroll-snap-align: start;
-}
-
-#pokeCard .tcg-thumb-frame,
-#pokeCard .tcg-skeleton-card {
-  width: 132px !important;
-  min-width: 132px !important;
-  height: auto !important;
-  aspect-ratio: 63 / 88;
-}
-
-#pokeCard .tcg-card-thumb {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-#pokeCard .tcg-card-set {
-  font-size: 0.61rem;
-  margin-top: 0.22rem;
-}
-
-#pokeCard .tcg-card-num {
-  font-size: 0.54rem;
-}
-
-/* Earlier short-screen rules must not shrink card artwork again. */
-@media (max-height: 740px), (max-width: 375px), (max-width: 360px) {
-  body.has-active #pokeCard .tcg-card-item,
-  body.has-active #pokeCard .tcg-skeleton-card,
-  #pokeCard .tcg-card-item,
-  #pokeCard .tcg-skeleton-card {
-    flex: 0 0 124px !important;
-    width: 124px !important;
-    min-width: 124px !important;
-  }
-  body.has-active #pokeCard .tcg-thumb-frame,
-  #pokeCard .tcg-thumb-frame {
-    width: 124px !important;
-    min-width: 124px !important;
-    height: auto !important;
-  }
-  #pokeCard .tcg-scroll-strip { min-height: 173px; }
-}
-
-/* v18.22 — iPhone dock + card geometry fixes */
-/* The page itself must reach the physical bottom edge. The fixed dock owns the safe-area padding. */
-body {
-  padding-bottom: 0 !important;
-}
-
-:root {
-  --bottom-nav-height: 92px;
-}
-
-.viewport {
-  padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom)) !important;
-}
-
-.hub-outer-wrap {
-  bottom: 0 !important;
-  min-height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
-  padding-top: 0.5rem;
-  padding-bottom: max(0.55rem, env(safe-area-inset-bottom));
-  justify-content: flex-start;
-}
-
-/* Keep the legal line attached to the dock rather than floating above it. */
-.micro-disclaimer {
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 6px) !important;
-}
-
-/* Dex card grid: remove the little rounded backing panel that peeks out around the artwork. */
+/* Dex card thumbnails: artwork without an extra backing tile. */
 .dex-card-thumb-cell {
-  background: transparent !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  padding: 0 !important;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
   overflow: visible;
 }
 .dex-card-thumb-cell img {
@@ -2284,251 +2051,66 @@ body {
 }
 .dex-cell-set { margin-top: 0.32rem; }
 
-/* Encounter card strip: use explicit Pokémon-card geometry.
-   This prevents earlier responsive rules / intrinsic image sizing from flattening the cards. */
-#pokeCard .tcg-scroll-strip {
-  min-height: 184px !important;
-  height: 184px;
-  align-items: flex-start !important;
-  overflow-y: hidden !important;
+/* Compact set-detail controls. */
+#setsModal.viewing-set .tcg-set-search-wrap { display: none; }
+#setsModal.viewing-set .tcg-set-detail-head { padding: 0.15rem 0 0.55rem; }
+#setsModal.viewing-set .tcg-set-back { font-size: 0.58rem; padding: 4px 7px; margin-bottom: 0.38rem; }
+#setsModal.viewing-set .tcg-set-detail-head img { width: 118px; max-height: 52px; margin-bottom: 0.25rem; }
+#setsModal.viewing-set .tcg-set-detail-title { font-size: 0.88rem; }
+#setsModal.viewing-set .tcg-set-detail-meta { font-size: 0.61rem; margin-top: 0.1rem; }
+#setsModal.viewing-set .tcg-set-progress { margin-top: 0.45rem; }
+#setsModal.viewing-set .tcg-set-progress-info { font-size: 0.61rem; margin-bottom: 0.22rem; }
+#setsModal.viewing-set .tcg-set-filter { margin-top: 0.48rem; gap: 0.35rem; }
+#setsModal.viewing-set .tcg-set-filter-btn { min-height: 34px; padding: 0.4rem 0.55rem; font-size: 0.68rem; }
+
+/* Compact variant controls in card zoom. */
+.tcg-zoom-variants {
+  width: min(100%, 280px);
+  padding: 0.18rem 0.45rem;
+  margin: 0.05rem 0;
+  border-radius: 10px;
 }
-#pokeCard .tcg-card-item {
-  flex: 0 0 112px !important;
-  width: 112px !important;
-  min-width: 112px !important;
+.tcg-zoom-variant-option {
+  padding: 0.28rem 0.1rem;
+  font-size: 0.66rem;
+  gap: 0.5rem;
 }
-#pokeCard .tcg-thumb-frame {
-  flex: 0 0 auto !important;
-  width: 112px !important;
-  min-width: 112px !important;
-  height: 156px !important;
-  min-height: 156px !important;
-  aspect-ratio: auto !important;
+.tcg-zoom-variant-circle {
+  width: 18px;
+  height: 18px;
+  border-width: 1.5px;
+  font-size: 0.66rem;
 }
-#pokeCard .tcg-card-thumb {
-  display: block !important;
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: fill !important;
-}
-#pokeCard .tcg-skeleton-card {
-  flex: 0 0 112px !important;
-  width: 112px !important;
-  min-width: 112px !important;
-  height: 156px !important;
-  min-height: 156px !important;
-  aspect-ratio: auto !important;
+.tcg-zoom-price-row { margin-top: 0.15rem; }
+
+@media (max-width: 375px) {
+  .viewport { gap: 0.18rem; }
+  header h1 { font-size: clamp(1.75rem, 8vw, 2.25rem); letter-spacing: 1px; }
+  .search-box { min-width: 0; }
+  #pokeCard { padding-inline: 0.4rem; }
+  #pokeCard .tcg-section-wrap { padding-inline: 0.3rem; }
+  .hub { gap: 0; }
 }
 
-/* The re-spin button belongs to the encounter card, immediately above the dock. */
-body.has-active .spin-action-row-external {
-  position: fixed !important;
-  right: max(0.8rem, calc((100vw - 440px) / 2 + 0.8rem));
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 0.8rem) !important;
-}
-
-
-/* v18.23 — consistent Safari / Home Screen dock + encounter card layout */
-:root {
-  --bottom-nav-height: 78px;
-}
-
-/* Do not give the fixed dock a forced content height. On iOS standalone mode
-   that was turning the safe-area into a large empty panel below the icons. */
-.hub-outer-wrap,
-body.has-active .hub-outer-wrap {
-  position: fixed !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  width: 100% !important;
-  min-height: 0 !important;
-  height: auto !important;
-  margin: 0 !important;
-  box-sizing: border-box !important;
-  padding: 0.42rem max(0.7rem, env(safe-area-inset-right)) max(0.38rem, env(safe-area-inset-bottom)) max(0.7rem, env(safe-area-inset-left)) !important;
-  justify-content: center !important;
-}
-
-.hub {
-  flex: 0 0 auto !important;
-  min-height: 0 !important;
-}
-
-/* Reserve only the real dock + iOS safe area in the document. */
-.viewport {
-  min-height: 100vh;
-  min-height: 100dvh;
-  height: auto !important;
-  padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 0.35rem) !important;
-  box-sizing: border-box;
-}
-
-/* Keep the disclaimer immediately above the actual dock in both Safari and
-   standalone Home Screen mode. */
-.micro-disclaimer {
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 0.15rem) !important;
-}
-
-/* Encounter view: reserve room for the dock instead of compressing the TCG strip. */
-body.has-active #pokeCard {
-  max-height: calc(100dvh - var(--bottom-nav-height) - env(safe-area-inset-bottom) - 9.7rem) !important;
-  overflow: hidden !important;
-}
-
-/* Cards keep their physical portrait ratio and scroll horizontally. */
-#pokeCard .tcg-scroll-strip {
-  height: auto !important;
-  min-height: 190px !important;
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
-  align-items: flex-start !important;
-  padding-bottom: 0.2rem !important;
-}
-#pokeCard .tcg-card-item {
-  flex: 0 0 112px !important;
-  width: 112px !important;
-  min-width: 112px !important;
-  height: auto !important;
-  min-height: 0 !important;
-}
-#pokeCard .tcg-thumb-frame {
-  width: 112px !important;
-  min-width: 112px !important;
-  height: auto !important;
-  min-height: 0 !important;
-  aspect-ratio: 63 / 88 !important;
-  flex: none !important;
-  overflow: hidden !important;
-}
-#pokeCard .tcg-card-thumb {
-  display: block !important;
-  width: 100% !important;
-  height: 100% !important;
-  aspect-ratio: 63 / 88 !important;
-  object-fit: cover !important;
-}
-
-/* Re-spin follows the corrected dock position. */
-body.has-active .spin-action-row-external {
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 0.7rem) !important;
-}
-
-/* Standalone iOS gets the same compact dock; only the genuine home-indicator
-   inset remains below it. */
-@media (display-mode: standalone) {
-  :root { --bottom-nav-height: 78px; }
-  .hub-outer-wrap,
-  body.has-active .hub-outer-wrap {
-    min-height: 0 !important;
-    height: auto !important;
+@media (max-height: 740px) {
+  body.has-active .viewport { gap: 0.15rem; }
+  body.has-active header h1 { font-size: clamp(1.7rem, 4.5dvh, 2.2rem); }
+  body.has-active #pokeCard .img-box {
+    width: clamp(98px, min(35vw, 17dvh), 150px);
+    height: clamp(98px, min(35vw, 17dvh), 150px);
   }
 }
 
-
-/* v18.24 — true viewport-edge dock for Safari + iOS Home Screen */
-html, body {
-  width: 100% !important;
-  min-height: 100% !important;
-  height: 100% !important;
-  margin: 0 !important;
-}
-body {
-  padding-bottom: 0 !important;
-}
-
-/* The dock is attached to the visual viewport itself. Its own safe-area padding
-   protects the controls from the Home indicator; no extra panel is reserved below it. */
-.hub-outer-wrap,
-body.has-active .hub-outer-wrap {
-  position: fixed !important;
-  z-index: 1000 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  top: auto !important;
-  width: 100vw !important;
-  height: auto !important;
-  min-height: 0 !important;
-  margin: 0 !important;
-  padding: 0.42rem max(0.7rem, env(safe-area-inset-right)) max(0.42rem, env(safe-area-inset-bottom)) max(0.7rem, env(safe-area-inset-left)) !important;
-  transform: translate3d(0,0,0);
-  -webkit-transform: translate3d(0,0,0);
-}
-
-/* JS writes the measured dock height here, so every device reserves exactly
-   the space its own dock occupies rather than relying on a guessed pixel height. */
-:root { --measured-dock-height: 78px; }
-.viewport {
-  height: 100% !important;
-  min-height: 100% !important;
-  padding-bottom: calc(var(--measured-dock-height) + 0.35rem) !important;
-}
-.micro-disclaimer {
-  bottom: calc(var(--measured-dock-height) + 0.15rem) !important;
-}
-body.has-active .spin-action-row-external {
-  bottom: calc(var(--measured-dock-height) + 0.7rem) !important;
-}
-body.has-active #pokeCard {
-  max-height: calc(100dvh - var(--measured-dock-height) - 9.7rem) !important;
+@media (min-width: 600px) {
+  .viewport { max-width: 480px; }
+  #pokeCard { max-width: 460px; }
 }
 
 @media (display-mode: standalone) {
   html, body, .viewport {
-    height: 100% !important;
-    min-height: 100% !important;
+    height: 100%;
+    min-height: 100%;
   }
-  .hub-outer-wrap, body.has-active .hub-outer-wrap {
-    bottom: 0 !important;
-  }
-}
-
-
-
-/* v18.25 — compact set detail / zoom controls + visual-viewport dock */
-/* Hide set search while browsing inside one specific set. */
-#setsModal.viewing-set .tcg-set-search-wrap { display:none !important; }
-#setsModal.viewing-set .tcg-set-detail-head { padding:0.15rem 0 0.55rem !important; }
-#setsModal.viewing-set .tcg-set-back { font-size:0.58rem !important; padding:4px 7px !important; margin-bottom:0.38rem !important; }
-#setsModal.viewing-set .tcg-set-detail-head img { width:118px !important; max-height:52px !important; margin-bottom:0.25rem !important; }
-#setsModal.viewing-set .tcg-set-detail-title { font-size:0.88rem !important; }
-#setsModal.viewing-set .tcg-set-detail-meta { font-size:0.61rem !important; margin-top:0.1rem !important; }
-#setsModal.viewing-set .tcg-set-progress { margin-top:0.45rem !important; }
-#setsModal.viewing-set .tcg-set-progress-info { font-size:0.61rem !important; margin-bottom:0.22rem !important; }
-#setsModal.viewing-set .tcg-set-filter { margin-top:0.48rem !important; gap:0.35rem !important; }
-#setsModal.viewing-set .tcg-set-filter-btn { min-height:34px !important; padding:0.4rem 0.55rem !important; font-size:0.68rem !important; }
-
-/* Smaller encounter regenerate button. */
-.spin-action-row-external .btn-spin-again {
-  width:42px !important; height:42px !important; min-width:42px !important;
-  border-width:2px !important;
-}
-.spin-action-row-external .btn-spin-again::before { font-size:1.28rem !important; }
-
-/* More compact Standard / Reverse / etc controls in card zoom. */
-.tcg-zoom-variants {
-  width:min(100%,280px) !important;
-  padding:0.18rem 0.45rem !important;
-  margin:0.05rem 0 !important;
-  border-radius:10px !important;
-}
-.tcg-zoom-variant-option {
-  padding:0.28rem 0.1rem !important;
-  font-size:0.66rem !important;
-  gap:0.5rem !important;
-}
-.tcg-zoom-variant-circle {
-  width:18px !important; height:18px !important; border-width:1.5px !important;
-  font-size:0.66rem !important;
-}
-.tcg-zoom-price-row { margin-top:0.15rem !important; }
-
-/* JS positions this against the actual iOS visual viewport, not the larger layout viewport. */
-.hub-outer-wrap,
-body.has-active .hub-outer-wrap {
-  bottom:auto !important;
-  top:var(--dock-visual-top, auto) !important;
 }
 
 </style>

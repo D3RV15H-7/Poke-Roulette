@@ -3440,7 +3440,9 @@ let tcgSetsCache = null;
 let activeTcgSet = null;
   let activeTcgSetFilter = 'all';
   let activeSetVariantCardId = null;
-  document.addEventListener('click', (e) => {
+  installHubPullToClose();
+
+document.addEventListener('click', (e) => {
   if (!activeSetVariantCardId) return;
 
   const selector = e.target.closest('.tcg-variant-selector');
@@ -6115,12 +6117,101 @@ function openModal(id) {
     const input = document.getElementById('dexFilterInput');
     if (input) input.value = '';
     renderDex();
+
+    // Always reopen the Dex from the top, matching the Sets behaviour.
+    const dexList = document.getElementById('dexList');
+    if (dexList) {
+      dexList.scrollTop = 0;
+      dexList.scrollTo?.({ top: 0, left: 0, behavior: 'auto' });
+    }
   }
 
   if (id === 'recentModal') renderRecents();
   if (id === 'accountModal') initFirebaseIfReady();
 
   el.style.display = 'flex';
+}
+
+
+const HUB_PULL_CLOSE_MODAL_IDS = new Set([
+  'accountModal',
+  'dexModal',
+  'setsModal',
+  'infoModal'
+]);
+
+function getHubModalScroller(modal) {
+  if (!modal) return null;
+
+  // Dex scrolls inside its list; Sets/Profile/Info use their modal body.
+  if (modal.id === 'dexModal') {
+    return modal.querySelector('#dexList') || modal.querySelector('.modal-body');
+  }
+
+  return modal.querySelector('.modal-body');
+}
+
+function installHubPullToClose() {
+  HUB_PULL_CLOSE_MODAL_IDS.forEach(id => {
+    const modal = document.getElementById(id);
+    if (!modal || modal.dataset.pullCloseReady === '1') return;
+
+    let startY = 0;
+    let tracking = false;
+
+    modal.addEventListener('touchstart', event => {
+      if (event.touches.length !== 1) return;
+
+      const scroller = getHubModalScroller(modal);
+      if (!scroller || scroller.scrollTop > 1) {
+        tracking = false;
+        return;
+      }
+
+      startY = event.touches[0].clientY;
+      tracking = true;
+    }, { passive: true });
+
+    modal.addEventListener('touchmove', event => {
+      if (!tracking || event.touches.length !== 1) return;
+
+      const scroller = getHubModalScroller(modal);
+      if (!scroller || scroller.scrollTop > 1) {
+        tracking = false;
+        return;
+      }
+
+      const pullDistance = event.touches[0].clientY - startY;
+
+      // Once the user has clearly pulled down from the very top,
+      // stop the browser/page from rubber-banding behind the panel.
+      if (pullDistance > 8 && event.cancelable) {
+        event.preventDefault();
+      }
+    }, { passive: false });
+
+    modal.addEventListener('touchend', event => {
+      if (!tracking) return;
+      tracking = false;
+
+      const scroller = getHubModalScroller(modal);
+      if (!scroller || scroller.scrollTop > 1) return;
+
+      const endY = event.changedTouches?.[0]?.clientY ?? startY;
+      const pullDistance = endY - startY;
+
+      // Deliberate downward swipe/pull from the top closes the active window.
+      if (pullDistance >= 70) {
+        closeModal(null, id);
+      }
+    }, { passive: true });
+
+    modal.addEventListener('touchcancel', () => {
+      tracking = false;
+    }, { passive: true });
+
+    modal.dataset.pullCloseReady = '1';
+  });
 }
 
 function closeModal(e, id) {

@@ -2395,7 +2395,7 @@ body.has-active .hub-outer-wrap {
 
     <!-- NEW SETS BUTTON -->
     <div class="hub-item-wrap">
-      <button class="btn-hub" onclick="openModal('setsModal'); renderTcgSets();" title="Card Sets">
+      <button class="btn-hub" onclick="openModal('setsModal'); if (document.getElementById('setsModal')?.style.display === 'flex') renderTcgSets();" title="Card Sets">
         <svg viewBox="0 0 24 24">
           <rect x="4" y="5" width="14" height="16" rx="2"/>
           <path d="M8 5V3h12v16h-2"/>
@@ -6025,16 +6025,41 @@ function showAuthError(msg) {
 }
 
 function openModal(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  // Hub/modal navigation is exclusive:
+  // tapping the open view closes it; opening another closes the current view.
+  const isAlreadyOpen = el.style.display === 'flex';
+
+  document.querySelectorAll('.modal').forEach(modal => {
+    if (modal.id !== id && modal.style.display !== 'none') {
+      modal.style.display = 'none';
+
+      if (modal.id === 'setsModal') {
+        resetSetsScrollToTop();
+        activeTcgSet = null;
+        activeSetVariantCardId = null;
+      }
+    }
+  });
+
+  if (isAlreadyOpen) {
+    closeModal(null, id);
+    return;
+  }
+
   if (id === 'dexModal') {
     dexQuery = '';
     const input = document.getElementById('dexFilterInput');
     if (input) input.value = '';
     renderDex();
   }
+
   if (id === 'recentModal') renderRecents();
   if (id === 'accountModal') initFirebaseIfReady();
-  const el = document.getElementById(id);
-  if (el) el.style.display = 'flex';
+
+  el.style.display = 'flex';
 }
 
 function closeModal(e, id) {

@@ -2337,6 +2337,46 @@ body.has-active .hub-outer-wrap {
   background: #334155;
 }
 
+
+/* v18.31 — encounter Spin Again sits on the result card, above the dock. */
+body.has-active .spin-action-row-external {
+  display: flex;
+  position: fixed;
+  left: auto;
+  right: max(
+    0.75rem,
+    calc((100vw - min(100vw - 0.8rem, 440px)) / 2 + 0.75rem)
+  );
+  bottom: calc(var(--measured-dock-height) + 0.55rem);
+  z-index: 85;
+  width: auto;
+}
+
+.spin-action-row-external .btn-spin-again {
+  width: auto;
+  height: 34px;
+  min-width: 0;
+  padding: 0 0.75rem;
+  margin: 0;
+  border-radius: 9px;
+  border: 1.5px solid rgba(255,255,255,0.72);
+  font-size: 0.68rem;
+  letter-spacing: 0.35px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  box-shadow: 0 5px 14px rgba(239,68,68,0.38), 0 3px 8px rgba(0,0,0,0.35);
+}
+
+.spin-action-row-external .btn-spin-again::before {
+  content: none;
+}
+
+.spin-action-row-external .btn-spin-again:active {
+  transform: scale(0.95);
+}
+
 </style>
 </head>
 <body>
@@ -2610,8 +2650,8 @@ body.has-active .hub-outer-wrap {
       <input type="email" id="authEmail" class="auth-input" placeholder="Email Address" />
       <input type="password" id="authPassword" class="auth-input" placeholder="Password" />
       <div style="display:flex;gap:0.5rem;">
-        <button class="btn-auth-primary" style="flex:1;" onclick="handleEmailAuth(false)">Log In</button>
         <button class="btn-auth-primary" style="flex:1;background:#334155;" onclick="handleEmailAuth(true)">Sign Up</button>
+        <button class="btn-auth-primary" style="flex:1;" onclick="handleEmailAuth(false)">Log In</button>
       </div>
       <div id="authErrorMsg" style="color:var(--red);font-size:0.75rem;text-align:center;display:none;"></div>
     </div>
@@ -6115,6 +6155,22 @@ function openModal(id) {
     const input = document.getElementById('dexFilterInput');
     if (input) input.value = '';
     renderDex();
+
+    // Always reopen the Dex from the top, matching the Sets behaviour.
+    const dexGrid = document.getElementById('dexGrid');
+    if (dexGrid) {
+      dexGrid.scrollTop = 0;
+      dexGrid.scrollTo?.({ top: 0, left: 0, behavior: 'auto' });
+    }
+    // Run once more after rendering/layout so mobile browsers cannot restore
+    // the previous scroll position on the newly displayed panel.
+    requestAnimationFrame(() => {
+      const currentDexGrid = document.getElementById('dexGrid');
+      if (currentDexGrid) {
+        currentDexGrid.scrollTop = 0;
+        currentDexGrid.scrollTo?.({ top: 0, left: 0, behavior: 'auto' });
+      }
+    });
   }
 
   if (id === 'recentModal') renderRecents();
@@ -6122,6 +6178,7 @@ function openModal(id) {
 
   el.style.display = 'flex';
 }
+
 
 function closeModal(e, id) {
   if (!e || e.target.id === id) {

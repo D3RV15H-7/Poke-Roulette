@@ -2451,6 +2451,102 @@ body.has-active .spin-action-row-external {
   }
 }
 
+
+/* v18.33 — final mobile fitment refinements */
+
+/* The large card viewer owns only the space above the fixed app dock. */
+.tcg-zoom-modal {
+  top: var(--app-viewport-top, 0px);
+  right: 0;
+  left: 0;
+  bottom: var(--measured-dock-height);
+  height: auto;
+  padding: clamp(0.3rem, 0.8dvh, 0.55rem);
+  align-items: center;
+  overflow: hidden;
+}
+
+#tcgZoomModal .tcg-zoom-content {
+  width: min(100%, 400px);
+  max-height: calc(100% - 0.2rem);
+  padding: clamp(0.42rem, 0.8dvh, 0.65rem) clamp(0.6rem, 1.6vw, 0.85rem);
+  gap: clamp(0.16rem, 0.4dvh, 0.3rem);
+  overflow: hidden;
+}
+
+/* The artwork is the flexible part of the preview.  This guarantees room
+   for the title, all variant rows, value and Close Preview button. */
+#tcgZoomModal .flat-card-container {
+  width: clamp(220px, 35dvh, 292px);
+  max-width: min(82vw, 292px);
+  flex: 0 1 auto;
+}
+
+#tcgZoomModal .tcg-zoom-content:has(.tcg-zoom-variant-option:nth-child(3)) .flat-card-container {
+  width: clamp(205px, 31.5dvh, 270px);
+  max-width: min(78vw, 270px);
+}
+
+#tcgZoomModal .tcg-zoom-title {
+  font-size: clamp(0.88rem, 1.7dvh, 1.05rem);
+  line-height: 1.05;
+}
+
+#tcgZoomModal .tcg-zoom-meta {
+  font-size: clamp(0.68rem, 1.35dvh, 0.78rem);
+  line-height: 1.05;
+}
+
+#tcgZoomModal .tcg-zoom-variants {
+  width: min(100%, 300px);
+  padding: 0.2rem 0.5rem;
+  margin: 0.04rem 0;
+}
+
+#tcgZoomModal .tcg-zoom-variant-option {
+  min-height: 25px;
+  padding: 0.16rem 0.08rem;
+  font-size: clamp(0.66rem, 1.35dvh, 0.76rem);
+  line-height: 1;
+}
+
+#tcgZoomModal .tcg-zoom-variant-circle {
+  width: 19px;
+  height: 19px;
+  min-width: 19px;
+  font-size: 0.7rem;
+}
+
+#tcgZoomModal .tcg-zoom-price-row {
+  padding: 0.16rem 0.7rem;
+  font-size: clamp(0.7rem, 1.35dvh, 0.8rem);
+}
+
+#tcgZoomModal .tcg-zoom-close {
+  padding: 0.3rem 1rem;
+  font-size: clamp(0.7rem, 1.3dvh, 0.8rem);
+  flex-shrink: 0;
+}
+
+/* Centre Spin Again below the encounter card. */
+body.has-active .spin-action-row-external {
+  left: 0;
+  right: 0;
+  width: var(--encounter-width);
+  margin-left: auto;
+  margin-right: auto;
+  justify-content: center;
+}
+.spin-action-row-external .btn-spin-again {
+  margin-right: 0;
+}
+
+/* On the idle screen, lower the wheel into the visual centre of the
+   available area without affecting the encounter/result layout. */
+body:not(.has-active) .wheel-wrap {
+  margin-top: clamp(1.4rem, 5dvh, 3rem);
+}
+
 </style>
 </head>
 <body>
@@ -2731,26 +2827,39 @@ body.has-active .spin-action-row-external {
 </div>
 
 <div class="modal" id="infoModal" onclick="closeModal(event, 'infoModal')">
-  <div class="modal-body" style="height: auto; max-height: 80dvh;" onclick="event.stopPropagation()">
+  <div class="modal-body" style="height:auto;max-height:80dvh;" onclick="event.stopPropagation()">
     <div class="modal-head">
       <h3 style="font-size:1.15rem;font-weight:800;">ℹ About PokéRoulette</h3>
       <button style="background:#334155;color:#fff;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;" onclick="closeModal(null, 'infoModal')">✕</button>
     </div>
-    <div style="font-size:0.76rem; color:#cbd5e1; line-height:1.5; display:flex; flex-direction:column; gap:0.75rem; padding:0.5rem 0.2rem; overflow-y:auto;">
-      <p><strong style="color:#fff;">PokéRoulette</strong> is an unofficial, non-commercial fan-made project built for collectors to discover Pokémon and track their TCG card binders.</p>
-      
-      <div style="background:#090d16; border:1px solid #334155; border-radius:10px; padding:0.65rem 0.8rem;">
-        <div style="color:var(--gold); font-weight:800; font-size:0.72rem; text-transform:uppercase; margin-bottom:0.3rem;">Data & Media Sources</div>
-        <ul style="list-style:disc; padding-left:1.1rem; color:var(--sub); display:flex; flex-direction:column; gap:0.25rem;">
-          <li>Pokémon species, stats & artwork: <strong style="color:#fff;">PokéAPI</strong></li>
-          <li>Card images & variations: <strong style="color:#fff;">Pokémon TCG API</strong> & <strong style="color:#fff;">TCGdex</strong></li>
-          <li>Estimated values: Market trends converted from TCGplayer & Cardmarket</li>
+
+    <div style="font-size:0.76rem;color:#cbd5e1;line-height:1.5;display:flex;flex-direction:column;gap:0.75rem;padding:0.5rem 0.2rem;overflow-y:auto;">
+      <p><strong style="color:#fff;">PokéRoulette</strong> is an unofficial, non-commercial fan-made collector app for discovering Pokémon, exploring physical Pokémon TCG cards and tracking your collection.</p>
+
+      <div style="background:#090d16;border:1px solid #334155;border-radius:10px;padding:0.65rem 0.8rem;">
+        <div style="color:var(--green);font-weight:800;font-size:0.72rem;text-transform:uppercase;margin-bottom:0.3rem;">App Features</div>
+        <ul style="list-style:disc;padding-left:1.1rem;color:var(--sub);display:flex;flex-direction:column;gap:0.25rem;">
+          <li>Spin the type wheel or search directly to discover Pokémon.</li>
+          <li>View artwork, typing, cries, shiny forms and evolution chains.</li>
+          <li>Browse physical card variations and estimated market values.</li>
+          <li>Track Pokémon in your Dex and individual card print variants in Sets.</li>
+          <li>Browse TCG sets, collection progress and owned / missing cards.</li>
+          <li>Create an account to sync supported collection data across devices.</li>
         </ul>
       </div>
 
-      <div style="background:#090d16; border:1px solid #334155; border-radius:10px; padding:0.65rem 0.8rem;">
-        <div style="color:var(--red); font-weight:800; font-size:0.72rem; text-transform:uppercase; margin-bottom:0.3rem;">Legal Disclaimer</div>
-        <p style="color:var(--sub); font-size:0.7rem; line-height:1.4;">Pokémon and Pokémon character names are trademarks and © of Nintendo, Creatures Inc., and Game Freak Inc. PokéRoulette is not affiliated with, endorsed, sponsored, or approved by Nintendo or The Pokémon Company.</p>
+      <div style="background:#090d16;border:1px solid #334155;border-radius:10px;padding:0.65rem 0.8rem;">
+        <div style="color:var(--gold);font-weight:800;font-size:0.72rem;text-transform:uppercase;margin-bottom:0.3rem;">Data & Media</div>
+        <ul style="list-style:disc;padding-left:1.1rem;color:var(--sub);display:flex;flex-direction:column;gap:0.25rem;">
+          <li>Pokémon data & artwork: <strong style="color:#fff;">PokéAPI</strong></li>
+          <li>TCG card data & images: <strong style="color:#fff;">Pokémon TCG API</strong> & <strong style="color:#fff;">TCGdex</strong></li>
+          <li>Estimated values use available TCGplayer / Cardmarket market data and are for guidance only.</li>
+        </ul>
+      </div>
+
+      <div style="background:#090d16;border:1px solid #334155;border-radius:10px;padding:0.65rem 0.8rem;">
+        <div style="color:var(--red);font-weight:800;font-size:0.72rem;text-transform:uppercase;margin-bottom:0.3rem;">Disclaimer</div>
+        <p style="color:var(--sub);font-size:0.7rem;line-height:1.4;">PokéRoulette is not affiliated with, endorsed, sponsored or approved by Nintendo, Creatures Inc., GAME FREAK or The Pokémon Company. Pokémon names, characters, artwork and related trademarks belong to their respective owners.</p>
       </div>
     </div>
   </div>

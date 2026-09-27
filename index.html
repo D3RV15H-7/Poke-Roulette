@@ -2113,6 +2113,59 @@ body.has-active .spin-action-row-external {
   }
 }
 
+
+/* v18.27 — browser vs Home Screen layout controller.
+   One visual design, with only the expendable vertical space adapting. */
+:root {
+  --app-visible-height: 100dvh;
+  --app-viewport-top: 0px;
+  --encounter-reserve: 9.7rem;
+}
+html.is-browser {
+  --encounter-reserve: 9.15rem;
+}
+html.is-standalone {
+  --encounter-reserve: 9.7rem;
+}
+.viewport {
+  height: var(--app-visible-height);
+  min-height: var(--app-visible-height);
+}
+body.has-active #pokeCard {
+  max-height: calc(
+    var(--app-visible-height) -
+    var(--measured-dock-height) -
+    var(--encounter-reserve)
+  );
+}
+/* Cards remain the focal point in both environments. */
+#pokeCard .tcg-card-item,
+#pokeCard .tcg-thumb-frame,
+#pokeCard .tcg-skeleton-card {
+  width: 112px;
+  min-width: 112px;
+}
+#pokeCard .tcg-card-item,
+#pokeCard .tcg-skeleton-card {
+  flex-basis: 112px;
+}
+/* Safari/browser gives up surrounding space before card artwork. */
+html.is-browser body.has-active #pokeCard .img-box {
+  width: clamp(98px, min(36vw, 18dvh), 160px);
+  height: clamp(98px, min(36vw, 18dvh), 160px);
+}
+html.is-browser body.has-active .viewport {
+  gap: 0.14rem;
+}
+html.is-browser body.has-active header {
+  margin-bottom: 0.08rem;
+}
+/* Home Screen can use the additional vertical room. */
+html.is-standalone body.has-active #pokeCard .img-box {
+  width: clamp(108px, min(40vw, 20dvh), 185px);
+  height: clamp(108px, min(40vw, 20dvh), 185px);
+}
+
 </style>
 </head>
 <body>
@@ -7930,45 +7983,88 @@ document.addEventListener('input', event => {
 
 
 // v18.24: measure the real dock instead of guessing a device/browser height.
-function syncBottomDockToViewport() {
-  const dock = document.querySelector('.hub-outer-wrap');
-  if (!dock) return;
-  const h = Math.ceil(dock.getBoundingClientRect().height);
-  if (h > 0) document.documentElement.style.setProperty('--measured-dock-height', `${h}px`);
-}
-window.addEventListener('load', syncBottomDockToViewport);
-window.addEventListener('resize', syncBottomDockToViewport);
-window.addEventListener('orientationchange', () => setTimeout(syncBottomDockToViewport, 80));
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', syncBottomDockToViewport);
-  window.visualViewport.addEventListener('scroll', syncBottomDockToViewport);
-}
-requestAnimationFrame(syncBottomDockToViewport);
 
+function isStandaloneDisplayMode() {
+  return Boolean(
+    window.matchMedia?.('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true
+  );
+}
 
-// v18.25: pin bottom navigation to the *visible* iOS viewport.
-// Safari's browser chrome and Home Screen mode expose different visual heights,
-// so using visualViewport prevents a dead strip appearing beneath the dock.
-function positionDockToVisualViewport() {
+function syncAppViewportLayout() {
+  const root = document.documentElement;
   const dock = document.querySelector('.hub-outer-wrap');
-  if (!dock) return;
   const vv = window.visualViewport;
+
+  const standalone = isStandaloneDisplayMode();
+  root.classList.toggle('is-standalone', standalone);
+  root.classList.toggle('is-browser', !standalone);
+
   const viewportTop = vv ? vv.offsetTop : 0;
   const viewportHeight = vv ? vv.height : window.innerHeight;
-  const dockHeight = dock.getBoundingClientRect().height || dock.offsetHeight || 78;
-  const top = Math.max(0, viewportTop + viewportHeight - dockHeight);
-  document.documentElement.style.setProperty('--dock-visual-top', `${top}px`);
-  document.documentElement.style.setProperty('--measured-dock-height', `${dockHeight}px`);
+
+  root.style.setProperty(
+    '--app-visible-height',
+    `${Math.round(viewportHeight)}px`
+  );
+  root.style.setProperty(
+    '--app-viewport-top',
+    `${Math.round(viewportTop)}px`
+  );
+
+  if (!dock) return;
+
+  const dockHeight =
+    Math.ceil(dock.getBoundingClientRect().height) ||
+    dock.offsetHeight ||
+    78;
+
+  const dockTop = Math.max(
+    0,
+    viewportTop + viewportHeight - dockHeight
+  );
+
+  root.style.setProperty(
+    '--measured-dock-height',
+    `${dockHeight}px`
+  );
+  root.style.setProperty(
+    '--dock-visual-top',
+    `${Math.round(dockTop)}px`
+  );
 }
-window.addEventListener('load', positionDockToVisualViewport);
-window.addEventListener('resize', positionDockToVisualViewport);
-window.addEventListener('orientationchange', () => setTimeout(positionDockToVisualViewport, 120));
+
+function scheduleAppViewportLayout() {
+  requestAnimationFrame(syncAppViewportLayout);
+}
+
+window.addEventListener('load', syncAppViewportLayout);
+window.addEventListener('resize', scheduleAppViewportLayout);
+window.addEventListener('orientationchange', () => {
+  setTimeout(syncAppViewportLayout, 120);
+});
+
 if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', positionDockToVisualViewport);
-  window.visualViewport.addEventListener('scroll', positionDockToVisualViewport);
+  window.visualViewport.addEventListener(
+    'resize',
+    scheduleAppViewportLayout
+  );
+  window.visualViewport.addEventListener(
+    'scroll',
+    scheduleAppViewportLayout
+  );
 }
-setTimeout(positionDockToVisualViewport, 0);
-setTimeout(positionDockToVisualViewport, 250);
+
+const standaloneMedia =
+  window.matchMedia?.('(display-mode: standalone)');
+
+standaloneMedia?.addEventListener?.(
+  'change',
+  syncAppViewportLayout
+);
+
+syncAppViewportLayout();
+setTimeout(syncAppViewportLayout, 250);
 
 </script>
 </body>

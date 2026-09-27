@@ -2279,6 +2279,64 @@ body.has-active .hub-outer-wrap {
   }
 }
 
+
+/* v18.29 — dock-aware hub panels + compact card-variation refresh */
+.modal {
+  top: var(--app-viewport-top, 0px);
+  bottom: auto;
+  height: calc(
+    var(--dock-visual-top, 100dvh) -
+    var(--app-viewport-top, 0px)
+  );
+  max-height: calc(
+    var(--dock-visual-top, 100dvh) -
+    var(--app-viewport-top, 0px)
+  );
+}
+
+.modal .modal-body {
+  max-height: 100%;
+}
+
+#setsModal .modal-body {
+  max-height: 100%;
+}
+
+.tcg-title-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.tcg-header-refresh-btn {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid #475569;
+  background: rgba(30, 41, 59, 0.78);
+  color: var(--sub);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: none;
+  transition: transform 0.15s, color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.tcg-header-refresh-btn:active {
+  transform: rotate(-25deg) scale(0.9);
+  color: #fff;
+  border-color: var(--red);
+  background: #334155;
+}
+
 </style>
 </head>
 <body>
@@ -2352,7 +2410,10 @@ body.has-active .hub-outer-wrap {
     <div class="evo-chain-wrap" id="evoChain"></div>
     <div class="tcg-section-wrap" id="tcgWrap">
       <div class="tcg-header-row">
-        <span class="tcg-title-text" id="tcgSectionTitle">🃏 Card Variations</span>
+        <div class="tcg-title-actions">
+          <span class="tcg-title-text" id="tcgSectionTitle">🃏 Card Variations</span>
+          <button class="tcg-header-refresh-btn" onclick="refreshCurrentCardSearch()" title="Refresh Cards" aria-label="Refresh card variations">↻</button>
+        </div>
         <span class="tcg-count-text" id="tcgCountText">Loading cards...</span>
       </div>
       <div class="tcg-scroll-strip" id="tcgStrip">
@@ -7382,7 +7443,6 @@ async function fetchTcgCards(pokeName, speciesName, bypassCache = false) {
     if (countText) countText.innerText = "Loading cards...";
     if (strip) {
       strip.innerHTML = `
-        <div class="tcg-refresh-strip-btn" onclick="refreshCurrentCardSearch()" title="Refresh Cards"><span>↻</span></div>
         <div class="tcg-skeleton-card"></div>
         <div class="tcg-skeleton-card"></div>
         <div class="tcg-skeleton-card"></div>
@@ -7413,20 +7473,6 @@ function renderTcgCards(cards) {
   if (!strip) return;
 
   const frag = document.createDocumentFragment();
-
-  // Vertical refresh button always present at start of strip
-  const refreshBtn = document.createElement('div');
-  refreshBtn.className = 'tcg-refresh-strip-btn';
-  refreshBtn.title = "Refresh Cards";
-  refreshBtn.onclick = (e) => {
-    e.stopPropagation();
-    initAudio();
-    playTick();
-    showToast("Refreshing cards...", "warning");
-    refreshCurrentCardSearch();
-  };
-  refreshBtn.innerHTML = `<span>↻</span>`;
-  frag.appendChild(refreshBtn);
 
   if (!cards || !cards.length) {
     if (countText) countText.innerText = "0 Cards";

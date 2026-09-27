@@ -2119,25 +2119,12 @@ body.has-active .spin-action-row-external {
 :root {
   --app-visible-height: 100dvh;
   --app-viewport-top: 0px;
-  --encounter-reserve: 9.7rem;
-}
-html.is-browser {
-  --encounter-reserve: 9.15rem;
-}
-html.is-standalone {
-  --encounter-reserve: 9.7rem;
 }
 .viewport {
   height: var(--app-visible-height);
   min-height: var(--app-visible-height);
 }
-body.has-active #pokeCard {
-  max-height: calc(
-    var(--app-visible-height) -
-    var(--measured-dock-height) -
-    var(--encounter-reserve)
-  );
-}
+
 /* Cards remain the focal point in both environments. */
 #pokeCard .tcg-card-item,
 #pokeCard .tcg-thumb-frame,
@@ -2164,6 +2151,132 @@ html.is-browser body.has-active header {
 html.is-standalone body.has-active #pokeCard .img-box {
   width: clamp(108px, min(40vw, 20dvh), 185px);
   height: clamp(108px, min(40vw, 20dvh), 185px);
+}
+
+
+/* v18.28 — stable width-led encounter composition.
+   Browser chrome may change how much is visible, but no longer rescales the encounter. */
+:root {
+  --encounter-card-size: 112px;
+  --encounter-width: min(calc(100vw - 1rem), 440px);
+}
+
+html, body {
+  min-height: 100%;
+  height: auto;
+}
+body {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.viewport {
+  width: min(100%, 480px);
+  height: auto;
+  min-height: 100svh;
+  padding-bottom: calc(var(--measured-dock-height) + 1rem);
+  overflow: visible;
+}
+
+/* Encounter sizing is driven by width, not Safari/Home Screen height. */
+body.has-active #pokeCard {
+  flex: none;
+  width: var(--encounter-width);
+  max-height: none;
+  height: auto;
+  overflow: visible;
+  margin-bottom: 0.45rem;
+  padding-bottom: 0.55rem;
+}
+body.has-active #pokeCard .img-box,
+html.is-browser body.has-active #pokeCard .img-box,
+html.is-standalone body.has-active #pokeCard .img-box {
+  width: clamp(145px, 39vw, 180px);
+  height: clamp(145px, 39vw, 180px);
+}
+body.has-active .viewport,
+html.is-browser body.has-active .viewport,
+html.is-standalone body.has-active .viewport {
+  gap: 0.24rem;
+}
+body.has-active header,
+html.is-browser body.has-active header {
+  margin-bottom: 0.12rem;
+}
+
+/* Never shrink the physical-card carousel to satisfy viewport height. */
+#pokeCard .tcg-scroll-strip {
+  min-height: 0;
+  height: auto;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding-bottom: 0.35rem;
+}
+#pokeCard .tcg-card-item {
+  flex: 0 0 var(--encounter-card-size);
+  width: var(--encounter-card-size);
+  min-width: var(--encounter-card-size);
+}
+#pokeCard .tcg-thumb-frame {
+  width: var(--encounter-card-size);
+  min-width: var(--encounter-card-size);
+  height: auto;
+  aspect-ratio: 63 / 88;
+}
+#pokeCard .tcg-skeleton-card {
+  flex: 0 0 var(--encounter-card-size);
+  width: var(--encounter-card-size);
+  min-width: var(--encounter-card-size);
+  height: auto;
+  aspect-ratio: 63 / 88;
+}
+
+/* Re-spin belongs to the encounter, not to the browser viewport. */
+body.has-active .spin-action-row-external {
+  display: flex;
+  position: static;
+  width: var(--encounter-width);
+  margin: 0.05rem auto 0.35rem;
+  padding: 0;
+  justify-content: flex-end;
+  z-index: auto;
+}
+.spin-action-row-external .btn-spin-again {
+  margin-right: 0.2rem;
+}
+
+/* Disclaimer is normal document flow, so it cannot overlap the cards. */
+.micro-disclaimer {
+  position: static;
+  width: 100%;
+  margin: 0.05rem auto 0.4rem;
+  padding: 0 0.5rem;
+}
+
+/* The app nav remains the only viewport-pinned main-page element. */
+.hub-outer-wrap,
+body.has-active .hub-outer-wrap {
+  position: fixed;
+}
+
+/* Short browser windows reveal less of the same layout instead of squeezing it. */
+@media (max-height: 740px) {
+  body.has-active #pokeCard .img-box,
+  html.is-browser body.has-active #pokeCard .img-box,
+  html.is-standalone body.has-active #pokeCard .img-box {
+    width: clamp(145px, 39vw, 180px);
+    height: clamp(145px, 39vw, 180px);
+  }
+}
+
+/* Narrow phones retain useful card artwork and horizontal scrolling. */
+@media (max-width: 375px) {
+  :root { --encounter-card-size: 104px; }
+  body.has-active #pokeCard .img-box,
+  html.is-browser body.has-active #pokeCard .img-box,
+  html.is-standalone body.has-active #pokeCard .img-box {
+    width: clamp(135px, 39vw, 165px);
+    height: clamp(135px, 39vw, 165px);
+  }
 }
 
 </style>

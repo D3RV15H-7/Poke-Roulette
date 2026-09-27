@@ -2337,29 +2337,6 @@ body.has-active .hub-outer-wrap {
   background: #334155;
 }
 
-
-/* Sets loading/reload resilience */
-.sets-reload-cards-btn {
-  min-height: 30px;
-  padding: 0 0.72rem;
-  border: 1px solid #475569;
-  border-radius: 99px;
-  background: #334155;
-  color: #fff;
-  font-size: 0.68rem;
-  font-weight: 800;
-  font-family: inherit;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.sets-reload-cards-btn:active {
-  transform: scale(0.96);
-  background: #475569;
-}
-#setsLoading .sets-loading-back {
-  margin: 0 0 1rem 0;
-}
-
 </style>
 </head>
 <body>
@@ -2587,10 +2564,10 @@ body.has-active .hub-outer-wrap {
   <div style="display:flex;align-items:center;gap:0.45rem;">
 
     <button
-      class="sets-reload-cards-btn"
+      style="background:#334155;color:#fff;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1rem;"
       onclick="refreshSetsView()"
-      title="Reload cards">
-      Reload Cards
+      title="Refresh">
+      ↻
     </button>
 
     <button
@@ -5413,25 +5390,11 @@ baseFinish:
 
     // Enrich each card with TCGdex's explicit physical variant flags
     // and main/base-printing price before caching.
-    // TCGdex enrichment improves finish/variant accuracy, but a large set can
-    // require many secondary requests. Never leave the Sets screen stuck
-    // waiting indefinitely: use the Pokémon TCG card data after 8 seconds.
-    const sourceFormatted = formatted;
-    formatted = await Promise.race([
-      enrichSetCardsWithTcgDex(
-        sourceFormatted,
-        setId,
-        sourceFormatted[0]?.setName || ''
-      ),
-      new Promise(resolve =>
-        setTimeout(() => {
-          console.warn(
-            `[SETS] TCGdex enrichment timed out for ${setId}; showing source cards`
-          );
-          resolve(sourceFormatted);
-        }, 8000)
-      )
-    ]);
+    formatted = await enrichSetCardsWithTcgDex(
+      formatted,
+      setId,
+      formatted[0]?.setName || ''
+    );
 
     // Keep separate product/promotional printings out of numbered-set
     // variant menus where the release defines them as separate cards.
@@ -5544,15 +5507,7 @@ async function openTcgSet(set) {
   grid.innerHTML = '';
 
   loading.style.display = 'block';
-  loading.innerHTML = `
-    <button
-      type="button"
-      class="tcg-set-back sets-loading-back"
-      onclick="renderTcgSets()">
-      ← Back to Sets
-    </button>
-    <div>Loading ${set.name}...</div>
-  `;
+  loading.textContent = `Loading ${set.name}...`;
 
   const cards = await fetchCardsForSet(set.id);
 
@@ -5560,20 +5515,12 @@ async function openTcgSet(set) {
 
   if (!cards.length) {
     grid.innerHTML = `
-      <div style="padding-top:0.25rem;">
-        <button
-          type="button"
-          class="tcg-set-back"
-          onclick="renderTcgSets()">
-          ← Back to Sets
-        </button>
-        <div style="
-          text-align:center;
-          color:var(--sub);
-          padding:1.5rem 0;
-        ">
-          No cards found for this set.
-        </div>
+      <div style="
+        text-align:center;
+        color:var(--sub);
+        padding:2rem 0;
+      ">
+        No cards found for this set.
       </div>
     `;
     return;
@@ -6360,15 +6307,8 @@ async function refreshSetsView() {
 
     if (loading) {
       loading.style.display = 'block';
-      loading.innerHTML = `
-        <button
-          type="button"
-          class="tcg-set-back sets-loading-back"
-          onclick="renderTcgSets()">
-          ← Back to Sets
-        </button>
-        <div>Refreshing ${set.name}...</div>
-      `;
+      loading.textContent =
+        `Refreshing ${set.name}...`;
     }
 
     const cards = await fetchCardsForSet(
@@ -6383,20 +6323,12 @@ async function refreshSetsView() {
 
       if (grid) {
         grid.innerHTML = `
-          <div style="padding-top:0.25rem;">
-            <button
-              type="button"
-              class="tcg-set-back"
-              onclick="renderTcgSets()">
-              ← Back to Sets
-            </button>
-            <div style="
-              text-align:center;
-              color:var(--sub);
-              padding:1.5rem 0;
-            ">
-              Unable to reload cards for this set.
-            </div>
+          <div style="
+            text-align:center;
+            color:var(--sub);
+            padding:2rem 0;
+          ">
+            Unable to refresh this set.
           </div>
         `;
       }

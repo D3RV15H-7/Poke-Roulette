@@ -2377,6 +2377,80 @@ body.has-active .spin-action-row-external {
   transform: scale(0.95);
 }
 
+
+/* v18.32 — keep the full Sets card preview visible above the dock. */
+#tcgZoomModal .tcg-zoom-body {
+  max-height: calc(var(--dock-visual-top, 100dvh) - var(--app-viewport-top, 0px) - 0.45rem);
+  padding-top: clamp(0.55rem, 1.2dvh, 0.9rem);
+  padding-bottom: clamp(0.45rem, 1dvh, 0.75rem);
+  gap: clamp(0.32rem, 0.75dvh, 0.55rem);
+  overflow: hidden;
+}
+
+#tcgZoomModal .tcg-zoom-img {
+  max-height: min(58dvh, 560px);
+  width: auto;
+  max-width: min(84vw, 390px);
+  object-fit: contain;
+}
+
+#tcgZoomModal .tcg-zoom-name {
+  font-size: clamp(1rem, 2.2dvh, 1.28rem);
+  line-height: 1.1;
+}
+
+#tcgZoomModal .tcg-zoom-meta {
+  font-size: clamp(0.76rem, 1.65dvh, 0.92rem);
+  line-height: 1.1;
+}
+
+#tcgZoomModal .tcg-zoom-variants {
+  width: min(100%, 330px);
+  padding: clamp(0.28rem, 0.65dvh, 0.45rem) 0.65rem;
+}
+
+#tcgZoomModal .tcg-zoom-variant-option {
+  min-height: 30px;
+  padding: clamp(0.2rem, 0.5dvh, 0.35rem) 0;
+  font-size: clamp(0.72rem, 1.55dvh, 0.86rem);
+  line-height: 1;
+}
+
+#tcgZoomModal .tcg-zoom-variant-circle {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+}
+
+#tcgZoomModal .tcg-zoom-price {
+  margin-top: clamp(0.1rem, 0.35dvh, 0.25rem);
+  font-size: clamp(0.8rem, 1.7dvh, 0.94rem);
+}
+
+#tcgZoomModal .tcg-zoom-close {
+  margin-top: clamp(0.08rem, 0.3dvh, 0.2rem);
+  padding: clamp(0.42rem, 0.9dvh, 0.58rem) 1rem;
+  font-size: clamp(0.78rem, 1.65dvh, 0.92rem);
+}
+
+/* Extra compression only on shorter phones, preserving the whole preview. */
+@media (max-height: 760px) {
+  #tcgZoomModal .tcg-zoom-img {
+    max-height: 51dvh;
+  }
+
+  #tcgZoomModal .tcg-zoom-variant-option {
+    min-height: 27px;
+    font-size: 0.7rem;
+  }
+
+  #tcgZoomModal .tcg-zoom-variant-circle {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -2446,7 +2520,7 @@ body.has-active .spin-action-row-external {
       <div class="types" id="pokeTypes"></div>
       <button class="btn-icon" id="shinyBtn" onclick="toggleShiny()">★</button>
     </div>
-    <div class="lore-box" id="pokeLore">Accessing Pokédex lore...</div>
+    
     <div class="evo-chain-wrap" id="evoChain"></div>
     <div class="tcg-section-wrap" id="tcgWrap">
       <div class="tcg-header-row">
@@ -2520,8 +2594,6 @@ body.has-active .spin-action-row-external {
 
   </div>
 </div>
-    
-    <div class="micro-disclaimer">Fan project. Not affiliated with Nintendo, Creatures, or Game Freak.</div>
   </div>
 </div>
 

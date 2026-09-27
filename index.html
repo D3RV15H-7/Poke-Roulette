@@ -3599,41 +3599,6 @@ async function fetchWithRetry(url, options = {}, retries = 2) {
 // The source API files these cards under their original expansion because they
 // retain that expansion symbol/number. PokéRoulette exposes them as one
 // dedicated 79-card collection and removes them from those source-set views.
-
-// v18.34 — collector-facing special / promotional collections.
-// These releases are absent or inconsistently represented by the legacy
-// Pokémon TCG API catalogue, so PokéRoulette exposes them explicitly and
-// reads their card checklists from TCGdex where available.
-const SPECIAL_TCGDEX_SETS = Object.freeze([
-  { id:'tot24', name:'Trick or Trade 2024', series:'Promos', printedTotal:30, total:30, releaseDate:'2024/08/30' },
-  { id:'clv', name:'TCG Classic Venusaur & Lugia', series:'Promos', printedTotal:34, total:34, releaseDate:'2023/11/17' },
-  { id:'clc', name:'TCG Classic Charizard & Ho-Oh', series:'Promos', printedTotal:34, total:34, releaseDate:'2023/11/17' },
-  { id:'clb', name:'TCG Classic Blastoise & Suicune', series:'Promos', printedTotal:34, total:34, releaseDate:'2023/11/17' },
-  { id:'tot23', name:'Trick or Trade 2023', series:'Promos', printedTotal:30, total:30, releaseDate:'2023/09/01' },
-  { id:'tot22', name:'Trick or Trade 2022', series:'Promos', printedTotal:30, total:30, releaseDate:'2022/09/01' },
-  { id:'fut20', name:'Pokémon Futsal Collection', series:'Promos', printedTotal:5, total:5, releaseDate:'2020/09/11' },
-  { id:'det1', name:'Detective Pikachu', series:'Promos', printedTotal:18, total:18, releaseDate:'2019/03/29' },
-  { id:'ru1', name:'Rumble set', series:'Promos', printedTotal:16, total:16, releaseDate:'2009/12/02' },
-  { id:'ex5.5', name:'Poké Card Creator Pack', series:'Promos', printedTotal:5, total:5, releaseDate:'2004/07/01' },
-  { id:'bog', name:'WOTC Best Promos', series:'Promos', printedTotal:9, total:9, releaseDate:'2002/12/01' },
-  { id:'si1', name:'Southern Islands', series:'Promos', printedTotal:18, total:18, releaseDate:'2001/07/31' }
-]);
-
-const SPECIAL_TCGDEX_SET_IDS = new Set(
-  SPECIAL_TCGDEX_SETS.map(set => set.id.toLowerCase())
-);
-
-function isSpecialTcgDexSetId(setId) {
-  return SPECIAL_TCGDEX_SET_IDS.has(
-    String(setId || '').trim().toLowerCase()
-  );
-}
-
-function tcgDexAssetUrl(base, quality = 'low') {
-  if (!base) return '';
-  return `${String(base).replace(/\/+$/, '')}/${quality}.webp`;
-}
-
 const YELLOW_A_SET_ID = 'yellow-a-alternate';
 const YELLOW_A_CARD_IDS = Object.freeze([
   'xyp-xy67a','xyp-xy150a','xyp-xy177a','xyp-xy198a','xyp-xy200a',
@@ -3713,7 +3678,7 @@ let activeTcgSet = null;
 });
   
 async function fetchPhysicalTcgSets(forceRefresh = false) {
-  const CACHE_KEY = 'pokeroulette_tcg_sets_v6_special_promos';
+  const CACHE_KEY = 'pokeroulette_tcg_sets_v5_refresh_classics';
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // 1. Use memory cache first
@@ -3795,17 +3760,6 @@ async function fetchPhysicalTcgSets(forceRefresh = false) {
           String(a.releaseDate)
         )
       );
-
-    // Add collector-facing special/promotional release groups that the legacy
-    // catalogue omits or represents inconsistently.
-    const existingSetIds = new Set(
-      physicalSets.map(set => String(set.id || '').toLowerCase())
-    );
-    SPECIAL_TCGDEX_SETS.forEach(set => {
-      if (!existingSetIds.has(set.id.toLowerCase())) {
-        physicalSets.push({ ...set, symbol:'', logo:'', specialSource:'tcgdex' });
-      }
-    });
 
     // The API does not expose Yellow A as a standalone set even though it is
     // collected as a 79-card release group, so add that release explicitly.
@@ -5504,131 +5458,7 @@ function isolateNumberedSetVariants(setId, cards) {
   return cards;
 }
 
-
-async function fetchSpecialTcgDexSetCards(setId, forceRefresh = false) {
-  const CACHE_KEY = `pokeroulette_set_cards_v18_11_${setId}`;
-  const CACHE_TIME = 24 * 60 * 60 * 1000;
-
-  if (!window.tcgSetCardsCache) window.tcgSetCardsCache = {};
-
-  if (window.tcgSetCardsCache[setId] && !forceRefresh) {
-    return window.tcgSetCardsCache[setId];
-  }
-
-  if (!forceRefresh) {
-    try {
-      const cached = JSON.parse(localStorage.getItem(CACHE_KEY));
-      if (
-        cached &&
-        Array.isArray(cached.data) &&
-        cached.data.length &&
-        Date.now() - cached.savedAt < CACHE_TIME
-      ) {
-        window.tcgSetCardsCache[setId] = cached.data;
-        return cached.data;
-      }
-    } catch (error) {}
-  }
-
-  const setResponse = await fetchWithRetry(
-    `https://api.tcgdex.net/v2/en/sets/${encodeURIComponent(setId)}`,
-    {},
-    2
-  );
-  if (!setResponse.ok) {
-    throw new Error(`TCGdex could not load ${setId}`);
-  }
-
-  const dexSet = await setResponse.json();
-  const briefs = Array.isArray(dexSet?.cards) ? dexSet.cards : [];
-  if (!briefs.length) throw new Error(`No cards returned for ${setId}`);
-
-  // Fetch full card records in small parallel groups so variant flags and
-  // pricing are available without hammering the public endpoint.
-  const fullCards = [];
-  for (let i = 0; i < briefs.length; i += 10) {
-    const batch = briefs.slice(i, i + 10);
-    const results = await Promise.all(batch.map(async brief => {
-      try {
-        const response = await fetchWithRetry(
-          `https://api.tcgdex.net/v2/en/cards/${encodeURIComponent(brief.id)}`,
-          {},
-          1
-        );
-        return response.ok ? await response.json() : brief;
-      } catch (error) {
-        return brief;
-      }
-    }));
-    fullCards.push(...results);
-  }
-
-  const formatted = fullCards
-    .filter(card => card && (card.image || card.id))
-    .map(card => {
-      const normal = Boolean(card?.variants?.normal);
-      const holo = Boolean(card?.variants?.holo);
-      const reverse = Boolean(card?.variants?.reverse);
-      const baseFinish = holo && !normal ? 'holo' : 'normal';
-      const imageBase = card.image || briefs.find(x => x.id === card.id)?.image || '';
-
-      const finishEvidence = {
-        standard: true,
-        reverseHolo: reverse,
-        other: normal && holo,
-        baseFinish
-      };
-
-      return {
-        id: card.id,
-        name: card.name || 'Unknown',
-        pokemonId:
-          Array.isArray(card.dexId) && card.dexId.length
-            ? Number(card.dexId[0])
-            : getPokemonIdFromCardName(card.name),
-        smallImg: tcgDexAssetUrl(imageBase, 'low'),
-        largeImg: tcgDexAssetUrl(imageBase, 'high'),
-        setName: dexSet.name || SPECIAL_TCGDEX_SETS.find(x => x.id === setId)?.name || 'Promos',
-        number: normalizeCardNumber(card.localId ?? ''),
-        rarity: card.rarity || 'Promo',
-        rarityScore:
-          typeof getRarityScore === 'function'
-            ? getRarityScore(card.rarity)
-            : 0,
-        priceGBP:
-          getTcgDexBasePriceGBP(card, finishEvidence),
-        variants: {
-          standard: true,
-          reverseHolo: reverse,
-          other: normal && holo
-        },
-        baseFinish
-      };
-    })
-    .sort((a,b) => String(a.number).localeCompare(
-      String(b.number), undefined, {numeric:true, sensitivity:'base'}
-    ));
-
-  if (!formatted.length) throw new Error(`No usable cards returned for ${setId}`);
-
-  window.tcgSetCardsCache[setId] = formatted;
-  try {
-    localStorage.setItem(
-      CACHE_KEY,
-      JSON.stringify({savedAt:Date.now(), data:formatted})
-    );
-  } catch (error) {}
-
-  console.log(`[SETS] Special collection ${setId}: ${formatted.length} cards`);
-  return formatted;
-}
-
-
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  if (isSpecialTcgDexSetId(setId)) {
-    return fetchSpecialTcgDexSetCards(setId, forceRefresh);
-  }
-
   if (setId === YELLOW_A_SET_ID) {
     return fetchYellowAAlternateCards(forceRefresh);
   }

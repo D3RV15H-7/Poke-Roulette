@@ -2281,10 +2281,7 @@ body.has-active .hub-outer-wrap {
 
 
 /* v18.29 — dock-aware hub panels + compact card-variation refresh */
-#accountModal,
-#dexModal,
-#setsModal,
-#infoModal {
+.modal {
   top: var(--app-viewport-top, 0px);
   bottom: auto;
   height: calc(
@@ -2297,10 +2294,11 @@ body.has-active .hub-outer-wrap {
   );
 }
 
-#accountModal > .modal-body,
-#dexModal > .modal-body,
-#setsModal > .modal-body,
-#infoModal > .modal-body {
+.modal .modal-body {
+  max-height: 100%;
+}
+
+#setsModal .modal-body {
   max-height: 100%;
 }
 
@@ -2339,12 +2337,6 @@ body.has-active .hub-outer-wrap {
   background: #334155;
 }
 
-
-
-#tcgZoomModal {
-  height: auto;
-  max-height: none;
-}
 
 /* Sets loading/reload resilience */
 .sets-reload-cards-btn {

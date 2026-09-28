@@ -6198,12 +6198,17 @@ function openModal(id) {
 const HUB_PULL_CLOSE_MODAL_IDS = new Set([
   'accountModal',
   'dexModal',
+  'dexCardsModal',
   'setsModal',
   'infoModal'
 ]);
 
 function getHubModalScroller(modal) {
   if (!modal) return null;
+
+  if (modal.id === 'dexCardsModal') {
+    return modal.querySelector('#dexCardsGrid');
+  }
 
   // Dex scrolls inside its list; Sets/Profile/Info use their modal body.
   if (modal.id === 'dexModal') {
@@ -6213,6 +6218,12 @@ function getHubModalScroller(modal) {
   return modal.querySelector('.modal-body');
 }
 
+function getHubModalPanel(modal) {
+  return modal.querySelector(
+    modal.id === 'dexCardsModal' ? '.dex-cards-content' : '.modal-body'
+  );
+}
+
 function resetHubModalPull(modal) {
   if (!modal) return;
   clearTimeout(modal._pullCloseTimer);
@@ -6220,7 +6231,7 @@ function resetHubModalPull(modal) {
   delete modal.dataset.pullClosing;
   modal.style.transition = '';
   modal.style.backgroundColor = '';
-  const body = modal.querySelector('.modal-body');
+  const body = getHubModalPanel(modal);
   if (body) {
     body.style.transition = '';
     body.style.transform = '';
@@ -6235,7 +6246,7 @@ function installHubPullToClose() {
     let startY = 0;
     let tracking = false;
     let dragging = false;
-    const body = modal.querySelector('.modal-body');
+    const body = getHubModalPanel(modal);
 
     modal.addEventListener('touchstart', event => {
       if (event.touches.length !== 1 || modal.dataset.pullClosing === '1') return;
@@ -6273,7 +6284,7 @@ function installHubPullToClose() {
         dragging = true;
         body.style.transition = 'none';
         body.style.transform = `translateY(${pullDistance}px)`;
-        const shade = Math.max(0, 0.8 * (1 - pullDistance / 350));
+        const shade = Math.max(0, (id === 'dexCardsModal' ? 0.9 : 0.8) * (1 - pullDistance / 350));
         modal.style.backgroundColor = `rgba(9, 13, 22, ${shade})`;
       } else if (dragging) {
         body.style.transform = 'translateY(0)';
@@ -6294,10 +6305,13 @@ function installHubPullToClose() {
       if (dragging && pullDistance >= 70) {
         modal.dataset.pullClosing = '1';
         body.style.transition = 'transform 220ms ease-in';
-        body.style.transform = 'translateY(calc(100% + 20px))';
+        body.style.transform = 'translateY(calc(100dvh + 20px))';
         modal.style.transition = 'background-color 220ms ease-in';
         modal.style.backgroundColor = 'rgba(9, 13, 22, 0)';
-        modal._pullCloseTimer = setTimeout(() => closeModal(null, id), 220);
+        modal._pullCloseTimer = setTimeout(() => {
+          if (id === 'dexCardsModal') closeDexCardsModal();
+          else closeModal(null, id);
+        }, 220);
       } else if (dragging) {
         body.style.transition = 'transform 220ms ease-out';
         body.style.transform = 'translateY(0)';
@@ -6494,8 +6508,14 @@ async function openDexCardsModal(p, bypassCache = false) {
   const title = document.getElementById('dexCardsTitle');
   const cleanName = getCleanNationalDexName(p.name, p.species?.name);
   if (title) title.innerText = `${cleanName} Cards`;
-  if (grid) grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:2rem 0;font-size:0.8rem;">Loading cards...</div>';
-  if (modal) modal.style.display = 'flex';
+  if (grid) {
+    grid.scrollTop = 0;
+    grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:2rem 0;font-size:0.8rem;">Loading cards...</div>';
+  }
+  if (modal) {
+    resetHubModalPull(modal);
+    modal.style.display = 'flex';
+  }
   try {
     const cardsList = await fetchTcgCardsData(p.name, p.species?.name, bypassCache);
     currentCardsList = cardsList;
@@ -6583,7 +6603,10 @@ function refreshCurrentCardSearch() {
 }
 function closeDexCardsModal() {
   const modal = document.getElementById('dexCardsModal');
-  if (modal) modal.style.display = 'none';
+  if (modal) {
+    resetHubModalPull(modal);
+    modal.style.display = 'none';
+  }
 }
 
 function renderRecents() {

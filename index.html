@@ -1929,7 +1929,7 @@ header { margin-bottom: clamp(0.05rem, 0.45dvh, 0.3rem); }
 }
 #pokeCard .tcg-card-num { font-size: 0.54rem; }
 
-/* Fixed bottom app navigation. JS places it against the visual viewport on iOS. */
+/* Fixed bottom app navigation. */
 html, body {
   width: 100%;
   min-height: 100%;
@@ -2252,10 +2252,13 @@ body.has-active .spin-action-row-external {
   padding: 0 0.5rem;
 }
 
-/* The app nav remains the only viewport-pinned main-page element. */
+/* Anchor the app nav to the viewport edge so a stale visualViewport
+   measurement after refresh cannot pin it over the title. */
 .hub-outer-wrap,
 body.has-active .hub-outer-wrap {
   position: fixed;
+  top: auto;
+  bottom: 0;
 }
 
 /* Short browser windows reveal less of the same layout instead of squeezing it. */
@@ -8310,18 +8313,9 @@ function syncAppViewportLayout() {
     dock.offsetHeight ||
     78;
 
-  const dockTop = Math.max(
-    0,
-    viewportTop + viewportHeight - dockHeight
-  );
-
   root.style.setProperty(
     '--measured-dock-height',
     `${dockHeight}px`
-  );
-  root.style.setProperty(
-    '--dock-visual-top',
-    `${Math.round(dockTop)}px`
   );
 }
 

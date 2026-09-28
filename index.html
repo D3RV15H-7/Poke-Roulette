@@ -2332,6 +2332,22 @@ body.has-active .hub-outer-wrap {
 #setsModal .modal-body {
   max-height: 100%;
 }
+.sets-refresh-btn {
+  background: #334155;
+  color: #fff;
+  border: 1px solid #475569;
+  border-radius: 9px;
+  min-height: 30px;
+  padding: 0.35rem 0.6rem;
+  font: inherit;
+  font-size: 0.69rem;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sets-refresh-btn:active {
+  background: #475569;
+}
 
 #infoModal .modal-body {
   height: auto;
@@ -2612,10 +2628,11 @@ body.has-active .hub-outer-wrap {
   <div style="display:flex;align-items:center;gap:0.45rem;">
 
     <button
-      style="background:#334155;color:#fff;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1rem;"
+      id="setsRefreshBtn"
+      class="sets-refresh-btn"
       onclick="refreshSetsView()"
-      title="Refresh">
-      ↻
+      title="Refresh Sets">
+      Refresh Sets
     </button>
 
     <button
@@ -5544,10 +5561,20 @@ function resetSetsScrollToTop() {
   }
 }
 
+function updateSetsRefreshButton() {
+  const button = document.getElementById('setsRefreshBtn');
+  if (!button) return;
+  const label = activeTcgSet ? 'Refresh Cards' : 'Refresh Sets';
+  button.textContent = label;
+  button.title = label;
+  button.setAttribute('aria-label', label);
+}
+
 async function openTcgSet(set) {
   document.getElementById('setsModal')?.classList.add('viewing-set');
   resetSetsScrollToTop();
   activeTcgSet = set;
+  updateSetsRefreshButton();
   activeTcgSetFilter = 'all';
   activeSetVariantCardId = null;
   
@@ -5898,6 +5925,7 @@ async function renderTcgSets(forceRefresh = false) {
   document.getElementById('setsModal')?.classList.remove('viewing-set');
   resetSetsScrollToTop();
   activeTcgSet = null;
+  updateSetsRefreshButton();
   activeSetVariantCardId = null;
   
   const loading = document.getElementById('setsLoading');

@@ -2235,13 +2235,28 @@ body.has-active .spin-action-row-external {
   display: flex;
   position: static;
   width: var(--encounter-width);
-  margin: 0.05rem auto 0.35rem;
+  margin: 0.65rem auto 1rem;
   padding: 0;
-  justify-content: flex-end;
+  justify-content: center;
   z-index: auto;
 }
 .spin-action-row-external .btn-spin-again {
-  margin-right: 0.2rem;
+  width: auto;
+  min-width: 170px;
+  height: auto;
+  padding: 0.75rem 1.5rem;
+  margin: 0;
+  border-radius: 12px;
+  font-size: 0.9rem;
+}
+.spin-action-row-external .btn-spin-again::before {
+  content: none;
+}
+
+/* Centre the idle wheel between the search field and navigation. */
+body:not(.has-active) .wheel-wrap {
+  margin-top: auto;
+  margin-bottom: auto;
 }
 
 /* Disclaimer is normal document flow, so it cannot overlap the cards. */
@@ -2409,7 +2424,6 @@ body.has-active .hub-outer-wrap {
       <div class="types" id="pokeTypes"></div>
       <button class="btn-icon" id="shinyBtn" onclick="toggleShiny()">★</button>
     </div>
-    <div class="lore-box" id="pokeLore">Accessing Pokédex lore...</div>
     <div class="evo-chain-wrap" id="evoChain"></div>
     <div class="tcg-section-wrap" id="tcgWrap">
       <div class="tcg-header-row">

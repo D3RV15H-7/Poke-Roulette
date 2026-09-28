@@ -6141,6 +6141,7 @@ function openModal(id) {
 
   document.querySelectorAll('.modal').forEach(modal => {
     if (modal.id !== id && modal.style.display !== 'none') {
+      resetHubModalPull(modal);
       modal.style.display = 'none';
 
       if (modal.id === 'setsModal') {
@@ -6163,7 +6164,7 @@ function openModal(id) {
     renderDex();
 
     // Always reopen the Dex from the top, matching the Sets behaviour.
-    const dexList = document.getElementById('dexList');
+    const dexList = document.getElementById('dexGrid');
     if (dexList) {
       dexList.scrollTop = 0;
       dexList.scrollTo?.({ top: 0, left: 0, behavior: 'auto' });
@@ -6173,6 +6174,7 @@ function openModal(id) {
   if (id === 'recentModal') renderRecents();
   if (id === 'accountModal') initFirebaseIfReady();
 
+  resetHubModalPull(el);
   el.style.display = 'flex';
 }
 
@@ -6195,6 +6197,20 @@ function getHubModalScroller(modal) {
   return modal.querySelector('.modal-body');
 }
 
+function resetHubModalPull(modal) {
+  if (!modal) return;
+  clearTimeout(modal._pullCloseTimer);
+  delete modal._pullCloseTimer;
+  delete modal.dataset.pullClosing;
+  modal.style.transition = '';
+  modal.style.backgroundColor = '';
+  const body = modal.querySelector('.modal-body');
+  if (body) {
+    body.style.transition = '';
+    body.style.transform = '';
+  }
+}
+
 function installHubPullToClose() {
   HUB_PULL_CLOSE_MODAL_IDS.forEach(id => {
     const modal = document.getElementById(id);
@@ -6202,9 +6218,11 @@ function installHubPullToClose() {
 
     let startY = 0;
     let tracking = false;
+    let dragging = false;
+    const body = modal.querySelector('.modal-body');
 
     modal.addEventListener('touchstart', event => {
-      if (event.touches.length !== 1) return;
+      if (event.touches.length !== 1 || modal.dataset.pullClosing === '1') return;
 
       const scroller = getHubModalScroller(modal);
       if (!scroller || scroller.scrollTop > 1) {
@@ -6214,23 +6232,36 @@ function installHubPullToClose() {
 
       startY = event.touches[0].clientY;
       tracking = true;
+      dragging = false;
     }, { passive: true });
 
     modal.addEventListener('touchmove', event => {
-      if (!tracking || event.touches.length !== 1) return;
+      if (!tracking || !body || event.touches.length !== 1) return;
 
       const scroller = getHubModalScroller(modal);
       if (!scroller || scroller.scrollTop > 1) {
         tracking = false;
+        if (dragging) {
+          body.style.transition = 'transform 220ms ease-out';
+          body.style.transform = 'translateY(0)';
+          modal.style.backgroundColor = '';
+          dragging = false;
+        }
         return;
       }
 
       const pullDistance = event.touches[0].clientY - startY;
 
-      // Once the user has clearly pulled down from the very top,
-      // stop the browser/page from rubber-banding behind the panel.
-      if (pullDistance > 8 && event.cancelable) {
-        event.preventDefault();
+      if (pullDistance > 8) {
+        if (event.cancelable) event.preventDefault();
+        dragging = true;
+        body.style.transition = 'none';
+        body.style.transform = `translateY(${pullDistance}px)`;
+        const shade = Math.max(0, 0.8 * (1 - pullDistance / 350));
+        modal.style.backgroundColor = `rgba(9, 13, 22, ${shade})`;
+      } else if (dragging) {
+        body.style.transform = 'translateY(0)';
+        modal.style.backgroundColor = '';
       }
     }, { passive: false });
 
@@ -6239,19 +6270,34 @@ function installHubPullToClose() {
       tracking = false;
 
       const scroller = getHubModalScroller(modal);
-      if (!scroller || scroller.scrollTop > 1) return;
+      if (!scroller || scroller.scrollTop > 1 || !body) return;
 
       const endY = event.changedTouches?.[0]?.clientY ?? startY;
       const pullDistance = endY - startY;
 
-      // Deliberate downward swipe/pull from the top closes the active window.
-      if (pullDistance >= 70) {
-        closeModal(null, id);
+      if (dragging && pullDistance >= 70) {
+        modal.dataset.pullClosing = '1';
+        body.style.transition = 'transform 220ms ease-in';
+        body.style.transform = 'translateY(calc(100% + 20px))';
+        modal.style.transition = 'background-color 220ms ease-in';
+        modal.style.backgroundColor = 'rgba(9, 13, 22, 0)';
+        modal._pullCloseTimer = setTimeout(() => closeModal(null, id), 220);
+      } else if (dragging) {
+        body.style.transition = 'transform 220ms ease-out';
+        body.style.transform = 'translateY(0)';
+        modal.style.backgroundColor = '';
       }
+      dragging = false;
     }, { passive: true });
 
     modal.addEventListener('touchcancel', () => {
       tracking = false;
+      dragging = false;
+      if (body) {
+        body.style.transition = 'transform 220ms ease-out';
+        body.style.transform = 'translateY(0)';
+      }
+      modal.style.backgroundColor = '';
     }, { passive: true });
 
     modal.dataset.pullCloseReady = '1';
@@ -6263,7 +6309,10 @@ installHubPullToClose();
 function closeModal(e, id) {
   if (!e || e.target.id === id) {
     const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
+    if (el) {
+      resetHubModalPull(el);
+      el.style.display = 'none';
+    }
 
     if (id === 'setsModal') {
       resetSetsScrollToTop();

@@ -2298,26 +2298,34 @@ body.has-active .hub-outer-wrap {
 }
 
 
-/* v18.29 — dock-aware hub panels + compact card-variation refresh */
+/* Keep every hub panel above the fixed navigation. */
 .modal {
   top: var(--app-viewport-top, 0px);
-  bottom: auto;
-  height: calc(
-    var(--dock-visual-top, 100dvh) -
-    var(--app-viewport-top, 0px)
-  );
-  max-height: calc(
-    var(--dock-visual-top, 100dvh) -
-    var(--app-viewport-top, 0px)
-  );
+  bottom: var(--measured-dock-height, 78px);
+  height: auto;
+  max-height: none;
 }
 
 .modal .modal-body {
   max-height: 100%;
+  min-height: 0;
 }
 
 #setsModal .modal-body {
   max-height: 100%;
+}
+
+#infoModal .modal-body {
+  height: auto;
+  max-height: min(80dvh, 100%);
+  overflow: hidden;
+}
+#infoModal .info-content {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.75rem;
 }
 
 .tcg-title-actions {
@@ -2635,20 +2643,25 @@ body.has-active .hub-outer-wrap {
 </div>
 
 <div class="modal" id="infoModal" onclick="closeModal(event, 'infoModal')">
-  <div class="modal-body" style="height: auto; max-height: 80dvh;" onclick="event.stopPropagation()">
+  <div class="modal-body" onclick="event.stopPropagation()">
     <div class="modal-head">
       <h3 style="font-size:1.15rem;font-weight:800;">ℹ About PokéRoulette</h3>
       <button style="background:#334155;color:#fff;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;" onclick="closeModal(null, 'infoModal')">✕</button>
     </div>
-    <div style="font-size:0.76rem; color:#cbd5e1; line-height:1.5; display:flex; flex-direction:column; gap:0.75rem; padding:0.5rem 0.2rem; overflow-y:auto;">
-      <p><strong style="color:#fff;">PokéRoulette</strong> is an unofficial, non-commercial fan-made project built for collectors to discover Pokémon and track their TCG card binders.</p>
+    <div class="info-content" style="font-size:0.76rem; color:#cbd5e1; line-height:1.5; display:flex; flex-direction:column; gap:0.75rem; padding:0.5rem 0.2rem;">
+      <p><strong style="color:#fff;">PokéRoulette</strong> lets you spin for a Pokémon or search by name or Pokédex number, then explore its evolutions and trading cards.</p>
+
+      <div style="background:#090d16; border:1px solid #334155; border-radius:10px; padding:0.65rem 0.8rem;">
+        <div style="color:var(--gold); font-weight:800; font-size:0.72rem; text-transform:uppercase; margin-bottom:0.3rem;">Your Collection</div>
+        <p>Mark Pokémon and card variations as collected in the Dex and Sets views. Use Profile to sign in and manage account sync. Your collection is also saved on this device.</p>
+      </div>
       
       <div style="background:#090d16; border:1px solid #334155; border-radius:10px; padding:0.65rem 0.8rem;">
         <div style="color:var(--gold); font-weight:800; font-size:0.72rem; text-transform:uppercase; margin-bottom:0.3rem;">Data & Media Sources</div>
         <ul style="list-style:disc; padding-left:1.1rem; color:var(--sub); display:flex; flex-direction:column; gap:0.25rem;">
-          <li>Pokémon species, stats & artwork: <strong style="color:#fff;">PokéAPI</strong></li>
-          <li>Card images & variations: <strong style="color:#fff;">Pokémon TCG API</strong> & <strong style="color:#fff;">TCGdex</strong></li>
-          <li>Estimated values: Market trends converted from TCGplayer & Cardmarket</li>
+          <li>Pokémon names, types, evolutions and artwork: <strong style="color:#fff;">PokéAPI</strong></li>
+          <li>Card sets, images and variations: <strong style="color:#fff;">Pokémon TCG API</strong> and <strong style="color:#fff;">TCGdex</strong></li>
+          <li>Card values, where available, are estimates based on provider market data and shown in GBP. They may differ from sale prices.</li>
         </ul>
       </div>
 

@@ -2337,216 +2337,6 @@ body.has-active .hub-outer-wrap {
   background: #334155;
 }
 
-
-/* v18.31 — encounter Spin Again sits on the result card, above the dock. */
-body.has-active .spin-action-row-external {
-  display: flex;
-  position: fixed;
-  left: auto;
-  right: max(
-    0.75rem,
-    calc((100vw - min(100vw - 0.8rem, 440px)) / 2 + 0.75rem)
-  );
-  bottom: calc(var(--measured-dock-height) + 0.55rem);
-  z-index: 85;
-  width: auto;
-}
-
-.spin-action-row-external .btn-spin-again {
-  width: auto;
-  height: 34px;
-  min-width: 0;
-  padding: 0 0.75rem;
-  margin: 0;
-  border-radius: 9px;
-  border: 1.5px solid rgba(255,255,255,0.72);
-  font-size: 0.68rem;
-  letter-spacing: 0.35px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  white-space: nowrap;
-  box-shadow: 0 5px 14px rgba(239,68,68,0.38), 0 3px 8px rgba(0,0,0,0.35);
-}
-
-.spin-action-row-external .btn-spin-again::before {
-  content: none;
-}
-
-.spin-action-row-external .btn-spin-again:active {
-  transform: scale(0.95);
-}
-
-
-/* v18.32 — keep the full Sets card preview visible above the dock. */
-#tcgZoomModal .tcg-zoom-body {
-  max-height: calc(var(--dock-visual-top, 100dvh) - var(--app-viewport-top, 0px) - 0.45rem);
-  padding-top: clamp(0.55rem, 1.2dvh, 0.9rem);
-  padding-bottom: clamp(0.45rem, 1dvh, 0.75rem);
-  gap: clamp(0.32rem, 0.75dvh, 0.55rem);
-  overflow: hidden;
-}
-
-#tcgZoomModal .tcg-zoom-img {
-  max-height: min(58dvh, 560px);
-  width: auto;
-  max-width: min(84vw, 390px);
-  object-fit: contain;
-}
-
-#tcgZoomModal .tcg-zoom-name {
-  font-size: clamp(1rem, 2.2dvh, 1.28rem);
-  line-height: 1.1;
-}
-
-#tcgZoomModal .tcg-zoom-meta {
-  font-size: clamp(0.76rem, 1.65dvh, 0.92rem);
-  line-height: 1.1;
-}
-
-#tcgZoomModal .tcg-zoom-variants {
-  width: min(100%, 330px);
-  padding: clamp(0.28rem, 0.65dvh, 0.45rem) 0.65rem;
-}
-
-#tcgZoomModal .tcg-zoom-variant-option {
-  min-height: 30px;
-  padding: clamp(0.2rem, 0.5dvh, 0.35rem) 0;
-  font-size: clamp(0.72rem, 1.55dvh, 0.86rem);
-  line-height: 1;
-}
-
-#tcgZoomModal .tcg-zoom-variant-circle {
-  width: 22px;
-  height: 22px;
-  min-width: 22px;
-}
-
-#tcgZoomModal .tcg-zoom-price {
-  margin-top: clamp(0.1rem, 0.35dvh, 0.25rem);
-  font-size: clamp(0.8rem, 1.7dvh, 0.94rem);
-}
-
-#tcgZoomModal .tcg-zoom-close {
-  margin-top: clamp(0.08rem, 0.3dvh, 0.2rem);
-  padding: clamp(0.42rem, 0.9dvh, 0.58rem) 1rem;
-  font-size: clamp(0.78rem, 1.65dvh, 0.92rem);
-}
-
-/* Extra compression only on shorter phones, preserving the whole preview. */
-@media (max-height: 760px) {
-  #tcgZoomModal .tcg-zoom-img {
-    max-height: 51dvh;
-  }
-
-  #tcgZoomModal .tcg-zoom-variant-option {
-    min-height: 27px;
-    font-size: 0.7rem;
-  }
-
-  #tcgZoomModal .tcg-zoom-variant-circle {
-    width: 20px;
-    height: 20px;
-    min-width: 20px;
-  }
-}
-
-
-/* v18.33 — final mobile fitment refinements */
-
-/* The large card viewer owns only the space above the fixed app dock. */
-.tcg-zoom-modal {
-  top: var(--app-viewport-top, 0px);
-  right: 0;
-  left: 0;
-  bottom: var(--measured-dock-height);
-  height: auto;
-  padding: clamp(0.3rem, 0.8dvh, 0.55rem);
-  align-items: center;
-  overflow: hidden;
-}
-
-#tcgZoomModal .tcg-zoom-content {
-  width: min(100%, 400px);
-  max-height: calc(100% - 0.2rem);
-  padding: clamp(0.42rem, 0.8dvh, 0.65rem) clamp(0.6rem, 1.6vw, 0.85rem);
-  gap: clamp(0.16rem, 0.4dvh, 0.3rem);
-  overflow: hidden;
-}
-
-/* The artwork is the flexible part of the preview.  This guarantees room
-   for the title, all variant rows, value and Close Preview button. */
-#tcgZoomModal .flat-card-container {
-  width: clamp(220px, 35dvh, 292px);
-  max-width: min(82vw, 292px);
-  flex: 0 1 auto;
-}
-
-#tcgZoomModal .tcg-zoom-content:has(.tcg-zoom-variant-option:nth-child(3)) .flat-card-container {
-  width: clamp(205px, 31.5dvh, 270px);
-  max-width: min(78vw, 270px);
-}
-
-#tcgZoomModal .tcg-zoom-title {
-  font-size: clamp(0.88rem, 1.7dvh, 1.05rem);
-  line-height: 1.05;
-}
-
-#tcgZoomModal .tcg-zoom-meta {
-  font-size: clamp(0.68rem, 1.35dvh, 0.78rem);
-  line-height: 1.05;
-}
-
-#tcgZoomModal .tcg-zoom-variants {
-  width: min(100%, 300px);
-  padding: 0.2rem 0.5rem;
-  margin: 0.04rem 0;
-}
-
-#tcgZoomModal .tcg-zoom-variant-option {
-  min-height: 25px;
-  padding: 0.16rem 0.08rem;
-  font-size: clamp(0.66rem, 1.35dvh, 0.76rem);
-  line-height: 1;
-}
-
-#tcgZoomModal .tcg-zoom-variant-circle {
-  width: 19px;
-  height: 19px;
-  min-width: 19px;
-  font-size: 0.7rem;
-}
-
-#tcgZoomModal .tcg-zoom-price-row {
-  padding: 0.16rem 0.7rem;
-  font-size: clamp(0.7rem, 1.35dvh, 0.8rem);
-}
-
-#tcgZoomModal .tcg-zoom-close {
-  padding: 0.3rem 1rem;
-  font-size: clamp(0.7rem, 1.3dvh, 0.8rem);
-  flex-shrink: 0;
-}
-
-/* Centre Spin Again below the encounter card. */
-body.has-active .spin-action-row-external {
-  left: 0;
-  right: 0;
-  width: var(--encounter-width);
-  margin-left: auto;
-  margin-right: auto;
-  justify-content: center;
-}
-.spin-action-row-external .btn-spin-again {
-  margin-right: 0;
-}
-
-/* On the idle screen, lower the wheel into the visual centre of the
-   available area without affecting the encounter/result layout. */
-body:not(.has-active) .wheel-wrap {
-  margin-top: clamp(1.4rem, 5dvh, 3rem);
-}
-
 </style>
 </head>
 <body>
@@ -2616,7 +2406,7 @@ body:not(.has-active) .wheel-wrap {
       <div class="types" id="pokeTypes"></div>
       <button class="btn-icon" id="shinyBtn" onclick="toggleShiny()">★</button>
     </div>
-    
+    <div class="lore-box" id="pokeLore">Accessing Pokédex lore...</div>
     <div class="evo-chain-wrap" id="evoChain"></div>
     <div class="tcg-section-wrap" id="tcgWrap">
       <div class="tcg-header-row">
@@ -2690,6 +2480,8 @@ body:not(.has-active) .wheel-wrap {
 
   </div>
 </div>
+    
+    <div class="micro-disclaimer">Fan project. Not affiliated with Nintendo, Creatures, or Game Freak.</div>
   </div>
 </div>
 
@@ -2818,8 +2610,8 @@ body:not(.has-active) .wheel-wrap {
       <input type="email" id="authEmail" class="auth-input" placeholder="Email Address" />
       <input type="password" id="authPassword" class="auth-input" placeholder="Password" />
       <div style="display:flex;gap:0.5rem;">
-        <button class="btn-auth-primary" style="flex:1;background:#334155;" onclick="handleEmailAuth(true)">Sign Up</button>
         <button class="btn-auth-primary" style="flex:1;" onclick="handleEmailAuth(false)">Log In</button>
+        <button class="btn-auth-primary" style="flex:1;background:#334155;" onclick="handleEmailAuth(true)">Sign Up</button>
       </div>
       <div id="authErrorMsg" style="color:var(--red);font-size:0.75rem;text-align:center;display:none;"></div>
     </div>
@@ -2827,39 +2619,26 @@ body:not(.has-active) .wheel-wrap {
 </div>
 
 <div class="modal" id="infoModal" onclick="closeModal(event, 'infoModal')">
-  <div class="modal-body" style="height:auto;max-height:80dvh;" onclick="event.stopPropagation()">
+  <div class="modal-body" style="height: auto; max-height: 80dvh;" onclick="event.stopPropagation()">
     <div class="modal-head">
       <h3 style="font-size:1.15rem;font-weight:800;">ℹ About PokéRoulette</h3>
       <button style="background:#334155;color:#fff;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;" onclick="closeModal(null, 'infoModal')">✕</button>
     </div>
-
-    <div style="font-size:0.76rem;color:#cbd5e1;line-height:1.5;display:flex;flex-direction:column;gap:0.75rem;padding:0.5rem 0.2rem;overflow-y:auto;">
-      <p><strong style="color:#fff;">PokéRoulette</strong> is an unofficial, non-commercial fan-made collector app for discovering Pokémon, exploring physical Pokémon TCG cards and tracking your collection.</p>
-
-      <div style="background:#090d16;border:1px solid #334155;border-radius:10px;padding:0.65rem 0.8rem;">
-        <div style="color:var(--green);font-weight:800;font-size:0.72rem;text-transform:uppercase;margin-bottom:0.3rem;">App Features</div>
-        <ul style="list-style:disc;padding-left:1.1rem;color:var(--sub);display:flex;flex-direction:column;gap:0.25rem;">
-          <li>Spin the type wheel or search directly to discover Pokémon.</li>
-          <li>View artwork, typing, cries, shiny forms and evolution chains.</li>
-          <li>Browse physical card variations and estimated market values.</li>
-          <li>Track Pokémon in your Dex and individual card print variants in Sets.</li>
-          <li>Browse TCG sets, collection progress and owned / missing cards.</li>
-          <li>Create an account to sync supported collection data across devices.</li>
+    <div style="font-size:0.76rem; color:#cbd5e1; line-height:1.5; display:flex; flex-direction:column; gap:0.75rem; padding:0.5rem 0.2rem; overflow-y:auto;">
+      <p><strong style="color:#fff;">PokéRoulette</strong> is an unofficial, non-commercial fan-made project built for collectors to discover Pokémon and track their TCG card binders.</p>
+      
+      <div style="background:#090d16; border:1px solid #334155; border-radius:10px; padding:0.65rem 0.8rem;">
+        <div style="color:var(--gold); font-weight:800; font-size:0.72rem; text-transform:uppercase; margin-bottom:0.3rem;">Data & Media Sources</div>
+        <ul style="list-style:disc; padding-left:1.1rem; color:var(--sub); display:flex; flex-direction:column; gap:0.25rem;">
+          <li>Pokémon species, stats & artwork: <strong style="color:#fff;">PokéAPI</strong></li>
+          <li>Card images & variations: <strong style="color:#fff;">Pokémon TCG API</strong> & <strong style="color:#fff;">TCGdex</strong></li>
+          <li>Estimated values: Market trends converted from TCGplayer & Cardmarket</li>
         </ul>
       </div>
 
-      <div style="background:#090d16;border:1px solid #334155;border-radius:10px;padding:0.65rem 0.8rem;">
-        <div style="color:var(--gold);font-weight:800;font-size:0.72rem;text-transform:uppercase;margin-bottom:0.3rem;">Data & Media</div>
-        <ul style="list-style:disc;padding-left:1.1rem;color:var(--sub);display:flex;flex-direction:column;gap:0.25rem;">
-          <li>Pokémon data & artwork: <strong style="color:#fff;">PokéAPI</strong></li>
-          <li>TCG card data & images: <strong style="color:#fff;">Pokémon TCG API</strong> & <strong style="color:#fff;">TCGdex</strong></li>
-          <li>Estimated values use available TCGplayer / Cardmarket market data and are for guidance only.</li>
-        </ul>
-      </div>
-
-      <div style="background:#090d16;border:1px solid #334155;border-radius:10px;padding:0.65rem 0.8rem;">
-        <div style="color:var(--red);font-weight:800;font-size:0.72rem;text-transform:uppercase;margin-bottom:0.3rem;">Disclaimer</div>
-        <p style="color:var(--sub);font-size:0.7rem;line-height:1.4;">PokéRoulette is not affiliated with, endorsed, sponsored or approved by Nintendo, Creatures Inc., GAME FREAK or The Pokémon Company. Pokémon names, characters, artwork and related trademarks belong to their respective owners.</p>
+      <div style="background:#090d16; border:1px solid #334155; border-radius:10px; padding:0.65rem 0.8rem;">
+        <div style="color:var(--red); font-weight:800; font-size:0.72rem; text-transform:uppercase; margin-bottom:0.3rem;">Legal Disclaimer</div>
+        <p style="color:var(--sub); font-size:0.7rem; line-height:1.4;">Pokémon and Pokémon character names are trademarks and © of Nintendo, Creatures Inc., and Game Freak Inc. PokéRoulette is not affiliated with, endorsed, sponsored, or approved by Nintendo or The Pokémon Company.</p>
       </div>
     </div>
   </div>
@@ -3661,7 +3440,9 @@ let tcgSetsCache = null;
 let activeTcgSet = null;
   let activeTcgSetFilter = 'all';
   let activeSetVariantCardId = null;
-  document.addEventListener('click', (e) => {
+  installHubPullToClose();
+
+document.addEventListener('click', (e) => {
   if (!activeSetVariantCardId) return;
 
   const selector = e.target.closest('.tcg-variant-selector');
@@ -5723,17 +5504,32 @@ async function openTcgSet(set) {
 
   if (!grid || !loading) return;
 
-  grid.innerHTML = '';
+  grid.innerHTML = `
+    <div class="tcg-set-detail-head">
+      <button type="button" class="tcg-set-back" onclick="renderTcgSets()">
+        ← Back to Sets
+      </button>
+    </div>
+  `;
+  grid.after(loading);
 
   loading.style.display = 'block';
   loading.textContent = `Loading ${set.name}...`;
 
   const cards = await fetchCardsForSet(set.id);
 
+  // The user may have returned to the list while this request was in flight.
+  if (activeTcgSet !== set) return;
+
   loading.style.display = 'none';
 
   if (!cards.length) {
     grid.innerHTML = `
+      <div class="tcg-set-detail-head">
+        <button type="button" class="tcg-set-back" onclick="renderTcgSets()">
+          ← Back to Sets
+        </button>
+      </div>
       <div style="
         text-align:center;
         color:var(--sub);
@@ -6057,6 +5853,7 @@ async function renderTcgSets(forceRefresh = false) {
 
   if (!loading || !grid) return;
 
+  grid.before(loading);
   loading.style.display = 'block';
   loading.textContent = 'Loading card sets...';
 
@@ -6338,20 +6135,11 @@ function openModal(id) {
     renderDex();
 
     // Always reopen the Dex from the top, matching the Sets behaviour.
-    const dexGrid = document.getElementById('dexGrid');
-    if (dexGrid) {
-      dexGrid.scrollTop = 0;
-      dexGrid.scrollTo?.({ top: 0, left: 0, behavior: 'auto' });
+    const dexList = document.getElementById('dexList');
+    if (dexList) {
+      dexList.scrollTop = 0;
+      dexList.scrollTo?.({ top: 0, left: 0, behavior: 'auto' });
     }
-    // Run once more after rendering/layout so mobile browsers cannot restore
-    // the previous scroll position on the newly displayed panel.
-    requestAnimationFrame(() => {
-      const currentDexGrid = document.getElementById('dexGrid');
-      if (currentDexGrid) {
-        currentDexGrid.scrollTop = 0;
-        currentDexGrid.scrollTo?.({ top: 0, left: 0, behavior: 'auto' });
-      }
-    });
   }
 
   if (id === 'recentModal') renderRecents();
@@ -6360,6 +6148,87 @@ function openModal(id) {
   el.style.display = 'flex';
 }
 
+
+const HUB_PULL_CLOSE_MODAL_IDS = new Set([
+  'accountModal',
+  'dexModal',
+  'setsModal',
+  'infoModal'
+]);
+
+function getHubModalScroller(modal) {
+  if (!modal) return null;
+
+  // Dex scrolls inside its list; Sets/Profile/Info use their modal body.
+  if (modal.id === 'dexModal') {
+    return modal.querySelector('#dexList') || modal.querySelector('.modal-body');
+  }
+
+  return modal.querySelector('.modal-body');
+}
+
+function installHubPullToClose() {
+  HUB_PULL_CLOSE_MODAL_IDS.forEach(id => {
+    const modal = document.getElementById(id);
+    if (!modal || modal.dataset.pullCloseReady === '1') return;
+
+    let startY = 0;
+    let tracking = false;
+
+    modal.addEventListener('touchstart', event => {
+      if (event.touches.length !== 1) return;
+
+      const scroller = getHubModalScroller(modal);
+      if (!scroller || scroller.scrollTop > 1) {
+        tracking = false;
+        return;
+      }
+
+      startY = event.touches[0].clientY;
+      tracking = true;
+    }, { passive: true });
+
+    modal.addEventListener('touchmove', event => {
+      if (!tracking || event.touches.length !== 1) return;
+
+      const scroller = getHubModalScroller(modal);
+      if (!scroller || scroller.scrollTop > 1) {
+        tracking = false;
+        return;
+      }
+
+      const pullDistance = event.touches[0].clientY - startY;
+
+      // Once the user has clearly pulled down from the very top,
+      // stop the browser/page from rubber-banding behind the panel.
+      if (pullDistance > 8 && event.cancelable) {
+        event.preventDefault();
+      }
+    }, { passive: false });
+
+    modal.addEventListener('touchend', event => {
+      if (!tracking) return;
+      tracking = false;
+
+      const scroller = getHubModalScroller(modal);
+      if (!scroller || scroller.scrollTop > 1) return;
+
+      const endY = event.changedTouches?.[0]?.clientY ?? startY;
+      const pullDistance = endY - startY;
+
+      // Deliberate downward swipe/pull from the top closes the active window.
+      if (pullDistance >= 70) {
+        closeModal(null, id);
+      }
+    }, { passive: true });
+
+    modal.addEventListener('touchcancel', () => {
+      tracking = false;
+    }, { passive: true });
+
+    modal.dataset.pullCloseReady = '1';
+  });
+}
 
 function closeModal(e, id) {
   if (!e || e.target.id === id) {

@@ -347,9 +347,12 @@ body.has-active .wheel-wrap {
   position: absolute;
   width: clamp(76px, 12.5dvh, 96px);
   height: clamp(76px, 12.5dvh, 96px);
-  background: rgba(15, 23, 42, 0.94);
+  background: linear-gradient(to bottom,
+    var(--red) 0 46%,
+    #0f172a 46% 54%,
+    #f8fafc 54% 100%);
   border-radius: 50%;
-  border: 3.5px solid #fff;
+  border: 3.5px solid #0f172a;
   z-index: 5;
   display: flex;
   flex-direction: column;
@@ -361,22 +364,34 @@ body.has-active .wheel-wrap {
   pointer-events: none;
   animation: hubPulse 2s infinite ease-in-out;
 }
+.center-hub::before {
+  content: '';
+  position: absolute;
+  inset: 16%;
+  background: #f8fafc;
+  border: 3px solid #0f172a;
+  border-radius: 50%;
+}
 @keyframes hubPulse {
   0%, 100% { transform: scale(1); box-shadow: 0 6px 20px rgba(0,0,0,0.65); }
   50% { transform: scale(1.04); box-shadow: 0 6px 25px rgba(239, 68, 68, 0.5); }
 }
 .center-hub-text {
+  position: relative;
+  z-index: 1;
   font-size: clamp(0.5rem, 1.05dvh, 0.62rem);
   font-weight: 900;
-  color: #ffcb05;
-  letter-spacing: 0.4px;
+  color: #b91c1c;
+  letter-spacing: 0.2px;
   text-transform: uppercase;
   line-height: 1.15;
 }
 .center-hub-sub {
+  position: relative;
+  z-index: 1;
   font-size: clamp(0.42rem, 0.9dvh, 0.52rem);
   font-weight: 700;
-  color: #fff;
+  color: #0f172a;
   margin-top: 2px;
 }
 
@@ -2260,12 +2275,12 @@ body.has-active .spin-action-row-external {
 }
 .spin-action-row-external .btn-spin-again {
   width: auto;
-  min-width: 170px;
+  min-width: 145px;
   height: auto;
-  padding: 0.75rem 1.5rem;
+  padding: 0.6rem 1.1rem;
   margin: 0;
   border-radius: 12px;
-  font-size: 0.9rem;
+  font-size: 0.84rem;
 }
 .spin-action-row-external .btn-spin-again::before {
   content: none;

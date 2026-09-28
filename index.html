@@ -6469,7 +6469,14 @@ async function refreshSetsView() {
     }
 
     if (grid) {
-      grid.innerHTML = '';
+      grid.innerHTML = `
+        <div class="tcg-set-detail-head">
+          <button type="button" class="tcg-set-back" onclick="renderTcgSets()">
+            ← Back to Sets
+          </button>
+        </div>
+      `;
+      if (loading) grid.after(loading);
     }
 
     if (loading) {
@@ -6483,13 +6490,16 @@ async function refreshSetsView() {
       true
     );
 
+    // Going back while the refresh runs must leave the set list intact.
+    if (activeTcgSet !== set) return;
+
     if (!cards.length) {
       if (loading) {
         loading.style.display = 'none';
       }
 
       if (grid) {
-        grid.innerHTML = `
+        grid.insertAdjacentHTML('beforeend', `
           <div style="
             text-align:center;
             color:var(--sub);
@@ -6497,7 +6507,7 @@ async function refreshSetsView() {
           ">
             Unable to refresh this set.
           </div>
-        `;
+        `);
       }
 
       return;

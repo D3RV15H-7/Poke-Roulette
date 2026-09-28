@@ -385,16 +385,8 @@ body.has-active .wheel-wrap {
   letter-spacing: 0.2px;
   text-transform: uppercase;
   line-height: 1.15;
+  white-space: pre-line;
 }
-.center-hub-sub {
-  position: relative;
-  z-index: 1;
-  font-size: clamp(0.42rem, 0.9dvh, 0.52rem);
-  font-weight: 700;
-  color: #0f172a;
-  margin-top: 2px;
-}
-
 .spin-action-row {
   display: flex;
   width: 100%;
@@ -2455,8 +2447,7 @@ body.has-active .hub-outer-wrap {
     <div class="pointer"></div>
     <div class="wheel" id="wheel"></div>
     <div class="center-hub" id="centerHub">
-      <div class="center-hub-text" id="hubText">ENCOUNTER</div>
-      <div class="center-hub-sub" id="hubSub">TAP TO SPIN</div>
+      <div class="center-hub-text" id="hubText">TAP<br>TO<br>SPIN</div>
     </div>
   </div>
 
@@ -8218,7 +8209,6 @@ async function spinAndPick() {
   const btn = document.getElementById('spinBtn');
   const w = document.getElementById('wheel');
   const hubText = document.getElementById('hubText');
-  const hubSub = document.getElementById('hubSub');
 
   if (btn) btn.disabled = true;
  isSpinning = true;
@@ -8239,8 +8229,7 @@ if (orbitWrap) {
 
 hideActive();
 
-  if (hubText) hubText.innerText = "SEARCHING";
-  if (hubSub) hubSub.innerText = "SPINNING...";
+  if (hubText) hubText.innerText = "FINDING";
 
   const idx = Math.floor(Math.random() * TYPES.length);
   const targetDeg = (270 - (idx * 20 + 10) + 360) % 360;
@@ -8265,8 +8254,7 @@ hideActive();
     
     setTimeout(() => {
       isSpinning = false;
-      if (hubText) hubText.innerText = "ENCOUNTER";
-      if (hubSub) hubSub.innerText = "TAP TO SPIN";
+      if (hubText) hubText.textContent = "TAP\nTO\nSPIN";
       renderCard(pData, shiny);
       addRec(pData);
       playCry();
@@ -8275,8 +8263,7 @@ hideActive();
     }, 3200);
   } catch (e) {
     isSpinning = false;
-    if (hubText) hubText.innerText = "ENCOUNTER";
-    if (hubSub) hubSub.innerText = "TAP TO SPIN";
+    if (hubText) hubText.textContent = "TAP\nTO\nSPIN";
     if (btn) btn.disabled = false;
     showToast("Spin error: Check connection.", "error");
   }

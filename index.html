@@ -6189,7 +6189,7 @@ function getHubModalScroller(modal) {
 
   // Dex scrolls inside its list; Sets/Profile/Info use their modal body.
   if (modal.id === 'dexModal') {
-    return modal.querySelector('#dexList') || modal.querySelector('.modal-body');
+    return modal.querySelector('#dexGrid');
   }
 
   return modal.querySelector('.modal-body');

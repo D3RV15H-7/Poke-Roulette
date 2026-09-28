@@ -571,6 +571,16 @@ body.has-active .wheel-wrap {
   color: var(--gold);
   filter: drop-shadow(0 0 6px rgba(245,158,11,0.7));
 }
+.btn-icon svg {
+  display: block;
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .types {
   display: flex;
   gap: 0.35rem;
@@ -2428,7 +2438,13 @@ body.has-active .hub-outer-wrap {
       <div class="tick-badge" id="cardTick">✓</div>
     </div>
     <div class="card-actions">
-      <button class="btn-icon" onclick="playCry()">🔊</button>
+      <button class="btn-icon" type="button" onclick="playCry()" title="Play Pokémon cry" aria-label="Play Pokémon cry">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M11 5 6 9H3v6h3l5 4V5Z" />
+          <path d="M15 9a4 4 0 0 1 0 6" />
+          <path d="M18 6a8 8 0 0 1 0 12" />
+        </svg>
+      </button>
       <div class="types" id="pokeTypes"></div>
       <button class="btn-icon" id="shinyBtn" onclick="toggleShiny()">★</button>
     </div>

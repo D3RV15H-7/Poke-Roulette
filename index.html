@@ -2484,7 +2484,6 @@ body.has-active .hub-outer-wrap {
   </div>
 </div>
     
-    <div class="micro-disclaimer">Fan project. Not affiliated with Nintendo, Creatures, or Game Freak.</div>
   </div>
 </div>
 
@@ -3443,7 +3442,6 @@ let tcgSetsCache = null;
 let activeTcgSet = null;
   let activeTcgSetFilter = 'all';
   let activeSetVariantCardId = null;
-  installHubPullToClose();
 
 document.addEventListener('click', (e) => {
   if (!activeSetVariantCardId) return;
@@ -6232,6 +6230,8 @@ function installHubPullToClose() {
     modal.dataset.pullCloseReady = '1';
   });
 }
+
+installHubPullToClose();
 
 function closeModal(e, id) {
   if (!e || e.target.id === id) {

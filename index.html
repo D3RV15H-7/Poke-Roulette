@@ -3468,12 +3468,29 @@ function isTrainerKitSet(set) {
     /\btrainer[\s-]*kits?\b/.test(series);
 }
 
+function isExcludedDeckProductSet(set) {
+  if (isTrainerKitSet(set)) return true;
+  const id = String(set?.id || '').toLowerCase().trim();
+  const name = String(set?.name || '').toLowerCase().trim();
+  const series = String(set?.series || '').toLowerCase().trim();
+  // Some catalogues use short product IDs or group names instead of spelling
+  // the product type out in every individual deck's name.
+  if (/^mfb(?:-|\d|$)/.test(id) || /^wcd(?:-|\d)/.test(id)) return true;
+  if (/\bmy[\s-]+first[\s-]+battle\b/.test(name)) return true;
+  if (/\b(?:world[\s-]+championships?\s+decks?|wc[\s-]+decks?)\b/.test(name)) return true;
+  if (/\b(?:trainer[\s-]+decks?|deck[\s-]*kits?|battle[\s-]+academy)\b/.test(name)) return true;
+  if (/\bworld[\s-]+championships?\s+decks?\b/.test(series)) return true;
+  if (/\btrainer\s*(?:&|and|\/)\s*deck[\s-]*kits?\b/.test(series) ||
+      /\bdeck[\s-]*kits?\b/.test(series)) return true;
+  return false;
+}
+
 function isExcludedCollectorSet(set) {
-  return isDigitalOnlySet(set) || isTrainerKitSet(set);
+  return isDigitalOnlySet(set) || isExcludedDeckProductSet(set);
 }
 
 function isExcludedCollectorCard(card) {
-  return isDigitalOnlyCard(card) || isTrainerKitSet(card?.set);
+  return isDigitalOnlyCard(card) || isExcludedDeckProductSet(card?.set);
 }
 // Card catalogues and optional artwork/prices have separate loading lifecycles.
 const tcgDataRequests = new Map();
@@ -3764,7 +3781,7 @@ async function fetchPhysicalTcgSets(forceRefresh = false) {
 }
 
 async function loadPhysicalTcgSets(forceRefresh = false) {
-  const CACHE_KEY = 'pokeroulette_tcg_sets_v6_no_trainer_kits';
+  const CACHE_KEY = 'pokeroulette_tcg_sets_v7_collector_sets';
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // 1. Use memory cache first
@@ -5522,7 +5539,7 @@ function isolateNumberedSetVariants(setId, cards) {
 }
 
 async function fetchCardsForSet(setId, forceRefresh = false) {
-  if (isTrainerKitSet({ id: setId })) return [];
+  if (isExcludedDeckProductSet({ id: setId })) return [];
   if (tcgSetRequests.has(setId)) return tcgSetRequests.get(setId);
   const request = (async () => {
     try { return await loadCardsForSet(setId, forceRefresh); }
@@ -7384,7 +7401,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
 async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_complete_cache_v3004_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_complete_cache_v3005_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   const TTL_MS = 86400000;
   let saved = memoryTcgCache.get(cacheKey) || null;
   if (!saved) {

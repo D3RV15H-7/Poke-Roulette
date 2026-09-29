@@ -3459,6 +3459,22 @@ function isDigitalOnlySet(set) {
 
   return false;
 }
+
+function isTrainerKitSet(set) {
+  const id = String(set?.id || '').toLowerCase().trim();
+  const name = String(set?.name || '').toLowerCase().trim();
+  const series = String(set?.series || '').toLowerCase().trim();
+  return /^tk(?:-|\d)/.test(id) || /\btrainer[\s-]*kits?\b/.test(name) ||
+    /\btrainer[\s-]*kits?\b/.test(series);
+}
+
+function isExcludedCollectorSet(set) {
+  return isDigitalOnlySet(set) || isTrainerKitSet(set);
+}
+
+function isExcludedCollectorCard(card) {
+  return isDigitalOnlyCard(card) || isTrainerKitSet(card?.set);
+}
 // Card catalogues and optional artwork/prices have separate loading lifecycles.
 const tcgDataRequests = new Map();
 const tcgSetRequests = new Map();
@@ -3748,7 +3764,7 @@ async function fetchPhysicalTcgSets(forceRefresh = false) {
 }
 
 async function loadPhysicalTcgSets(forceRefresh = false) {
-  const CACHE_KEY = 'pokeroulette_tcg_sets_v5_refresh_classics';
+  const CACHE_KEY = 'pokeroulette_tcg_sets_v6_no_trainer_kits';
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // 1. Use memory cache first
@@ -3799,7 +3815,7 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
     if (!sets.length) throw new Error('API returned an empty set catalogue');
 
     const physicalSets = sets
-      .filter(set => !isDigitalOnlySet(set))
+      .filter(set => !isExcludedCollectorSet(set))
       .map(set => ({
         id: set.id,
         name: set.name,
@@ -5506,6 +5522,7 @@ function isolateNumberedSetVariants(setId, cards) {
 }
 
 async function fetchCardsForSet(setId, forceRefresh = false) {
+  if (isTrainerKitSet({ id: setId })) return [];
   if (tcgSetRequests.has(setId)) return tcgSetRequests.get(setId);
   const request = (async () => {
     try { return await loadCardsForSet(setId, forceRefresh); }
@@ -5603,7 +5620,7 @@ async function loadCardsForSet(setId, forceRefresh = false) {
     }
 
     let formatted = cards
-      .filter(card => !isDigitalOnlyCard(card))
+      .filter(card => !isExcludedCollectorCard(card))
       .filter(card => !isYellowAAlternateCard(card))
       .filter(card =>
         isValidFrontCardImage(
@@ -7367,7 +7384,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
 async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_complete_cache_v3003_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_complete_cache_v3004_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   const TTL_MS = 86400000;
   let saved = memoryTcgCache.get(cacheKey) || null;
   if (!saved) {
@@ -7424,7 +7441,7 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
         localId: brief.localId || brief.id.slice(split + 1),
         set: { id: setId, name: set?.name || KNOWN_SETS[setId.toLowerCase()] || setId }
       };
-    }).filter(card => !isDigitalOnlyCard(card) && matchesExactPokemonName(card.name, cleanName));
+    }).filter(card => !isExcludedCollectorCard(card) && matchesExactPokemonName(card.name, cleanName));
 
     return mapTcgLimited(physical, async brief => {
       let detail = brief;
@@ -7459,7 +7476,7 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   // Stable provider priority preserves ownership IDs. Price availability must
   // never choose a different card ID for the same physical printing.
   for (const card of results.flatMap(result => result.status === 'fulfilled' ? result.value : [])) {
-    if (!card?.id || isDigitalOnlyCard(card) || !matchesExactPokemonName(card.name, cleanName)) continue;
+    if (!card?.id || isExcludedCollectorCard(card) || !matchesExactPokemonName(card.name, cleanName)) continue;
     const key = getPhysicalCardKey(card);
     const existing = merged.get(key);
     if (!existing) merged.set(key, card);

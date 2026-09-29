@@ -2803,18 +2803,33 @@ function showToast(msg, type = 'success') {
 
 function getCardFingerprint(card) {
   if (!card) return '';
+  const classic = getClassicCollectionIdentity(card);
+  if (classic) return `fp_celebrationsclassiccollection_${classic.key}`;
   const cleanSet = String(card.setName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const cleanNum = String(card.number || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   return `fp_${cleanSet}_${cleanNum}`;
 }
 
+function getCardOwnershipKeys(card) {
+  if (!card) return [];
+  const id = String(card.id || '').trim();
+  const keys = [id, id.toLowerCase(), getCardFingerprint(card)];
+  const classic = getClassicCollectionIdentity(card);
+  if (classic) {
+    // Recognise saved TCGdex selections made before its CC position was
+    // reconciled with the number printed on the Celebrations reprint.
+    const ccNumber = `CC${String(classic.ordinal).padStart(3, '0')}`;
+    for (const setId of ['cel25cc', 'cel25c']) {
+      keys.push(`${setId}-${ccNumber}`, `${setId}-${ccNumber}`.toLowerCase());
+    }
+    keys.push(`fp_celebrationsclassiccollection_${ccNumber.toLowerCase()}`);
+  }
+  return [...new Set(keys.filter(Boolean))];
+}
+
 function isCardCollected(card) {
   if (!card) return false;
-  const rawId = String(card.id).toLowerCase().trim();
-  if (memCardCol.has(rawId) || memCardCol.has(String(card.id))) return true;
-
-  const fp = getCardFingerprint(card);
-  return Boolean(fp && memCardCol.has(fp));
+  return getCardOwnershipKeys(card).some(key => memCardCol.has(key));
 }
 
 function updateBtn(owned) {
@@ -3207,13 +3222,13 @@ function toggleCardCollection(cardId, pokemonId = null) {
   const targetPokeId = parseInt(pokemonId || curId || activeDexModalPoke?.id, 10);
   const cardObj = currentCardsList.find(c => String(c.id) === cId);
   const fingerprint = getCardFingerprint(cardObj);
+  const ownershipKeys = getCardOwnershipKeys(cardObj);
 
   let wasAdded = false;
-  const isCurrentlyOwned = memCardCol.has(cId) || (fingerprint && memCardCol.has(fingerprint));
+  const isCurrentlyOwned = ownershipKeys.some(key => memCardCol.has(key));
 
   if (isCurrentlyOwned) {
-    memCardCol.delete(cId);
-    if (fingerprint) memCardCol.delete(fingerprint);
+    ownershipKeys.forEach(key => memCardCol.delete(key));
     wasAdded = false;
   } else {
     memCardCol.add(cId);
@@ -3469,7 +3484,47 @@ function getTcgCardCountLabel(cards) {
   return `${cards.length} Card${cards.length === 1 ? '' : 's'}${suffix}`;
 }
 
+// The Classic Collection uses the numbers printed on its original cards.
+// TCGdex also assigns CC001–CC025 positions within the reprint checklist.
+// Pokémon's Celebrations checklist defines both the order and printed numbers.
+const CLASSIC_COLLECTION_CARDS = [
+  ['blastoise', '2'], ['charizard', '4'], ['venusaur', '15'],
+  ['imposterprofessoroak', '73'], ['darkgyarados', '8'],
+  ['herecomesteamrocket', '15'], ['rocketszapdos', '15'],
+  ['spikachu', '24'], ['cleffa', '20'], ['shiningmagikarp', '66'],
+  ['teammagmasgroudon', '9'], ['rocketsadmin', '86'],
+  ['mewex', '88'], ['gardevoirex', '93'], ['umbreon', '17'],
+  ['claydol', '15'], ['luxraylvx', '109'], ['garchomplvx', '145'],
+  ['donphan', '107'], ['reshiram', '113'], ['zekrom', '114'],
+  ['mewtwoex', '54'], ['xerneasex', '97'], ['mrayquazaex', '76'],
+  ['tapulelegx', '60']
+].map(([key, number], index) => ({ key, number, ordinal: index + 1 }));
+const CLASSIC_COLLECTION_BY_NAME = new Map(CLASSIC_COLLECTION_CARDS.map(card => [card.key, card]));
+
+function getClassicCollectionIdentity(card) {
+  if (!card) return null;
+  const setId = String(card.set?.id || '').toLowerCase();
+  const setName = String(card.setName || card.set?.name || resolveSetName(card.set, card.id))
+    .toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (!['cel25c', 'cel25cc'].includes(setId) &&
+      !['celebrationsclassiccollection', '30thcelebrationclassiccollection'].includes(setName)) return null;
+
+  const name = String(card.name || '').normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const byName = CLASSIC_COLLECTION_BY_NAME.get(name);
+  const position = /^CC0*(\d+)$/i.exec(String(card.number || card.localId || ''));
+  const byPosition = position && CLASSIC_COLLECTION_CARDS[Number(position[1]) - 1];
+  return byName || byPosition || null;
+}
+
+function getPhysicalCardNumber(card) {
+  return getClassicCollectionIdentity(card)?.number || normalizeCardNumber(card.number || card.localId);
+}
+
 function getPhysicalCardKey(card) {
+  const classic = getClassicCollectionIdentity(card);
+  // Several different Classic Collection cards share their original number.
+  if (classic) return `celebrationsclassiccollection_${classic.key}`;
   let set = normalizeSetMatchName(resolveSetName(card.set, card.id)).replace(/[^a-z0-9]/g, '');
   // Both providers use these two names for the same Classic Collection.
   if (set === '30thclassiccollection') set = '30thcelebrationclassiccollection';
@@ -7312,7 +7367,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
 async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_complete_cache_v3002_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_complete_cache_v3003_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   const TTL_MS = 86400000;
   let saved = memoryTcgCache.get(cacheKey) || null;
   if (!saved) {
@@ -7427,7 +7482,7 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
       smallImg: isValidFrontCardImage(small) ? small : TCG_CARD_ARTWORK_UNAVAILABLE,
       largeImg: isValidFrontCardImage(large) ? large : TCG_CARD_ARTWORK_UNAVAILABLE,
       setName: resolveSetName(card.set, card.id),
-      number: normalizeCardNumber(card.number || card.localId),
+      number: getPhysicalCardNumber(card),
       rarity: card.rarity || 'Common', rarityScore: getRarityScore(card.rarity),
       priceGBP: extractCardPriceGBP(card)
     };

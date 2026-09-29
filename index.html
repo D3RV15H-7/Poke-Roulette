@@ -2595,7 +2595,7 @@ body.has-active .hub-outer-wrap {
     <div class="tcg-zoom-view-area" id="zoomViewArea">
       <button class="tcg-zoom-arrow left" id="zoomLeftArrow" onclick="navigateZoomCard(-1)">‹</button>
       <div class="flat-card-container">
-        <img class="tcg-zoom-img" id="tcgZoomImg" src="" alt="Card HD" />
+        <img class="tcg-zoom-img" id="tcgZoomImg" src="" alt="Card HD" onerror="handleTcgImageError(this)" />
       </div>
       <button class="tcg-zoom-arrow right" id="zoomRightArrow" onclick="navigateZoomCard(1)">›</button>
     </div>
@@ -3325,7 +3325,10 @@ function sortCardsList(cards) {
     }
     const priceA = parseFloat(a.priceGBP) || 0;
     const priceB = parseFloat(b.priceGBP) || 0;
-    return priceB - priceA;
+    return priceB - priceA ||
+      String(a.setName).localeCompare(String(b.setName)) ||
+      String(a.number).localeCompare(String(b.number), undefined, { numeric: true }) ||
+      String(a.id).localeCompare(String(b.id));
   });
 }
 
@@ -3440,48 +3443,164 @@ function isDigitalOnlySet(set) {
 
   return false;
 }
-async function fetchWithRetry(url, options = {}, retries = 2) {
+// Card catalogues and optional artwork/prices have separate loading lifecycles.
+const tcgDataRequests = new Map();
+const tcgSetRequests = new Map();
+const tcgCardListStatus = new WeakMap();
+const tcgDetailCache = new Map();
+let tcgSetsRequest = null;
+let tcgDexSetsRequest = null;
+let setsViewRequestId = 0;
+let dexCardsRequestId = 0;
+const TCG_CARD_ARTWORK_UNAVAILABLE = 'data:image/svg+xml,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="630" height="880" viewBox="0 0 630 880"><rect width="630" height="880" rx="24" fill="#1e293b"/><rect x="24" y="24" width="582" height="832" rx="18" fill="#0f172a" stroke="#475569" stroke-width="3"/><text x="315" y="420" fill="#cbd5e1" text-anchor="middle" font-family="sans-serif" font-size="30">Artwork unavailable</text><text x="315" y="465" fill="#94a3b8" text-anchor="middle" font-family="sans-serif" font-size="22">Card remains in the catalogue</text></svg>'
+);
+
+function handleTcgImageError(img) {
+  img.onerror = null;
+  img.src = TCG_CARD_ARTWORK_UNAVAILABLE;
+}
+
+function getTcgCardCountLabel(cards) {
+  cards = cards || [];
+  const status = tcgCardListStatus.get(cards);
+  const suffix = status?.stale ? ' · saved' : status?.partial ? ' · partial' : '';
+  return `${cards.length} Card${cards.length === 1 ? '' : 's'}${suffix}`;
+}
+
+function getPhysicalCardKey(card) {
+  let set = normalizeSetMatchName(resolveSetName(card.set, card.id)).replace(/[^a-z0-9]/g, '');
+  // Both providers use these two names for the same Classic Collection.
+  if (set === '30thclassiccollection') set = '30thcelebrationclassiccollection';
+  const number = normalizeCardNumber(card.number || card.localId);
+  return number === '?' ? `id:${String(card.id).toLowerCase()}` : `${set}_${number}`;
+}
+
+async function mapTcgLimited(items, mapper, concurrency = 6) {
+  const results = new Array(items.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await mapper(items[index], index);
+    }
+  }));
+  return results;
+}
+
+async function fetchJsonWithRetry(url, options = {}, retries = 1) {
+  const { timeoutMs = 8000, deadline = Date.now() + 20000, signal, ...fetchOptions } = options;
   let lastError;
-
   for (let attempt = 0; attempt <= retries; attempt++) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0 || signal?.aborted) throw lastError || new Error('Request timed out');
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    signal?.addEventListener('abort', abort, { once: true });
+    let timer;
     try {
-      const response = await fetch(url, options);
-
-      if (response.ok) {
-        return response;
-      }
-
-      // Don't immediately retry permanent client errors
-      if (
-        response.status >= 400 &&
-        response.status < 500 &&
-        response.status !== 408 &&
-        response.status !== 429
-      ) {
-        throw new Error(`API returned ${response.status}`);
-      }
-
-      lastError = new Error(`API returned ${response.status}`);
-
+      // The deadline covers downloading/parsing the body, not just response headers.
+      const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          controller.abort();
+          reject(new Error('Request timed out'));
+        }, Math.min(timeoutMs, remaining));
+      });
+      return await Promise.race([(async () => {
+        const response = await fetch(url, { ...fetchOptions, signal: controller.signal });
+        if (!response.ok) {
+          const error = new Error(`API returned ${response.status}`);
+          error.permanent = response.status >= 400 && response.status < 500 &&
+            response.status !== 408 && response.status !== 429;
+          throw error;
+        }
+        return await response.json();
+      })(), timeout]);
     } catch (error) {
       lastError = error;
+      if (error.permanent || signal?.aborted) throw error;
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', abort);
     }
-
     if (attempt < retries) {
-      const delay = 700 * (attempt + 1);
-
-      console.warn(
-        `[API] Request failed. Retrying in ${delay}ms...`
-      );
-
-      await new Promise(resolve =>
-        setTimeout(resolve, delay)
-      );
+      await new Promise(resolve => setTimeout(resolve, Math.min(350 * (attempt + 1), Math.max(0, deadline - Date.now()))));
     }
   }
-
   throw lastError || new Error('Request failed');
 }
+
+// Existing set loaders consume an ok flag and json() only. Buffer JSON under
+// the same timeout so slow response bodies cannot leave the spinner running.
+async function fetchWithRetry(url, options = {}, retries = 2) {
+  const json = await fetchJsonWithRetry(url, options, Math.min(retries, 1));
+  return { ok: true, json: async () => json };
+}
+
+async function fetchPokemonTcgPages(url, options = {}, deadline = Date.now() + 24000) {
+  const cards = new Map();
+  let page = 1;
+  let total = null;
+  for (;;) {
+    const pagedUrl = new URL(url);
+    pagedUrl.searchParams.set('page', String(page));
+    pagedUrl.searchParams.set('pageSize', '250');
+    pagedUrl.searchParams.set('orderBy', 'id');
+    const json = await fetchJsonWithRetry(pagedUrl.toString(), { ...options, deadline });
+    if (!Array.isArray(json?.data)) throw new Error('Invalid card catalogue response');
+    if (Number.isFinite(json.totalCount)) total = json.totalCount;
+    const previousSize = cards.size;
+    for (const card of json.data) {
+      if (!card?.id) throw new Error('Card catalogue contains an invalid record');
+      cards.set(card.id, card);
+    }
+    if (total !== null && cards.size >= total) return [...cards.values()];
+    if (json.data.length < 250 && total === null) return [...cards.values()];
+    if (!json.data.length || cards.size === previousSize) throw new Error('Incomplete card catalogue');
+    page++;
+  }
+}
+
+async function getTcgDexSets() {
+  if (Array.isArray(window.tcgDexSetsCache) && window.tcgDexSetsCache.length) return window.tcgDexSetsCache;
+  if (tcgDexSetsRequest) return tcgDexSetsRequest;
+  tcgDexSetsRequest = (async () => {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem('pokeroulette_tcgdex_sets_v1')); } catch (error) {}
+    if (saved?.data?.length && Date.now() - saved.savedAt < 86400000) {
+      return (window.tcgDexSetsCache = saved.data);
+    }
+    try {
+      const sets = await fetchJsonWithRetry('https://api.tcgdex.net/v2/en/sets');
+      if (!Array.isArray(sets) || !sets.length) throw new Error('Invalid TCGdex sets');
+      window.tcgDexSetsCache = sets;
+      try { localStorage.setItem('pokeroulette_tcgdex_sets_v1', JSON.stringify({ savedAt: Date.now(), data: sets })); } catch (error) {}
+      return sets;
+    } catch (error) {
+      if (saved?.data?.length) return (window.tcgDexSetsCache = saved.data);
+      throw error;
+    }
+  })();
+  try { return await tcgDexSetsRequest; } finally { tcgDexSetsRequest = null; }
+}
+
+async function getTcgDexCardDetail(id, deadline, forceRefresh = false) {
+  const cached = tcgDetailCache.get(id);
+  if (cached && Date.now() - cached.savedAt < (forceRefresh ? 60000 : 3600000)) return cached.data;
+  try {
+    const data = await fetchJsonWithRetry(
+      `https://api.tcgdex.net/v2/en/cards/${encodeURIComponent(id)}`,
+      { timeoutMs: 5000, deadline }, 0
+    );
+    if (data?.id !== id || !data?.set?.id) throw new Error('Invalid card detail');
+    tcgDetailCache.set(id, { savedAt: Date.now(), data });
+    return data;
+  } catch (error) {
+    if (cached) return cached.data;
+    throw error;
+  }
+}
+
 
 // v18.7 — Yellow A Alternate cards are a real cross-expansion release group.
 // The source API files these cards under their original expansion because they
@@ -3567,6 +3686,12 @@ document.addEventListener('click', (e) => {
 });
   
 async function fetchPhysicalTcgSets(forceRefresh = false) {
+  if (tcgSetsRequest) return tcgSetsRequest;
+  tcgSetsRequest = loadPhysicalTcgSets(forceRefresh);
+  try { return await tcgSetsRequest; } finally { tcgSetsRequest = null; }
+}
+
+async function loadPhysicalTcgSets(forceRefresh = false) {
   const CACHE_KEY = 'pokeroulette_tcg_sets_v5_refresh_classics';
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
@@ -3612,17 +3737,10 @@ async function fetchPhysicalTcgSets(forceRefresh = false) {
       headers['X-Api-Key'] = POKEMON_TCG_API_KEY;
     }
 
-    const response = await fetchWithRetry(
-      'https://api.pokemontcg.io/v2/sets?orderBy=-releaseDate',
-      { headers },
-      2
+    const sets = await fetchPokemonTcgPages(
+      'https://api.pokemontcg.io/v2/sets', { headers }
     );
-
-    const json = await response.json();
-
-    const sets = Array.isArray(json?.data)
-      ? json.data
-      : [];
+    if (!sets.length) throw new Error('API returned an empty set catalogue');
 
     const physicalSets = sets
       .filter(set => !isDigitalOnlySet(set))
@@ -3693,6 +3811,11 @@ async function fetchPhysicalTcgSets(forceRefresh = false) {
       error
     );
 
+    if (tcgSetsCache?.length) {
+      showToast('Refresh unavailable. Showing saved sets.', 'warning');
+      return tcgSetsCache;
+    }
+
     // 5. Last resort: use an old cache even if expired
     try {
       const cached = JSON.parse(
@@ -3705,10 +3828,12 @@ async function fetchPhysicalTcgSets(forceRefresh = false) {
         cached.data.length
       ) {
         console.warn(
-          '[SETS] Using expired cache because live API failed'
+        '[SETS] Using expired cache because live API failed'
         );
 
         tcgSetsCache = cached.data;
+
+        showToast('Showing saved sets. Refresh is unavailable.', 'warning');
 
         return cached.data;
       }
@@ -4977,17 +5102,7 @@ function normalizeSetMatchName(value) {
 
 async function findTcgDexSetForPokemonTcgSet(setId, setName) {
   try {
-    if (!window.tcgDexSetsCache) {
-      const res = await fetch(
-        'https://api.tcgdex.net/v2/en/sets'
-      );
-
-      if (!res.ok) {
-        throw new Error(`TCGdex sets ${res.status}`);
-      }
-
-      window.tcgDexSetsCache = await res.json();
-    }
+    await getTcgDexSets();
 
     const sets = Array.isArray(window.tcgDexSetsCache)
       ? window.tcgDexSetsCache
@@ -5035,8 +5150,8 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
     return cards;
   }
 
-  const enriched = await Promise.all(
-    cards.map(async card => {
+  const deadline = Date.now() + 12000;
+  const enriched = await mapTcgLimited(cards, async card => {
       try {
         const localId =
           String(card.number || '')
@@ -5062,27 +5177,14 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
                 id && ids.indexOf(id) === index
             );
 
-            let res = null;
-            let tcgDexCardId = '';
-
-            for (const candidateId of tcgDexCardIds) {
-              const candidateRes = await fetch(
-                `https://api.tcgdex.net/v2/en/cards/${encodeURIComponent(candidateId)}`
-              );
-
-              if (candidateRes.ok) {
-                res = candidateRes;
-                tcgDexCardId = candidateId;
-                break;
-              }
-            }
-
-            if (!res) {
-              return card;
-            }
-
-
-        const dexCard = await res.json();
+        let dexCard = null;
+        for (const candidateId of tcgDexCardIds) {
+          try {
+            dexCard = await getTcgDexCardDetail(candidateId, deadline);
+            break;
+          } catch (error) {}
+        }
+        if (!dexCard) return card;
 
         const sourceEvidence = {
           standard: Boolean(card?.variants?.standard),
@@ -5145,8 +5247,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
         );
         return card;
       }
-    })
-  );
+    });
 
   return enriched;
 }
@@ -5184,6 +5285,7 @@ async function fetchYellowAAlternateCards(forceRefresh = false) {
     headers['X-Api-Key'] = POKEMON_TCG_API_KEY;
   }
 
+  const deadline = Date.now() + 24000;
   const rawCards = [];
 
   // Keep the query comfortably below Lucene clause/URL limits.
@@ -5193,7 +5295,7 @@ async function fetchYellowAAlternateCards(forceRefresh = false) {
     const url =
       `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}&pageSize=250`;
 
-    const response = await fetchWithRetry(url, { headers }, 2);
+    const response = await fetchWithRetry(url, { headers, deadline }, 1);
     const json = await response.json();
 
     if (Array.isArray(json?.data)) {
@@ -5240,8 +5342,8 @@ async function fetchYellowAAlternateCards(forceRefresh = false) {
 
   // These are separate alternate-art printings, not variants of the original
   // numbered cards. Run normal finish enrichment on each alternate printing.
-  formatted = await Promise.all(
-    formatted.map(async card => {
+  const enrichmentDeadline = Date.now() + 12000;
+  formatted = await mapTcgLimited(formatted, async card => {
       try {
         const dexSet = await findTcgDexSetForPokemonTcgSet(
           String(card.id).split('-').slice(0, -1).join('-'),
@@ -5260,8 +5362,8 @@ async function fetchYellowAAlternateCards(forceRefresh = false) {
           try {
             const response = await fetchWithRetry(
               `https://api.tcgdex.net/v2/en/cards/${encodeURIComponent(candidate)}`,
-              {},
-              1
+              { deadline: enrichmentDeadline, timeoutMs: 5000 },
+              0
             );
             if (response.ok) {
               dexCard = await response.json();
@@ -5293,8 +5395,7 @@ async function fetchYellowAAlternateCards(forceRefresh = false) {
       } catch (error) {
         return card;
       }
-    })
-  );
+    });
 
   // Yellow A is a release checklist, so preserve its cross-expansion collector
   // numbering rather than pretending it is one conventional numbered set.
@@ -5305,6 +5406,7 @@ async function fetchYellowAAlternateCards(forceRefresh = false) {
     })
   );
 
+  if (formatted.length !== YELLOW_A_CARD_IDS.length) throw new Error('Incomplete Yellow A catalogue');
   window.tcgSetCardsCache[YELLOW_A_SET_ID] = formatted;
 
   try {
@@ -5348,6 +5450,28 @@ function isolateNumberedSetVariants(setId, cards) {
 }
 
 async function fetchCardsForSet(setId, forceRefresh = false) {
+  if (tcgSetRequests.has(setId)) return tcgSetRequests.get(setId);
+  const request = (async () => {
+    try { return await loadCardsForSet(setId, forceRefresh); }
+    catch (error) {
+      console.warn('[SETS] Could not refresh set:', setId, error);
+      const memory = window.tcgSetCardsCache?.[setId];
+      if (memory?.length) return memory;
+      try {
+        const key = setId === YELLOW_A_SET_ID
+          ? 'pokeroulette_set_cards_v18_7_yellow-a-alternate'
+          : `pokeroulette_set_cards_v18_11_${setId}`;
+        const saved = JSON.parse(localStorage.getItem(key));
+        if (saved?.data?.length) return saved.data;
+      } catch (cacheError) {}
+      return [];
+    }
+  })();
+  tcgSetRequests.set(setId, request);
+  try { return await request; } finally { tcgSetRequests.delete(setId); }
+}
+
+async function loadCardsForSet(setId, forceRefresh = false) {
   if (setId === YELLOW_A_SET_ID) {
     return fetchYellowAAlternateCards(forceRefresh);
   }
@@ -5414,17 +5538,7 @@ async function fetchCardsForSet(setId, forceRefresh = false) {
     const url =
       `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}&pageSize=250`;
 
-    const response = await fetchWithRetry(
-      url,
-      { headers },
-      2
-    );
-
-    const json = await response.json();
-
-    const cards = Array.isArray(json?.data)
-      ? json.data
-      : [];
+    const cards = await fetchPokemonTcgPages(url, { headers });
 
     if (!cards.length) {
       throw new Error(
@@ -5554,6 +5668,11 @@ baseFinish:
       error
     );
 
+    if (window.tcgSetCardsCache[setId]?.length) {
+      showToast('Refresh unavailable. Showing saved cards.', 'warning');
+      return window.tcgSetCardsCache[setId];
+    }
+
     // 6. If live request failed, accept an expired cache
     try {
       const cached = JSON.parse(
@@ -5610,6 +5729,8 @@ function updateSetsRefreshButton() {
 }
 
 async function openTcgSet(set) {
+  const requestId = ++setsViewRequestId;
+  ++activeTcgRequestId;
   document.getElementById('setsModal')?.classList.add('viewing-set');
   resetSetsScrollToTop();
   activeTcgSet = set;
@@ -5637,7 +5758,7 @@ async function openTcgSet(set) {
   const cards = await fetchCardsForSet(set.id);
 
   // The user may have returned to the list while this request was in flight.
-  if (activeTcgSet !== set) return;
+  if (requestId !== setsViewRequestId || activeTcgSet !== set) return;
 
   loading.style.display = 'none';
 
@@ -5653,7 +5774,7 @@ async function openTcgSet(set) {
         color:var(--sub);
         padding:2rem 0;
       ">
-        No cards found for this set.
+        Unable to load this set. Tap Refresh Cards to retry.
       </div>
     `;
     return;
@@ -5961,6 +6082,7 @@ variantOptions.forEach(option => {
 }
   
 async function renderTcgSets(forceRefresh = false) {
+  const requestId = ++setsViewRequestId;
   document.getElementById('setsModal')?.classList.remove('viewing-set');
   resetSetsScrollToTop();
   activeTcgSet = null;
@@ -5979,9 +6101,10 @@ async function renderTcgSets(forceRefresh = false) {
   grid.innerHTML = '';
 
   const sets = await fetchPhysicalTcgSets(forceRefresh);
+  if (requestId !== setsViewRequestId || activeTcgSet) return;
 
   if (!sets.length) {
-    loading.textContent = 'Unable to load card sets.';
+    loading.textContent = 'Unable to load card sets. Tap Refresh Sets to retry.';
     return;
   }
 
@@ -6477,6 +6600,7 @@ async function refreshSetsView() {
   // =====================================
 
   if (activeTcgSet) {
+    const requestId = ++setsViewRequestId;
     const set = activeTcgSet;
     const setId = set.id;
 
@@ -6484,23 +6608,7 @@ async function refreshSetsView() {
       `[SETS] Force refreshing ${set.name}`
     );
 
-    // Clear memory cache for this set only
-    if (window.tcgSetCardsCache) {
-      delete window.tcgSetCardsCache[setId];
-    }
-
-    // Clear saved cache for this set only
-    try {
-      localStorage.removeItem(
-        `pokeroulette_set_cards_v18_11_${setId}`
-      );
-    } catch (error) {
-      console.warn(
-        `[SETS] Could not clear cache for ${setId}:`,
-        error
-      );
-    }
-
+    // Keep the last successful catalogue available if refresh fails.
     if (grid) {
       grid.innerHTML = `
         <div class="tcg-set-detail-head">
@@ -6524,7 +6632,7 @@ async function refreshSetsView() {
     );
 
     // Going back while the refresh runs must leave the set list intact.
-    if (activeTcgSet !== set) return;
+    if (requestId !== setsViewRequestId || activeTcgSet !== set) return;
 
     if (!cards.length) {
       if (loading) {
@@ -6560,19 +6668,6 @@ async function refreshSetsView() {
     '[SETS] Force refreshing set catalogue'
   );
 
-  tcgSetsCache = null;
-
-  try {
-    localStorage.removeItem(
-      'pokeroulette_tcg_sets_v4_yellow_a_new_logo'
-    );
-  } catch (error) {
-    console.warn(
-      '[SETS] Could not clear catalogue cache:',
-      error
-    );
-  }
-
   if (grid) {
     grid.innerHTML = '';
   }
@@ -6587,6 +6682,7 @@ async function refreshSetsView() {
 }
 
 async function openDexCardsModal(p, bypassCache = false) {
+  const requestId = ++dexCardsRequestId;
   activeDexModalPoke = p;
   const modal = document.getElementById('dexCardsModal');
   const grid = document.getElementById('dexCardsGrid');
@@ -6603,10 +6699,14 @@ async function openDexCardsModal(p, bypassCache = false) {
   }
   try {
     const cardsList = await fetchTcgCardsData(p.name, p.species?.name, bypassCache);
+    if (requestId !== dexCardsRequestId || activeDexModalPoke !== p) return;
+    const status = tcgCardListStatus.get(cardsList);
+    if (title) title.innerText = `${cleanName} Cards${status?.stale ? ' · saved' : status?.partial ? ' · partial' : ''}`;
     currentCardsList = cardsList;
     sortCardsList(currentCardsList);
     renderDexCardsGrid(currentCardsList);
   } catch (e) {
+    if (requestId !== dexCardsRequestId || activeDexModalPoke !== p) return;
     if (grid) grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">Failed to load cards. Tap ↻ to retry.</div>';
   }
 }
@@ -6615,7 +6715,9 @@ function renderDexCardsGrid(cardsList) {
   const grid = document.getElementById('dexCardsGrid');
   if (!grid) return;
   if (!cardsList.length) {
-    grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">No physical cards found</div>';
+    const message = tcgCardListStatus.get(cardsList)?.partial
+      ? 'Search incomplete. Tap ↻ to retry.' : 'No physical cards found';
+    grid.innerHTML = `<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">${message}</div>`;
     return;
   }
   const frag = document.createDocumentFragment();
@@ -6626,7 +6728,7 @@ function renderDexCardsGrid(cardsList) {
     cell.innerHTML = `
       <div class="tcg-thumb-frame ${isOwnedCard ? 'card-owned' : ''}" id="modal_frame_${card.id}">
         <div class="card-check-circle ${isOwnedCard ? 'checked' : ''}" id="modal_chk_${card.id}">✓</div>
-        <img class="tcg-card-thumb" src="${card.smallImg}" loading="lazy" alt="${card.name}" onerror="this.closest('.dex-card-thumb-cell')?.remove()" />
+        <img class="tcg-card-thumb" src="${card.smallImg}" loading="lazy" alt="${card.name}" onerror="handleTcgImageError(this)" />
         ${card.priceGBP ? `<div class="tcg-card-price-badge">£${Number(card.priceGBP).toFixed(2)}</div>` : ''}
       </div>
       <div class="dex-cell-set" title="${card.setName}">${card.setName}</div>
@@ -6687,6 +6789,7 @@ function refreshCurrentCardSearch() {
   }
 }
 function closeDexCardsModal() {
+  ++dexCardsRequestId;
   const modal = document.getElementById('dexCardsModal');
   if (modal) {
     resetHubModalPull(modal);
@@ -7193,557 +7296,154 @@ function extractCardPriceGBP(card) {
   return gbpPrice.toFixed(2);
 }
 
-async function fetchTcgCardsData(
-  pokeName,
-  speciesName,
-  bypassCache = false
-) {
-  const cleanName = getCleanNationalDexName(
-    pokeName,
-    speciesName
+async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
+  const name = getCleanNationalDexName(pokeName, speciesName);
+  const key = name.toLowerCase();
+  if (tcgDataRequests.has(key)) return tcgDataRequests.get(key);
+  const request = loadTcgCardsData(pokeName, speciesName, bypassCache);
+  tcgDataRequests.set(key, request);
+  try { return await request; } finally { tcgDataRequests.delete(key); }
+}
+
+async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
+  const cleanName = getCleanNationalDexName(pokeName, speciesName);
+  const cacheKey = `tcg_complete_cache_v3002_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const TTL_MS = 86400000;
+  let saved = memoryTcgCache.get(cacheKey) || null;
+  if (!saved) {
+    try {
+      const stored = JSON.parse(localStorage.getItem(cacheKey));
+      if (stored?.complete === true && Array.isArray(stored.data)) saved = stored;
+    } catch (error) {}
+  }
+  if (!bypassCache && saved?.complete && Date.now() - saved.savedAt < TTL_MS) {
+    memoryTcgCache.set(cacheKey, saved);
+    const cards = saved.data.slice();
+    sortCardsList(cards);
+    return cards;
+  }
+  // Briefly reuse an explicitly labelled partial result to avoid hammering an
+  // unavailable provider while browsing. Refresh always retries both sources.
+  if (!bypassCache && !saved?.complete) {
+    try {
+      const partial = JSON.parse(localStorage.getItem(`${cacheKey}_partial`));
+      if (Array.isArray(partial?.data) && Date.now() - partial.savedAt < 60000) {
+        const cards = partial.data;
+        tcgCardListStatus.set(cards, { partial: true });
+        sortCardsList(cards);
+        return cards;
+      }
+    } catch (error) {}
+  }
+
+  const deadline = Date.now() + 24000;
+  const headers = {};
+  if (POKEMON_TCG_API_KEY) headers['X-Api-Key'] = POKEMON_TCG_API_KEY;
+  const query = `name:"${cleanName.replace(/["']/g, '').trim()}"`;
+
+  const fetchIo = () => fetchPokemonTcgPages(
+    `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}`, { headers }, deadline
   );
 
-  /*
-    v3000 is intentional.
-
-    Your previous v2890 cache may contain old/broken
-    results. Changing the cache version means the app
-    immediately performs a fresh card lookup.
-  */
-  const cacheKey =
-    `tcg_ttl_cache_v3001_${cleanName
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '')}`;
-
-  const cacheTimeKey = `${cacheKey}_time`;
-  const TTL_MS = 24 * 60 * 60 * 1000;
-  const now = Date.now();
-
-  /* ==============================
-     CACHE
-     ============================== */
-
-  if (!bypassCache) {
-    if (memoryTcgCache.has(cacheKey)) {
-      const cached = memoryTcgCache.get(cacheKey);
-
-      if (Array.isArray(cached)) {
-        sortCardsList(cached);
-        return cached;
-      }
-    }
-
-    try {
-      const stored = localStorage.getItem(cacheKey);
-
-      const storedTime = parseInt(
-        localStorage.getItem(cacheTimeKey) || '0',
-        10
-      );
-
-      if (
-        stored &&
-        storedTime &&
-        now - storedTime < TTL_MS
-      ) {
-        const cached = JSON.parse(stored);
-
-        if (Array.isArray(cached)) {
-          memoryTcgCache.set(cacheKey, cached);
-          sortCardsList(cached);
-          return cached;
-        }
-      }
-    } catch (err) {
-      console.warn(
-        '[TCG] Unable to read card cache:',
-        err
-      );
-    }
-  }
-
-  const primaryTerm = cleanName.trim();
-
-  /* ==============================
-     FETCH WITH RETRY
-     ============================== */
-
-  const fetchWithRetry = async (
-    url,
-    headers = {},
-    retries = 2,
-    delay = 400
-  ) => {
-    let lastError = null;
-
-    for (let attempt = 0; attempt < retries; attempt++) {
-      const controller = new AbortController();
-
-      const timeoutId = setTimeout(
-        () => controller.abort(),
-        12000
-      );
-
-      try {
-        const response = await fetch(url, {
-          headers,
-          signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          throw new Error(
-            `HTTP ${response.status} ${response.statusText}`
-          );
-        }
-
-        return await response.json();
-
-      } catch (err) {
-        clearTimeout(timeoutId);
-        lastError = err;
-
-        console.warn(
-          `[TCG] Request attempt ${attempt + 1} failed:`,
-          url,
-          err
-        );
-
-        if (attempt < retries - 1) {
-          await new Promise(resolve =>
-            setTimeout(
-              resolve,
-              delay * Math.pow(1.5, attempt)
-            )
-          );
-        }
-      }
-    }
-
-    throw lastError || new Error(
-      'TCG request failed'
-    );
-  };
-
-  /* ==============================
-     POKÉMON TCG API
-     ============================== */
-
-  const fetchPokeTcgIo = async () => {
-    try {
-      const cleanWord = cleanName
-  .replace(/["']/g, '')
-  .trim();
-
-      console.log('TCG Search:', cleanWord);
-      
-      const query = `name:"${cleanWord}"`;
-
-      const queryUrl =
-        `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}&pageSize=250`;
-
-      const headers = {};
-
-      if (POKEMON_TCG_API_KEY) {
-        headers['X-Api-Key'] = POKEMON_TCG_API_KEY;
-      }
-
-      const json = await fetchWithRetry(
-        queryUrl,
-        headers
-      );
-
-      if (json && Array.isArray(json.data)) {
-        console.log(
-          `[TCG] Pokémon TCG API returned ${json.data.length} cards for ${cleanName}`
-        );
-
-        return json.data;
-      }
-
-    } catch (err) {
-      console.error(
-        `[TCG] Pokémon TCG API failed for ${cleanName}:`,
-        err
-      );
-    }
-
-    return [];
-  };
-
-  /* ==============================
-     TCGDEX
-     ============================== */
-
-  const fetchTcgDex = async () => {
-    try {
-      const searchUrl =
-        `https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(primaryTerm)}`;
-
-      const searchResults = await fetchWithRetry(
-        searchUrl,
-        {},
-        2,
-        400
-      );
-
-      if (
-        !Array.isArray(searchResults) ||
-        searchResults.length === 0
-      ) {
-        console.log(
-          `[TCG] TCGdex returned 0 cards for ${cleanName}`
-        );
-
-        return [];
-      }
-
-      console.log(
-        `[TCG] TCGdex returned ${searchResults.length} references for ${cleanName}`
-      );
-
-      const results = [];
-      const chunkSize = 10;
-
-      for (
-        let i = 0;
-        i < searchResults.length;
-        i += chunkSize
-      ) {
-        const chunk = searchResults.slice(
-          i,
-          i + chunkSize
-        );
-
-        const chunkData = await Promise.all(
-          chunk.map(async cardBrief => {
-            try {
-              const detailUrl =
-                `https://api.tcgdex.net/v2/en/cards/${encodeURIComponent(cardBrief.id)}`;
-
-              return await fetchWithRetry(
-                detailUrl,
-                {},
-                2,
-                250
-              );
-
-            } catch (err) {
-              console.warn(
-                '[TCG] TCGdex detail failed:',
-                cardBrief.id,
-                err
-              );
-
-              return cardBrief;
-            }
-          })
-        );
-
-        results.push(...chunkData);
-      }
-
-      return results.map(c => {
-        const baseImage = c.image || '';
-
-        return {
-          id: c.id,
-
-          name: c.name,
-
-          images: {
-            small: baseImage
-              ? `${baseImage}/low.webp`
-              : (c.images?.small || ''),
-
-            large: baseImage
-              ? `${baseImage}/high.webp`
-              : (
-                  c.images?.large ||
-                  c.images?.small ||
-                  ''
-                )
-          },
-
-          set: {
-            name: c.set?.name || '',
-            id: c.set?.id || '',
-            printedTotal:
-              c.set?.cardCount?.official || 0
-          },
-
-          number:
-            c.localId ||
-            c.number ||
-            '?',
-
-          rarity:
-            c.rarity ||
-            'Common',
-
-          pricing:
-            c.pricing || null,
-
-          cardmarket:
-            c.cardmarket || null,
-
-          tcgplayer:
-            c.tcgplayer || null
-        };
-      });
-
-    } catch (err) {
-      console.error(
-        `[TCG] TCGdex failed for ${cleanName}:`,
-        err
-      );
-
-      return [];
-    }
-  };
-
-  /* ==============================
-     RUN BOTH SOURCES
-     ============================== */
-
-  const results = await Promise.allSettled([
-    fetchPokeTcgIo(),
-    fetchTcgDex()
-  ]);
-
-  const cardsFromIo =
-    results[0].status === 'fulfilled'
-      ? results[0].value
-      : [];
-
-  const cardsFromDex =
-    results[1].status === 'fulfilled'
-      ? results[1].value
-      : [];
-
-  if (results[0].status === 'rejected') {
-    console.error(
-      '[TCG] Pokémon TCG API rejected:',
-      results[0].reason
-    );
-  }
-
-  if (results[1].status === 'rejected') {
-    console.error(
-      '[TCG] TCGdex rejected:',
-      results[1].reason
-    );
-  }
-
-  console.log(
-    '[TCG] API results:',
-    {
-      pokemon: cleanName,
-      pokemonTcgIo: cardsFromIo.length,
-      tcgDex: cardsFromDex.length
-    }
-  );
-
-  /* ==============================
-     MERGE / FILTER / DEDUPLICATE
-     ============================== */
-
-  const mergedMap = new Map();
-
-  const allCards = [
-    ...cardsFromIo,
-    ...cardsFromDex
-  ];
-
-  for (const card of allCards) {
-    if (!card) continue;
-
-    if (isDigitalOnlyCard(card)) {
-      continue;
-    }
-
-    if (
-      !matchesExactPokemonName(
-        card.name,
-        cleanName
-      )
-    ) {
-      continue;
-    }
-
-    const smallImg =
-      card.images?.small ||
-      card.images?.large ||
-      (
-        card.image
-          ? `${card.image}/low.webp`
-          : ''
-      );
-
-    if (!isValidFrontCardImage(smallImg)) {
-      continue;
-    }
-
-    const resolvedSet =
-      resolveSetName(
-        card.set,
-        card.id
-      );
-
-    const resolvedNum =
-      normalizeCardNumber(
-        card.number ||
-        card.localId
-      );
-
-    const dedupKey =
-      `${resolvedSet
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '')}_${resolvedNum}`;
-
-    if (!mergedMap.has(dedupKey)) {
-      mergedMap.set(
-        dedupKey,
-        card
-      );
-
-      continue;
-    }
-
-    const existing =
-      mergedMap.get(dedupKey);
-
-    const existingHasPricing =
-      Boolean(
-        existing.pricing ||
-        existing.cardmarket ||
-        existing.tcgplayer
-      );
-
-    const incomingHasPricing =
-      Boolean(
-        card.pricing ||
-        card.cardmarket ||
-        card.tcgplayer
-      );
-
-    if (
-      !existingHasPricing &&
-      incomingHasPricing
-    ) {
-      mergedMap.set(
-        dedupKey,
-        card
-      );
-    }
-  }
-
-  /* ==============================
-     FORMAT FOR APP
-     ============================== */
-
-  const formattedCards =
-    Array.from(
-      mergedMap.values()
-    ).map(card => {
-      const smallImg =
-        card.images?.small ||
-        card.images?.large ||
-        (
-          card.image
-            ? `${card.image}/low.webp`
-            : ''
-        );
-
-      const largeImg =
-        card.images?.large ||
-        card.images?.small ||
-        (
-          card.image
-            ? `${card.image}/high.webp`
-            : ''
-        );
-
+  const fetchDex = async () => {
+    const [references, sets] = await Promise.all([
+      fetchJsonWithRetry(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(cleanName)}`, { deadline }),
+      getTcgDexSets()
+    ]);
+    if (!Array.isArray(references)) throw new Error('Invalid TCGdex card list');
+    const setsById = new Map(sets.map(set => [String(set.id).toLowerCase(), set]));
+    // The brief catalogue determines membership; details only supply artwork,
+    // rarity and price. A missing detail or image must not remove a real card.
+    const physical = references.map(brief => {
+      if (!brief?.id || !brief?.name) throw new Error('Invalid TCGdex card reference');
+      const split = brief.id.lastIndexOf('-');
+      const setId = brief.id.slice(0, split);
+      const set = setsById.get(setId.toLowerCase());
       return {
-        id:
-          String(card.id),
+        ...brief,
+        localId: brief.localId || brief.id.slice(split + 1),
+        set: { id: setId, name: set?.name || KNOWN_SETS[setId.toLowerCase()] || setId }
+      };
+    }).filter(card => !isDigitalOnlyCard(card) && matchesExactPokemonName(card.name, cleanName));
 
-        name:
-          card.name ||
-          cleanName,
-
-        smallImg:
-          smallImg ||
-          largeImg,
-
-        largeImg:
-          largeImg ||
-          smallImg,
-
-        setName:
-          resolveSetName(
-            card.set,
-            card.id
-          ),
-
-        number:
-          normalizeCardNumber(
-            card.number ||
-            card.localId
-          ),
-
-        rarity:
-          card.rarity ||
-          'Common',
-
-        rarityScore:
-          getRarityScore(
-            card.rarity
-          ),
-
-        priceGBP:
-          extractCardPriceGBP(card)
+    return mapTcgLimited(physical, async brief => {
+      let detail = brief;
+      try { detail = await getTcgDexCardDetail(brief.id, deadline, bypassCache); } catch (error) {}
+      const image = detail.image || brief.image || '';
+      return {
+        ...detail,
+        id: brief.id,
+        name: detail.name || brief.name,
+        set: detail.set?.id ? detail.set : brief.set,
+        number: detail.localId || brief.localId,
+        images: { small: image ? `${image}/low.webp` : '', large: image ? `${image}/high.webp` : '' },
+        rarity: detail.rarity || 'Common'
       };
     });
+  };
 
-  sortCardsList(formattedCards);
+  const results = await Promise.allSettled([fetchIo(), fetchDex()]);
+  const complete = results.every(result => result.status === 'fulfilled');
+  const failures = results.filter(result => result.status === 'rejected');
+  failures.forEach(result => console.warn('[TCG] Catalogue source unavailable:', result.reason));
 
-  console.log(
-    `[TCG] ${formattedCards.length} physical cards retained for ${cleanName}`
-  );
-
-  /* ==============================
-     CACHE VALID RESULTS
-     ============================== */
-
-  if (formattedCards.length > 0) {
-    memoryTcgCache.set(
-      cacheKey,
-      formattedCards
-    );
-
-    try {
-      localStorage.setItem(
-        cacheKey,
-        JSON.stringify(formattedCards)
-      );
-
-      localStorage.setItem(
-        cacheTimeKey,
-        String(now)
-      );
-
-    } catch (err) {
-      console.warn(
-        '[TCG] Unable to save card cache:',
-        err
-      );
-    }
+  if (!complete && saved?.complete) {
+    const cards = saved.data.slice();
+    tcgCardListStatus.set(cards, { stale: true });
+    sortCardsList(cards);
+    return cards;
   }
+  if (failures.length === results.length) throw new Error('Card services are unavailable. Tap refresh to retry.');
 
-  return formattedCards;
+  const merged = new Map();
+  // Stable provider priority preserves ownership IDs. Price availability must
+  // never choose a different card ID for the same physical printing.
+  for (const card of results.flatMap(result => result.status === 'fulfilled' ? result.value : [])) {
+    if (!card?.id || isDigitalOnlyCard(card) || !matchesExactPokemonName(card.name, cleanName)) continue;
+    const key = getPhysicalCardKey(card);
+    const existing = merged.get(key);
+    if (!existing) merged.set(key, card);
+    else merged.set(key, {
+      ...card, ...existing,
+      images: {
+        small: existing.images?.small || card.images?.small,
+        large: existing.images?.large || card.images?.large
+      },
+      pricing: existing.pricing || card.pricing,
+      cardmarket: existing.cardmarket || card.cardmarket,
+      tcgplayer: existing.tcgplayer || card.tcgplayer
+    });
+  }
+  const cards = [...merged.values()].map(card => {
+    const small = card.images?.small || card.images?.large;
+    const large = card.images?.large || card.images?.small;
+    return {
+      id: String(card.id), name: card.name || cleanName,
+      smallImg: isValidFrontCardImage(small) ? small : TCG_CARD_ARTWORK_UNAVAILABLE,
+      largeImg: isValidFrontCardImage(large) ? large : TCG_CARD_ARTWORK_UNAVAILABLE,
+      setName: resolveSetName(card.set, card.id),
+      number: normalizeCardNumber(card.number || card.localId),
+      rarity: card.rarity || 'Common', rarityScore: getRarityScore(card.rarity),
+      priceGBP: extractCardPriceGBP(card)
+    };
+  });
+  sortCardsList(cards);
+  tcgCardListStatus.set(cards, { partial: !complete });
+  // A successful empty result is valid, but a failed/partial result is never
+  // written over the complete catalogue or treated as "no cards exist".
+  if (complete) {
+    const record = { savedAt: Date.now(), complete: true, data: cards };
+    memoryTcgCache.set(cacheKey, record);
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify(record));
+      localStorage.removeItem(`${cacheKey}_partial`);
+    } catch (error) {}
+  } else if (cards.length) {
+    try { localStorage.setItem(`${cacheKey}_partial`, JSON.stringify({ savedAt: Date.now(), data: cards })); } catch (error) {}
+  }
+  return cards;
 }
+
 
 async function fetchTcgCards(pokeName, speciesName, bypassCache = false) {
   const requestId = ++activeTcgRequestId;
@@ -7760,9 +7460,10 @@ async function fetchTcgCards(pokeName, speciesName, bypassCache = false) {
     }
   }
   try {
-    currentCardsList = await fetchTcgCardsData(pokeName, speciesName, bypassCache);
+    const cards = await fetchTcgCardsData(pokeName, speciesName, bypassCache);
     if (!isSpinning && requestId === activeTcgRequestId) {
-      renderTcgCards(currentCardsList);
+      currentCardsList = cards;
+      renderTcgCards(cards);
       if (curId) {
         const hasCard = currentCardsList.some(c => isCardCollected(c));
         if (hasCard) memCol.add(parseInt(curId, 10));
@@ -7772,7 +7473,8 @@ async function fetchTcgCards(pokeName, speciesName, bypassCache = false) {
   } catch (err) {
     if (!isSpinning && requestId === activeTcgRequestId) {
       currentCardsList = [];
-      renderTcgCards([]);
+      if (countText) countText.innerText = 'Unavailable';
+      if (strip) strip.innerHTML = '<div class="tcg-empty-msg">Unable to load cards. Tap ↻ to retry.</div>';
     }
   }
 }
@@ -7785,13 +7487,14 @@ function renderTcgCards(cards) {
   const frag = document.createDocumentFragment();
 
   if (!cards || !cards.length) {
-    if (countText) countText.innerText = "0 Cards";
+    if (countText) countText.innerText = getTcgCardCountLabel(cards);
     const emptyMsg = document.createElement('div');
     emptyMsg.className = 'tcg-empty-msg';
-    emptyMsg.innerText = "No physical cards found";
+    emptyMsg.innerText = tcgCardListStatus.get(cards)?.partial
+      ? 'Search incomplete. Tap ↻ to retry.' : 'No physical cards found';
     frag.appendChild(emptyMsg);
   } else {
-    if (countText) countText.innerText = `${cards.length} Card${cards.length === 1 ? '' : 's'}`;
+    if (countText) countText.innerText = getTcgCardCountLabel(cards);
     cards.forEach((card, index) => {
       const isOwnedCard = isCardCollected(card);
       const node = document.createElement('div');
@@ -7799,7 +7502,7 @@ function renderTcgCards(cards) {
       node.innerHTML = `
         <div class="tcg-thumb-frame ${isOwnedCard ? 'card-owned' : ''}">
           <div class="card-check-circle ${isOwnedCard ? 'checked' : ''}" id="strip_chk_${card.id}">✓</div>
-          <img class="tcg-card-thumb" src="${card.smallImg}" loading="lazy" alt="${card.name}" onerror="this.closest('.tcg-card-item')?.remove()" />
+          <img class="tcg-card-thumb" src="${card.smallImg}" loading="lazy" alt="${card.name}" onerror="handleTcgImageError(this)" />
           ${card.priceGBP ? `<div class="tcg-card-price-badge">£${Number(card.priceGBP).toFixed(2)}</div>` : ''}
         </div>
         <div class="tcg-card-set" title="${card.setName}">${card.setName}</div>
@@ -7996,6 +7699,7 @@ function closeTcgZoom() {
 }
 
 function hideActive() {
+  ++activeTcgRequestId;
   document.body.classList.remove('has-active');
   const pokeCard = document.getElementById('pokeCard');
   if (pokeCard) pokeCard.style.display = 'none';

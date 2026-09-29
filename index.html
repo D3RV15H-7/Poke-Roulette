@@ -2111,14 +2111,22 @@ body.has-active .spin-action-row-external {
 #setsModal.viewing-set .tcg-set-filter { margin-top: 0.48rem; gap: 0.35rem; }
 #setsModal.viewing-set .tcg-set-filter-btn { min-height: 34px; padding: 0.4rem 0.55rem; font-size: 0.68rem; }
 
-/* Compact variant controls in card zoom. */
+/* Reserve three centred variant rows so browsing cards keeps the preview steady. */
 .tcg-zoom-variants {
+  --tcg-zoom-variant-row-height: 28px;
   width: min(100%, 280px);
+  height: calc(3 * var(--tcg-zoom-variant-row-height) + 0.36rem + 2px);
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   padding: 0.18rem 0.45rem;
   margin: 0.05rem 0;
   border-radius: 10px;
 }
 .tcg-zoom-variant-option {
+  height: var(--tcg-zoom-variant-row-height);
+  flex: 0 0 var(--tcg-zoom-variant-row-height);
   padding: 0.28rem 0.1rem;
   font-size: 0.66rem;
   gap: 0.5rem;
@@ -7851,7 +7859,7 @@ function updateZoomModalContent() {
 
   if (zoomVariants) {
     if (activeTcgSet) {
-      zoomVariants.style.display = 'block';
+      zoomVariants.style.display = 'flex';
       zoomVariants.innerHTML = getAvailableSetCardVariants(card)
         .map(({ key, label }) => `
           <div class="tcg-zoom-variant-option" data-variant="${key}">
@@ -7925,7 +7933,7 @@ function toggleZoomCardOwned(e) {
       document.getElementById('tcgZoomVariants');
 
     if (zoomVariants) {
-      zoomVariants.style.display = 'block';
+      zoomVariants.style.display = 'flex';
       const firstOption =
         zoomVariants.querySelector('.tcg-zoom-variant-option');
       if (firstOption) firstOption.focus?.();

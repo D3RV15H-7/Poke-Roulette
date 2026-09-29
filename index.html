@@ -3505,7 +3505,50 @@ const TCG_CARD_ARTWORK_UNAVAILABLE = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="630" height="880" viewBox="0 0 630 880"><rect width="630" height="880" rx="24" fill="#1e293b"/><rect x="24" y="24" width="582" height="832" rx="18" fill="#0f172a" stroke="#475569" stroke-width="3"/><text x="315" y="420" fill="#cbd5e1" text-anchor="middle" font-family="sans-serif" font-size="30">Artwork unavailable</text><text x="315" y="465" fill="#94a3b8" text-anchor="middle" font-family="sans-serif" font-size="22">Card remains in the catalogue</text></svg>'
 );
 
+const PROMO_ARTWORK_SERIES = Object.freeze({
+  mep: 'me', svp: 'sv', swshp: 'swsh', smp: 'sm', xyp: 'xy',
+  bwp: 'bw', dpp: 'dp'
+});
+const VERIFIED_PROMO_ARTWORK = Object.freeze({
+  // The MEP 074 catalogue record currently has no scan URL in either API.
+  'mep:74:delphox': 'https://static.tcgcollector.com/content/images/c3/bc/dc/c3bcdcefe3b1b59f0897d3d9e1ff9ba1e2af49489aa400c92bf29d3bfc33bab9.webp'
+});
+
+function getCardArtworkSources(card) {
+  const setId = String(card.set?.id || '').trim().toLowerCase();
+  const localId = String(card.localId || card.number || '').trim();
+  const number = normalizeCardNumber(localId);
+  const name = String(card.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const series = PROMO_ARTWORK_SERIES[setId];
+  const extra = [];
+  if (series && /^\d+$/.test(localId)) {
+    const padded = localId.padStart(3, '0');
+    const base = `https://assets.tcgdex.net/en/${series}/${setId}/${padded}`;
+    extra.push(`${base}/low.webp`, `${base}/low.png`, `${base}/high.webp`, `${base}/high.png`);
+  }
+  const verified = VERIFIED_PROMO_ARTWORK[`${setId}:${number}:${name}`];
+  if (verified) extra.push(verified);
+  const unique = urls => [...new Set(urls.filter(url =>
+    url !== TCG_CARD_ARTWORK_UNAVAILABLE && isValidFrontCardImage(url)
+  ))];
+  const small = unique([card.images?.small, card.smallImg, card.images?.large, card.largeImg, ...extra]);
+  const large = unique([card.images?.large, card.largeImg, card.images?.small, card.smallImg,
+    ...extra.slice(2, 4), ...extra.slice(0, 2), verified]);
+  return { small, large };
+}
+
+function setTcgImageFallbacks(img, card, quality = 'small') {
+  if (img) img._tcgArtworkFallbacks = [
+    ...((quality === 'large' ? card.largeImgFallbacks : card.smallImgFallbacks) || [])
+  ];
+}
+
 function handleTcgImageError(img) {
+  const fallback = img._tcgArtworkFallbacks?.shift();
+  if (fallback) {
+    img.src = fallback;
+    return;
+  }
   img.onerror = null;
   img.src = TCG_CARD_ARTWORK_UNAVAILABLE;
 }
@@ -5550,7 +5593,7 @@ async function fetchCardsForSet(setId, forceRefresh = false) {
       try {
         const key = setId === YELLOW_A_SET_ID
           ? 'pokeroulette_set_cards_v18_7_yellow-a-alternate'
-          : `pokeroulette_set_cards_v18_11_${setId}`;
+          : `pokeroulette_set_cards_v18_12_${setId}`;
         const saved = JSON.parse(localStorage.getItem(key));
         if (saved?.data?.length) return saved.data;
       } catch (cacheError) {}
@@ -5566,7 +5609,7 @@ async function loadCardsForSet(setId, forceRefresh = false) {
     return fetchYellowAAlternateCards(forceRefresh);
   }
 
-  const CACHE_KEY = `pokeroulette_set_cards_v18_11_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v18_12_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -5639,17 +5682,12 @@ async function loadCardsForSet(setId, forceRefresh = false) {
     let formatted = cards
       .filter(card => !isExcludedCollectorCard(card))
       .filter(card => !isYellowAAlternateCard(card))
-      .filter(card =>
-        isValidFrontCardImage(
-          card.images?.small ||
-          card.images?.large
-        )
-      )
       .map(card => {
         // v18.1: calculate source finish evidence while the raw
         // tcgplayer/cardmarket fields are still present.
         const sourceVariantEvidence =
           inferSetCardVariantsFromPokemonTcg(card);
+        const artwork = getCardArtworkSources(card);
 
         return {
         id: card.id,
@@ -5658,15 +5696,11 @@ async function loadCardsForSet(setId, forceRefresh = false) {
 
         pokemonId: getPokemonIdFromCardName(card.name),
         
-        smallImg:
-          card.images?.small ||
-          card.images?.large ||
-          '',
+        smallImg: artwork.small[0] || TCG_CARD_ARTWORK_UNAVAILABLE,
+        smallImgFallbacks: artwork.small.slice(1),
 
-        largeImg:
-          card.images?.large ||
-          card.images?.small ||
-          '',
+        largeImg: artwork.large[0] || TCG_CARD_ARTWORK_UNAVAILABLE,
+        largeImgFallbacks: artwork.large.slice(1),
 
         setName:
           card.set?.name ||
@@ -6055,9 +6089,9 @@ function renderCurrentSetCards() {
       <div class="tcg-set-card-image-wrap">
 
         <img
-          src="${card.smallImg}"
           alt="${card.name}"
           loading="lazy"
+          onerror="handleTcgImageError(this)"
         >
 
         <div class="tcg-set-owned-check ${owned ? 'checked' : ''}">
@@ -6095,6 +6129,9 @@ function renderCurrentSetCards() {
         ${card.name}
       </div>
     `;
+    const setCardImg = item.querySelector('.tcg-set-card-image-wrap img');
+    setTcgImageFallbacks(setCardImg, card);
+    setCardImg.src = card.smallImg;
 
     const checkCircle =
       item.querySelector('.tcg-set-owned-check');
@@ -6213,7 +6250,7 @@ async function renderTcgSets(forceRefresh = false) {
   let totalCount = getDisplayedSetCardTotal(set);
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v18_11_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v18_12_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -6818,13 +6855,16 @@ function renderDexCardsGrid(cardsList) {
     cell.innerHTML = `
       <div class="tcg-thumb-frame ${isOwnedCard ? 'card-owned' : ''}" id="modal_frame_${card.id}">
         <div class="card-check-circle ${isOwnedCard ? 'checked' : ''}" id="modal_chk_${card.id}">✓</div>
-        <img class="tcg-card-thumb" src="${card.smallImg}" loading="lazy" alt="${card.name}" onerror="handleTcgImageError(this)" />
+        <img class="tcg-card-thumb" loading="lazy" alt="${card.name}" onerror="handleTcgImageError(this)" />
         ${card.priceGBP ? `<div class="tcg-card-price-badge">£${Number(card.priceGBP).toFixed(2)}</div>` : ''}
       </div>
       <div class="dex-cell-name"></div>
       <div class="dex-cell-set" title="${card.setName}">${card.setName}</div>
       <div class="dex-cell-num">#${card.number}</div>
     `;
+    const dexCardImg = cell.querySelector('.tcg-card-thumb');
+    setTcgImageFallbacks(dexCardImg, card);
+    dexCardImg.src = card.smallImg;
     cell.querySelector('.dex-cell-name').textContent = card.name;
     cell.querySelector('.dex-cell-name').title = card.name;
     cell.setAttribute('aria-label', `${card.name}, ${card.setName}, number ${card.number}`);
@@ -7401,7 +7441,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
 async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_complete_cache_v3005_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_complete_cache_v3006_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   const TTL_MS = 86400000;
   let saved = memoryTcgCache.get(cacheKey) || null;
   if (!saved) {
@@ -7509,12 +7549,13 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
     });
   }
   const cards = [...merged.values()].map(card => {
-    const small = card.images?.small || card.images?.large;
-    const large = card.images?.large || card.images?.small;
+    const artwork = getCardArtworkSources(card);
     return {
       id: String(card.id), name: card.name || cleanName,
-      smallImg: isValidFrontCardImage(small) ? small : TCG_CARD_ARTWORK_UNAVAILABLE,
-      largeImg: isValidFrontCardImage(large) ? large : TCG_CARD_ARTWORK_UNAVAILABLE,
+      smallImg: artwork.small[0] || TCG_CARD_ARTWORK_UNAVAILABLE,
+      smallImgFallbacks: artwork.small.slice(1),
+      largeImg: artwork.large[0] || TCG_CARD_ARTWORK_UNAVAILABLE,
+      largeImgFallbacks: artwork.large.slice(1),
       setName: resolveSetName(card.set, card.id),
       number: getPhysicalCardNumber(card),
       rarity: card.rarity || 'Common', rarityScore: getRarityScore(card.rarity),
@@ -7596,13 +7637,16 @@ function renderTcgCards(cards) {
       node.innerHTML = `
         <div class="tcg-thumb-frame ${isOwnedCard ? 'card-owned' : ''}">
           <div class="card-check-circle ${isOwnedCard ? 'checked' : ''}" id="strip_chk_${card.id}">✓</div>
-          <img class="tcg-card-thumb" src="${card.smallImg}" loading="lazy" alt="${card.name}" onerror="handleTcgImageError(this)" />
+          <img class="tcg-card-thumb" loading="lazy" alt="${card.name}" onerror="handleTcgImageError(this)" />
           ${card.priceGBP ? `<div class="tcg-card-price-badge">£${Number(card.priceGBP).toFixed(2)}</div>` : ''}
         </div>
         <div class="tcg-card-name"></div>
         <div class="tcg-card-set" title="${card.setName}">${card.setName}</div>
         <div class="tcg-card-num">#${card.number}</div>
       `;
+      const stripCardImg = node.querySelector('.tcg-card-thumb');
+      setTcgImageFallbacks(stripCardImg, card);
+      stripCardImg.src = card.smallImg;
       node.querySelector('.tcg-card-name').textContent = card.name;
       node.querySelector('.tcg-card-name').title = card.name;
       node.setAttribute('aria-label', `${card.name}, ${card.setName}, number ${card.number}`);
@@ -7642,7 +7686,10 @@ function updateZoomModalContent() {
   const tcgZoomTitle = document.getElementById('tcgZoomTitle');
   const tcgZoomMeta = document.getElementById('tcgZoomMeta');
   const tcgZoomCounter = document.getElementById('tcgZoomCounter');
-  if (tcgZoomImg) tcgZoomImg.src = card.largeImg || card.smallImg;
+  if (tcgZoomImg) {
+    setTcgImageFallbacks(tcgZoomImg, card, 'large');
+    tcgZoomImg.src = card.largeImg || card.smallImg;
+  }
   if (tcgZoomTitle) tcgZoomTitle.innerText = card.name;
   if (tcgZoomMeta) tcgZoomMeta.innerText = `${card.setName} · #${card.number}`;
   if (tcgZoomCounter) tcgZoomCounter.innerText = `${currentZoomIndex + 1} / ${currentCardsList.length}`;

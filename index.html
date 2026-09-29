@@ -1050,7 +1050,7 @@ body.has-active .hub-item-label {
   justify-content: center;
   width: 15px;
   height: 15px;
-  border: 1.5px solid currentColor;
+  border: 1.5px solid #cbd5e1;
   border-radius: 3px;
   color: transparent;
   font-size: 0.7rem;
@@ -1061,7 +1061,7 @@ body.has-active .hub-item-label {
   border-color: #fff;
   color: #fff;
 }
-.zoom-check-circle.checked .zoom-check-box { color: #fff; }
+.zoom-check-circle.checked .zoom-check-box { color: #fff; border-color: #fff; }
 .tcg-zoom-arrow {
   position: absolute;
   top: 50%;
@@ -2582,7 +2582,7 @@ body.has-active .hub-outer-wrap {
   <div class="tcg-zoom-content" id="zoomContainer" onclick="event.stopPropagation()">
     <div class="tcg-zoom-toolbar">
       <div class="tcg-zoom-counter" id="tcgZoomCounter">1 / 1</div>
-      <button type="button" class="zoom-check-circle" id="zoomCheckCircle" onclick="toggleZoomCardOwned(event)" aria-pressed="false"><span class="zoom-check-box" aria-hidden="true">✓</span><span id="zoomCheckLabel">Add to Dex</span></button>
+      <button type="button" class="zoom-check-circle" id="zoomCheckCircle" onclick="toggleZoomCardOwned(event)" aria-pressed="false"><span id="zoomCheckLabel">Add to Dex</span><span class="zoom-check-box" aria-hidden="true">✓</span></button>
     </div>
     <div class="tcg-zoom-view-area" id="zoomViewArea">
       <button class="tcg-zoom-arrow left" id="zoomLeftArrow" onclick="navigateZoomCard(-1)">‹</button>

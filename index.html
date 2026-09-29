@@ -814,17 +814,17 @@ body.has-active .wheel-wrap {
   color: #fff;
   box-shadow: 0 2px 6px rgba(0,0,0,0.5);
 }
-.tcg-card-set {
+.tcg-card-name, .tcg-card-set {
   font-size: 0.56rem;
   font-weight: 700;
-  color: #fff;
-  margin-top: 0.18rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
   text-align: center;
 }
+.tcg-card-name { color: #fff; margin-top: 0.18rem; }
+.tcg-card-set { color: var(--sub); }
 .tcg-card-num {
   font-size: 0.5rem;
   color: var(--sub);
@@ -1297,17 +1297,17 @@ body.has-active .hub-item-label {
   box-shadow: 0 4px 10px rgba(0,0,0,0.6);
   pointer-events: none;
 }
-.dex-cell-set {
+.dex-cell-name, .dex-cell-set {
   font-size: 0.6rem;
   font-weight: 700;
-  color: #fff;
-  margin-top: 0.25rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
   text-align: center;
 }
+.dex-cell-name { color: #fff; margin-top: 0.25rem; }
+.dex-cell-set { color: var(--sub); }
 .dex-cell-num {
   font-size: 0.52rem;
   color: var(--sub);
@@ -1971,10 +1971,11 @@ header { margin-bottom: clamp(0.05rem, 0.45dvh, 0.3rem); }
   min-height: 0;
   aspect-ratio: 63 / 88;
 }
-#pokeCard .tcg-card-set {
+#pokeCard .tcg-card-name {
   font-size: 0.61rem;
   margin-top: 0.22rem;
 }
+#pokeCard .tcg-card-set { font-size: 0.55rem; }
 #pokeCard .tcg-card-num { font-size: 0.54rem; }
 
 /* Fixed bottom app navigation. */
@@ -2097,7 +2098,7 @@ body.has-active .spin-action-row-external {
   object-fit: fill;
   border-radius: 8px;
 }
-.dex-cell-set { margin-top: 0.32rem; }
+.dex-cell-name { margin-top: 0.32rem; }
 
 /* Compact set-detail controls. */
 #setsModal.viewing-set .tcg-set-search-wrap { display: none; }
@@ -6731,9 +6732,13 @@ function renderDexCardsGrid(cardsList) {
         <img class="tcg-card-thumb" src="${card.smallImg}" loading="lazy" alt="${card.name}" onerror="handleTcgImageError(this)" />
         ${card.priceGBP ? `<div class="tcg-card-price-badge">£${Number(card.priceGBP).toFixed(2)}</div>` : ''}
       </div>
+      <div class="dex-cell-name"></div>
       <div class="dex-cell-set" title="${card.setName}">${card.setName}</div>
       <div class="dex-cell-num">#${card.number}</div>
     `;
+    cell.querySelector('.dex-cell-name').textContent = card.name;
+    cell.querySelector('.dex-cell-name').title = card.name;
+    cell.setAttribute('aria-label', `${card.name}, ${card.setName}, number ${card.number}`);
     const checkCircle = cell.querySelector('.card-check-circle');
     if (checkCircle) {
       checkCircle.onclick = (e) => {
@@ -7505,9 +7510,13 @@ function renderTcgCards(cards) {
           <img class="tcg-card-thumb" src="${card.smallImg}" loading="lazy" alt="${card.name}" onerror="handleTcgImageError(this)" />
           ${card.priceGBP ? `<div class="tcg-card-price-badge">£${Number(card.priceGBP).toFixed(2)}</div>` : ''}
         </div>
+        <div class="tcg-card-name"></div>
         <div class="tcg-card-set" title="${card.setName}">${card.setName}</div>
         <div class="tcg-card-num">#${card.number}</div>
       `;
+      node.querySelector('.tcg-card-name').textContent = card.name;
+      node.querySelector('.tcg-card-name').title = card.name;
+      node.setAttribute('aria-label', `${card.name}, ${card.setName}, number ${card.number}`);
       const checkCircle = node.querySelector('.card-check-circle');
       if (checkCircle) {
         checkCircle.onclick = (e) => {

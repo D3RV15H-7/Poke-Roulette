@@ -622,20 +622,20 @@ body.has-active .wheel-wrap {
   width: calc((100% - clamp(145px, 39vw, 180px)) / 2);
   max-height: 100%; overflow-y: auto; overscroll-behavior: contain;
   display: flex; flex-direction: column; align-items: center; gap: 3px;
-  pointer-events: auto; scrollbar-width: thin;
+  pointer-events: auto; scrollbar-width: none; -ms-overflow-style: none;
 }
+.evo-side::-webkit-scrollbar { display: none; }
 .evo-side.previous { left: 0; }
 .evo-side.next { right: 0; }
 .evo-node {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  width: 100%; min-height: 54px; padding: 3px 0; border: 0; border-radius: 8px;
+  width: 100%; height: 54px; min-height: 54px; flex-shrink: 0; padding: 3px 0; border: 0; border-radius: 0;
+  box-shadow: none; -webkit-tap-highlight-color: transparent;
   background: transparent; color: var(--sub); cursor: pointer;
 }
-.evo-node:hover, .evo-node:active { background: rgba(148,163,184,0.12); }
+.evo-node:hover, .evo-node:active { background: transparent; }
 .evo-node:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
 .evo-node img { width: 44px; height: 44px; object-fit: contain; pointer-events: none; }
-.evo-node span { max-width: 100%; font-size: 0.55rem; font-weight: 700;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 375px) {
   .evo-side { width: calc((100% - clamp(135px, 39vw, 165px)) / 2); }
   .evo-node img { width: 38px; height: 38px; }
@@ -3337,6 +3337,11 @@ function toTitleCase(str) {
 
 function getCleanNationalDexName(pokeName, speciesName) {
   let target = (speciesName || pokeName || '').toLowerCase().trim();
+
+  // PokéAPI's species slug omits the accents used on physical cards.
+  if (target.normalize('NFD').replace(/[\u0300-\u036f]/g, '') === 'flabebe') {
+    return 'Flabébé';
+  }
 
   // Special official Pokémon names
   if (target === 'type-null') {
@@ -7327,9 +7332,7 @@ function renderEvolutionChain(chain) {
       const image = document.createElement('img');
       image.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${form.id}.png`;
       image.alt = '';
-      const label = document.createElement('span');
-      label.textContent = name;
-      button.append(image, label);
+      button.append(image);
       button.onclick = () => loadPoke(form.id, false);
       rail.appendChild(button);
     }
@@ -7484,7 +7487,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
 async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_complete_cache_v3007_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_complete_cache_v3008_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   const TTL_MS = 86400000;
   let saved = memoryTcgCache.get(cacheKey) || null;
   if (!saved) {
@@ -7516,7 +7519,8 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const deadline = Date.now() + 45000;
   const headers = {};
   if (POKEMON_TCG_API_KEY) headers['X-Api-Key'] = POKEMON_TCG_API_KEY;
-  const query = `name:"${cleanName.replace(/["']/g, '').trim()}"`;
+  const searchNames = [...new Set([cleanName, cleanName.normalize('NFD').replace(/[\u0300-\u036f]/g, '')])];
+  const query = searchNames.map(name => `name:"${name.replace(/["']/g, '').trim()}"`).join(' OR ');
 
   const fetchIo = async () => (await fetchPokemonTcgPages(
     `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}`, { headers }, deadline
@@ -7524,7 +7528,13 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
   const fetchDex = async () => {
     const [references, sets] = await Promise.all([
-      fetchJsonWithRetry(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(cleanName)}`, { deadline }),
+      (async () => {
+        const lists = await Promise.all(searchNames.map(name =>
+          fetchJsonWithRetry(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(name)}`, { deadline })
+        ));
+        if (lists.some(list => !Array.isArray(list))) throw new Error('Invalid TCGdex card list');
+        return [...new Map(lists.flat().map(card => [card?.id, card])).values()];
+      })(),
       getTcgDexSets()
     ]);
     if (!Array.isArray(references)) throw new Error('Invalid TCGdex card list');

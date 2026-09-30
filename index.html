@@ -614,55 +614,31 @@ body.has-active .wheel-wrap {
   word-wrap: break-word;
   white-space: normal;
 }
-.evo-chain-wrap {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  margin-bottom: clamp(0.06rem, 0.2dvh, 0.15rem);
-  background: #090d16;
-  border: 1px solid #334155;
-  border-radius: 8px;
-  padding: 0.06rem 0.3rem;
+/* Evolution controls flank the artwork without changing its size. */
+.pokemon-art-stage { position: relative; width: 100%; }
+.evo-chain-wrap { display: none; position: absolute; inset: 0; pointer-events: none; }
+.evo-side {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: calc((100% - clamp(145px, 39vw, 180px)) / 2);
+  max-height: 100%; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  pointer-events: auto; scrollbar-width: thin;
 }
+.evo-side.previous { left: 0; }
+.evo-side.next { right: 0; }
 .evo-node {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  cursor: pointer;
-  padding: 0.04rem 0.15rem;
-  border-radius: 6px;
-  transition: background 0.15s;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 100%; min-height: 54px; padding: 3px 0; border: 0; border-radius: 8px;
+  background: transparent; color: var(--sub); cursor: pointer;
 }
-.evo-node:active {
-  background: #334155;
-}
-.evo-node.active-evo {
-  background: rgba(239, 68, 68, 0.2);
-  border: 1px solid var(--red);
-}
-.evo-node img {
-  width: clamp(18px, 2.4dvh, 23px);
-  height: clamp(18px, 2.4dvh, 23px);
-  object-fit: contain;
-}
-.evo-node span {
-  font-size: 0.5rem;
-  font-weight: 700;
-  text-transform: capitalize;
-  color: var(--sub);
-  max-width: 48px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.evo-node.active-evo span {
-  color: #fff;
-}
-.evo-arrow {
-  color: var(--sub);
-  font-size: 0.58rem;
-  font-weight: 900;
+.evo-node:hover, .evo-node:active { background: rgba(148,163,184,0.12); }
+.evo-node:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
+.evo-node img { width: 44px; height: 44px; object-fit: contain; pointer-events: none; }
+.evo-node span { max-width: 100%; font-size: 0.55rem; font-weight: 700;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 375px) {
+  .evo-side { width: calc((100% - clamp(135px, 39vw, 165px)) / 2); }
+  .evo-node img { width: 38px; height: 38px; }
 }
 .tcg-section-wrap {
   width: 100%;
@@ -2490,6 +2466,7 @@ body.has-active .hub-outer-wrap {
       <button onclick="navigateDex(1)">›</button>
     </div>
     <h2 class="poke-name" id="pokeName">Pokémon</h2>
+    <div class="pokemon-art-stage">
     <div class="img-box">
       <img class="main-art" id="pokeImg" src="" alt="Artwork" />
       <div class="sparkle" id="sparkle">✨</div>
@@ -2498,6 +2475,8 @@ body.has-active .hub-outer-wrap {
         <div class="orbiting-star" style="animation-delay: -0.45s;">⭐</div>
       </div>
       <div class="tick-badge" id="cardTick">✓</div>
+    </div>
+    <div class="evo-chain-wrap" id="evoChain"></div>
     </div>
     <div class="card-actions">
       <button class="btn-icon" type="button" onclick="playCry()" title="Play Pokémon cry" aria-label="Play Pokémon cry">
@@ -2510,7 +2489,6 @@ body.has-active .hub-outer-wrap {
       <div class="types" id="pokeTypes"></div>
       <button class="btn-icon" id="shinyBtn" onclick="toggleShiny()">★</button>
     </div>
-    <div class="evo-chain-wrap" id="evoChain"></div>
     <div class="tcg-section-wrap" id="tcgWrap">
       <div class="tcg-header-row">
         <div class="tcg-title-actions">
@@ -7313,36 +7291,53 @@ async function fetchLoreAndEvolution(speciesUrl, fallbackId) {
   }
 }
 
+function getAdjacentEvolutionForms(chain, currentId) {
+  let match = null;
+  const speciesId = node => Number(node?.species?.url?.split('/').filter(Boolean).pop());
+  function visit(node, parent = null) {
+    if (!node || match) return;
+    if (speciesId(node) === Number(currentId)) { match = { node, parent }; return; }
+    for (const child of node.evolves_to || []) visit(child, node);
+  }
+  visit(chain);
+  const form = node => ({ id: speciesId(node), name: node.species.name });
+  return match ? {
+    previous: match.parent ? [form(match.parent)] : [],
+    next: (match.node.evolves_to || []).map(form)
+  } : { previous: [], next: [] };
+}
+
 function renderEvolutionChain(chain) {
   const evoBox = document.getElementById('evoChain');
   if (!evoBox) return;
-  evoBox.innerHTML = '';
-  const stages = [];
-  let curr = chain;
-  while (curr) {
-    const id = parseInt(curr.species.url.split('/').filter(Boolean).pop());
-    stages.push({ id: id, name: curr.species.name });
-    curr = curr.evolves_to && curr.evolves_to.length ? curr.evolves_to[0] : null;
-  }
-  if (stages.length <= 1) { evoBox.style.display = 'none'; return; }
-  stages.forEach((st, idx) => {
-    if (idx > 0) {
-      const arrow = document.createElement('span');
-      arrow.className = 'evo-arrow';
-      arrow.innerText = '›';
-      evoBox.appendChild(arrow);
+  evoBox.replaceChildren();
+  const forms = getAdjacentEvolutionForms(chain, curPoke?.species?.url
+    ? Number(curPoke.species.url.split('/').filter(Boolean).pop()) : curId);
+  for (const side of ['previous', 'next']) {
+    if (!forms[side].length) continue;
+    const rail = document.createElement('div');
+    rail.className = `evo-side ${side}`;
+    for (const form of forms[side]) {
+      const name = getCleanNationalDexName(form.name);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'evo-node';
+      button.title = `${side === 'previous' ? 'Pre-evolution' : 'Evolution'}: ${name}`;
+      button.setAttribute('aria-label', `View ${name}`);
+      const image = document.createElement('img');
+      image.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${form.id}.png`;
+      image.alt = '';
+      const label = document.createElement('span');
+      label.textContent = name;
+      button.append(image, label);
+      button.onclick = () => loadPoke(form.id, false);
+      rail.appendChild(button);
     }
-    const node = document.createElement('div');
-    node.className = `evo-node ${st.id === curId ? 'active-evo' : ''}`;
-    node.innerHTML = `
-      <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${st.id}.png" alt="${st.name}" />
-      <span>${getCleanNationalDexName(st.name)}</span>
-    `;
-    node.onclick = () => { if (st.id !== curId) loadPoke(st.id, false); };
-    evoBox.appendChild(node);
-  });
-  evoBox.style.display = 'flex';
+    evoBox.appendChild(rail);
+  }
+  evoBox.style.display = forms.previous.length || forms.next.length ? 'block' : 'none';
 }
+
 
 function normalizePokemonCardName(name) {
   return String(name || '')

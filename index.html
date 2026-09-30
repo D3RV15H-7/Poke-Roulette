@@ -3509,31 +3509,55 @@ const PROMO_ARTWORK_SERIES = Object.freeze({
   mep: 'me', svp: 'sv', swshp: 'swsh', smp: 'sm', xyp: 'xy',
   bwp: 'bw', dpp: 'dp'
 });
-const VERIFIED_PROMO_ARTWORK = Object.freeze({
-  // The MEP 074 catalogue record currently has no scan URL in either API.
-  'mep:74:delphox': 'https://static.tcgcollector.com/content/images/c3/bc/dc/c3bcdcefe3b1b59f0897d3d9e1ff9ba1e2af49489aa400c92bf29d3bfc33bab9.webp'
+const VERIFIED_CARD_ARTWORK = Object.freeze({
+  // These catalogue records have missing or unreliable scan URLs in the APIs.
+  'mep:74:delphox': 'https://static.tcgcollector.com/content/images/c3/bc/dc/c3bcdcefe3b1b59f0897d3d9e1ff9ba1e2af49489aa400c92bf29d3bfc33bab9.webp',
+  'sm35:44:golurk': 'https://static.tcgcollector.com/content/images/db/30/6b/db306b4188cbd70b754df4425ec1bc522225f8e9cb1844054b7f9462fd271f22.jpg',
+  'sm3.5:44:golurk': 'https://static.tcgcollector.com/content/images/db/30/6b/db306b4188cbd70b754df4425ec1bc522225f8e9cb1844054b7f9462fd271f22.jpg',
+  '2023sv:4:cetoddle': 'https://static.tcgcollector.com/content/images/1b/d6/7b/1bd67b1776a2fcf26327d0bb7fe5f8ab27074c2d161f6bad4325dd9687586b7e.jpg',
+  'mcd23:4:cetoddle': 'https://static.tcgcollector.com/content/images/1b/d6/7b/1bd67b1776a2fcf26327d0bb7fe5f8ab27074c2d161f6bad4325dd9687586b7e.jpg'
 });
+const POKEMON_TCG_SET_ALIASES = Object.freeze({ 'sm3.5': 'sm35', '2023sv': 'mcd23' });
+
+function getTcgDexArtworkSeries(setId) {
+  if (PROMO_ARTWORK_SERIES[setId]) return PROMO_ARTWORK_SERIES[setId];
+  if (/^20\d{2}(?:sv|swsh|sm|xy|bw)$/.test(setId)) return 'mc';
+  const match = /^(swsh|hgss|base|neo|ex|dp|pl|bw|xy|sm|sv|me)/.exec(setId);
+  return match?.[1] || '';
+}
 
 function getCardArtworkSources(card) {
   const setId = String(card.set?.id || '').trim().toLowerCase();
   const localId = String(card.localId || card.number || '').trim();
   const number = normalizeCardNumber(localId);
   const name = String(card.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const series = PROMO_ARTWORK_SERIES[setId];
   const extra = [];
-  if (series && /^\d+$/.test(localId)) {
-    const padded = localId.padStart(3, '0');
-    const base = `https://assets.tcgdex.net/en/${series}/${setId}/${padded}`;
-    extra.push(`${base}/low.webp`, `${base}/low.png`, `${base}/high.webp`, `${base}/high.png`);
-  }
-  const verified = VERIFIED_PROMO_ARTWORK[`${setId}:${number}:${name}`];
+  const verified = VERIFIED_CARD_ARTWORK[`${setId}:${number}:${name}`];
   if (verified) extra.push(verified);
+  if (/^\d+$/.test(localId)) {
+    // Only use a Pokémon TCG CDN path for its own set ID or a known equivalent.
+    const pokemonSet = card.artworkPokemonSetId || POKEMON_TCG_SET_ALIASES[setId];
+    if (pokemonSet && /^[a-z0-9]+$/i.test(pokemonSet)) {
+      const base = `https://images.pokemontcg.io/${pokemonSet}/${number}`;
+      extra.push(`${base}.png`, `${base}_hires.png`);
+    }
+    const dexSet = String(card.artworkTcgDexSetId ||
+      ((!card.artworkPokemonSetId || PROMO_ARTWORK_SERIES[setId]) && getTcgDexArtworkSeries(setId) ? setId : '')
+    ).toLowerCase();
+    const series = getTcgDexArtworkSeries(dexSet);
+    if (series) {
+      // Some TCGdex scans use the printed number, others a three-digit local ID.
+      for (const id of new Set([localId, localId.padStart(3, '0')])) {
+        const base = `https://assets.tcgdex.net/en/${series}/${dexSet}/${id}`;
+        extra.push(`${base}/low.webp`, `${base}/high.webp`);
+      }
+    }
+  }
   const unique = urls => [...new Set(urls.filter(url =>
     url !== TCG_CARD_ARTWORK_UNAVAILABLE && isValidFrontCardImage(url)
   ))];
   const small = unique([card.images?.small, card.smallImg, card.images?.large, card.largeImg, ...extra]);
-  const large = unique([card.images?.large, card.largeImg, card.images?.small, card.smallImg,
-    ...extra.slice(2, 4), ...extra.slice(0, 2), verified]);
+  const large = unique([card.images?.large, card.largeImg, card.images?.small, card.smallImg, ...extra]);
   return { small, large };
 }
 
@@ -5602,7 +5626,7 @@ async function fetchCardsForSet(setId, forceRefresh = false) {
       try {
         const key = setId === YELLOW_A_SET_ID
           ? 'pokeroulette_set_cards_v18_7_yellow-a-alternate'
-          : `pokeroulette_set_cards_v18_12_${setId}`;
+          : `pokeroulette_set_cards_v18_13_${setId}`;
         const saved = JSON.parse(localStorage.getItem(key));
         if (saved?.data?.length) return saved.data;
       } catch (cacheError) {}
@@ -5618,7 +5642,7 @@ async function loadCardsForSet(setId, forceRefresh = false) {
     return fetchYellowAAlternateCards(forceRefresh);
   }
 
-  const CACHE_KEY = `pokeroulette_set_cards_v18_12_${setId}`;
+  const CACHE_KEY = `pokeroulette_set_cards_v18_13_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -5696,7 +5720,7 @@ async function loadCardsForSet(setId, forceRefresh = false) {
         // tcgplayer/cardmarket fields are still present.
         const sourceVariantEvidence =
           inferSetCardVariantsFromPokemonTcg(card);
-        const artwork = getCardArtworkSources(card);
+        const artwork = getCardArtworkSources({ ...card, artworkPokemonSetId: card.set?.id });
 
         return {
         id: card.id,
@@ -6259,7 +6283,7 @@ async function renderTcgSets(forceRefresh = false) {
   let totalCount = getDisplayedSetCardTotal(set);
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v18_12_${set.id}`;
+    const cacheKey = `pokeroulette_set_cards_v18_13_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
@@ -7450,7 +7474,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
 async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_complete_cache_v3006_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_complete_cache_v3007_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
   const TTL_MS = 86400000;
   let saved = memoryTcgCache.get(cacheKey) || null;
   if (!saved) {
@@ -7484,9 +7508,9 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   if (POKEMON_TCG_API_KEY) headers['X-Api-Key'] = POKEMON_TCG_API_KEY;
   const query = `name:"${cleanName.replace(/["']/g, '').trim()}"`;
 
-  const fetchIo = () => fetchPokemonTcgPages(
+  const fetchIo = async () => (await fetchPokemonTcgPages(
     `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}`, { headers }, deadline
-  );
+  )).map(card => ({ ...card, artworkPokemonSetId: card.set?.id }));
 
   const fetchDex = async () => {
     const [references, sets] = await Promise.all([
@@ -7519,6 +7543,7 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
         name: detail.name || brief.name,
         set: detail.set?.id ? detail.set : brief.set,
         number: detail.localId || brief.localId,
+        artworkTcgDexSetId: setId,
         images: { small: image ? `${image}/low.webp` : '', large: image ? `${image}/high.webp` : '' },
         rarity: detail.rarity || 'Common'
       };

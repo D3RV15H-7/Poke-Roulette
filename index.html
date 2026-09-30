@@ -3514,6 +3514,7 @@ const tcgDetailRequests = new Map();
 let tcgSetsRequest = null;
 let tcgDexSetsRequest = null;
 let setsViewRequestId = 0;
+let tcgSetsListScrollTop = 0;
 let dexCardsRequestId = 0;
 const TCG_CARD_ARTWORK_UNAVAILABLE = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="630" height="880" viewBox="0 0 630 880"><rect width="630" height="880" rx="24" fill="#1e293b"/><rect x="24" y="24" width="582" height="832" rx="18" fill="#0f172a" stroke="#475569" stroke-width="3"/><text x="315" y="420" fill="#cbd5e1" text-anchor="middle" font-family="sans-serif" font-size="30">Artwork unavailable</text><text x="315" y="465" fill="#94a3b8" text-anchor="middle" font-family="sans-serif" font-size="22">Card remains in the catalogue</text></svg>'
@@ -3545,10 +3546,44 @@ const MCDONALDS_2015_FRONT_SCANS = Object.freeze({
   '8:rhyhorn': 'https://static.tcgcollector.com/content/images/d0/25/7d/d0257d18933c08aab6f3cbf787f5cd60a6d9836fa2aee096e97fc74316ba218c.jpg',
   '9:meditite': 'https://static.tcgcollector.com/content/images/05/c2/4f/05c24f7dd1b2bc794bcf5d4b68d9b979dba5784b4315ee0c6d00187a6a843421.jpg',
   '10:marill': 'https://static.tcgcollector.com/content/images/3e/1c/cb/3e1ccb64ac6b9f0e786f956f3f522f05bd12564867d2593fff1615781752dee8.jpg',
-  '11:zigzagoon': 'https://cdn.pooka.app/card/en-mcd15-11.png',
+  '11:zigzagoon': 'https://den-cards.pokellector.com/182/Zigzagoon.MCD5.11.png',
   '12:skitty': 'https://static.tcgcollector.com/content/images/93/c7/43/93c7436da291f07b8c89549a0dc2011d72d1330e73b63eb70358d3d3d5ec718a.jpg',
 });
 const POKEMON_TCG_SET_ALIASES = Object.freeze({ 'sm3.5': 'sm35', '2023sv': 'mcd23' });
+const MCDONALDS_FRONT_SCANS_BY_SET = Object.freeze({
+  mcd14: Object.freeze({
+    '1:weedle': 'https://den-cards.pokellector.com/158/Weedle.MCD4.1.png',
+    '2:chespin': 'https://den-cards.pokellector.com/158/Chespin.MCD4.2.png',
+    '3:fennekin': 'https://den-cards.pokellector.com/158/Fennekin.MCD4.3.png',
+    '4:froakie': 'https://den-cards.pokellector.com/158/Froakie.MCD4.4.png',
+    '5:pikachu': 'https://den-cards.pokellector.com/158/Pikachu.MCD4.5.png',
+    '6:inkay': 'https://den-cards.pokellector.com/158/Inkay.MCD4.6.png',
+    '7:honedge': 'https://den-cards.pokellector.com/158/Honedge.MCD4.7.png',
+    '8:snubbull': 'https://den-cards.pokellector.com/158/Snubbull.MCD4.8.png',
+    '9:swirlix': 'https://den-cards.pokellector.com/158/Swirlix.MCD4.9.png',
+    '10:bunnelby': 'https://den-cards.pokellector.com/158/Bunnelby.MCD4.10.png',
+    '11:fletchling': 'https://den-cards.pokellector.com/158/Fletchling.MCD4.11.png',
+    '12:furfrou': 'https://den-cards.pokellector.com/158/Furfrou.MCD4.12.png'
+  }),
+  mcd15: MCDONALDS_2015_FRONT_SCANS,
+  mcd17: Object.freeze({
+    '1:rowlet': 'https://den-cards.pokellector.com/230/Rowlet.MCD7.1.18575.png',
+    '2:grubbin': 'https://den-cards.pokellector.com/230/Grubbin.MCD7.2.18569.png',
+    '3:litten': 'https://den-cards.pokellector.com/230/Litten.MCD7.3.18570.png',
+    '4:popplio': 'https://den-cards.pokellector.com/230/Popplio.MCD7.4.18573.png',
+    '5:pikachu': 'https://den-cards.pokellector.com/230/Pikachu.MCD7.5.18568.png',
+    '6:cosmog': 'https://den-cards.pokellector.com/230/Cosmog.MCD7.6.18567.png',
+    '7:crabrawler': 'https://den-cards.pokellector.com/230/Crabrawler.MCD7.7.18571.png',
+    '8:alolanmeowth': 'https://den-cards.pokellector.com/230/Alolan-Meowth.MCD7.8.18578.png',
+    '9:alolandiglett': 'https://den-cards.pokellector.com/230/Alolan-Diglett.MCD7.9.18566.png',
+    '10:cutiefly': 'https://den-cards.pokellector.com/230/Cutiefly.MCD7.10.18572.png',
+    '11:pikipek': 'https://den-cards.pokellector.com/230/Pikipek.MCD7.11.18574.png',
+    '12:yungoos': 'https://den-cards.pokellector.com/230/Yungoose.MCD7.12.18565.png'
+  })
+});
+const MCDONALDS_FRONT_SET_ALIASES = Object.freeze({
+  '2014xy': 'mcd14', '2015xy': 'mcd15', '2017sm': 'mcd17'
+});
 
 function getTcgDexArtworkSeries(setId) {
   if (PROMO_ARTWORK_SERIES[setId]) return PROMO_ARTWORK_SERIES[setId];
@@ -3563,8 +3598,8 @@ function getCardArtworkSources(card) {
   const number = normalizeCardNumber(localId);
   const name = String(card.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const extra = [];
-  const isMcDonalds2015 = ['mcd15', '2015xy'].includes(setId);
-  const verified = (isMcDonalds2015 && MCDONALDS_2015_FRONT_SCANS[`${number}:${name}`]) ||
+  const frontScans = MCDONALDS_FRONT_SCANS_BY_SET[MCDONALDS_FRONT_SET_ALIASES[setId] || setId];
+  const verified = (frontScans && frontScans[`${number}:${name}`]) ||
     VERIFIED_CARD_ARTWORK[`${setId}:${number}:${name}`];
   if (verified) extra.push(verified);
   if (/^\d+$/.test(localId)) {
@@ -3591,11 +3626,10 @@ function getCardArtworkSources(card) {
   ))];
   // A back-of-card placeholder returns HTTP 200, so onerror cannot detect it.
   // For this verified printing, omit unreliable provider images entirely.
-  if (isMcDonalds2015) {
+  if (frontScans) {
     // All source-CDN scans in this set may be card-back placeholders.
     // Never fall back to them after a successful front scan has been found.
     const fronts = verified ? [verified] : [];
-    if (verified) fronts.push(`https://cdn.pooka.app/card/en-mcd15-${number}.png`);
     return { small: [...new Set(fronts)], large: [...new Set(fronts)] };
   }
   const small = unique([verified, card.images?.small, card.smallImg, card.images?.large, card.largeImg, ...(card.smallImgFallbacks || []), ...extra]);
@@ -5949,6 +5983,9 @@ function updateSetsRefreshButton() {
 }
 
 async function openTcgSet(set) {
+  if (!activeTcgSet) {
+    tcgSetsListScrollTop = document.querySelector('#setsModal .modal-body')?.scrollTop || 0;
+  }
   const requestId = ++setsViewRequestId;
   ++activeTcgRequestId;
   document.getElementById('setsModal')?.classList.add('viewing-set');
@@ -6306,6 +6343,9 @@ variantOptions.forEach(option => {
   
 async function renderTcgSets(forceRefresh = false) {
   const requestId = ++setsViewRequestId;
+  if (!activeTcgSet) {
+    tcgSetsListScrollTop = document.querySelector('#setsModal .modal-body')?.scrollTop || 0;
+  }
   document.getElementById('setsModal')?.classList.remove('viewing-set');
   resetSetsScrollToTop();
   activeTcgSet = null;
@@ -6413,6 +6453,12 @@ if (totalCount > 0 && collectedCount >= totalCount) {
 }
 
 grid.appendChild(frag);
+filterTcgSetsBySearch();
+requestAnimationFrame(() => {
+  if (requestId !== setsViewRequestId || activeTcgSet) return;
+  const body = document.querySelector('#setsModal .modal-body');
+  if (body) body.scrollTop = tcgSetsListScrollTop;
+});
 }
   
 function isValidFrontCardImage(url) {

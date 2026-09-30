@@ -2412,6 +2412,36 @@ body.has-active .hub-outer-wrap {
   background: #334155;
 }
 
+
+/* v32: size the preview inside the visible area ABOVE the navigation dock. */
+.tcg-zoom-modal {
+  top: var(--app-viewport-top, 0px);
+  bottom: auto;
+  height: calc(var(--app-visible-height, 100dvh) - var(--measured-dock-height, 78px));
+  min-height: 0;
+}
+.tcg-zoom-content {
+  height: 100%; max-height: 100%; min-height: 0;
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.tcg-zoom-content > * { flex-shrink: 0; }
+.tcg-zoom-content .tcg-zoom-view-area {
+  flex: 1 1 0; min-height: 100px; height: auto;
+}
+.tcg-zoom-content .flat-card-container {
+  width: auto; height: 100%; max-height: 100%; max-width: 100%;
+  aspect-ratio: 63 / 88; flex-shrink: 0;
+}
+.tcg-zoom-img { object-fit: contain; }
+/* A single consistent label column, including Other Variant. */
+.tcg-variant-selector { padding: 9px 6px; }
+.tcg-variant-option { gap: 4px; font-size: clamp(0.45rem, 2vw, 0.625rem); }
+.tcg-variant-option > span:first-child {
+  flex: 1 1 auto; min-width: 0; text-align: left; white-space: nowrap;
+  font-size: inherit; line-height: 1.3;
+}
+.tcg-variant-option .tcg-variant-circle { flex: 0 0 15px; width: 15px; height: 15px; }
+
 </style>
 </head>
 <body>
@@ -3504,6 +3534,20 @@ const VERIFIED_CARD_ARTWORK = Object.freeze({
   '2023sv:4:cetoddle': 'https://static.tcgcollector.com/content/images/1b/d6/7b/1bd67b1776a2fcf26327d0bb7fe5f8ab27074c2d161f6bad4325dd9687586b7e.jpg',
   'mcd23:4:cetoddle': 'https://static.tcgcollector.com/content/images/1b/d6/7b/1bd67b1776a2fcf26327d0bb7fe5f8ab27074c2d161f6bad4325dd9687586b7e.jpg'
 });
+const MCDONALDS_2015_FRONT_SCANS = Object.freeze({
+  '1:treecko': 'https://static.tcgcollector.com/content/images/29/70/e3/2970e3b64f0ab317d3e67f0f1677b8816e72915d264d1bc13880a5f2d29b5758.jpg',
+  '2:lotad': 'https://static.tcgcollector.com/content/images/a1/4d/1a/a14d1a9477a449f8b4be334b8898a92534815ca280c91f81a26d7aa019456e3c.jpg',
+  '3:torchic': 'https://static.tcgcollector.com/content/images/ff/d3/2d/ffd32dde8d48dcb3f4a3959b53fa6d4a36c8937244f53de48c4eb29eae9f8519.jpg',
+  '4:staryu': 'https://static.tcgcollector.com/content/images/e3/96/5a/e3965afb68880e043b6619f09dbb0961a423433edcc574d32fcc313f4d1f0b01.jpg',
+  '5:mudkip': 'https://static.tcgcollector.com/content/images/1d/6c/7f/1d6c7f59aa91926564a085013550510e17c7443803a99ca7094cce7f51e2759f.jpg',
+  '6:pikachu': 'https://static.tcgcollector.com/content/images/fe/bb/d8/febbd8157702f2585827944965e06fb4f4f6d3d47c121d61edd2977061dc0b0c.jpg',
+  '7:electrike': 'https://static.tcgcollector.com/content/images/df/70/5b/df705b116b09ab99f9ad466ab3bb4e4604a52978c4c582a49b65c59f88ca1696.jpg',
+  '8:rhyhorn': 'https://static.tcgcollector.com/content/images/d0/25/7d/d0257d18933c08aab6f3cbf787f5cd60a6d9836fa2aee096e97fc74316ba218c.jpg',
+  '9:meditite': 'https://static.tcgcollector.com/content/images/05/c2/4f/05c24f7dd1b2bc794bcf5d4b68d9b979dba5784b4315ee0c6d00187a6a843421.jpg',
+  '10:marill': 'https://static.tcgcollector.com/content/images/3e/1c/cb/3e1ccb64ac6b9f0e786f956f3f522f05bd12564867d2593fff1615781752dee8.jpg',
+  '11:zigzagoon': 'https://cdn.pooka.app/card/en-mcd15-11.png',
+  '12:skitty': 'https://static.tcgcollector.com/content/images/93/c7/43/93c7436da291f07b8c89549a0dc2011d72d1330e73b63eb70358d3d3d5ec718a.jpg',
+});
 const POKEMON_TCG_SET_ALIASES = Object.freeze({ 'sm3.5': 'sm35', '2023sv': 'mcd23' });
 
 function getTcgDexArtworkSeries(setId) {
@@ -3519,7 +3563,9 @@ function getCardArtworkSources(card) {
   const number = normalizeCardNumber(localId);
   const name = String(card.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const extra = [];
-  const verified = VERIFIED_CARD_ARTWORK[`${setId}:${number}:${name}`];
+  const isMcDonalds2015 = ['mcd15', '2015xy'].includes(setId);
+  const verified = (isMcDonalds2015 && MCDONALDS_2015_FRONT_SCANS[`${number}:${name}`]) ||
+    VERIFIED_CARD_ARTWORK[`${setId}:${number}:${name}`];
   if (verified) extra.push(verified);
   if (/^\d+$/.test(localId)) {
     // Only use a Pokémon TCG CDN path for its own set ID or a known equivalent.
@@ -3545,8 +3591,12 @@ function getCardArtworkSources(card) {
   ))];
   // A back-of-card placeholder returns HTTP 200, so onerror cannot detect it.
   // For this verified printing, omit unreliable provider images entirely.
-  if (verified && name === 'skitty' && number === '12' && ['mcd15', '2015xy'].includes(setId)) {
-    return { small: [verified], large: [verified] };
+  if (isMcDonalds2015) {
+    // All source-CDN scans in this set may be card-back placeholders.
+    // Never fall back to them after a successful front scan has been found.
+    const fronts = verified ? [verified] : [];
+    if (verified) fronts.push(`https://cdn.pooka.app/card/en-mcd15-${number}.png`);
+    return { small: [...new Set(fronts)], large: [...new Set(fronts)] };
   }
   const small = unique([verified, card.images?.small, card.smallImg, card.images?.large, card.largeImg, ...(card.smallImgFallbacks || []), ...extra]);
   const large = unique([verified, card.images?.large, card.largeImg, card.images?.small, card.smallImg, ...(card.largeImgFallbacks || []), ...extra]);

@@ -3538,18 +3538,27 @@ function getCardArtworkSources(card) {
 }
 
 function setTcgImageFallbacks(img, card, quality = 'small') {
-  if (img) img._tcgArtworkFallbacks = [
+  if (!img) return;
+  img._tcgArtworkFallbacks = [
+    ...(quality === 'large' && card.resolvedSmallImg ? [card.resolvedSmallImg] : []),
     ...((quality === 'large' ? card.largeImgFallbacks : card.smallImgFallbacks) || [])
-  ];
+  ].filter((url, index, urls) => url && urls.indexOf(url) === index);
+  // The zoom image is reused between cards, so restore its handlers each time.
+  img.onerror = () => handleTcgImageError(img);
+  img.onload = () => {
+    if (quality === 'small' && img.src !== TCG_CARD_ARTWORK_UNAVAILABLE) {
+      card.resolvedSmallImg = img.currentSrc || img.src;
+    }
+  };
 }
 
 function handleTcgImageError(img) {
+  if (img.src === TCG_CARD_ARTWORK_UNAVAILABLE) return;
   const fallback = img._tcgArtworkFallbacks?.shift();
   if (fallback) {
     img.src = fallback;
     return;
   }
-  img.onerror = null;
   img.src = TCG_CARD_ARTWORK_UNAVAILABLE;
 }
 

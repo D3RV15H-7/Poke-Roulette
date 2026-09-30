@@ -3495,6 +3495,9 @@ const PROMO_ARTWORK_SERIES = Object.freeze({
 });
 const VERIFIED_CARD_ARTWORK = Object.freeze({
   // These catalogue records have missing or unreliable scan URLs in the APIs.
+  'mep:68:makuhita': 'https://static.tcgcollector.com/content/images/bf/0f/c7/bf0fc7fc8bb3ae7f7b8cea1c76012997db6dd23762de3acb9970aba2605de335.webp',
+  'mcd15:12:skitty': 'https://static.tcgcollector.com/content/images/93/c7/43/93c7436da291f07b8c89549a0dc2011d72d1330e73b63eb70358d3d3d5ec718a.jpg',
+  '2015xy:12:skitty': 'https://static.tcgcollector.com/content/images/93/c7/43/93c7436da291f07b8c89549a0dc2011d72d1330e73b63eb70358d3d3d5ec718a.jpg',
   'mep:74:delphox': 'https://static.tcgcollector.com/content/images/c3/bc/dc/c3bcdcefe3b1b59f0897d3d9e1ff9ba1e2af49489aa400c92bf29d3bfc33bab9.webp',
   'sm35:44:golurk': 'https://static.tcgcollector.com/content/images/db/30/6b/db306b4188cbd70b754df4425ec1bc522225f8e9cb1844054b7f9462fd271f22.jpg',
   'sm3.5:44:golurk': 'https://static.tcgcollector.com/content/images/db/30/6b/db306b4188cbd70b754df4425ec1bc522225f8e9cb1844054b7f9462fd271f22.jpg',
@@ -3511,7 +3514,7 @@ function getTcgDexArtworkSeries(setId) {
 }
 
 function getCardArtworkSources(card) {
-  const setId = String(card.set?.id || '').trim().toLowerCase();
+  const setId = String(card.set?.id || String(card.id || '').split('-').slice(0, -1).join('-')).trim().toLowerCase();
   const localId = String(card.localId || card.number || '').trim();
   const number = normalizeCardNumber(localId);
   const name = String(card.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -3540,13 +3543,25 @@ function getCardArtworkSources(card) {
   const unique = urls => [...new Set(urls.filter(url =>
     url !== TCG_CARD_ARTWORK_UNAVAILABLE && isValidFrontCardImage(url)
   ))];
-  const small = unique([card.images?.small, card.smallImg, card.images?.large, card.largeImg, ...extra]);
-  const large = unique([card.images?.large, card.largeImg, card.images?.small, card.smallImg, ...extra]);
+  // A back-of-card placeholder returns HTTP 200, so onerror cannot detect it.
+  // For this verified printing, omit unreliable provider images entirely.
+  if (verified && name === 'skitty' && number === '12' && ['mcd15', '2015xy'].includes(setId)) {
+    return { small: [verified], large: [verified] };
+  }
+  const small = unique([verified, card.images?.small, card.smallImg, card.images?.large, card.largeImg, ...(card.smallImgFallbacks || []), ...extra]);
+  const large = unique([verified, card.images?.large, card.largeImg, card.images?.small, card.smallImg, ...(card.largeImgFallbacks || []), ...extra]);
   return { small, large };
 }
 
 function setTcgImageFallbacks(img, card, quality = 'small') {
   if (!img) return;
+  // Repair old cached records at display time in every card view.
+  const artwork = getCardArtworkSources(card);
+  card.smallImg = artwork.small[0] || TCG_CARD_ARTWORK_UNAVAILABLE;
+  card.largeImg = artwork.large[0] || TCG_CARD_ARTWORK_UNAVAILABLE;
+  card.smallImgFallbacks = artwork.small.slice(1);
+  card.largeImgFallbacks = artwork.large.slice(1);
+  if (card.resolvedSmallImg && !artwork.small.includes(card.resolvedSmallImg)) delete card.resolvedSmallImg;
   img._tcgArtworkFallbacks = [
     ...(quality === 'large' && card.resolvedSmallImg ? [card.resolvedSmallImg] : []),
     ...((quality === 'large' ? card.largeImgFallbacks : card.smallImgFallbacks) || [])

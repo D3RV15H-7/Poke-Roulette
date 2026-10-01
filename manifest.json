@@ -7,10 +7,16 @@
   "theme_color": "#1e293b",
   "icons": [
     {
-      "src": "icon.svg",
+      "src": "pokeroulette-icon-192.png?v=42",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "pokeroulette-icon-512.png?v=42",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

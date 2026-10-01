@@ -2487,6 +2487,45 @@ body.has-active .hub-outer-wrap {
   min-height: 0;
 }
 
+/* v35: reserve a persistent encounter action row above the dock. */
+:root {
+  --app-content-height: calc(var(--app-visible-height, 100dvh) - var(--measured-dock-height, 78px));
+  --measured-spin-height: 56px;
+}
+body { --encounter-action-space: 0px; }
+body.has-active { --encounter-action-space: var(--measured-spin-height); }
+.viewport,
+body.main-search-focused .viewport {
+  height: max(0px, calc(var(--app-content-height) - var(--encounter-action-space)));
+  padding-bottom: 0.5rem;
+}
+body.has-active .spin-action-row-external {
+  position: fixed;
+  top: calc(var(--app-viewport-top, 0px) + var(--app-content-height) - var(--measured-spin-height));
+  bottom: auto;
+  left: 0;
+  right: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0.4rem 0.8rem;
+  background: var(--bg);
+  justify-content: center;
+  align-items: center;
+  z-index: 85;
+}
+/* Home Screen uses the full layout viewport, including the home-indicator
+   safe area. A smaller visualViewport must not lift the dock off the edge. */
+html.is-standalone .hub-outer-wrap,
+html.is-standalone body.has-active .hub-outer-wrap {
+  top: auto;
+  bottom: 0;
+}
+.modal,
+.dex-cards-modal,
+.tcg-zoom-modal {
+  height: max(0px, var(--app-content-height));
+}
+
 </style>
 </head>
 <body>
@@ -2581,11 +2620,11 @@ body.has-active .hub-outer-wrap {
     </div>
   </div>
 
+</div><!-- Main content ends above the persistent encounter action row. -->
+
   <div class="spin-action-row spin-action-row-external">
     <button class="btn-spin-again" id="spinBtn" onclick="handleSpinButtonClick()">SPIN AGAIN</button>
   </div>
-
-</div><!-- End the main scroller before the fixed navigation dock. -->
 
  <div class="hub-outer-wrap">
   <div class="hub">
@@ -8550,8 +8589,8 @@ function syncAppViewportLayout() {
   root.classList.toggle('is-standalone', standalone);
   root.classList.toggle('is-browser', !standalone);
 
-  const viewportTop = vv ? vv.offsetTop : 0;
-  const viewportHeight = vv ? vv.height : window.innerHeight;
+  const viewportTop = standalone ? 0 : (vv ? vv.offsetTop : 0);
+  const viewportHeight = standalone ? window.innerHeight : (vv ? vv.height : window.innerHeight);
 
   root.style.setProperty(
     '--app-visible-height',
@@ -8573,6 +8612,14 @@ function syncAppViewportLayout() {
     '--measured-dock-height',
     `${dockHeight}px`
   );
+  // Measure the actual dock edge, not a guessed visual-viewport bottom.
+  const dockTop = dock.getBoundingClientRect().top;
+  root.style.setProperty('--app-content-height', `${Math.max(0, Math.floor(dockTop - viewportTop))}px`);
+  const spinRow = document.querySelector('.spin-action-row-external');
+  const spinHeight = spinRow?.getBoundingClientRect().height;
+  if (spinHeight > 0) {
+    root.style.setProperty('--measured-spin-height', `${Math.ceil(spinHeight)}px`);
+  }
 }
 
 function scheduleAppViewportLayout() {
@@ -8610,7 +8657,10 @@ setTimeout(syncAppViewportLayout, 250);
 // without a window resize. Keep the clipping boundary in sync with it.
 if (typeof ResizeObserver !== 'undefined') {
   const dock = document.querySelector('.hub-outer-wrap');
-  if (dock) new ResizeObserver(scheduleAppViewportLayout).observe(dock);
+  const spinRow = document.querySelector('.spin-action-row-external');
+  const observer = new ResizeObserver(scheduleAppViewportLayout);
+  if (dock) observer.observe(dock);
+  if (spinRow) observer.observe(spinRow);
 }
 
 </script>

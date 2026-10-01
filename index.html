@@ -2588,9 +2588,27 @@ html.is-standalone body.has-active #pokeCard .img-box {
 }
 html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 
+/* v39: keep every popup panel below the status-bar blur, while the
+   backdrop still covers the screen and the lower edge stays above the dock. */
+:root {
+  --popup-top-clearance: calc(env(safe-area-inset-top, 0px) + 1rem);
+}
+.modal,
+.dex-cards-modal,
+.tcg-zoom-modal {
+  padding-top: var(--popup-top-clearance);
+}
+.modal .modal-body,
+#setsModal .modal-body,
+.dex-cards-content,
+.tcg-zoom-content {
+  max-height: 100%;
+  min-height: 0;
+}
+
 </style>
 </head>
-<body data-app-build="v38">
+<body data-app-build="v39">
 <div class="viewport">
   <header>
     <h1

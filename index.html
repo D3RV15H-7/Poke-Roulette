@@ -356,6 +356,10 @@ body.has-active .wheel-wrap {
 }
 .wheel-focus-window .focus-glass-surface {
   fill: url(#wheelFocusGlass);
+  stroke: none;
+}
+.wheel-focus-window .focus-segment-borders {
+  fill: none;
   stroke: #030507;
   stroke-width: 0.65;
   stroke-linejoin: round;
@@ -1047,13 +1051,18 @@ body.has-active .hub-item-label {
 }
 .tcg-artwork-retry[hidden] { display: none; }
 .tcg-artwork-retry:disabled { opacity: 0.6; cursor: wait; }
-.flat-card-container .tcg-artwork-retry {
-  top: 12px;
-  left: 12px;
+.tcg-zoom-toolbar .tcg-artwork-retry {
+  position: static;
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+  align-self: center;
   width: 36px;
   height: 36px;
   font-size: 26px;
 }
+.tcg-zoom-toolbar > .tcg-zoom-counter,
+.tcg-zoom-toolbar > .zoom-check-circle { grid-row: 1; }
 .zoom-check-circle {
   grid-column: 3;
   justify-self: end;
@@ -2663,7 +2672,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 
 </style>
 </head>
-<body data-app-build="v45">
+<body data-app-build="v46">
 <div class="viewport">
   <header>
     <h1
@@ -2724,9 +2733,10 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
       </defs>
       <!-- Full 20-degree wedge reaches beneath the hub, not just the label. -->
       <path class="focus-glass-surface" d="M 2.73 41.66 A 48 48 0 0 0 2.73 58.34 L 50 50 Z" />
+      <path class="focus-segment-borders" d="M 2.73 41.66 L 50 50 L 2.73 58.34" />
       <g clip-path="url(#wheelFocusClip)">
         <path class="focus-glass-reflection" d="M 0 40 Q 28 42 50 49 L 50 50 Q 26 47 0 53 Z" />
-        <path class="focus-glass-edge" d="M 3.2 42.2 L 37 48.15 M 3.2 42.2 Q 1.8 49.5 3.2 57.6 M 3.4 57.6 L 24 54" />
+        <path class="focus-glass-edge" d="M 3.3 42.2 A 47.35 47.35 0 0 0 3.3 57.8 L 50 50 Z" />
       </g>
     </svg>
     <div class="center-hub" id="centerHub">
@@ -4133,7 +4143,7 @@ function setTcgImageFallbacks(img, card, quality = 'small') {
   if (!img) return;
   img._tcgCard = card;
   img._tcgQuality = quality;
-  if (!img._tcgRetryButton) {
+  if (quality === 'large' && !img._tcgRetryButton) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'tcg-artwork-retry';
@@ -4145,7 +4155,7 @@ function setTcgImageFallbacks(img, card, quality = 'small') {
       event.stopPropagation();
       retryTcgArtwork(img);
     };
-    img.parentElement.appendChild(button);
+    document.querySelector('.tcg-zoom-toolbar').appendChild(button);
     img._tcgRetryButton = button;
   }
   setTcgArtworkUnavailable(img, false);
@@ -4198,9 +4208,11 @@ function retryTcgArtwork(img) {
     return url.href;
   });
   img._tcgArtworkFallbacks = fresh.slice(1);
-  img._tcgRetryButton.hidden = false;
-  img._tcgRetryButton.disabled = true;
-  img._tcgRetryButton.setAttribute('aria-busy', 'true');
+  if (img._tcgRetryButton) {
+    img._tcgRetryButton.hidden = false;
+    img._tcgRetryButton.disabled = true;
+    img._tcgRetryButton.setAttribute('aria-busy', 'true');
+  }
   img.src = fresh[0];
 }
 

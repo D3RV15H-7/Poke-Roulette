@@ -2670,7 +2670,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 
 </style>
 </head>
-<body data-app-build="v49">
+<body data-app-build="v51">
 <div class="viewport">
   <header>
     <h1
@@ -3764,9 +3764,35 @@ function isExcludedCollectorSet(set) {
   return isDigitalOnlySet(set) || isExcludedDeckProductSet(set);
 }
 
-function isExcludedCollectorCard(card) {
-  return isDigitalOnlyCard(card) || isExcludedDeckProductSet(card?.set);
+// Brief catalogue records omit sizes, so verified jumbo-only releases also
+// need an ID/name rule before optional detail requests complete.
+const JUMBO_ONLY_CARD_IDS = new Set(['mep-museum']);
+function isJumboOnlyCard(card) {
+  if (!card) return false;
+  const id = String(card.id || '').toLowerCase().trim();
+  const name = String(card.name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  if (JUMBO_ONLY_CARD_IDS.has(id) || name === 'pikachu at the museum') return true;
+  if (card.jumboOnly === true || card._jumboOnly === true) return true;
+  const size = String(card.size || card.format || '').toLowerCase().trim();
+  if (/^(jumbo|oversized|oversize)$/.test(size)) return true;
+  const detailed = card.variants_detailed || card.variantsDetailed;
+  // 'normal' on variants.type describes the finish, not the size. A missing
+  // size means standard size; retain mixed releases and incomplete metadata.
+  if (Array.isArray(detailed) && detailed.length) {
+    return detailed.every(variant => /^(jumbo|oversized|oversize)$/.test(
+      String(variant?.size || variant?.format || '').toLowerCase().trim()
+    ));
+  }
+  // Legacy variants.jumbo means a jumbo version EXISTS, not jumbo-only.
+  return false;
 }
+function isExcludedCollectorCard(card) {
+  return isDigitalOnlyCard(card) || isExcludedDeckProductSet(card?.set) || isJumboOnlyCard(card);
+}
+function filterCollectorCards(cards) {
+  return (Array.isArray(cards) ? cards : []).filter(card => !isExcludedCollectorCard(card));
+}
+
 // Card catalogues and optional artwork/prices have separate loading lifecycles.
 const tcgDataRequests = new Map();
 const tcgSetRequests = new Map();
@@ -3784,7 +3810,7 @@ const TCG_CARD_ARTWORK_UNAVAILABLE = 'data:image/svg+xml,' + encodeURIComponent(
 
 const PROMO_ARTWORK_SERIES = Object.freeze({
   mep: 'me', svp: 'sv', swshp: 'swsh', smp: 'sm', xyp: 'xy',
-  bwp: 'bw', dpp: 'dp'
+  bwp: 'bw', dpp: 'dp', hgssp: 'hgss', np: 'ex', basep: 'base', wp: 'base'
 });
 const VERIFIED_CARD_ARTWORK = Object.freeze({
   // These catalogue records have missing or unreliable scan URLs in the APIs.
@@ -4083,6 +4109,613 @@ const MCDONALDS_FRONT_SET_ALIASES = Object.freeze({
   '2014xy': 'mcd14', '2015xy': 'mcd15', '2017sm': 'mcd17'
 });
 
+// Verified English promo catalogue snapshot; live catalogues supplement it.
+const MEP_PROMO_CARDS = Object.freeze([
+  {
+    "id": "mep-001",
+    "localId": "001",
+    "name": "Meganium",
+    "front": "https://www.serebii.net/card/megapromos/1.jpg"
+  },
+  {
+    "id": "mep-002",
+    "localId": "002",
+    "name": "Inteleon",
+    "front": "https://www.serebii.net/card/megapromos/2.jpg"
+  },
+  {
+    "id": "mep-003",
+    "localId": "003",
+    "name": "Alakazam",
+    "front": "https://www.serebii.net/card/megapromos/3.jpg"
+  },
+  {
+    "id": "mep-004",
+    "localId": "004",
+    "name": "Lunatone",
+    "front": "https://www.serebii.net/card/megapromos/4.jpg"
+  },
+  {
+    "id": "mep-005",
+    "localId": "005",
+    "name": "Drifloon",
+    "front": "https://www.serebii.net/card/megapromos/5.jpg"
+  },
+  {
+    "id": "mep-006",
+    "localId": "006",
+    "name": "Drifblim",
+    "front": "https://www.serebii.net/card/megapromos/6.jpg"
+  },
+  {
+    "id": "mep-007",
+    "localId": "007",
+    "name": "Psyduck",
+    "front": "https://www.serebii.net/card/megapromos/7.jpg"
+  },
+  {
+    "id": "mep-008",
+    "localId": "008",
+    "name": "Golduck",
+    "front": "https://www.serebii.net/card/megapromos/8.jpg"
+  },
+  {
+    "id": "mep-009",
+    "localId": "009",
+    "name": "Alakazam",
+    "front": "https://www.serebii.net/card/megapromos/9.jpg"
+  },
+  {
+    "id": "mep-010",
+    "localId": "010",
+    "name": "Riolu",
+    "front": "https://www.serebii.net/card/megapromos/10.jpg"
+  },
+  {
+    "id": "mep-011",
+    "localId": "011",
+    "name": "Mega Latias ex",
+    "front": "https://www.serebii.net/card/megapromos/11.jpg"
+  },
+  {
+    "id": "mep-012",
+    "localId": "012",
+    "name": "Mega Lucario ex",
+    "front": "https://www.serebii.net/card/megapromos/12.jpg"
+  },
+  {
+    "id": "mep-013",
+    "localId": "013",
+    "name": "Mega Venusaur ex",
+    "front": "https://www.serebii.net/card/megapromos/13.jpg"
+  },
+  {
+    "id": "mep-014",
+    "localId": "014",
+    "name": "Ceruledge",
+    "front": "https://www.serebii.net/card/megapromos/14.jpg"
+  },
+  {
+    "id": "mep-015",
+    "localId": "015",
+    "name": "Zacian",
+    "front": "https://www.serebii.net/card/megapromos/15.jpg"
+  },
+  {
+    "id": "mep-016",
+    "localId": "016",
+    "name": "Flygon",
+    "front": "https://www.serebii.net/card/megapromos/16.jpg"
+  },
+  {
+    "id": "mep-017",
+    "localId": "017",
+    "name": "Toxtricity",
+    "front": "https://www.serebii.net/card/megapromos/17.jpg"
+  },
+  {
+    "id": "mep-018",
+    "localId": "018",
+    "name": "Cottonee",
+    "front": "https://www.serebii.net/card/megapromos/18.jpg"
+  },
+  {
+    "id": "mep-019",
+    "localId": "019",
+    "name": "Whimsicott",
+    "front": "https://www.serebii.net/card/megapromos/19.jpg"
+  },
+  {
+    "id": "mep-020",
+    "localId": "020",
+    "name": "Sneasel",
+    "front": "https://www.serebii.net/card/megapromos/20.jpg"
+  },
+  {
+    "id": "mep-021",
+    "localId": "021",
+    "name": "Weavile",
+    "front": "https://www.serebii.net/card/megapromos/21.jpg"
+  },
+  {
+    "id": "mep-022",
+    "localId": "022",
+    "name": "Charcadet",
+    "front": "https://www.serebii.net/card/megapromos/22.jpg"
+  },
+  {
+    "id": "mep-023",
+    "localId": "023",
+    "name": "Mega Charizard X ex",
+    "front": "https://www.serebii.net/card/megapromos/23.jpg"
+  },
+  {
+    "id": "mep-024",
+    "localId": "024",
+    "name": "Oricorio ex",
+    "front": "https://www.serebii.net/card/megapromos/24.jpg"
+  },
+  {
+    "id": "mep-025",
+    "localId": "025",
+    "name": "Mega Kangaskhan ex",
+    "front": "https://www.serebii.net/card/megapromos/25.jpg"
+  },
+  {
+    "id": "mep-026",
+    "localId": "026",
+    "name": "Meloetta",
+    "front": "https://www.serebii.net/card/megapromos/26.jpg"
+  },
+  {
+    "id": "mep-027",
+    "localId": "027",
+    "name": "Haunter",
+    "front": "https://www.serebii.net/card/megapromos/27.jpg"
+  },
+  {
+    "id": "mep-028",
+    "localId": "028",
+    "name": "Celebratory Fanfare",
+    "front": "https://www.serebii.net/card/megapromos/28.jpg"
+  },
+  {
+    "id": "mep-029",
+    "localId": "029",
+    "name": "Mega Charizard X ex",
+    "front": "https://www.serebii.net/card/megapromos/29.jpg"
+  },
+  {
+    "id": "mep-030",
+    "localId": "030",
+    "name": "Mega Charizard Y ex",
+    "front": "https://www.serebii.net/card/megapromos/30.jpg"
+  },
+  {
+    "id": "mep-031",
+    "localId": "031",
+    "name": "N's Zekrom",
+    "front": "https://www.serebii.net/card/megapromos/31.jpg"
+  },
+  {
+    "id": "mep-032",
+    "localId": "032",
+    "name": "Mega Gardevoir ex",
+    "front": "https://www.serebii.net/card/megapromos/32.jpg"
+  },
+  {
+    "id": "mep-033",
+    "localId": "033",
+    "name": "Mega Lucario ex",
+    "front": "https://www.serebii.net/card/megapromos/33.jpg"
+  },
+  {
+    "id": "mep-034",
+    "localId": "034",
+    "name": "Mega Meganium ex",
+    "front": "https://www.serebii.net/card/megapromos/34.jpg"
+  },
+  {
+    "id": "mep-035",
+    "localId": "035",
+    "name": "Mega Emboar ex",
+    "front": "https://www.serebii.net/card/megapromos/35.jpg"
+  },
+  {
+    "id": "mep-036",
+    "localId": "036",
+    "name": "Mega Feraligatr ex",
+    "front": "https://www.serebii.net/card/megapromos/36.jpg"
+  },
+  {
+    "id": "mep-037",
+    "localId": "037",
+    "name": "Bulbasaur",
+    "front": "https://www.serebii.net/card/megapromos/37.jpg"
+  },
+  {
+    "id": "mep-038",
+    "localId": "038",
+    "name": "Charmander",
+    "front": "https://www.serebii.net/card/megapromos/38.jpg"
+  },
+  {
+    "id": "mep-039",
+    "localId": "039",
+    "name": "Squirtle",
+    "front": "https://www.serebii.net/card/megapromos/39.jpg"
+  },
+  {
+    "id": "mep-040",
+    "localId": "040",
+    "name": "Turtwig",
+    "front": "https://www.serebii.net/card/megapromos/40.jpg"
+  },
+  {
+    "id": "mep-041",
+    "localId": "041",
+    "name": "Chimchar",
+    "front": "https://www.serebii.net/card/megapromos/41.jpg"
+  },
+  {
+    "id": "mep-042",
+    "localId": "042",
+    "name": "Piplup",
+    "front": "https://www.serebii.net/card/megapromos/42.jpg"
+  },
+  {
+    "id": "mep-043",
+    "localId": "043",
+    "name": "Rowlet",
+    "front": "https://www.serebii.net/card/megapromos/43.jpg"
+  },
+  {
+    "id": "mep-044",
+    "localId": "044",
+    "name": "Litten",
+    "front": "https://www.serebii.net/card/megapromos/44.jpg"
+  },
+  {
+    "id": "mep-045",
+    "localId": "045",
+    "name": "Popplio",
+    "front": "https://www.serebii.net/card/megapromos/45.jpg"
+  },
+  {
+    "id": "mep-046",
+    "localId": "046",
+    "name": "Chikorita",
+    "front": "https://www.serebii.net/card/megapromos/46.jpg"
+  },
+  {
+    "id": "mep-047",
+    "localId": "047",
+    "name": "Cyndaquil",
+    "front": "https://www.serebii.net/card/megapromos/47.jpg"
+  },
+  {
+    "id": "mep-048",
+    "localId": "048",
+    "name": "Totodile",
+    "front": "https://www.serebii.net/card/megapromos/48.jpg"
+  },
+  {
+    "id": "mep-049",
+    "localId": "049",
+    "name": "Snivy",
+    "front": "https://www.serebii.net/card/megapromos/49.jpg"
+  },
+  {
+    "id": "mep-050",
+    "localId": "050",
+    "name": "Tepig",
+    "front": "https://www.serebii.net/card/megapromos/50.jpg"
+  },
+  {
+    "id": "mep-051",
+    "localId": "051",
+    "name": "Oshawott",
+    "front": "https://www.serebii.net/card/megapromos/51.jpg"
+  },
+  {
+    "id": "mep-052",
+    "localId": "052",
+    "name": "Grookey",
+    "front": "https://www.serebii.net/card/megapromos/52.jpg"
+  },
+  {
+    "id": "mep-053",
+    "localId": "053",
+    "name": "Scorbunny",
+    "front": "https://www.serebii.net/card/megapromos/53.jpg"
+  },
+  {
+    "id": "mep-054",
+    "localId": "054",
+    "name": "Sobble",
+    "front": "https://www.serebii.net/card/megapromos/54.jpg"
+  },
+  {
+    "id": "mep-055",
+    "localId": "055",
+    "name": "Treecko",
+    "front": "https://www.serebii.net/card/megapromos/55.jpg"
+  },
+  {
+    "id": "mep-056",
+    "localId": "056",
+    "name": "Torchic",
+    "front": "https://www.serebii.net/card/megapromos/56.jpg"
+  },
+  {
+    "id": "mep-057",
+    "localId": "057",
+    "name": "Mudkip",
+    "front": "https://www.serebii.net/card/megapromos/57.jpg"
+  },
+  {
+    "id": "mep-058",
+    "localId": "058",
+    "name": "Chespin",
+    "front": "https://www.serebii.net/card/megapromos/58.jpg"
+  },
+  {
+    "id": "mep-059",
+    "localId": "059",
+    "name": "Fennekin",
+    "front": "https://www.serebii.net/card/megapromos/59.jpg"
+  },
+  {
+    "id": "mep-060",
+    "localId": "060",
+    "name": "Froakie",
+    "front": "https://www.serebii.net/card/megapromos/60.jpg"
+  },
+  {
+    "id": "mep-061",
+    "localId": "061",
+    "name": "Sprigatito",
+    "front": "https://www.serebii.net/card/megapromos/61.jpg"
+  },
+  {
+    "id": "mep-062",
+    "localId": "062",
+    "name": "Fuecoco",
+    "front": "https://www.serebii.net/card/megapromos/62.jpg"
+  },
+  {
+    "id": "mep-063",
+    "localId": "063",
+    "name": "Quaxly",
+    "front": "https://www.serebii.net/card/megapromos/63.jpg"
+  },
+  {
+    "id": "mep-064",
+    "localId": "064",
+    "name": "Serperior",
+    "front": "https://www.serebii.net/card/megapromos/64.jpg"
+  },
+  {
+    "id": "mep-065",
+    "localId": "065",
+    "name": "Barbaracle",
+    "front": "https://www.serebii.net/card/megapromos/65.jpg"
+  },
+  {
+    "id": "mep-066",
+    "localId": "066",
+    "name": "Tyrantrum",
+    "front": "https://www.serebii.net/card/megapromos/66.jpg"
+  },
+  {
+    "id": "mep-067",
+    "localId": "067",
+    "name": "Doublade",
+    "front": "https://www.serebii.net/card/megapromos/67.jpg"
+  },
+  {
+    "id": "mep-068",
+    "localId": "068",
+    "name": "Makuhita",
+    "front": "https://www.serebii.net/card/megapromos/68.jpg"
+  },
+  {
+    "id": "mep-069",
+    "localId": "069",
+    "name": "Chikorita",
+    "front": "https://www.serebii.net/card/megapromos/69.jpg"
+  },
+  {
+    "id": "mep-070",
+    "localId": "070",
+    "name": "Tyrunt",
+    "front": "https://www.serebii.net/card/megapromos/70.jpg"
+  },
+  {
+    "id": "mep-071",
+    "localId": "071",
+    "name": "Mega Zygarde ex",
+    "front": "https://www.serebii.net/card/megapromos/71.jpg"
+  },
+  {
+    "id": "mep-072",
+    "localId": "072",
+    "name": "Mega Clefable ex",
+    "front": "https://www.serebii.net/card/megapromos/72.jpg"
+  },
+  {
+    "id": "mep-073",
+    "localId": "073",
+    "name": "Mega Gengar ex",
+    "front": "https://www.serebii.net/card/megapromos/73.jpg"
+  },
+  {
+    "id": "mep-074",
+    "localId": "074",
+    "name": "Delphox",
+    "front": "https://www.serebii.net/card/megapromos/74.jpg"
+  },
+  {
+    "id": "mep-075",
+    "localId": "075",
+    "name": "Ampharos",
+    "front": "https://www.serebii.net/card/megapromos/75.jpg"
+  },
+  {
+    "id": "mep-076",
+    "localId": "076",
+    "name": "Crobat",
+    "front": "https://www.serebii.net/card/megapromos/76.jpg"
+  },
+  {
+    "id": "mep-077",
+    "localId": "077",
+    "name": "Goodra",
+    "front": "https://www.serebii.net/card/megapromos/77.jpg"
+  },
+  {
+    "id": "mep-078",
+    "localId": "078",
+    "name": "Toxel",
+    "front": "https://www.serebii.net/card/megapromos/78.jpg"
+  },
+  {
+    "id": "mep-079",
+    "localId": "079",
+    "name": "Charmeleon",
+    "front": "https://www.serebii.net/card/megapromos/79.jpg"
+  },
+  {
+    "id": "mep-080",
+    "localId": "080",
+    "name": "Fennekin",
+    "front": "https://www.serebii.net/card/megapromos/80.jpg"
+  },
+  {
+    "id": "mep-081",
+    "localId": "081",
+    "name": "Mega Greninja ex",
+    "front": "https://www.serebii.net/card/megapromos/81.jpg"
+  },
+  {
+    "id": "mep-082",
+    "localId": "082",
+    "name": "Miraidon",
+    "front": "https://www.serebii.net/card/megapromos/82.jpg"
+  },
+  {
+    "id": "mep-083",
+    "localId": "083",
+    "name": "Slowbro",
+    "front": "https://www.serebii.net/card/megapromos/83.jpg"
+  },
+  {
+    "id": "mep-084",
+    "localId": "084",
+    "name": "Dhelmise",
+    "front": "https://www.serebii.net/card/megapromos/84.jpg"
+  },
+  {
+    "id": "mep-085",
+    "localId": "085",
+    "name": "Bastiodon",
+    "front": "https://www.serebii.net/card/megapromos/85.jpg"
+  },
+  {
+    "id": "mep-086",
+    "localId": "086",
+    "name": "Slowpoke",
+    "front": "https://www.serebii.net/card/megapromos/86.jpg"
+  },
+  {
+    "id": "mep-087",
+    "localId": "087",
+    "name": "Binacle",
+    "front": "https://www.serebii.net/card/megapromos/87.jpg"
+  },
+  {
+    "id": "mep-088",
+    "localId": "088",
+    "name": "Zarude",
+    "front": "https://www.serebii.net/card/megapromos/88.jpg"
+  },
+  {
+    "id": "mep-Museum",
+    "localId": "Museum",
+    "name": "Pikachu at the Museum",
+    "front": ""
+  }
+].filter(card => !isJumboOnlyCard(card)));
+const PHYSICAL_PROMO_SET_IDS = new Set(['mep','svp','swshp','smp','xyp','bwp','dpp','hgssp','np','basep','wp','miscp']);
+const MEP_PROMO_SET = {
+  id: 'mep', name: 'Mega Evolution Promos', series: 'Mega Evolution',
+  releaseDate: '2025/09/26', total: MEP_PROMO_CARDS.length,
+  printedTotal: MEP_PROMO_CARDS.length,
+  images: { logo: 'https://images.pokemontcg.io/swshp/logo.png', symbol: '' }
+};
+function isPhysicalPromoSetId(id) {
+  return PHYSICAL_PROMO_SET_IDS.has(String(id || '').toLowerCase());
+}
+
+async function fetchPhysicalPromoSets(forceRefresh = false) {
+  let catalogue;
+  try { catalogue = await getTcgDexSets(forceRefresh); }
+  catch (error) { return [{ ...MEP_PROMO_SET }]; }
+  const briefs = catalogue.filter(set => /promo/i.test(set.name || '') && !isExcludedCollectorSet(set));
+  const deadline = Date.now() + 45000;
+  const promos = await mapTcgLimited(briefs, async brief => {
+    let detail = brief;
+    try { detail = await fetchJsonWithRetry(`https://api.tcgdex.net/v2/en/sets/${encodeURIComponent(brief.id)}`, { deadline }); }
+    catch (error) {}
+    const count = Array.isArray(detail.cards)
+      ? filterCollectorCards(detail.cards).length
+      : detail.cardCount?.total || brief.cardCount?.total || 0;
+    return {
+      id: brief.id, name: brief.id === 'mep' ? MEP_PROMO_SET.name : (detail.name || brief.name),
+      series: detail.serie?.name || '', total: count, printedTotal: count,
+      releaseDate: String(detail.releaseDate || '').replace(/-/g, '/'),
+      images: { logo: detail.logo ? `${detail.logo}.png` : MEP_PROMO_SET.images.logo,
+        symbol: detail.symbol ? `${detail.symbol}.png` : '' }
+    };
+  });
+  if (!promos.some(set => set.id === 'mep')) promos.push({ ...MEP_PROMO_SET });
+  return promos;
+}
+
+async function fetchPromoCatalogueCards(setId, url, headers, forceRefresh = false) {
+  const deadline = Date.now() + 45000;
+  const sources = await Promise.allSettled([
+    fetchPokemonTcgPages(url, { headers }, deadline),
+    fetchJsonWithRetry(`https://api.tcgdex.net/v2/en/sets/${encodeURIComponent(setId)}`, { deadline })
+  ]);
+  const merged = new Map();
+  const primary = sources[0].status === 'fulfilled' ? sources[0].value : [];
+  primary.forEach(card => merged.set(normalizeCardNumber(card.number || card.localId), card));
+  const detail = sources[1].status === 'fulfilled' ? sources[1].value : null;
+  const references = new Map((detail?.cards || []).map(card => [normalizeCardNumber(card.localId), card]));
+  if (setId === 'mep') {
+    for (const brief of MEP_PROMO_CARDS) {
+      const number = normalizeCardNumber(brief.localId);
+      if (!references.has(number)) references.set(number, brief);
+    }
+  }
+  for (const [number, brief] of references) {
+    const old = merged.get(number);
+    merged.set(number, {
+      ...brief, ...old,
+      id: old?.id || brief.id,
+      number: old?.number || brief.localId,
+      localId: brief.localId,
+      rarity: old?.rarity || 'Promo',
+      artworkTcgDexSetId: setId,
+      set: old?.set || { id: setId, name: setId === 'mep' ? MEP_PROMO_SET.name : (detail?.name || KNOWN_SETS[setId] || setId) },
+      images: old?.images || (brief.image ? { small: `${brief.image}/low.webp`, large: `${brief.image}/high.webp` } : {})
+    });
+  }
+  if (!merged.size) throw new Error(`Promo catalogue unavailable for ${setId}`);
+  return [...merged.values()];
+}
+
 function getTcgDexArtworkSeries(setId) {
   if (PROMO_ARTWORK_SERIES[setId]) return PROMO_ARTWORK_SERIES[setId];
   if (/^20\d{2}(?:sv|swsh|sm|xy|bw)$/.test(setId)) return 'mc';
@@ -4109,6 +4742,12 @@ function getCardArtworkSources(card) {
     };
   }
   const extra = [];
+  let promoFront = '';
+  if (setId === 'mep') {
+    const entry = MEP_PROMO_CARDS.find(item => normalizeCardNumber(item.localId) === number &&
+      String(item.name).toLowerCase().replace(/[^a-z0-9]/g, '') === name);
+    if (entry?.front) promoFront = entry.front;
+  }
   const frontScans = MCDONALDS_FRONT_SCANS_BY_SET[MCDONALDS_FRONT_SET_ALIASES[setId] || setId];
   const verified = (frontScans && frontScans[`${number}:${name}`]) ||
     VERIFIED_CARD_ARTWORK[`${setId}:${number}:${name}`];
@@ -4143,8 +4782,8 @@ function getCardArtworkSources(card) {
     const fronts = verified ? [verified] : [];
     return { small: [...new Set(fronts)], large: [...new Set(fronts)] };
   }
-  const small = unique([verified, card.images?.small, card.smallImg, card.images?.large, card.largeImg, ...(card.smallImgFallbacks || []), ...extra]);
-  const large = unique([verified, card.images?.large, card.largeImg, card.images?.small, card.smallImg, ...(card.largeImgFallbacks || []), ...extra]);
+  const small = unique([promoFront, verified, card.images?.small, card.smallImg, card.images?.large, card.largeImg, ...(card.smallImgFallbacks || []), ...extra]);
+  const large = unique([promoFront, verified, card.images?.large, card.largeImg, card.images?.small, card.smallImg, ...(card.largeImgFallbacks || []), ...extra]);
   return { small, large };
 }
 
@@ -4386,13 +5025,13 @@ async function fetchPokemonTcgPages(url, options = {}, deadline = Date.now() + 4
   }
 }
 
-async function getTcgDexSets() {
-  if (Array.isArray(window.tcgDexSetsCache) && window.tcgDexSetsCache.length) return window.tcgDexSetsCache;
+async function getTcgDexSets(forceRefresh = false) {
+  if (!forceRefresh && Array.isArray(window.tcgDexSetsCache) && window.tcgDexSetsCache.length) return window.tcgDexSetsCache;
   if (tcgDexSetsRequest) return tcgDexSetsRequest;
   tcgDexSetsRequest = (async () => {
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem('pokeroulette_tcgdex_sets_v1')); } catch (error) {}
-    if (saved?.data?.length && Date.now() - saved.savedAt < 86400000) {
+    if (!forceRefresh && saved?.data?.length && Date.now() - saved.savedAt < 86400000) {
       return (window.tcgDexSetsCache = saved.data);
     }
     try {
@@ -4524,7 +5163,7 @@ async function fetchPhysicalTcgSets(forceRefresh = false) {
 }
 
 async function loadPhysicalTcgSets(forceRefresh = false) {
-  const CACHE_KEY = 'pokeroulette_tcg_sets_v7_collector_sets';
+  const CACHE_KEY = 'pokeroulette_tcg_sets_v51_standard_size';
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // 1. Use memory cache first
@@ -4569,9 +5208,27 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
       headers['X-Api-Key'] = POKEMON_TCG_API_KEY;
     }
 
-    const sets = await fetchPokemonTcgPages(
-      'https://api.pokemontcg.io/v2/sets', { headers }
-    );
+    const sources = await Promise.allSettled([
+      fetchPokemonTcgPages('https://api.pokemontcg.io/v2/sets', { headers }),
+      fetchPhysicalPromoSets(forceRefresh)
+    ]);
+    const setsById = new Map();
+    let primarySets = sources[0].status === 'fulfilled' ? sources[0].value : (tcgSetsCache || []);
+    if (!primarySets.length && sources[0].status === 'rejected') {
+      try { primarySets = JSON.parse(localStorage.getItem('pokeroulette_tcg_sets_v7_collector_sets') || 'null')?.data || []; }
+      catch (error) {}
+    }
+    for (const set of primarySets) setsById.set(set.id, set);
+    for (const promo of sources[1].status === 'fulfilled' ? sources[1].value : []) {
+      const old = setsById.get(promo.id);
+      setsById.set(promo.id, old ? {
+        ...promo, ...old,
+        total: Math.max(old.total || 0, promo.total || 0),
+        printedTotal: Math.max(old.printedTotal || 0, promo.printedTotal || 0),
+        images: { symbol: old.images?.symbol || promo.images?.symbol, logo: old.images?.logo || promo.images?.logo }
+      } : promo);
+    }
+    const sets = [...setsById.values()];
     if (!sets.length) throw new Error('API returned an empty set catalogue');
 
     const physicalSets = sets
@@ -4584,12 +5241,12 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
           String(set.name || '').trim().toLowerCase() ===
             '30th celebration: classic collection'
               ? THIRTIETH_CLASSIC_COLLECTION_COUNT
-              : (set.printedTotal || 0),
+              : set.id === 'mep' ? MEP_PROMO_CARDS.length : (set.printedTotal || 0),
         total:
           String(set.name || '').trim().toLowerCase() ===
             '30th celebration: classic collection'
               ? THIRTIETH_CLASSIC_COLLECTION_COUNT
-              : (set.total || set.printedTotal || 0),
+              : set.id === 'mep' ? MEP_PROMO_CARDS.length : (set.total || set.printedTotal || 0),
         releaseDate: set.releaseDate || '',
         symbol: set.images?.symbol || '',
         logo: set.images?.logo || ''
@@ -6017,6 +6674,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
           } catch (error) {}
         }
         if (!dexCard) return card;
+        if (isJumboOnlyCard(dexCard)) return { ...card, _jumboOnly: true };
 
         const sourceEvidence = {
           standard: Boolean(card?.variants?.standard),
@@ -6081,12 +6739,12 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
       }
     });
 
-  return enriched;
+  return filterCollectorCards(enriched);
 }
 
 
 async function fetchYellowAAlternateCards(forceRefresh = false) {
-  const CACHE_KEY = 'pokeroulette_set_cards_v18_7_yellow-a-alternate';
+  const CACHE_KEY = 'pokeroulette_set_cards_v51_yellow-a-alternate';
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   if (!window.tcgSetCardsCache) {
@@ -6094,7 +6752,7 @@ async function fetchYellowAAlternateCards(forceRefresh = false) {
   }
 
   if (window.tcgSetCardsCache[YELLOW_A_SET_ID] && !forceRefresh) {
-    return window.tcgSetCardsCache[YELLOW_A_SET_ID];
+    return filterCollectorCards(window.tcgSetCardsCache[YELLOW_A_SET_ID]);
   }
 
   if (!forceRefresh) {
@@ -6107,7 +6765,7 @@ async function fetchYellowAAlternateCards(forceRefresh = false) {
         Date.now() - cached.savedAt < CACHE_TIME
       ) {
         window.tcgSetCardsCache[YELLOW_A_SET_ID] = cached.data;
-        return cached.data;
+        return filterCollectorCards(cached.data);
       }
     } catch (error) {}
   }
@@ -6144,7 +6802,7 @@ async function fetchYellowAAlternateCards(forceRefresh = false) {
   });
 
   let formatted = Array.from(unique.values())
-    .filter(card => !isDigitalOnlyCard(card))
+    .filter(card => !isExcludedCollectorCard(card))
     .filter(card =>
       isValidFrontCardImage(card.images?.small || card.images?.large)
     )
@@ -6289,13 +6947,13 @@ async function fetchCardsForSet(setId, forceRefresh = false) {
     catch (error) {
       console.warn('[SETS] Could not refresh set:', setId, error);
       const memory = window.tcgSetCardsCache?.[setId];
-      if (memory?.length) return memory;
+      if (memory?.length) return filterCollectorCards(memory);
       try {
         const key = setId === YELLOW_A_SET_ID
-          ? 'pokeroulette_set_cards_v18_7_yellow-a-alternate'
-          : `pokeroulette_set_cards_v18_13_${setId}`;
+          ? 'pokeroulette_set_cards_v51_yellow-a-alternate'
+          : isPhysicalPromoSetId(setId) ? `pokeroulette_set_cards_v51_${setId}` : `pokeroulette_set_cards_v51_${setId}`;
         const saved = JSON.parse(localStorage.getItem(key));
-        if (saved?.data?.length) return saved.data;
+        if (saved?.data?.length) return filterCollectorCards(saved.data);
       } catch (cacheError) {}
       return [];
     }
@@ -6345,7 +7003,7 @@ async function loadCardsForSet(setId, forceRefresh = false) {
     return fetchYellowAAlternateCards(forceRefresh);
   }
 
-  const CACHE_KEY = setId === 'svp' ? 'pokeroulette_set_cards_v38_svp' : `pokeroulette_set_cards_v18_13_${setId}`;
+  const CACHE_KEY = isPhysicalPromoSetId(setId) ? `pokeroulette_set_cards_v51_${setId}` : `pokeroulette_set_cards_v51_${setId}`;
   const CACHE_TIME = 24 * 60 * 60 * 1000;
 
   // Keep set cards in memory while the app is open
@@ -6362,7 +7020,7 @@ async function loadCardsForSet(setId, forceRefresh = false) {
       `[SETS] ${setId} loaded from memory cache`
     );
 
-    return window.tcgSetCardsCache[setId];
+    return filterCollectorCards(window.tcgSetCardsCache[setId]);
   }
 
   // 2. Browser cache
@@ -6384,7 +7042,7 @@ async function loadCardsForSet(setId, forceRefresh = false) {
           `[SETS] ${setId} loaded from saved cache`
         );
 
-        return cached.data;
+        return filterCollectorCards(cached.data);
       }
     } catch (error) {
       console.warn(
@@ -6409,7 +7067,9 @@ async function loadCardsForSet(setId, forceRefresh = false) {
 
     const cards = setId === 'svp'
       ? await fetchSvpCatalogueCards(url, headers)
-      : await fetchPokemonTcgPages(url, { headers });
+      : isPhysicalPromoSetId(setId)
+        ? await fetchPromoCatalogueCards(setId, url, headers, forceRefresh)
+        : await fetchPokemonTcgPages(url, { headers });
 
     if (!cards.length) {
       throw new Error(
@@ -6536,7 +7196,7 @@ baseFinish:
 
     if (window.tcgSetCardsCache[setId]?.length) {
       showToast('Refresh unavailable. Showing saved cards.', 'warning');
-      return window.tcgSetCardsCache[setId];
+      return filterCollectorCards(window.tcgSetCardsCache[setId]);
     }
 
     // 6. If live request failed, accept an expired cache
@@ -6557,7 +7217,7 @@ baseFinish:
         window.tcgSetCardsCache[setId] =
           cached.data;
 
-        return cached.data;
+        return filterCollectorCards(cached.data);
       }
     } catch (cacheError) {
       console.error(
@@ -6998,11 +7658,11 @@ async function renderTcgSets(forceRefresh = false) {
   let totalCount = getDisplayedSetCardTotal(set);
 
   try {
-    const cacheKey = `pokeroulette_set_cards_v18_13_${set.id}`;
+    const cacheKey = isPhysicalPromoSetId(set.id) ? `pokeroulette_set_cards_v51_${set.id}` : `pokeroulette_set_cards_v51_${set.id}`;
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
 
     if (cached && Array.isArray(cached.data)) {
-      const cards = cached.data;
+      const cards = filterCollectorCards(cached.data);
 
       // Migrate old Sets ticks as soon as cached card data is available.
       migrateLegacySetCardOwnership(cards);
@@ -8270,7 +8930,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
 async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_complete_cache_v49_${normalizePokemonCardName(cleanName).replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_complete_cache_v51_${normalizePokemonCardName(cleanName).replace(/[^a-z0-9]/g, '')}`;
   const TTL_MS = 86400000;
   let saved = memoryTcgCache.get(cacheKey) || null;
   if (!saved) {
@@ -8281,7 +8941,7 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   }
   if (!bypassCache && saved?.complete && Date.now() - saved.savedAt < TTL_MS) {
     memoryTcgCache.set(cacheKey, saved);
-    const cards = saved.data.slice();
+    const cards = filterCollectorCards(saved.data);
     sortCardsList(cards);
     return cards;
   }
@@ -8291,7 +8951,7 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
     try {
       const partial = JSON.parse(localStorage.getItem(`${cacheKey}_partial`));
       if (Array.isArray(partial?.data) && Date.now() - partial.savedAt < 60000) {
-        const cards = partial.data;
+        const cards = filterCollectorCards(partial.data);
         tcgCardListStatus.set(cards, { partial: true });
         sortCardsList(cards);
         return cards;
@@ -8359,7 +9019,7 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   failures.forEach(result => console.warn('[TCG] Catalogue source unavailable:', result.reason));
 
   if (!complete && saved?.complete) {
-    const cards = saved.data.slice();
+    const cards = filterCollectorCards(saved.data);
     tcgCardListStatus.set(cards, { stale: true });
     sortCardsList(cards);
     return cards;

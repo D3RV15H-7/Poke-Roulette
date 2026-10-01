@@ -2442,6 +2442,51 @@ body.has-active .hub-outer-wrap {
 }
 .tcg-variant-option .tcg-variant-circle { flex: 0 0 15px; width: 15px; height: 15px; }
 
+/* v34: the encounter is an independent scroller, never behind the dock.
+   Use the same visual-viewport coordinates for content, dock and overlays. */
+html, body {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+body { padding: 0; }
+.viewport,
+body.main-search-focused .viewport {
+  position: fixed;
+  top: var(--app-viewport-top, 0px);
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: min(100%, 480px);
+  height: max(0px, calc(var(--app-visible-height, 100dvh) - var(--measured-dock-height, 78px)));
+  min-height: 0;
+  max-height: none;
+  padding: max(0.4rem, env(safe-area-inset-top)) clamp(0.4rem, 2vw, 0.8rem) 1rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-bottom: 1rem;
+}
+.viewport > * { flex-shrink: 0; }
+.hub-outer-wrap,
+body.has-active .hub-outer-wrap {
+  top: calc(var(--app-viewport-top, 0px) + var(--app-visible-height, 100dvh) - var(--measured-dock-height, 78px));
+  bottom: auto;
+  background: var(--card);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.modal,
+.dex-cards-modal,
+.tcg-zoom-modal {
+  top: var(--app-viewport-top, 0px);
+  bottom: auto;
+  height: max(0px, calc(var(--app-visible-height, 100dvh) - var(--measured-dock-height, 78px)));
+  min-height: 0;
+}
+
 </style>
 </head>
 <body>
@@ -2540,6 +2585,8 @@ body.has-active .hub-outer-wrap {
     <button class="btn-spin-again" id="spinBtn" onclick="handleSpinButtonClick()">SPIN AGAIN</button>
   </div>
 
+</div><!-- End the main scroller before the fixed navigation dock. -->
+
  <div class="hub-outer-wrap">
   <div class="hub">
 
@@ -2591,10 +2638,6 @@ body.has-active .hub-outer-wrap {
 
   </div>
 </div>
-    
-  </div>
-</div>
-
 <div class="tcg-zoom-modal" id="tcgZoomModal" onclick="closeTcgZoom()">
   <div class="tcg-zoom-content" id="zoomContainer" onclick="event.stopPropagation()">
     <div class="tcg-zoom-toolbar">
@@ -8563,6 +8606,12 @@ standaloneMedia?.addEventListener?.(
 
 syncAppViewportLayout();
 setTimeout(syncAppViewportLayout, 250);
+// Safe-area padding, fonts and display-mode changes can alter dock height
+// without a window resize. Keep the clipping boundary in sync with it.
+if (typeof ResizeObserver !== 'undefined') {
+  const dock = document.querySelector('.hub-outer-wrap');
+  if (dock) new ResizeObserver(scheduleAppViewportLayout).observe(dock);
+}
 
 </script>
 </body>

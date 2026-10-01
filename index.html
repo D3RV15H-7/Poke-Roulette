@@ -2465,7 +2465,7 @@ body {
 }
 html.is-standalone body {
   top: 0;
-  height: 100dvh;
+  height: var(--app-visible-height, 100dvh);
 }
 .viewport,
 body.main-search-focused .viewport {
@@ -2530,13 +2530,14 @@ body.has-active .spin-action-row-external {
 /* Safari gives up decorative Pokémon space before shrinking card scans.
    Home Screen retains the larger encounter artwork. */
 html.is-browser body.has-active #pokeCard .img-box {
-  width: clamp(105px, min(36vw, 22dvh), 145px);
-  height: clamp(105px, min(36vw, 22dvh), 145px);
+  width: var(--fitted-pokemon-size, clamp(105px, min(36vw, 22dvh), 145px));
+  height: var(--fitted-pokemon-size, clamp(105px, min(36vw, 22dvh), 145px));
 }
 html.is-standalone body.has-active #pokeCard .img-box {
-  width: clamp(145px, 39vw, 180px);
-  height: clamp(145px, 39vw, 180px);
+  width: var(--fitted-pokemon-size, clamp(145px, 39vw, 180px));
+  height: var(--fitted-pokemon-size, clamp(145px, 39vw, 180px));
 }
+body.has-active #pokeCard { --encounter-card-size: var(--fitted-card-size, 112px); }
 .modal,
 .dex-cards-modal,
 .tcg-zoom-modal {
@@ -2545,7 +2546,7 @@ html.is-standalone body.has-active #pokeCard .img-box {
 
 </style>
 </head>
-<body>
+<body data-app-build="v37">
 <div class="viewport">
   <header>
     <h1
@@ -8607,7 +8608,16 @@ function syncAppViewportLayout() {
   root.classList.toggle('is-browser', !standalone);
 
   const viewportTop = standalone ? 0 : (vv ? vv.offsetTop : 0);
-  const viewportHeight = standalone ? window.innerHeight : (vv ? vv.height : window.innerHeight);
+  // Installed iOS apps can report a reduced innerHeight/dvh after launch.
+  // Screen dimensions are CSS pixels and include both safe areas, which the
+  // existing padding protects. Keep visualViewport sizing for Safari.
+  const landscape = Math.abs(window.screen?.orientation?.angle ?? window.orientation ?? 0) % 180 === 90;
+  const screenHeight = landscape
+    ? Math.min(window.screen?.width || 0, window.screen?.height || 0)
+    : Math.max(window.screen?.width || 0, window.screen?.height || 0);
+  const viewportHeight = standalone
+    ? Math.max(window.innerHeight, screenHeight)
+    : (vv ? vv.height : window.innerHeight);
 
   root.style.setProperty(
     '--app-visible-height',
@@ -8632,6 +8642,27 @@ function syncAppViewportLayout() {
   // Measure the actual dock edge, not a guessed visual-viewport bottom.
   const dockTop = dock.getBoundingClientRect().top;
   root.style.setProperty('--app-content-height', `${Math.max(0, Math.floor(dockTop - viewportTop))}px`);
+  fitEncounterToViewport();
+}
+
+function fitEncounterToViewport() {
+  const root = document.documentElement;
+  const viewport = document.querySelector('.viewport');
+  const artwork = document.querySelector('#pokeCard .img-box');
+  root.style.removeProperty('--fitted-pokemon-size');
+  root.style.removeProperty('--fitted-card-size');
+  if (!viewport || !artwork || !document.body.classList.contains('has-active')) return;
+  // Keep scans at their normal size first; give up decorative artwork space.
+  let overflow = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+  if (!overflow) return;
+  const artSize = artwork.getBoundingClientRect().height;
+  root.style.setProperty('--fitted-pokemon-size', `${Math.max(72, Math.floor(artSize - overflow - 6))}px`);
+  overflow = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+  if (overflow) {
+    // Extremely short windows still scroll, but normal phones also fit the
+    // button after a modest scan reduction. Preserve the card aspect ratio.
+    root.style.setProperty('--fitted-card-size', `${Math.max(80, Math.floor(112 - overflow * 63 / 88 - 4))}px`);
+  }
 }
 
 function scheduleAppViewportLayout() {
@@ -8671,7 +8702,16 @@ if (typeof ResizeObserver !== 'undefined') {
   const dock = document.querySelector('.hub-outer-wrap');
   const observer = new ResizeObserver(scheduleAppViewportLayout);
   if (dock) observer.observe(dock);
+  const viewport = document.querySelector('.viewport');
+  if (viewport) observer.observe(viewport);
 }
+// Refitting must also happen after async cards/evolutions finish loading.
+if (typeof MutationObserver !== 'undefined') {
+  const card = document.getElementById('pokeCard');
+  if (card) new MutationObserver(scheduleAppViewportLayout).observe(card, { childList: true, subtree: true, characterData: true });
+  new MutationObserver(scheduleAppViewportLayout).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+}
+document.fonts?.ready.then(scheduleAppViewportLayout);
 
 </script>
 </body>

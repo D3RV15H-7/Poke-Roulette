@@ -2670,7 +2670,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 
 </style>
 </head>
-<body data-app-build="v48">
+<body data-app-build="v49">
 <div class="viewport">
   <header>
     <h1
@@ -3619,6 +3619,16 @@ function toTitleCase(str) {
 
 function getCleanNationalDexName(pokeName, speciesName) {
   let target = (speciesName || pokeName || '').toLowerCase().trim();
+
+  const officialNameKey = target.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/♀/g, 'f').replace(/♂/g, 'm').replace(/[^a-z0-9]/g, '');
+  const officialNames = {
+    mrmime: 'Mr. Mime', mrrime: 'Mr. Rime', mimejr: 'Mime Jr.',
+    farfetchd: "Farfetch'd", sirfetchd: "Sirfetch'd",
+    nidoranf: 'Nidoran♀', nidoranfemale: 'Nidoran♀',
+    nidoranm: 'Nidoran♂', nidoranmale: 'Nidoran♂'
+  };
+  if (officialNames[officialNameKey]) return officialNames[officialNameKey];
 
   // PokéAPI's species slug omits the accents used on physical cards.
   if (target.normalize('NFD').replace(/[\u0300-\u036f]/g, '') === 'flabebe') {
@@ -8100,7 +8110,12 @@ function normalizePokemonCardName(name) {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[♀]/g, ' female ')
     .replace(/[♂]/g, ' male ')
-    .replace(/[‐-‒–—]/g, '-')
+    .replace(/[’‘']/g, '')
+    .replace(/[.:_‐-‒–—-]/g, ' ')
+    .replace(/\bnidoran\s+f(?:emale)?\b/gi, 'nidoran female')
+    .replace(/\bnidoran\s+m(?:ale)?\b/gi, 'nidoran male')
+    .replace(/\bmr\s*(?=mime|rime)/gi, 'mr ')
+    .replace(/\bmime\s*jr\b/gi, 'mime jr')
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
@@ -8144,7 +8159,23 @@ function matchesExactPokemonName(cardName, pokemonName) {
     return words.includes(pokemonWords[0]);
   }
 
-  return card.includes(pokemon);
+  // Match complete words, including regional/owner prefixes and tag teams.
+  // Avoid confusing Nidoran's genders or matching names inside another word.
+  return new RegExp(`(?:^|[^a-z0-9])${escapedPokemon}(?=$|[^a-z0-9])`, 'i').test(card);
+}
+
+function getPokemonCardSearchNames(cleanName) {
+  const plain = cleanName.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const names = [cleanName, plain];
+  if (/[.]/.test(plain)) {
+    names.push(plain.replace(/\./g, ''), plain.replace(/\.\s*/g, '.'));
+  }
+  if (/[’‘']/.test(plain)) names.push(plain.replace(/[’‘']/g, ''));
+  if (plain.includes(':')) names.push(plain.replace(/:\s*/g, ' '));
+  // Providers may use symbols or gender suffixes. A broad Nidoran lookup
+  // remains safe because matchesExactPokemonName checks the gender afterwards.
+  if (/nidoran[♀♂]/i.test(plain)) names.push('Nidoran');
+  return [...new Set(names.map(name => name.trim()))];
 }
 
 function getNumericPrice(value) {
@@ -8239,7 +8270,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
 async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_complete_cache_v3008_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_complete_cache_v49_${normalizePokemonCardName(cleanName).replace(/[^a-z0-9]/g, '')}`;
   const TTL_MS = 86400000;
   let saved = memoryTcgCache.get(cacheKey) || null;
   if (!saved) {
@@ -8271,8 +8302,8 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const deadline = Date.now() + 45000;
   const headers = {};
   if (POKEMON_TCG_API_KEY) headers['X-Api-Key'] = POKEMON_TCG_API_KEY;
-  const searchNames = [...new Set([cleanName, cleanName.normalize('NFD').replace(/[\u0300-\u036f]/g, '')])];
-  const query = searchNames.map(name => `name:"${name.replace(/["']/g, '').trim()}"`).join(' OR ');
+  const searchNames = getPokemonCardSearchNames(cleanName);
+  const query = searchNames.map(name => `name:"${name.replace(/"/g, '').trim()}"`).join(' OR ');
 
   const fetchIo = async () => (await fetchPokemonTcgPages(
     `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}`, { headers }, deadline

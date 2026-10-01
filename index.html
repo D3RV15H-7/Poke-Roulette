@@ -2670,7 +2670,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 
 </style>
 </head>
-<body data-app-build="v52">
+<body data-app-build="v53">
 <div class="viewport">
   <header>
     <h1
@@ -8095,6 +8095,15 @@ function showAuthError(msg) {
   if (el) { el.innerText = msg; el.style.display = 'block'; }
 }
 
+function resetDexScrollToTop() {
+  // Both the window and the grid can scroll, depending on viewport height.
+  for (const scroller of document.querySelectorAll('#dexModal .modal-body, #dexGrid')) {
+    scroller.scrollTop = 0;
+    scroller.scrollLeft = 0;
+    scroller.scrollTo?.({ top: 0, left: 0, behavior: 'auto' });
+  }
+}
+
 function openModal(id) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -8107,6 +8116,7 @@ function openModal(id) {
     if (modal.id !== id && modal.style.display !== 'none') {
       resetHubModalPull(modal);
       modal.style.display = 'none';
+      if (modal.id === 'dexModal') resetDexScrollToTop();
 
       if (modal.id === 'setsModal') {
         ++setsViewRequestId;
@@ -8129,12 +8139,7 @@ function openModal(id) {
     if (input) input.value = '';
     renderDex();
 
-    // Always reopen the Dex from the top, matching the Sets behaviour.
-    const dexList = document.getElementById('dexGrid');
-    if (dexList) {
-      dexList.scrollTop = 0;
-      dexList.scrollTo?.({ top: 0, left: 0, behavior: 'auto' });
-    }
+    resetDexScrollToTop();
   }
 
   if (id === 'recentModal') renderRecents();
@@ -8142,6 +8147,12 @@ function openModal(id) {
 
   resetHubModalPull(el);
   el.style.display = 'flex';
+  if (id === 'dexModal') {
+    resetDexScrollToTop();
+    requestAnimationFrame(() => {
+      if (el.style.display === 'flex') resetDexScrollToTop();
+    });
+  }
   if (id === 'setsModal') {
     tcgSetsListScrollTop = 0;
     activeTcgSet = null;
@@ -8299,6 +8310,8 @@ function closeModal(e, id) {
       resetHubModalPull(el);
       el.style.display = 'none';
     }
+
+    if (id === 'dexModal') resetDexScrollToTop();
 
     if (id === 'setsModal') {
       ++setsViewRequestId;

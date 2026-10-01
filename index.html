@@ -2608,7 +2608,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 
 </style>
 </head>
-<body data-app-build="v39">
+<body data-app-build="v40">
 <div class="viewport">
   <header>
     <h1
@@ -3707,8 +3707,10 @@ const MCDONALDS_2015_FRONT_SCANS = Object.freeze({
   '7:electrike': 'https://static.tcgcollector.com/content/images/df/70/5b/df705b116b09ab99f9ad466ab3bb4e4604a52978c4c582a49b65c59f88ca1696.jpg',
   '8:rhyhorn': 'https://static.tcgcollector.com/content/images/d0/25/7d/d0257d18933c08aab6f3cbf787f5cd60a6d9836fa2aee096e97fc74316ba218c.jpg',
   '9:meditite': 'https://static.tcgcollector.com/content/images/05/c2/4f/05c24f7dd1b2bc794bcf5d4b68d9b979dba5784b4315ee0c6d00187a6a843421.jpg',
-  '10:marill': 'https://static.tcgcollector.com/content/images/3e/1c/cb/3e1ccb64ac6b9f0e786f956f3f522f05bd12564867d2593fff1615781752dee8.jpg',
-  '11:zigzagoon': 'https://den-cards.pokellector.com/182/Zigzagoon.MCD5.11.png',
+  // v40: verify the printed name and number; the former Marill URL was
+  // actually Zigzagoon #11. Use that watermark-free scan for Zigzagoon.
+  '10:marill': 'https://den-cards.pokellector.com/182/Marill.MCD5.10.png',
+  '11:zigzagoon': 'https://static.tcgcollector.com/content/images/3e/1c/cb/3e1ccb64ac6b9f0e786f956f3f522f05bd12564867d2593fff1615781752dee8.jpg',
   '12:skitty': 'https://static.tcgcollector.com/content/images/93/c7/43/93c7436da291f07b8c89549a0dc2011d72d1330e73b63eb70358d3d3d5ec718a.jpg',
 });
 // SVP catalogue/artwork cross-check, 2026-10-01. Missing official scans

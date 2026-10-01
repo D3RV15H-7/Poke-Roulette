@@ -283,7 +283,7 @@ body.has-active .wheel-wrap {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  border: clamp(3px, 0.5dvh, 5px) solid var(--card);
+  border: clamp(4px, 0.7dvh, 6px) solid #030507;
   background: conic-gradient(
     #ECE8D7 0deg 20deg,
     #EE3F24 20deg 40deg,
@@ -343,6 +343,24 @@ body.has-active .wheel-wrap {
   filter: drop-shadow(0 3px 5px rgba(0,0,0,0.6));
   transition: all 0.35s;
 }
+
+/* Stationary selection window; only the labels passing through it enlarge. */
+.wheel-focus-window {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+  overflow: visible;
+}
+.wheel-focus-window path {
+  fill: rgba(255, 255, 255, 0.08);
+  stroke: #030507;
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+.slice-label { transform-origin: center; }
 
 .center-hub {
   position: absolute;
@@ -2635,7 +2653,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 
 </style>
 </head>
-<body data-app-build="v42">
+<body data-app-build="v43">
 <div class="viewport">
   <header>
     <h1
@@ -2675,6 +2693,9 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
   <div class="wheel-wrap" id="wheelWrap" onclick="handleSpinButtonClick()">
     <div class="pointer"></div>
     <div class="wheel" id="wheel"></div>
+    <svg class="wheel-focus-window" viewBox="0 0 100 100" aria-hidden="true">
+      <path d="M 2.73 41.66 A 48 48 0 0 0 2.73 58.34 L 20.46 55.21 A 30 30 0 0 1 20.46 44.79 Z" />
+    </svg>
     <div class="center-hub" id="centerHub">
       <div class="center-hub-text" id="hubText">TAP<br>TO<br>SPIN</div>
     </div>
@@ -7020,6 +7041,7 @@ function buildLabels() {
     const deg = i * 20 + 10, rad = (deg - 90) * (Math.PI / 180);
     const el = document.createElement('div');
     el.className = 'slice-label';
+    el.dataset.wheelAngle = String(deg);
     el.style.left = `${(50 + 38 * Math.cos(rad)).toFixed(2)}%`;
     el.style.top = `${(50 + 38 * Math.sin(rad)).toFixed(2)}%`;
     el.style.transform = `translate(-50%, -50%) rotate(${deg + 90}deg)`;
@@ -7027,6 +7049,42 @@ function buildLabels() {
     layer.appendChild(el);
   });
   wheel.appendChild(layer);
+  updateWheelMagnifier(rot);
+}
+
+let wheelMagnifierFrame = null;
+
+function updateWheelMagnifier(angle) {
+  const wheel = document.getElementById('wheel');
+  if (!wheel) return;
+  wheel.querySelectorAll('.slice-label').forEach(el => {
+    const deg = Number(el.dataset.wheelAngle);
+    // Conic-gradient angles start at the top; the pointer is at 270 degrees.
+    const distance = Math.abs(((deg + angle - 270) % 360 + 540) % 360 - 180);
+    const focus = distance < 12 ? (1 + Math.cos(Math.PI * distance / 12)) / 2 : 0;
+    const scale = 1 + 0.32 * focus;
+    el.style.transform = `translate(-50%, -50%) rotate(${deg + 90}deg) scale(${scale})`;
+  });
+}
+
+function animateWheelMagnifier(duration) {
+  if (wheelMagnifierFrame !== null) cancelAnimationFrame(wheelMagnifierFrame);
+  const wheel = document.getElementById('wheel');
+  const startedAt = performance.now();
+  const tick = () => {
+    if (!wheel || performance.now() - startedAt >= duration) {
+      updateWheelMagnifier(rot);
+      wheelMagnifierFrame = null;
+      return;
+    }
+    // Sample the actual CSS animation rather than approximating its easing.
+    const transform = getComputedStyle(wheel).transform;
+    const matrix = transform === 'none' ? null : new DOMMatrixReadOnly(transform);
+    const angle = matrix ? Math.atan2(matrix.b, matrix.a) * 180 / Math.PI : 0;
+    updateWheelMagnifier(angle);
+    wheelMagnifierFrame = requestAnimationFrame(tick);
+  };
+  wheelMagnifierFrame = requestAnimationFrame(tick);
 }
 
 const getRec = () => {
@@ -8783,6 +8841,7 @@ async function loadPoke(id, log = false) {
       w.style.transition = 'none';
       rot = targetDeg;
       w.style.transform = `rotate(${rot}deg)`;
+      updateWheelMagnifier(rot);
     }
     renderCard(data, false);
     if (log) addRec(data);
@@ -8800,6 +8859,8 @@ function navigateDex(d) {
 }
 
 async function spinAndPick() {
+  if (isSpinning) return;
+  const spinStartedAt = performance.now();
   initAudio();
   const sList = document.getElementById('sList');
   if (sList) sList.style.display = 'none';
@@ -8834,6 +8895,7 @@ hideActive();
     w.style.transition = 'transform 3.2s cubic-bezier(0.12, 0.9, 0.18, 1)';
     rot += (Math.floor(Math.random() * 3) + 4) * 360 + ((targetDeg - (rot % 360) + 360) % 360);
     w.style.transform = `rotate(${rot}deg)`;
+    animateWheelMagnifier(3200);
   }
   let delay = 0, iv = 45;
   while (delay < 3000) {
@@ -8857,7 +8919,8 @@ hideActive();
       playCry();
       if (shiny) triggerSparkle();
       if (btn) btn.disabled = false;
-    }, 3200);
+    // Keep the enlarged winning label visible for half a second after landing.
+    }, Math.max(0, 3700 - (performance.now() - spinStartedAt)));
   } catch (e) {
     isSpinning = false;
     if (hubText) hubText.textContent = "TAP\nTO\nSPIN";

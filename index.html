@@ -2442,24 +2442,40 @@ body.has-active .hub-outer-wrap {
 }
 .tcg-variant-option .tcg-variant-circle { flex: 0 0 15px; width: 15px; height: 15px; }
 
-/* v34: the encounter is an independent scroller, never behind the dock.
-   Use the same visual-viewport coordinates for content, dock and overlays. */
+/* v36: a single grid frame owns the scroll area and bottom navigation.
+   The dock is a real layout row, not a separately positioned overlay. */
 html, body {
   height: 100%;
   min-height: 0;
   overflow: hidden;
   overscroll-behavior: none;
 }
-body { padding: 0; }
-.viewport,
-body.main-search-focused .viewport {
+body {
   position: fixed;
   top: var(--app-viewport-top, 0px);
   left: 0;
   right: 0;
+  height: var(--app-visible-height, 100dvh);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  justify-content: normal;
+  padding: 0;
+}
+html.is-standalone body {
+  top: 0;
+  height: 100dvh;
+}
+.viewport,
+body.main-search-focused .viewport {
+  position: relative;
+  top: auto;
+  left: auto;
+  right: auto;
   margin-inline: auto;
   width: min(100%, 480px);
-  height: max(0px, calc(var(--app-visible-height, 100dvh) - var(--measured-dock-height, 78px)));
+  height: 100%;
   min-height: 0;
   max-height: none;
   padding: max(0.4rem, env(safe-area-inset-top)) clamp(0.4rem, 2vw, 0.8rem) 1rem;
@@ -2472,8 +2488,13 @@ body.main-search-focused .viewport {
 .viewport > * { flex-shrink: 0; }
 .hub-outer-wrap,
 body.has-active .hub-outer-wrap {
-  top: calc(var(--app-viewport-top, 0px) + var(--app-visible-height, 100dvh) - var(--measured-dock-height, 78px));
+  position: relative;
+  top: auto;
   bottom: auto;
+  left: auto;
+  right: auto;
+  width: 100%;
+  margin: 0;
   background: var(--card);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -2487,38 +2508,34 @@ body.has-active .hub-outer-wrap {
   min-height: 0;
 }
 
-/* v35: reserve a persistent encounter action row above the dock. */
+/* Overlays use the measured top of the dock; the main page needs no
+   viewport-minus-dock calculations or separate action-row background. */
 :root {
   --app-content-height: calc(var(--app-visible-height, 100dvh) - var(--measured-dock-height, 78px));
-  --measured-spin-height: 56px;
-}
-body { --encounter-action-space: 0px; }
-body.has-active { --encounter-action-space: var(--measured-spin-height); }
-.viewport,
-body.main-search-focused .viewport {
-  height: max(0px, calc(var(--app-content-height) - var(--encounter-action-space)));
-  padding-bottom: 0.5rem;
 }
 body.has-active .spin-action-row-external {
-  position: fixed;
-  top: calc(var(--app-viewport-top, 0px) + var(--app-content-height) - var(--measured-spin-height));
+  position: static;
+  top: auto;
   bottom: auto;
-  left: 0;
-  right: 0;
+  left: auto;
+  right: auto;
   width: 100%;
-  margin: 0;
-  padding: 0.4rem 0.8rem;
-  background: var(--bg);
+  margin: 0.55rem auto 0.25rem;
+  padding: 0.35rem 0.8rem;
+  background: transparent;
   justify-content: center;
   align-items: center;
-  z-index: 85;
+  z-index: auto;
 }
-/* Home Screen uses the full layout viewport, including the home-indicator
-   safe area. A smaller visualViewport must not lift the dock off the edge. */
-html.is-standalone .hub-outer-wrap,
-html.is-standalone body.has-active .hub-outer-wrap {
-  top: auto;
-  bottom: 0;
+/* Safari gives up decorative Pokémon space before shrinking card scans.
+   Home Screen retains the larger encounter artwork. */
+html.is-browser body.has-active #pokeCard .img-box {
+  width: clamp(105px, min(36vw, 22dvh), 145px);
+  height: clamp(105px, min(36vw, 22dvh), 145px);
+}
+html.is-standalone body.has-active #pokeCard .img-box {
+  width: clamp(145px, 39vw, 180px);
+  height: clamp(145px, 39vw, 180px);
 }
 .modal,
 .dex-cards-modal,
@@ -2620,11 +2637,11 @@ html.is-standalone body.has-active .hub-outer-wrap {
     </div>
   </div>
 
-</div><!-- Main content ends above the persistent encounter action row. -->
-
   <div class="spin-action-row spin-action-row-external">
     <button class="btn-spin-again" id="spinBtn" onclick="handleSpinButtonClick()">SPIN AGAIN</button>
   </div>
+
+</div><!-- The complete encounter, including its action, scrolls above the dock. -->
 
  <div class="hub-outer-wrap">
   <div class="hub">
@@ -8615,11 +8632,6 @@ function syncAppViewportLayout() {
   // Measure the actual dock edge, not a guessed visual-viewport bottom.
   const dockTop = dock.getBoundingClientRect().top;
   root.style.setProperty('--app-content-height', `${Math.max(0, Math.floor(dockTop - viewportTop))}px`);
-  const spinRow = document.querySelector('.spin-action-row-external');
-  const spinHeight = spinRow?.getBoundingClientRect().height;
-  if (spinHeight > 0) {
-    root.style.setProperty('--measured-spin-height', `${Math.ceil(spinHeight)}px`);
-  }
 }
 
 function scheduleAppViewportLayout() {
@@ -8657,10 +8669,8 @@ setTimeout(syncAppViewportLayout, 250);
 // without a window resize. Keep the clipping boundary in sync with it.
 if (typeof ResizeObserver !== 'undefined') {
   const dock = document.querySelector('.hub-outer-wrap');
-  const spinRow = document.querySelector('.spin-action-row-external');
   const observer = new ResizeObserver(scheduleAppViewportLayout);
   if (dock) observer.observe(dock);
-  if (spinRow) observer.observe(spinRow);
 }
 
 </script>

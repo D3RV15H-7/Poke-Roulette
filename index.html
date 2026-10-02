@@ -640,20 +640,6 @@ body.has-active .wheel-wrap {
   text-transform: uppercase;
   color: #fff;
 }
-.lore-box {
-  background: #090d16;
-  border: 1px solid #334155;
-  border-radius: 8px;
-  padding: clamp(0.18rem, 0.4dvh, 0.3rem) 0.55rem;
-  margin-bottom: clamp(0.06rem, 0.2dvh, 0.15rem);
-  font-size: clamp(0.6rem, 1.1dvh, 0.7rem);
-  color: #cbd5e1;
-  line-height: 1.3;
-  text-align: center;
-  width: 100%;
-  word-wrap: break-word;
-  white-space: normal;
-}
 /* Evolution controls flank the artwork without changing its size. */
 .pokemon-art-stage { position: relative; width: 100%; }
 .evo-chain-wrap { display: none; position: absolute; inset: 0; pointer-events: none; }
@@ -721,31 +707,6 @@ body.has-active .wheel-wrap {
   touch-action: pan-x;
   min-height: 135px;
   align-items: center;
-}
-.tcg-refresh-strip-btn {
-  flex: 0 0 34px;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: #1e293b;
-  border: 1.5px solid #475569;
-  color: var(--sub);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 0.95rem;
-  font-weight: 900;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-  transition: transform 0.15s, background 0.15s, color 0.15s, border-color 0.15s;
-  flex-shrink: 0;
-  align-self: center;
-}
-.tcg-refresh-strip-btn:active {
-  transform: scale(0.92);
-  background: #334155;
-  color: #fff;
-  border-color: var(--red);
 }
 .tcg-empty-msg {
   color: var(--sub);
@@ -949,15 +910,6 @@ body.has-active .hub-item-label {
   align-items: center;
   justify-content: center;
   border: 2px solid var(--bg);
-}
-.micro-disclaimer {
-  font-size: 0.52rem;
-  color: #64748b;
-  text-align: center;
-  line-height: 1.2;
-  margin-top: 0.1rem;
-  user-select: none;
-  letter-spacing: 0.2px;
 }
 .tcg-zoom-modal {
   position: fixed;
@@ -2002,7 +1954,6 @@ body.has-active #pokeCard {
   width: clamp(108px, min(40vw, 20dvh), 185px);
   height: clamp(108px, min(40vw, 20dvh), 185px);
 }
-#pokeCard .lore-box { font-size: clamp(0.64rem, 1.1dvh, 0.75rem); }
 #pokeCard .tcg-title-text { font-size: clamp(0.59rem, 1.6vw, 0.68rem); }
 #pokeCard .tcg-count-text { font-size: clamp(0.55rem, 1.5vw, 0.65rem); }
 
@@ -2119,15 +2070,6 @@ body.has-active .hub-outer-wrap {
 .hub-item-label,
 body.has-active .hub-item-label { font-size: 0.56rem; }
 
-.micro-disclaimer {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: calc(var(--measured-dock-height) + 0.15rem);
-  z-index: 80;
-  pointer-events: none;
-  margin: 0;
-}
 
 /* Encounter-only re-spin control. */
 .spin-action-row-external {
@@ -2404,12 +2346,6 @@ body:not(.has-active) .wheel-wrap {
 }
 
 /* Disclaimer is normal document flow, so it cannot overlap the cards. */
-.micro-disclaimer {
-  position: static;
-  width: 100%;
-  margin: 0.05rem auto 0.4rem;
-  padding: 0 0.5rem;
-}
 
 /* Anchor the app nav to the viewport edge so a stale visualViewport
    measurement after refresh cannot pin it over the title. */
@@ -2728,7 +2664,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 #accountModal #authUserEmail { overflow-wrap: anywhere; }
 </style>
 </head>
-<body data-app-build="v57">
+<body data-app-build="v60">
 <div class="viewport">
   <header>
     <h1
@@ -3113,7 +3049,12 @@ function showToast(msg, type = 'success') {
 
   const icons = { success: '✓', error: '✕', warning: '!' };
   toast.className = `app-toast toast-${type} visible`;
-  toast.innerHTML = `<span style="color:var(--${type === 'warning' ? 'gold' : type === 'error' ? 'red' : 'green'}); font-size: 0.9rem;">${icons[type] || '•'}</span> <span>${msg}</span>`;
+  const icon = document.createElement('span');
+  icon.style.cssText = `color:var(--${type === 'warning' ? 'gold' : type === 'error' ? 'red' : 'green'});font-size:0.9rem;`;
+  icon.textContent = icons[type] || '•';
+  const message = document.createElement('span');
+  message.textContent = String(msg);
+  toast.replaceChildren(icon, document.createTextNode(' '), message);
 
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
@@ -3160,7 +3101,7 @@ function updateBtn(owned) {
 function initFirebaseIfReady() {
   try {
     if (typeof firebase !== 'undefined' && !auth) {
-      firebase.initializeApp(firebaseConfig);
+      if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
       auth = firebase.auth();
       db = firebase.firestore();
       setupAuthListener();
@@ -3281,6 +3222,11 @@ let currentZoomIndex = 0;
 let activeDexModalPoke = null;
 let openedFromDexModal = false;
 const memoryTcgCache = new Map();
+function setBoundedCache(cache, key, value, limit) {
+  cache.delete(key);
+  cache.set(key, value);
+  if (cache.size > limit) cache.delete(cache.keys().next().value);
+}
 
 function getStorageKey() {
   return activeUid ? `p_col_${activeUid}` : `p_col_guest`;
@@ -3442,41 +3388,20 @@ function isSetCardCollected(card) {
   );
 }  
 
-function reloadMemoryFromLocal() {
- try {
-  memCol = new Set(
-    JSON.parse(
-      localStorage.getItem(getStorageKey()) || '[]'
-    )
-  );
-
-  memCardCol = new Set(
-    JSON.parse(
-      localStorage.getItem(getCardStorageKey()) || '[]'
-    )
-  );
-
-  memSetCardCol = new Set(
-    JSON.parse(
-      localStorage.getItem(getSetCardStorageKey()) || '[]'
-    )
-  );
-
-  memSetCardVariants = new Set(
-    JSON.parse(
-      localStorage.getItem(
-        getSetCardVariantsStorageKey()
-      ) || '[]'
-    )
-  );
-
-} catch (e) {
-  memCol = new Set();
-  memCardCol = new Set();
-  memSetCardCol = new Set();
-  memSetCardVariants = new Set();
+function readStoredCollection(key) {
+  try {
+    const data = JSON.parse(localStorage.getItem(key) || '[]');
+    return new Set(Array.isArray(data) ? data : []);
+  } catch (error) {
+    return new Set();
+  }
 }
-
+function reloadMemoryFromLocal() {
+  // A corrupt optional cache must not hide the other saved collections.
+  memCol = readStoredCollection(getStorageKey());
+  memCardCol = readStoredCollection(getCardStorageKey());
+  memSetCardCol = readStoredCollection(getSetCardStorageKey());
+  memSetCardVariants = readStoredCollection(getSetCardVariantsStorageKey());
   updateCounts();
 }
 reloadMemoryFromLocal();
@@ -3532,7 +3457,10 @@ function writeFullCollectionToCloud(actionMessage = null) {
   
   db.collection("users").doc(currentUser.uid).set(payload, { merge: true })
     .then(() => { if (actionMessage) showToast(actionMessage, "success"); })
-    .catch(err => {});
+    .catch(err => {
+      console.warn('[SYNC] Collection saved locally; cloud sync failed:', err);
+      showToast('Saved on this device. Account sync is unavailable.', 'warning');
+    });
 }
 
 function toggleCardCollection(cardId, pokemonId = null) {
@@ -3543,6 +3471,8 @@ function toggleCardCollection(cardId, pokemonId = null) {
   const cardObj = currentCardsList.find(c => String(c.id) === cId);
   const fingerprint = getCardFingerprint(cardObj);
   const ownershipKeys = getCardOwnershipKeys(cardObj);
+  const zoomCardId = document.getElementById('tcgZoomModal')?.style.display === 'flex'
+    ? currentCardsList[currentZoomIndex]?.id : null;
 
   let wasAdded = false;
   const isCurrentlyOwned = ownershipKeys.some(key => memCardCol.has(key));
@@ -3567,6 +3497,10 @@ function toggleCardCollection(cardId, pokemonId = null) {
 
   saveLocalState();
   sortCardsList(currentCardsList);
+  if (zoomCardId != null) {
+    const selectedIndex = currentCardsList.findIndex(card => card.id === zoomCardId);
+    if (selectedIndex !== -1) currentZoomIndex = selectedIndex;
+  }
 
   if (activeDexModalPoke) {
     renderDexCardsGrid(currentCardsList);
@@ -3576,56 +3510,6 @@ function toggleCardCollection(cardId, pokemonId = null) {
   }
 
   const toastMsg = wasAdded ? "Card Added to Dex Collection" : "Card Removed from Dex Collection";
-  writeFullCollectionToCloud(toastMsg);
-}
-
-function toggleSetCardCollection(card) {
-  if (!card) return;
-
-  initAudio();
-  playTick();
-
-  const cardId = String(card.id || '')
-    .toLowerCase()
-    .trim();
-
-  const fingerprint = getCardFingerprint(card);
-
-  const isCurrentlyOwned =
-    (cardId && memSetCardCol.has(cardId)) ||
-    (fingerprint && memSetCardCol.has(fingerprint));
-
-  let wasAdded = false;
-
-  if (isCurrentlyOwned) {
-    if (cardId) {
-      memSetCardCol.delete(cardId);
-    }
-
-    if (fingerprint) {
-      memSetCardCol.delete(fingerprint);
-    }
-
-    wasAdded = false;
-
-  } else {
-    if (cardId) {
-      memSetCardCol.add(cardId);
-    }
-
-    if (fingerprint) {
-      memSetCardCol.add(fingerprint);
-    }
-
-    wasAdded = true;
-  }
-
-  saveLocalState();
-
-  const toastMsg = wasAdded
-    ? "Card Added to Sets Collection"
-    : "Card Removed from Sets Collection";
-
   writeFullCollectionToCloud(toastMsg);
 }
 
@@ -3650,22 +3534,18 @@ function toggleSetCardCollection(card) {
 } 
 
 function sortCardsList(cards) {
-  cards.sort((a, b) => {
-    const aOwned = isCardCollected(a) ? 1 : 0;
-    const bOwned = isCardCollected(b) ? 1 : 0;
-    if (bOwned !== aOwned) {
-      return bOwned - aOwned;
-    }
-    if (b.rarityScore !== a.rarityScore) {
-      return b.rarityScore - a.rarityScore;
-    }
-    const priceA = parseFloat(a.priceGBP) || 0;
-    const priceB = parseFloat(b.priceGBP) || 0;
-    return priceB - priceA ||
-      String(a.setName).localeCompare(String(b.setName)) ||
-      String(a.number).localeCompare(String(b.number), undefined, { numeric: true }) ||
-      String(a.id).localeCompare(String(b.id));
+  // Compute ownership once per card rather than on every sort comparison.
+  const ranked = cards.map(card => ({
+    card, owned: Number(isCardCollected(card)),
+    rarity: Number(card.rarityScore) || 0, price: parseFloat(card.priceGBP) || 0
+  }));
+  ranked.sort((a, b) => {
+    return b.owned - a.owned || b.rarity - a.rarity || b.price - a.price ||
+      String(a.card.setName).localeCompare(String(b.card.setName)) ||
+      String(a.card.number).localeCompare(String(b.card.number), undefined, { numeric: true }) ||
+      String(a.card.id).localeCompare(String(b.card.id));
   });
+  ranked.forEach(({ card }, index) => { cards[index] = card; });
 }
 
 function toTitleCase(str) {
@@ -4172,702 +4052,122 @@ const MCDONALDS_FRONT_SET_ALIASES = Object.freeze({
 // Verified English promo catalogue snapshot; live catalogues supplement it.
 // Verified numbered promos and clean front scans; numbering can have gaps.
 const MEP_PROMO_CARDS = Object.freeze([
-  {
-    "id": "mep-001",
-    "localId": "001",
-    "name": "Meganium",
-    "front": "https://www.serebii.net/card/megapromos/1.jpg"
-  },
-  {
-    "id": "mep-002",
-    "localId": "002",
-    "name": "Inteleon",
-    "front": "https://www.serebii.net/card/megapromos/2.jpg"
-  },
-  {
-    "id": "mep-003",
-    "localId": "003",
-    "name": "Alakazam",
-    "front": "https://www.serebii.net/card/megapromos/3.jpg"
-  },
-  {
-    "id": "mep-004",
-    "localId": "004",
-    "name": "Lunatone",
-    "front": "https://www.serebii.net/card/megapromos/4.jpg"
-  },
-  {
-    "id": "mep-005",
-    "localId": "005",
-    "name": "Drifloon",
-    "front": "https://www.serebii.net/card/megapromos/5.jpg"
-  },
-  {
-    "id": "mep-006",
-    "localId": "006",
-    "name": "Drifblim",
-    "front": "https://www.serebii.net/card/megapromos/6.jpg"
-  },
-  {
-    "id": "mep-007",
-    "localId": "007",
-    "name": "Psyduck",
-    "front": "https://www.serebii.net/card/megapromos/7.jpg"
-  },
-  {
-    "id": "mep-008",
-    "localId": "008",
-    "name": "Golduck",
-    "front": "https://www.serebii.net/card/megapromos/8.jpg"
-  },
-  {
-    "id": "mep-009",
-    "localId": "009",
-    "name": "Alakazam",
-    "front": "https://www.serebii.net/card/megapromos/9.jpg"
-  },
-  {
-    "id": "mep-010",
-    "localId": "010",
-    "name": "Riolu",
-    "front": "https://www.serebii.net/card/megapromos/10.jpg"
-  },
-  {
-    "id": "mep-011",
-    "localId": "011",
-    "name": "Mega Latias ex",
-    "front": "https://www.serebii.net/card/megapromos/11.jpg"
-  },
-  {
-    "id": "mep-012",
-    "localId": "012",
-    "name": "Mega Lucario ex",
-    "front": "https://www.serebii.net/card/megapromos/12.jpg"
-  },
-  {
-    "id": "mep-013",
-    "localId": "013",
-    "name": "Mega Venusaur ex",
-    "front": "https://www.serebii.net/card/megapromos/13.jpg"
-  },
-  {
-    "id": "mep-014",
-    "localId": "014",
-    "name": "Ceruledge",
-    "front": "https://www.serebii.net/card/megapromos/14.jpg"
-  },
-  {
-    "id": "mep-015",
-    "localId": "015",
-    "name": "Zacian",
-    "front": "https://www.serebii.net/card/megapromos/15.jpg"
-  },
-  {
-    "id": "mep-016",
-    "localId": "016",
-    "name": "Flygon",
-    "front": "https://www.serebii.net/card/megapromos/16.jpg"
-  },
-  {
-    "id": "mep-017",
-    "localId": "017",
-    "name": "Toxtricity",
-    "front": "https://www.serebii.net/card/megapromos/17.jpg"
-  },
-  {
-    "id": "mep-018",
-    "localId": "018",
-    "name": "Cottonee",
-    "front": "https://www.serebii.net/card/megapromos/18.jpg"
-  },
-  {
-    "id": "mep-019",
-    "localId": "019",
-    "name": "Whimsicott",
-    "front": "https://www.serebii.net/card/megapromos/19.jpg"
-  },
-  {
-    "id": "mep-020",
-    "localId": "020",
-    "name": "Sneasel",
-    "front": "https://www.serebii.net/card/megapromos/20.jpg"
-  },
-  {
-    "id": "mep-021",
-    "localId": "021",
-    "name": "Weavile",
-    "front": "https://www.serebii.net/card/megapromos/21.jpg"
-  },
-  {
-    "id": "mep-022",
-    "localId": "022",
-    "name": "Charcadet",
-    "front": "https://www.serebii.net/card/megapromos/22.jpg"
-  },
-  {
-    "id": "mep-023",
-    "localId": "023",
-    "name": "Mega Charizard X ex",
-    "front": "https://www.serebii.net/card/megapromos/23.jpg"
-  },
-  {
-    "id": "mep-024",
-    "localId": "024",
-    "name": "Oricorio ex",
-    "front": "https://www.serebii.net/card/megapromos/24.jpg"
-  },
-  {
-    "id": "mep-025",
-    "localId": "025",
-    "name": "Mega Kangaskhan ex",
-    "front": "https://www.serebii.net/card/megapromos/25.jpg"
-  },
-  {
-    "id": "mep-026",
-    "localId": "026",
-    "name": "Meloetta",
-    "front": "https://www.serebii.net/card/megapromos/26.jpg"
-  },
-  {
-    "id": "mep-027",
-    "localId": "027",
-    "name": "Haunter",
-    "front": "https://www.serebii.net/card/megapromos/27.jpg"
-  },
-  {
-    "id": "mep-028",
-    "localId": "028",
-    "name": "Celebratory Fanfare",
-    "front": "https://www.serebii.net/card/megapromos/28.jpg"
-  },
-  {
-    "id": "mep-029",
-    "localId": "029",
-    "name": "Mega Charizard X ex",
-    "front": "https://www.serebii.net/card/megapromos/29.jpg"
-  },
-  {
-    "id": "mep-030",
-    "localId": "030",
-    "name": "Mega Charizard Y ex",
-    "front": "https://www.serebii.net/card/megapromos/30.jpg"
-  },
-  {
-    "id": "mep-031",
-    "localId": "031",
-    "name": "N's Zekrom",
-    "front": "https://www.serebii.net/card/megapromos/31.jpg"
-  },
-  {
-    "id": "mep-032",
-    "localId": "032",
-    "name": "Mega Gardevoir ex",
-    "front": "https://www.serebii.net/card/megapromos/32.jpg"
-  },
-  {
-    "id": "mep-033",
-    "localId": "033",
-    "name": "Mega Lucario ex",
-    "front": "https://www.serebii.net/card/megapromos/33.jpg"
-  },
-  {
-    "id": "mep-034",
-    "localId": "034",
-    "name": "Mega Meganium ex",
-    "front": "https://www.serebii.net/card/megapromos/34.jpg"
-  },
-  {
-    "id": "mep-035",
-    "localId": "035",
-    "name": "Mega Emboar ex",
-    "front": "https://www.serebii.net/card/megapromos/35.jpg"
-  },
-  {
-    "id": "mep-036",
-    "localId": "036",
-    "name": "Mega Feraligatr ex",
-    "front": "https://www.serebii.net/card/megapromos/36.jpg"
-  },
-  {
-    "id": "mep-037",
-    "localId": "037",
-    "name": "Bulbasaur",
-    "front": "https://www.serebii.net/card/megapromos/37.jpg"
-  },
-  {
-    "id": "mep-038",
-    "localId": "038",
-    "name": "Charmander",
-    "front": "https://www.serebii.net/card/megapromos/38.jpg"
-  },
-  {
-    "id": "mep-039",
-    "localId": "039",
-    "name": "Squirtle",
-    "front": "https://www.serebii.net/card/megapromos/39.jpg"
-  },
-  {
-    "id": "mep-040",
-    "localId": "040",
-    "name": "Turtwig",
-    "front": "https://www.serebii.net/card/megapromos/40.jpg"
-  },
-  {
-    "id": "mep-041",
-    "localId": "041",
-    "name": "Chimchar",
-    "front": "https://www.serebii.net/card/megapromos/41.jpg"
-  },
-  {
-    "id": "mep-042",
-    "localId": "042",
-    "name": "Piplup",
-    "front": "https://www.serebii.net/card/megapromos/42.jpg"
-  },
-  {
-    "id": "mep-043",
-    "localId": "043",
-    "name": "Rowlet",
-    "front": "https://www.serebii.net/card/megapromos/43.jpg"
-  },
-  {
-    "id": "mep-044",
-    "localId": "044",
-    "name": "Litten",
-    "front": "https://www.serebii.net/card/megapromos/44.jpg"
-  },
-  {
-    "id": "mep-045",
-    "localId": "045",
-    "name": "Popplio",
-    "front": "https://www.serebii.net/card/megapromos/45.jpg"
-  },
-  {
-    "id": "mep-046",
-    "localId": "046",
-    "name": "Chikorita",
-    "front": "https://www.serebii.net/card/megapromos/46.jpg"
-  },
-  {
-    "id": "mep-047",
-    "localId": "047",
-    "name": "Cyndaquil",
-    "front": "https://www.serebii.net/card/megapromos/47.jpg"
-  },
-  {
-    "id": "mep-048",
-    "localId": "048",
-    "name": "Totodile",
-    "front": "https://www.serebii.net/card/megapromos/48.jpg"
-  },
-  {
-    "id": "mep-049",
-    "localId": "049",
-    "name": "Snivy",
-    "front": "https://www.serebii.net/card/megapromos/49.jpg"
-  },
-  {
-    "id": "mep-050",
-    "localId": "050",
-    "name": "Tepig",
-    "front": "https://www.serebii.net/card/megapromos/50.jpg"
-  },
-  {
-    "id": "mep-051",
-    "localId": "051",
-    "name": "Oshawott",
-    "front": "https://www.serebii.net/card/megapromos/51.jpg"
-  },
-  {
-    "id": "mep-052",
-    "localId": "052",
-    "name": "Grookey",
-    "front": "https://www.serebii.net/card/megapromos/52.jpg"
-  },
-  {
-    "id": "mep-053",
-    "localId": "053",
-    "name": "Scorbunny",
-    "front": "https://www.serebii.net/card/megapromos/53.jpg"
-  },
-  {
-    "id": "mep-054",
-    "localId": "054",
-    "name": "Sobble",
-    "front": "https://www.serebii.net/card/megapromos/54.jpg"
-  },
-  {
-    "id": "mep-055",
-    "localId": "055",
-    "name": "Treecko",
-    "front": "https://www.serebii.net/card/megapromos/55.jpg"
-  },
-  {
-    "id": "mep-056",
-    "localId": "056",
-    "name": "Torchic",
-    "front": "https://www.serebii.net/card/megapromos/56.jpg"
-  },
-  {
-    "id": "mep-057",
-    "localId": "057",
-    "name": "Mudkip",
-    "front": "https://www.serebii.net/card/megapromos/57.jpg"
-  },
-  {
-    "id": "mep-058",
-    "localId": "058",
-    "name": "Chespin",
-    "front": "https://www.serebii.net/card/megapromos/58.jpg"
-  },
-  {
-    "id": "mep-059",
-    "localId": "059",
-    "name": "Fennekin",
-    "front": "https://www.serebii.net/card/megapromos/59.jpg"
-  },
-  {
-    "id": "mep-060",
-    "localId": "060",
-    "name": "Froakie",
-    "front": "https://www.serebii.net/card/megapromos/60.jpg"
-  },
-  {
-    "id": "mep-061",
-    "localId": "061",
-    "name": "Sprigatito",
-    "front": "https://www.serebii.net/card/megapromos/61.jpg"
-  },
-  {
-    "id": "mep-062",
-    "localId": "062",
-    "name": "Fuecoco",
-    "front": "https://www.serebii.net/card/megapromos/62.jpg"
-  },
-  {
-    "id": "mep-063",
-    "localId": "063",
-    "name": "Quaxly",
-    "front": "https://www.serebii.net/card/megapromos/63.jpg"
-  },
-  {
-    "id": "mep-064",
-    "localId": "064",
-    "name": "Serperior",
-    "front": "https://www.serebii.net/card/megapromos/64.jpg"
-  },
-  {
-    "id": "mep-065",
-    "localId": "065",
-    "name": "Barbaracle",
-    "front": "https://www.serebii.net/card/megapromos/65.jpg"
-  },
-  {
-    "id": "mep-066",
-    "localId": "066",
-    "name": "Tyrantrum",
-    "front": "https://www.serebii.net/card/megapromos/66.jpg"
-  },
-  {
-    "id": "mep-067",
-    "localId": "067",
-    "name": "Doublade",
-    "front": "https://www.serebii.net/card/megapromos/67.jpg"
-  },
-  {
-    "id": "mep-068",
-    "localId": "068",
-    "name": "Makuhita",
-    "front": "https://www.serebii.net/card/megapromos/68.jpg"
-  },
-  {
-    "id": "mep-069",
-    "localId": "069",
-    "name": "Chikorita",
-    "front": "https://www.serebii.net/card/megapromos/69.jpg"
-  },
-  {
-    "id": "mep-070",
-    "localId": "070",
-    "name": "Tyrunt",
-    "front": "https://www.serebii.net/card/megapromos/70.jpg"
-  },
-  {
-    "id": "mep-071",
-    "localId": "071",
-    "name": "Mega Zygarde ex",
-    "front": "https://www.serebii.net/card/megapromos/71.jpg"
-  },
-  {
-    "id": "mep-072",
-    "localId": "072",
-    "name": "Mega Clefable ex",
-    "front": "https://www.serebii.net/card/megapromos/72.jpg"
-  },
-  {
-    "id": "mep-073",
-    "localId": "073",
-    "name": "Mega Gengar ex",
-    "front": "https://www.serebii.net/card/megapromos/73.jpg"
-  },
-  {
-    "id": "mep-074",
-    "localId": "074",
-    "name": "Delphox",
-    "front": "https://www.serebii.net/card/megapromos/74.jpg"
-  },
-  {
-    "id": "mep-075",
-    "localId": "075",
-    "name": "Ampharos",
-    "front": "https://www.serebii.net/card/megapromos/75.jpg"
-  },
-  {
-    "id": "mep-076",
-    "localId": "076",
-    "name": "Crobat",
-    "front": "https://www.serebii.net/card/megapromos/76.jpg"
-  },
-  {
-    "id": "mep-077",
-    "localId": "077",
-    "name": "Goodra",
-    "front": "https://www.serebii.net/card/megapromos/77.jpg"
-  },
-  {
-    "id": "mep-078",
-    "localId": "078",
-    "name": "Toxel",
-    "front": "https://www.serebii.net/card/megapromos/78.jpg"
-  },
-  {
-    "id": "mep-079",
-    "localId": "079",
-    "name": "Charmeleon",
-    "front": "https://www.serebii.net/card/megapromos/79.jpg"
-  },
-  {
-    "id": "mep-080",
-    "localId": "080",
-    "name": "Fennekin",
-    "front": "https://www.serebii.net/card/megapromos/80.jpg"
-  },
-  {
-    "id": "mep-081",
-    "localId": "081",
-    "name": "Mega Greninja ex",
-    "front": "https://www.serebii.net/card/megapromos/81.jpg"
-  },
-  {
-    "id": "mep-082",
-    "localId": "082",
-    "name": "Miraidon",
-    "front": "https://www.serebii.net/card/megapromos/82.jpg"
-  },
-  {
-    "id": "mep-083",
-    "localId": "083",
-    "name": "Slowbro",
-    "front": "https://www.serebii.net/card/megapromos/83.jpg"
-  },
-  {
-    "id": "mep-084",
-    "localId": "084",
-    "name": "Dhelmise",
-    "front": "https://www.serebii.net/card/megapromos/84.jpg"
-  },
-  {
-    "id": "mep-085",
-    "localId": "085",
-    "name": "Bastiodon",
-    "front": "https://www.serebii.net/card/megapromos/85.jpg"
-  },
-  {
-    "id": "mep-086",
-    "localId": "086",
-    "name": "Slowpoke",
-    "front": "https://www.serebii.net/card/megapromos/86.jpg"
-  },
-  {
-    "id": "mep-087",
-    "localId": "087",
-    "name": "Binacle",
-    "front": "https://www.serebii.net/card/megapromos/87.jpg"
-  },
-  {
-    "id": "mep-088",
-    "localId": "088",
-    "name": "Zarude",
-    "front": "https://www.serebii.net/card/megapromos/88.jpg"
-  },
-  {
-    "id": "mep-089",
-    "localId": "089",
-    "name": "Mega Zeraora ex",
-    "front": "https://cdn.shopify.com/s/files/1/0830/1327/1840/files/710754.jpg?v=1786416988"
-  },
-  {
-    "id": "mep-090",
-    "localId": "090",
-    "name": "Mega Darkrai ex",
-    "front": "https://cdn.shopify.com/s/files/1/0830/1327/1840/files/710756.jpg?v=1786416990"
-  },
-  {
-    "id": "mep-091",
-    "localId": "091",
-    "name": "Mega Dragonite ex",
-    "front": "https://cdn.shopify.com/s/files/1/0467/3083/8169/files/710757.jpg?v=1786478111"
-  },
-  {
-    "id": "mep-092",
-    "localId": "092",
-    "name": "Paradise Resort",
-    "front": "https://www.serebii.net/card/megapromos/92.jpg"
-  },
-  {
-    "id": "mep-093",
-    "localId": "093",
-    "name": "Pikachu",
-    "front": "https://www.serebii.net/card/megapromos/93.jpg"
-  },
-  {
-    "id": "mep-094",
-    "localId": "094",
-    "name": "Alolan Exeggutor",
-    "front": "https://www.serebii.net/card/megapromos/94.jpg"
-  },
-  {
-    "id": "mep-095",
-    "localId": "095",
-    "name": "Lucario",
-    "front": "https://www.serebii.net/card/megapromos/95.jpg"
-  },
-  {
-    "id": "mep-096",
-    "localId": "096",
-    "name": "Moltres",
-    "front": "https://www.serebii.net/card/megapromos/96.jpg"
-  },
-  {
-    "id": "mep-097",
-    "localId": "097",
-    "name": "Articuno",
-    "front": "https://www.serebii.net/card/megapromos/97.jpg"
-  },
-  {
-    "id": "mep-098",
-    "localId": "098",
-    "name": "Zapdos",
-    "front": "https://www.serebii.net/card/megapromos/98.jpg"
-  },
-  {
-    "id": "mep-099",
-    "localId": "099",
-    "name": "Greninja ex",
-    "front": "https://www.serebii.net/card/megapromos/99.jpg"
-  },
-  {
-    "id": "mep-100",
-    "localId": "100",
-    "name": "Sylveon ex",
-    "front": "https://www.serebii.net/card/megapromos/100.jpg"
-  },
-  {
-    "id": "mep-101",
-    "localId": "101",
-    "name": "Nidorina",
-    "front": "https://www.serebii.net/card/megapromos/101.jpg"
-  },
-  {
-    "id": "mep-102",
-    "localId": "102",
-    "name": "Victini",
-    "front": "https://www.serebii.net/card/megapromos/102.jpg"
-  },
-  {
-    "id": "mep-103",
-    "localId": "103",
-    "name": "Zeraora",
-    "front": "https://www.serebii.net/card/megapromos/103.jpg"
-  },
-  {
-    "id": "mep-104",
-    "localId": "104",
-    "name": "Mewtwo",
-    "front": "https://www.serebii.net/card/megapromos/104.jpg"
-  },
-  {
-    "id": "mep-105",
-    "localId": "105",
-    "name": "Mew",
-    "front": "https://www.serebii.net/card/megapromos/105.jpg"
-  },
-  {
-    "id": "mep-106",
-    "localId": "106",
-    "name": "Ditto",
-    "front": "https://www.serebii.net/card/megapromos/106.jpg"
-  },
-  {
-    "id": "mep-107",
-    "localId": "107",
-    "name": "Pikachu ex",
-    "front": "https://www.serebii.net/card/megapromos/107.jpg"
-  },
-  {
-    "id": "mep-108",
-    "localId": "108",
-    "name": "Espeon ex",
-    "front": "https://www.serebii.net/card/megapromos/108.jpg"
-  },
-  {
-    "id": "mep-109",
-    "localId": "109",
-    "name": "Pikachu ex",
-    "front": "https://www.serebii.net/card/megapromos/109.jpg"
-  },
-  {
-    "id": "mep-110",
-    "localId": "110",
-    "name": "Umbreon ex",
-    "front": "https://www.serebii.net/card/megapromos/110.jpg"
-  },
-  {
-    "id": "mep-111",
-    "localId": "111",
-    "name": "Masquerain",
-    "front": "https://www.serebii.net/card/megapromos/111.jpg"
-  },
-  {
-    "id": "mep-112",
-    "localId": "112",
-    "name": "Magmortar",
-    "front": "https://www.serebii.net/card/megapromos/112.jpg"
-  },
-  {
-    "id": "mep-113",
-    "localId": "113",
-    "name": "Enamorus",
-    "front": "https://www.serebii.net/card/megapromos/113.jpg"
-  },
-  {
-    "id": "mep-114",
-    "localId": "114",
-    "name": "Kommo-o",
-    "front": "https://www.serebii.net/card/megapromos/114.jpg"
-  },
-  {
-    "id": "mep-120",
-    "localId": "120",
-    "name": "Celebratory Fanfare",
-    "front": "https://www.serebii.net/card/megapromos/120.jpg"
-  },
-  {
-    "id": "mep-131",
-    "localId": "131",
-    "name": "Pokémon RUN Pikachu",
-    "front": "https://www.serebii.net/card/megapromos/131.jpg"
-  }
+  {"id":"mep-001","localId":"001","name":"Meganium","front":"https://www.serebii.net/card/megapromos/1.jpg"},
+  {"id":"mep-002","localId":"002","name":"Inteleon","front":"https://www.serebii.net/card/megapromos/2.jpg"},
+  {"id":"mep-003","localId":"003","name":"Alakazam","front":"https://www.serebii.net/card/megapromos/3.jpg"},
+  {"id":"mep-004","localId":"004","name":"Lunatone","front":"https://www.serebii.net/card/megapromos/4.jpg"},
+  {"id":"mep-005","localId":"005","name":"Drifloon","front":"https://www.serebii.net/card/megapromos/5.jpg"},
+  {"id":"mep-006","localId":"006","name":"Drifblim","front":"https://www.serebii.net/card/megapromos/6.jpg"},
+  {"id":"mep-007","localId":"007","name":"Psyduck","front":"https://www.serebii.net/card/megapromos/7.jpg"},
+  {"id":"mep-008","localId":"008","name":"Golduck","front":"https://www.serebii.net/card/megapromos/8.jpg"},
+  {"id":"mep-009","localId":"009","name":"Alakazam","front":"https://www.serebii.net/card/megapromos/9.jpg"},
+  {"id":"mep-010","localId":"010","name":"Riolu","front":"https://www.serebii.net/card/megapromos/10.jpg"},
+  {"id":"mep-011","localId":"011","name":"Mega Latias ex","front":"https://www.serebii.net/card/megapromos/11.jpg"},
+  {"id":"mep-012","localId":"012","name":"Mega Lucario ex","front":"https://www.serebii.net/card/megapromos/12.jpg"},
+  {"id":"mep-013","localId":"013","name":"Mega Venusaur ex","front":"https://www.serebii.net/card/megapromos/13.jpg"},
+  {"id":"mep-014","localId":"014","name":"Ceruledge","front":"https://www.serebii.net/card/megapromos/14.jpg"},
+  {"id":"mep-015","localId":"015","name":"Zacian","front":"https://www.serebii.net/card/megapromos/15.jpg"},
+  {"id":"mep-016","localId":"016","name":"Flygon","front":"https://www.serebii.net/card/megapromos/16.jpg"},
+  {"id":"mep-017","localId":"017","name":"Toxtricity","front":"https://www.serebii.net/card/megapromos/17.jpg"},
+  {"id":"mep-018","localId":"018","name":"Cottonee","front":"https://www.serebii.net/card/megapromos/18.jpg"},
+  {"id":"mep-019","localId":"019","name":"Whimsicott","front":"https://www.serebii.net/card/megapromos/19.jpg"},
+  {"id":"mep-020","localId":"020","name":"Sneasel","front":"https://www.serebii.net/card/megapromos/20.jpg"},
+  {"id":"mep-021","localId":"021","name":"Weavile","front":"https://www.serebii.net/card/megapromos/21.jpg"},
+  {"id":"mep-022","localId":"022","name":"Charcadet","front":"https://www.serebii.net/card/megapromos/22.jpg"},
+  {"id":"mep-023","localId":"023","name":"Mega Charizard X ex","front":"https://www.serebii.net/card/megapromos/23.jpg"},
+  {"id":"mep-024","localId":"024","name":"Oricorio ex","front":"https://www.serebii.net/card/megapromos/24.jpg"},
+  {"id":"mep-025","localId":"025","name":"Mega Kangaskhan ex","front":"https://www.serebii.net/card/megapromos/25.jpg"},
+  {"id":"mep-026","localId":"026","name":"Meloetta","front":"https://www.serebii.net/card/megapromos/26.jpg"},
+  {"id":"mep-027","localId":"027","name":"Haunter","front":"https://www.serebii.net/card/megapromos/27.jpg"},
+  {"id":"mep-028","localId":"028","name":"Celebratory Fanfare","front":"https://www.serebii.net/card/megapromos/28.jpg"},
+  {"id":"mep-029","localId":"029","name":"Mega Charizard X ex","front":"https://www.serebii.net/card/megapromos/29.jpg"},
+  {"id":"mep-030","localId":"030","name":"Mega Charizard Y ex","front":"https://www.serebii.net/card/megapromos/30.jpg"},
+  {"id":"mep-031","localId":"031","name":"N's Zekrom","front":"https://www.serebii.net/card/megapromos/31.jpg"},
+  {"id":"mep-032","localId":"032","name":"Mega Gardevoir ex","front":"https://www.serebii.net/card/megapromos/32.jpg"},
+  {"id":"mep-033","localId":"033","name":"Mega Lucario ex","front":"https://www.serebii.net/card/megapromos/33.jpg"},
+  {"id":"mep-034","localId":"034","name":"Mega Meganium ex","front":"https://www.serebii.net/card/megapromos/34.jpg"},
+  {"id":"mep-035","localId":"035","name":"Mega Emboar ex","front":"https://www.serebii.net/card/megapromos/35.jpg"},
+  {"id":"mep-036","localId":"036","name":"Mega Feraligatr ex","front":"https://www.serebii.net/card/megapromos/36.jpg"},
+  {"id":"mep-037","localId":"037","name":"Bulbasaur","front":"https://www.serebii.net/card/megapromos/37.jpg"},
+  {"id":"mep-038","localId":"038","name":"Charmander","front":"https://www.serebii.net/card/megapromos/38.jpg"},
+  {"id":"mep-039","localId":"039","name":"Squirtle","front":"https://www.serebii.net/card/megapromos/39.jpg"},
+  {"id":"mep-040","localId":"040","name":"Turtwig","front":"https://www.serebii.net/card/megapromos/40.jpg"},
+  {"id":"mep-041","localId":"041","name":"Chimchar","front":"https://www.serebii.net/card/megapromos/41.jpg"},
+  {"id":"mep-042","localId":"042","name":"Piplup","front":"https://www.serebii.net/card/megapromos/42.jpg"},
+  {"id":"mep-043","localId":"043","name":"Rowlet","front":"https://www.serebii.net/card/megapromos/43.jpg"},
+  {"id":"mep-044","localId":"044","name":"Litten","front":"https://www.serebii.net/card/megapromos/44.jpg"},
+  {"id":"mep-045","localId":"045","name":"Popplio","front":"https://www.serebii.net/card/megapromos/45.jpg"},
+  {"id":"mep-046","localId":"046","name":"Chikorita","front":"https://www.serebii.net/card/megapromos/46.jpg"},
+  {"id":"mep-047","localId":"047","name":"Cyndaquil","front":"https://www.serebii.net/card/megapromos/47.jpg"},
+  {"id":"mep-048","localId":"048","name":"Totodile","front":"https://www.serebii.net/card/megapromos/48.jpg"},
+  {"id":"mep-049","localId":"049","name":"Snivy","front":"https://www.serebii.net/card/megapromos/49.jpg"},
+  {"id":"mep-050","localId":"050","name":"Tepig","front":"https://www.serebii.net/card/megapromos/50.jpg"},
+  {"id":"mep-051","localId":"051","name":"Oshawott","front":"https://www.serebii.net/card/megapromos/51.jpg"},
+  {"id":"mep-052","localId":"052","name":"Grookey","front":"https://www.serebii.net/card/megapromos/52.jpg"},
+  {"id":"mep-053","localId":"053","name":"Scorbunny","front":"https://www.serebii.net/card/megapromos/53.jpg"},
+  {"id":"mep-054","localId":"054","name":"Sobble","front":"https://www.serebii.net/card/megapromos/54.jpg"},
+  {"id":"mep-055","localId":"055","name":"Treecko","front":"https://www.serebii.net/card/megapromos/55.jpg"},
+  {"id":"mep-056","localId":"056","name":"Torchic","front":"https://www.serebii.net/card/megapromos/56.jpg"},
+  {"id":"mep-057","localId":"057","name":"Mudkip","front":"https://www.serebii.net/card/megapromos/57.jpg"},
+  {"id":"mep-058","localId":"058","name":"Chespin","front":"https://www.serebii.net/card/megapromos/58.jpg"},
+  {"id":"mep-059","localId":"059","name":"Fennekin","front":"https://www.serebii.net/card/megapromos/59.jpg"},
+  {"id":"mep-060","localId":"060","name":"Froakie","front":"https://www.serebii.net/card/megapromos/60.jpg"},
+  {"id":"mep-061","localId":"061","name":"Sprigatito","front":"https://www.serebii.net/card/megapromos/61.jpg"},
+  {"id":"mep-062","localId":"062","name":"Fuecoco","front":"https://www.serebii.net/card/megapromos/62.jpg"},
+  {"id":"mep-063","localId":"063","name":"Quaxly","front":"https://www.serebii.net/card/megapromos/63.jpg"},
+  {"id":"mep-064","localId":"064","name":"Serperior","front":"https://www.serebii.net/card/megapromos/64.jpg"},
+  {"id":"mep-065","localId":"065","name":"Barbaracle","front":"https://www.serebii.net/card/megapromos/65.jpg"},
+  {"id":"mep-066","localId":"066","name":"Tyrantrum","front":"https://www.serebii.net/card/megapromos/66.jpg"},
+  {"id":"mep-067","localId":"067","name":"Doublade","front":"https://www.serebii.net/card/megapromos/67.jpg"},
+  {"id":"mep-068","localId":"068","name":"Makuhita","front":"https://www.serebii.net/card/megapromos/68.jpg"},
+  {"id":"mep-069","localId":"069","name":"Chikorita","front":"https://www.serebii.net/card/megapromos/69.jpg"},
+  {"id":"mep-070","localId":"070","name":"Tyrunt","front":"https://www.serebii.net/card/megapromos/70.jpg"},
+  {"id":"mep-071","localId":"071","name":"Mega Zygarde ex","front":"https://www.serebii.net/card/megapromos/71.jpg"},
+  {"id":"mep-072","localId":"072","name":"Mega Clefable ex","front":"https://www.serebii.net/card/megapromos/72.jpg"},
+  {"id":"mep-073","localId":"073","name":"Mega Gengar ex","front":"https://www.serebii.net/card/megapromos/73.jpg"},
+  {"id":"mep-074","localId":"074","name":"Delphox","front":"https://www.serebii.net/card/megapromos/74.jpg"},
+  {"id":"mep-075","localId":"075","name":"Ampharos","front":"https://www.serebii.net/card/megapromos/75.jpg"},
+  {"id":"mep-076","localId":"076","name":"Crobat","front":"https://www.serebii.net/card/megapromos/76.jpg"},
+  {"id":"mep-077","localId":"077","name":"Goodra","front":"https://www.serebii.net/card/megapromos/77.jpg"},
+  {"id":"mep-078","localId":"078","name":"Toxel","front":"https://www.serebii.net/card/megapromos/78.jpg"},
+  {"id":"mep-079","localId":"079","name":"Charmeleon","front":"https://www.serebii.net/card/megapromos/79.jpg"},
+  {"id":"mep-080","localId":"080","name":"Fennekin","front":"https://www.serebii.net/card/megapromos/80.jpg"},
+  {"id":"mep-081","localId":"081","name":"Mega Greninja ex","front":"https://www.serebii.net/card/megapromos/81.jpg"},
+  {"id":"mep-082","localId":"082","name":"Miraidon","front":"https://www.serebii.net/card/megapromos/82.jpg"},
+  {"id":"mep-083","localId":"083","name":"Slowbro","front":"https://www.serebii.net/card/megapromos/83.jpg"},
+  {"id":"mep-084","localId":"084","name":"Dhelmise","front":"https://www.serebii.net/card/megapromos/84.jpg"},
+  {"id":"mep-085","localId":"085","name":"Bastiodon","front":"https://www.serebii.net/card/megapromos/85.jpg"},
+  {"id":"mep-086","localId":"086","name":"Slowpoke","front":"https://www.serebii.net/card/megapromos/86.jpg"},
+  {"id":"mep-087","localId":"087","name":"Binacle","front":"https://www.serebii.net/card/megapromos/87.jpg"},
+  {"id":"mep-088","localId":"088","name":"Zarude","front":"https://www.serebii.net/card/megapromos/88.jpg"},
+  {"id":"mep-089","localId":"089","name":"Mega Zeraora ex","front":"https://cdn.shopify.com/s/files/1/0830/1327/1840/files/710754.jpg?v=1786416988"},
+  {"id":"mep-090","localId":"090","name":"Mega Darkrai ex","front":"https://cdn.shopify.com/s/files/1/0830/1327/1840/files/710756.jpg?v=1786416990"},
+  {"id":"mep-091","localId":"091","name":"Mega Dragonite ex","front":"https://cdn.shopify.com/s/files/1/0467/3083/8169/files/710757.jpg?v=1786478111"},
+  {"id":"mep-092","localId":"092","name":"Paradise Resort","front":"https://www.serebii.net/card/megapromos/92.jpg"},
+  {"id":"mep-093","localId":"093","name":"Pikachu","front":"https://www.serebii.net/card/megapromos/93.jpg"},
+  {"id":"mep-094","localId":"094","name":"Alolan Exeggutor","front":"https://www.serebii.net/card/megapromos/94.jpg"},
+  {"id":"mep-095","localId":"095","name":"Lucario","front":"https://www.serebii.net/card/megapromos/95.jpg"},
+  {"id":"mep-096","localId":"096","name":"Moltres","front":"https://www.serebii.net/card/megapromos/96.jpg"},
+  {"id":"mep-097","localId":"097","name":"Articuno","front":"https://www.serebii.net/card/megapromos/97.jpg"},
+  {"id":"mep-098","localId":"098","name":"Zapdos","front":"https://www.serebii.net/card/megapromos/98.jpg"},
+  {"id":"mep-099","localId":"099","name":"Greninja ex","front":"https://www.serebii.net/card/megapromos/99.jpg"},
+  {"id":"mep-100","localId":"100","name":"Sylveon ex","front":"https://www.serebii.net/card/megapromos/100.jpg"},
+  {"id":"mep-101","localId":"101","name":"Nidorina","front":"https://www.serebii.net/card/megapromos/101.jpg"},
+  {"id":"mep-102","localId":"102","name":"Victini","front":"https://www.serebii.net/card/megapromos/102.jpg"},
+  {"id":"mep-103","localId":"103","name":"Zeraora","front":"https://www.serebii.net/card/megapromos/103.jpg"},
+  {"id":"mep-104","localId":"104","name":"Mewtwo","front":"https://www.serebii.net/card/megapromos/104.jpg"},
+  {"id":"mep-105","localId":"105","name":"Mew","front":"https://www.serebii.net/card/megapromos/105.jpg"},
+  {"id":"mep-106","localId":"106","name":"Ditto","front":"https://www.serebii.net/card/megapromos/106.jpg"},
+  {"id":"mep-107","localId":"107","name":"Pikachu ex","front":"https://www.serebii.net/card/megapromos/107.jpg"},
+  {"id":"mep-108","localId":"108","name":"Espeon ex","front":"https://www.serebii.net/card/megapromos/108.jpg"},
+  {"id":"mep-109","localId":"109","name":"Pikachu ex","front":"https://www.serebii.net/card/megapromos/109.jpg"},
+  {"id":"mep-110","localId":"110","name":"Umbreon ex","front":"https://www.serebii.net/card/megapromos/110.jpg"},
+  {"id":"mep-111","localId":"111","name":"Masquerain","front":"https://www.serebii.net/card/megapromos/111.jpg"},
+  {"id":"mep-112","localId":"112","name":"Magmortar","front":"https://www.serebii.net/card/megapromos/112.jpg"},
+  {"id":"mep-113","localId":"113","name":"Enamorus","front":"https://www.serebii.net/card/megapromos/113.jpg"},
+  {"id":"mep-114","localId":"114","name":"Kommo-o","front":"https://www.serebii.net/card/megapromos/114.jpg"},
+  {"id":"mep-120","localId":"120","name":"Celebratory Fanfare","front":"https://www.serebii.net/card/megapromos/120.jpg"},
+  {"id":"mep-131","localId":"131","name":"Pokémon RUN Pikachu","front":"https://www.serebii.net/card/megapromos/131.jpg"}
 ].filter(card => !isJumboOnlyCard(card)));
 // Exact English Sun & Moon promo identities; preserve SM-prefixed IDs.
 function normalizeSmPromoArtworkNumber(value) {
@@ -4875,1248 +4175,257 @@ function normalizeSmPromoArtworkNumber(value) {
   return match ? `SM${Number(match[1])}` : '';
 }
 const SM_PROMO_FRONT_SCANS = Object.freeze([
-  {
-    "number": "SM1",
-    "name": "Rowlet",
-    "front": "https://www.serebii.net/card/smpromos/1.jpg"
-  },
-  {
-    "number": "SM2",
-    "name": "Litten",
-    "front": "https://www.serebii.net/card/smpromos/2.jpg"
-  },
-  {
-    "number": "SM3",
-    "name": "Popplio",
-    "front": "https://www.serebii.net/card/smpromos/3.jpg"
-  },
-  {
-    "number": "SM4",
-    "name": "Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/4.jpg"
-  },
-  {
-    "number": "SM5",
-    "name": "Snorlax GX",
-    "front": "https://www.serebii.net/card/smpromos/5.jpg"
-  },
-  {
-    "number": "SM6",
-    "name": "Rockruff",
-    "front": "https://www.serebii.net/card/smpromos/6.jpg"
-  },
-  {
-    "number": "SM7",
-    "name": "Pikipek",
-    "front": "https://www.serebii.net/card/smpromos/7.jpg"
-  },
-  {
-    "number": "SM8",
-    "name": "Litten",
-    "front": "https://www.serebii.net/card/smpromos/8.jpg"
-  },
-  {
-    "number": "SM9",
-    "name": "Togedemaru",
-    "front": "https://www.serebii.net/card/smpromos/9.jpg"
-  },
-  {
-    "number": "SM10",
-    "name": "Shiinotic",
-    "front": "https://www.serebii.net/card/smpromos/10.jpg"
-  },
-  {
-    "number": "SM11",
-    "name": "Bruxish",
-    "front": "https://www.serebii.net/card/smpromos/11.jpg"
-  },
-  {
-    "number": "SM12",
-    "name": "Passimian",
-    "front": "https://www.serebii.net/card/smpromos/12.jpg"
-  },
-  {
-    "number": "SM13",
-    "name": "Oranguru",
-    "front": "https://www.serebii.net/card/smpromos/13.jpg"
-  },
-  {
-    "number": "SM14",
-    "name": "Lycanroc GX",
-    "front": "https://www.serebii.net/card/smpromos/14.jpg"
-  },
-  {
-    "number": "SM15",
-    "name": "Zygarde",
-    "front": "https://www.serebii.net/card/smpromos/15.jpg"
-  },
-  {
-    "number": "SM16",
-    "name": "Solgaleo GX",
-    "front": "https://www.serebii.net/card/smpromos/16.jpg"
-  },
-  {
-    "number": "SM17",
-    "name": "Lunala GX",
-    "front": "https://www.serebii.net/card/smpromos/17.jpg"
-  },
-  {
-    "number": "SM18",
-    "name": "Alolan Sandslash",
-    "front": "https://www.serebii.net/card/smpromos/18.jpg"
-  },
-  {
-    "number": "SM19",
-    "name": "Oricorio",
-    "front": "https://www.serebii.net/card/smpromos/19.jpg"
-  },
-  {
-    "number": "SM20",
-    "name": "Mudsdale",
-    "front": "https://www.serebii.net/card/smpromos/20.jpg"
-  },
-  {
-    "number": "SM21",
-    "name": "Drampa",
-    "front": "https://www.serebii.net/card/smpromos/21.jpg"
-  },
-  {
-    "number": "SM22",
-    "name": "Rowlet",
-    "front": "https://www.serebii.net/card/smpromos/22.jpg"
-  },
-  {
-    "number": "SM23",
-    "name": "Litten",
-    "front": "https://www.serebii.net/card/smpromos/23.jpg"
-  },
-  {
-    "number": "SM24",
-    "name": "Popplio",
-    "front": "https://www.serebii.net/card/smpromos/24.jpg"
-  },
-  {
-    "number": "SM25",
-    "name": "Lurantis",
-    "front": "https://www.serebii.net/card/smpromos/25.jpg"
-  },
-  {
-    "number": "SM26",
-    "name": "Tsareena",
-    "front": "https://www.serebii.net/card/smpromos/26.jpg"
-  },
-  {
-    "number": "SM27",
-    "name": "Turtonator",
-    "front": "https://www.serebii.net/card/smpromos/27.jpg"
-  },
-  {
-    "number": "SM28",
-    "name": "Vikavolt",
-    "front": "https://www.serebii.net/card/smpromos/28.jpg"
-  },
-  {
-    "number": "SM29",
-    "name": "Mimikyu",
-    "front": "https://www.serebii.net/card/smpromos/29.jpg"
-  },
-  {
-    "number": "SM30",
-    "name": "Tapu Koko",
-    "front": "https://www.serebii.net/card/smpromos/30.jpg"
-  },
-  {
-    "number": "SM31",
-    "name": "Tapu Koko",
-    "front": "https://www.serebii.net/card/smpromos/31.jpg"
-  },
-  {
-    "number": "SM32",
-    "name": "Tapu Bulu GX",
-    "front": "https://www.serebii.net/card/smpromos/32.jpg"
-  },
-  {
-    "number": "SM33",
-    "name": "Tapu Koko GX",
-    "front": "https://www.serebii.net/card/smpromos/33.jpg"
-  },
-  {
-    "number": "SM34",
-    "name": "Bewear GX",
-    "front": "https://www.serebii.net/card/smpromos/34.jpg"
-  },
-  {
-    "number": "SM35",
-    "name": "Espeon GX",
-    "front": "https://www.serebii.net/card/smpromos/35.jpg"
-  },
-  {
-    "number": "SM36",
-    "name": "Umbreon GX",
-    "front": "https://www.serebii.net/card/smpromos/36.jpg"
-  },
-  {
-    "number": "SM37",
-    "name": "Decidueye GX",
-    "front": "https://www.serebii.net/card/smpromos/37.jpg"
-  },
-  {
-    "number": "SM38",
-    "name": "Incineroar GX",
-    "front": "https://www.serebii.net/card/smpromos/38.jpg"
-  },
-  {
-    "number": "SM39",
-    "name": "Primarina GX",
-    "front": "https://www.serebii.net/card/smpromos/39.jpg"
-  },
-  {
-    "number": "SM40",
-    "name": "Jangmo-o",
-    "front": "https://www.serebii.net/card/smpromos/40.jpg"
-  },
-  {
-    "number": "SM41",
-    "name": "Komala",
-    "front": "https://www.serebii.net/card/smpromos/41.jpg"
-  },
-  {
-    "number": "SM42",
-    "name": "Cosmog",
-    "front": "https://www.serebii.net/card/smpromos/42.jpg"
-  },
-  {
-    "number": "SM43",
-    "name": "Alolan Meowth",
-    "front": "https://www.serebii.net/card/smpromos/43.jpg"
-  },
-  {
-    "number": "SM44",
-    "name": "Togedemaru",
-    "front": "https://www.serebii.net/card/smpromos/44.jpg"
-  },
-  {
-    "number": "SM45",
-    "name": "Tapu Lele",
-    "front": "https://www.serebii.net/card/smpromos/45.jpg"
-  },
-  {
-    "number": "SM46",
-    "name": "Seviper",
-    "front": "https://www.serebii.net/card/smpromos/46.jpg"
-  },
-  {
-    "number": "SM47",
-    "name": "Crabominable",
-    "front": "https://www.serebii.net/card/smpromos/47.jpg"
-  },
-  {
-    "number": "SM48",
-    "name": "Zygarde",
-    "front": "https://www.serebii.net/card/smpromos/48.jpg"
-  },
-  {
-    "number": "SM49",
-    "name": "Bewear",
-    "front": "https://www.serebii.net/card/smpromos/49.jpg"
-  },
-  {
-    "number": "SM50",
-    "name": "Tapu Koko GX",
-    "front": "https://www.serebii.net/card/smpromos/50.jpg"
-  },
-  {
-    "number": "SM51",
-    "name": "Alolan Meowth",
-    "front": "https://www.serebii.net/card/smpromos/51.jpg"
-  },
-  {
-    "number": "SM52",
-    "name": "Golisopod",
-    "front": "https://www.serebii.net/card/smpromos/52.jpg"
-  },
-  {
-    "number": "SM53",
-    "name": "Dhelmise",
-    "front": "https://www.serebii.net/card/smpromos/53.jpg"
-  },
-  {
-    "number": "SM54",
-    "name": "Lucario",
-    "front": "https://www.serebii.net/card/smpromos/54.jpg"
-  },
-  {
-    "number": "SM55",
-    "name": "Decidueye",
-    "front": "https://www.serebii.net/card/smpromos/55.jpg"
-  },
-  {
-    "number": "SM56",
-    "name": "Tsareena GX",
-    "front": "https://www.serebii.net/card/smpromos/56.jpg"
-  },
-  {
-    "number": "SM57",
-    "name": "Ho-Oh GX",
-    "front": "https://www.serebii.net/card/smpromos/57.jpg"
-  },
-  {
-    "number": "SM58",
-    "name": "Necrozma GX",
-    "front": "https://www.serebii.net/card/smpromos/58.jpg"
-  },
-  {
-    "number": "SM59",
-    "name": "Marshadow GX",
-    "front": "https://www.serebii.net/card/smpromos/59.jpg"
-  },
-  {
-    "number": "SM60",
-    "name": "Charizard GX",
-    "front": "https://www.serebii.net/card/smpromos/60.jpg"
-  },
-  {
-    "number": "SM61",
-    "name": "Tapu Bulu",
-    "front": "https://www.serebii.net/card/smpromos/61.jpg"
-  },
-  {
-    "number": "SM62",
-    "name": "Golisopod GX",
-    "front": "https://www.serebii.net/card/smpromos/62.jpg"
-  },
-  {
-    "number": "SM63",
-    "name": "Salazzle GX",
-    "front": "https://www.serebii.net/card/smpromos/63.jpg"
-  },
-  {
-    "number": "SM64",
-    "name": "Silvally",
-    "front": "https://www.serebii.net/card/smpromos/64.jpg"
-  },
-  {
-    "number": "SM65",
-    "name": "Alolan Raichu",
-    "front": "https://www.serebii.net/card/smpromos/65.jpg"
-  },
-  {
-    "number": "SM66",
-    "name": "Pheromosa GX",
-    "front": "https://www.serebii.net/card/smpromos/66.jpg"
-  },
-  {
-    "number": "SM67",
-    "name": "Celesteela GX",
-    "front": "https://www.serebii.net/card/smpromos/67.jpg"
-  },
-  {
-    "number": "SM68",
-    "name": "Xurkitree GX",
-    "front": "https://www.serebii.net/card/smpromos/68.jpg"
-  },
-  {
-    "number": "SM69",
-    "name": "Buzzwole GX",
-    "front": "https://www.serebii.net/card/smpromos/69.jpg"
-  },
-  {
-    "number": "SM70",
-    "name": "Shining Ho-Oh",
-    "front": "https://www.serebii.net/card/smpromos/70.jpg"
-  },
-  {
-    "number": "SM71",
-    "name": "Kommo-o GX",
-    "front": "https://www.serebii.net/card/smpromos/71.jpg"
-  },
-  {
-    "number": "SM72",
-    "name": "Alolan Raichu",
-    "front": "https://www.serebii.net/card/smpromos/72.jpg"
-  },
-  {
-    "number": "SM73",
-    "name": "Salazzle",
-    "front": "https://www.serebii.net/card/smpromos/73.jpg"
-  },
-  {
-    "number": "SM74",
-    "name": "Regirock",
-    "front": "https://www.serebii.net/card/smpromos/74.jpg"
-  },
-  {
-    "number": "SM75",
-    "name": "Registeel",
-    "front": "https://www.serebii.net/card/smpromos/75.jpg"
-  },
-  {
-    "number": "SM76",
-    "name": "Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/76.jpg"
-  },
-  {
-    "number": "SM77",
-    "name": "Mewtwo",
-    "front": "https://www.serebii.net/card/smpromos/77.jpg"
-  },
-  {
-    "number": "SM78",
-    "name": "Champions Festival",
-    "front": "https://www.serebii.net/card/smpromos/78.jpg"
-  },
-  {
-    "number": "SM79",
-    "name": "Shining Celebi",
-    "front": "https://www.serebii.net/card/smpromos/79.jpg"
-  },
-  {
-    "number": "SM80",
-    "name": "Ho-Oh GX",
-    "front": "https://www.serebii.net/card/smpromos/80.jpg"
-  },
-  {
-    "number": "SM81",
-    "name": "Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/81.jpg"
-  },
-  {
-    "number": "SM82",
-    "name": "Shining Lugia",
-    "front": "https://www.serebii.net/card/smpromos/82.jpg"
-  },
-  {
-    "number": "SM83",
-    "name": "Zorua",
-    "front": "https://www.serebii.net/card/smpromos/83.jpg"
-  },
-  {
-    "number": "SM84",
-    "name": "Zoroark GX",
-    "front": "https://www.serebii.net/card/smpromos/84.jpg"
-  },
-  {
-    "number": "SM85",
-    "name": "Marshadow",
-    "front": "https://www.serebii.net/card/smpromos/85.jpg"
-  },
-  {
-    "number": "SM86",
-    "name": "Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/86.jpg"
-  },
-  {
-    "number": "SM87",
-    "name": "Latias",
-    "front": "https://www.serebii.net/card/smpromos/87.jpg"
-  },
-  {
-    "number": "SM88",
-    "name": "Latios",
-    "front": "https://www.serebii.net/card/smpromos/88.jpg"
-  },
-  {
-    "number": "SM89",
-    "name": "Zoroark",
-    "front": "https://www.serebii.net/card/smpromos/89.jpg"
-  },
-  {
-    "number": "SM90",
-    "name": "Raichu GX",
-    "front": "https://www.serebii.net/card/smpromos/90.jpg"
-  },
-  {
-    "number": "SM91",
-    "name": "Silvally GX",
-    "front": "https://www.serebii.net/card/smpromos/91.jpg"
-  },
-  {
-    "number": "SM92",
-    "name": "Tapu Fini",
-    "front": "https://www.serebii.net/card/smpromos/92.jpg"
-  },
-  {
-    "number": "SM93",
-    "name": "Marshadow",
-    "front": "https://www.serebii.net/card/smpromos/93.jpg"
-  },
-  {
-    "number": "SM94",
-    "name": "Wash Rotom",
-    "front": "https://www.serebii.net/card/smpromos/94.jpg"
-  },
-  {
-    "number": "SM95",
-    "name": "Lucario",
-    "front": "https://www.serebii.net/card/smpromos/95.jpg"
-  },
-  {
-    "number": "SM96",
-    "name": "Heatran",
-    "front": "https://www.serebii.net/card/smpromos/96.jpg"
-  },
-  {
-    "number": "SM97",
-    "name": "Gumshoos",
-    "front": "https://www.serebii.net/card/smpromos/97.jpg"
-  },
-  {
-    "number": "SM98",
-    "name": "Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/98.jpg"
-  },
-  {
-    "number": "SM99",
-    "name": "Mimikyu",
-    "front": "https://www.serebii.net/card/smpromos/99.jpg"
-  },
-  {
-    "number": "SM100",
-    "name": "Lucario GX",
-    "front": "https://www.serebii.net/card/smpromos/100.jpg"
-  },
-  {
-    "number": "SM101",
-    "name": "Dawn Wings Necrozma GX",
-    "front": "https://www.serebii.net/card/smpromos/101.jpg"
-  },
-  {
-    "number": "SM102",
-    "name": "Dusk Mane Necrozma GX",
-    "front": "https://www.serebii.net/card/smpromos/102.jpg"
-  },
-  {
-    "number": "SM103",
-    "name": "Lunala GX",
-    "front": "https://www.serebii.net/card/smpromos/103.jpg"
-  },
-  {
-    "number": "SM104",
-    "name": "Solgaleo GX",
-    "front": "https://www.serebii.net/card/smpromos/104.jpg"
-  },
-  {
-    "number": "SM105",
-    "name": "Lycanroc",
-    "front": "https://www.serebii.net/card/smpromos/105.jpg"
-  },
-  {
-    "number": "SM106",
-    "name": "Dawn Wings Necrozma",
-    "front": "https://www.serebii.net/card/smpromos/106.jpg"
-  },
-  {
-    "number": "SM107",
-    "name": "Dusk Mane Necrozma",
-    "front": "https://www.serebii.net/card/smpromos/107.jpg"
-  },
-  {
-    "number": "SM108",
-    "name": "Ash's Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/108.jpg"
-  },
-  {
-    "number": "SM109",
-    "name": "Ash's Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/109.jpg"
-  },
-  {
-    "number": "SM110",
-    "name": "Ash's Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/110.jpg"
-  },
-  {
-    "number": "SM111",
-    "name": "Ash's Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/111.jpg"
-  },
-  {
-    "number": "SM112",
-    "name": "Ash's Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/112.jpg"
-  },
-  {
-    "number": "SM113",
-    "name": "Ash's Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/113.jpg"
-  },
-  {
-    "number": "SM114",
-    "name": "Ash's Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/114.jpg"
-  },
-  {
-    "number": "SM115",
-    "name": "Pheromosa",
-    "front": "https://www.serebii.net/card/smpromos/115.jpg"
-  },
-  {
-    "number": "SM116",
-    "name": "Xurkitree",
-    "front": "https://www.serebii.net/card/smpromos/116.jpg"
-  },
-  {
-    "number": "SM117",
-    "name": "Malamar",
-    "front": "https://www.serebii.net/card/smpromos/117.jpg"
-  },
-  {
-    "number": "SM118",
-    "name": "Lycanroc",
-    "front": "https://www.serebii.net/card/smpromos/118.jpg"
-  },
-  {
-    "number": "SM119",
-    "name": "Exeggcute",
-    "front": "https://www.serebii.net/card/smpromos/119.jpg"
-  },
-  {
-    "number": "SM120",
-    "name": "Rockruff",
-    "front": "https://www.serebii.net/card/smpromos/120.jpg"
-  },
-  {
-    "number": "SM121",
-    "name": "Raikou GX",
-    "front": "https://www.serebii.net/card/smpromos/121.jpg"
-  },
-  {
-    "number": "SM122",
-    "name": "Zygarde GX",
-    "front": "https://www.serebii.net/card/smpromos/122.jpg"
-  },
-  {
-    "number": "SM123",
-    "name": "Dawn Wings Necrozma",
-    "front": "https://www.serebii.net/card/smpromos/123.jpg"
-  },
-  {
-    "number": "SM124",
-    "name": "Dusk Mane Necrozma",
-    "front": "https://www.serebii.net/card/smpromos/124.jpg"
-  },
-  {
-    "number": "SM125",
-    "name": "Naganadel GX",
-    "front": "https://www.serebii.net/card/smpromos/125.jpg"
-  },
-  {
-    "number": "SM126",
-    "name": "Ultra Necrozma GX",
-    "front": "https://www.serebii.net/card/smpromos/126.jpg"
-  },
-  {
-    "number": "SM127",
-    "name": "Alolan Sandslash",
-    "front": "https://www.serebii.net/card/smpromos/127.jpg"
-  },
-  {
-    "number": "SM128",
-    "name": "Alolan Ninetales",
-    "front": "https://www.serebii.net/card/smpromos/128.jpg"
-  },
-  {
-    "number": "SM129",
-    "name": "Kyogre",
-    "front": "https://www.serebii.net/card/smpromos/129.jpg"
-  },
-  {
-    "number": "SM130",
-    "name": "Manectric",
-    "front": "https://www.serebii.net/card/smpromos/130.jpg"
-  },
-  {
-    "number": "SM131",
-    "name": "Celesteela",
-    "front": "https://www.serebii.net/card/smpromos/131.jpg"
-  },
-  {
-    "number": "SM132",
-    "name": "Delcatty",
-    "front": "https://www.serebii.net/card/smpromos/132.jpg"
-  },
-  {
-    "number": "SM133",
-    "name": "Thundurus GX",
-    "front": "https://www.serebii.net/card/smpromos/133.jpg"
-  },
-  {
-    "number": "SM134",
-    "name": "Tornadus GX",
-    "front": "https://www.serebii.net/card/smpromos/134.jpg"
-  },
-  {
-    "number": "SM135",
-    "name": "Latias",
-    "front": "https://www.serebii.net/card/smpromos/135.jpg"
-  },
-  {
-    "number": "SM136",
-    "name": "Latios",
-    "front": "https://www.serebii.net/card/smpromos/136.jpg"
-  },
-  {
-    "number": "SM137",
-    "name": "Reshiram GX",
-    "front": "https://www.serebii.net/card/smpromos/137.jpg"
-  },
-  {
-    "number": "SM138",
-    "name": "Zekrom GX",
-    "front": "https://www.serebii.net/card/smpromos/138.jpg"
-  },
-  {
-    "number": "SM139",
-    "name": "Salamence GX",
-    "front": "https://www.serebii.net/card/smpromos/139.jpg"
-  },
-  {
-    "number": "SM140",
-    "name": "Salamence",
-    "front": "https://www.serebii.net/card/smpromos/140.jpg"
-  },
-  {
-    "number": "SM141",
-    "name": "White Kyurem GX",
-    "front": "https://www.serebii.net/card/smpromos/141.jpg"
-  },
-  {
-    "number": "SM142",
-    "name": "Kyurem",
-    "front": "https://www.serebii.net/card/smpromos/142.jpg"
-  },
-  {
-    "number": "SM143",
-    "name": "Moltres",
-    "front": "https://www.serebii.net/card/smpromos/143.jpg"
-  },
-  {
-    "number": "SM144",
-    "name": "Articuno",
-    "front": "https://www.serebii.net/card/smpromos/144.jpg"
-  },
-  {
-    "number": "SM145",
-    "name": "Zapdos",
-    "front": "https://www.serebii.net/card/smpromos/145.jpg"
-  },
-  {
-    "number": "SM146",
-    "name": "Leafeon GX",
-    "front": "https://www.serebii.net/card/smpromos/146.jpg"
-  },
-  {
-    "number": "SM147",
-    "name": "Glaceon GX",
-    "front": "https://www.serebii.net/card/smpromos/147.jpg"
-  },
-  {
-    "number": "SM148",
-    "name": "Champions Festival",
-    "front": "https://www.serebii.net/card/smpromos/148.jpg"
-  },
-  {
-    "number": "SM149",
-    "name": "Suicune",
-    "front": "https://www.serebii.net/card/smpromos/149.jpg"
-  },
-  {
-    "number": "SM150",
-    "name": "Raikou",
-    "front": "https://www.serebii.net/card/smpromos/150.jpg"
-  },
-  {
-    "number": "SM151",
-    "name": "Giratina",
-    "front": "https://www.serebii.net/card/smpromos/151.jpg"
-  },
-  {
-    "number": "SM152",
-    "name": "Tapu Lele",
-    "front": "https://www.serebii.net/card/smpromos/152.jpg"
-  },
-  {
-    "number": "SM153",
-    "name": "Rowlet",
-    "front": "https://www.serebii.net/card/smpromos/153.jpg"
-  },
-  {
-    "number": "SM154",
-    "name": "Salandit",
-    "front": "https://www.serebii.net/card/smpromos/154.jpg"
-  },
-  {
-    "number": "SM155",
-    "name": "Kingdra GX",
-    "front": "https://www.serebii.net/card/smpromos/155.jpg"
-  },
-  {
-    "number": "SM156",
-    "name": "Dragonite GX",
-    "front": "https://www.serebii.net/card/smpromos/156.jpg"
-  },
-  {
-    "number": "SM157",
-    "name": "Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/157.jpg"
-  },
-  {
-    "number": "SM158",
-    "name": "Charizard",
-    "front": "https://www.serebii.net/card/smpromos/158.jpg"
-  },
-  {
-    "number": "SM159",
-    "name": "Zapdos",
-    "front": "https://www.serebii.net/card/smpromos/159.jpg"
-  },
-  {
-    "number": "SM160",
-    "name": "Nidoqueen",
-    "front": "https://www.serebii.net/card/smpromos/160.jpg"
-  },
-  {
-    "number": "SM161",
-    "name": "Jirachi",
-    "front": "https://www.serebii.net/card/smpromos/161.jpg"
-  },
-  {
-    "number": "SM162",
-    "name": "Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/162.jpg"
-  },
-  {
-    "number": "SM163",
-    "name": "Mimikyu",
-    "front": "https://www.serebii.net/card/smpromos/163.jpg"
-  },
-  {
-    "number": "SM164",
-    "name": "Deoxys",
-    "front": "https://www.serebii.net/card/smpromos/164.jpg"
-  },
-  {
-    "number": "SM165",
-    "name": "Ultra Necrozma",
-    "front": "https://www.serebii.net/card/smpromos/165.jpg"
-  },
-  {
-    "number": "SM166",
-    "name": "Magikarp & Wailord GX",
-    "front": "https://www.serebii.net/card/smpromos/166.jpg"
-  },
-  {
-    "number": "SM167",
-    "name": "Celebi & Venusaur GX",
-    "front": "https://www.serebii.net/card/smpromos/167.jpg"
-  },
-  {
-    "number": "SM168",
-    "name": "Pikachu & Zekrom GX",
-    "front": "https://www.serebii.net/card/smpromos/168.jpg"
-  },
-  {
-    "number": "SM169",
-    "name": "Eevee & Snorlax GX",
-    "front": "https://www.serebii.net/card/smpromos/169.jpg"
-  },
-  {
-    "number": "SM170",
-    "name": "Detective Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/170.jpg"
-  },
-  {
-    "number": "SM171",
-    "name": "Flareon GX",
-    "front": "https://www.serebii.net/card/smpromos/171.jpg"
-  },
-  {
-    "number": "SM172",
-    "name": "Vaporeon GX",
-    "front": "https://www.serebii.net/card/smpromos/172.jpg"
-  },
-  {
-    "number": "SM173",
-    "name": "Jolteon GX",
-    "front": "https://www.serebii.net/card/smpromos/173.jpg"
-  },
-  {
-    "number": "SM174",
-    "name": "Eevee GX",
-    "front": "https://www.serebii.net/card/smpromos/174.jpg"
-  },
-  {
-    "number": "SM175",
-    "name": "Eevee GX",
-    "front": "https://www.serebii.net/card/smpromos/175.jpg"
-  },
-  {
-    "number": "SM176",
-    "name": "Eevee GX",
-    "front": "https://www.serebii.net/card/smpromos/176.jpg"
-  },
-  {
-    "number": "SM177",
-    "name": "Meltan",
-    "front": "https://www.serebii.net/card/smpromos/177.jpg"
-  },
-  {
-    "number": "SM178",
-    "name": "Melmetal GX",
-    "front": "https://www.serebii.net/card/smpromos/178.jpg"
-  },
-  {
-    "number": "SM179",
-    "name": "Volcanion",
-    "front": "https://www.serebii.net/card/smpromos/179.jpg"
-  },
-  {
-    "number": "SM180",
-    "name": "Stakataka",
-    "front": "https://www.serebii.net/card/smpromos/180.jpg"
-  },
-  {
-    "number": "SM181",
-    "name": "Melmetal",
-    "front": "https://www.serebii.net/card/smpromos/181.jpg"
-  },
-  {
-    "number": "SM182",
-    "name": "Persian",
-    "front": "https://www.serebii.net/card/smpromos/182.jpg"
-  },
-  {
-    "number": "SM183",
-    "name": "Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/183.jpg"
-  },
-  {
-    "number": "SM184",
-    "name": "Eevee",
-    "front": "https://www.serebii.net/card/smpromos/184.jpg"
-  },
-  {
-    "number": "SM185",
-    "name": "Typhlosion",
-    "front": "https://www.serebii.net/card/smpromos/185.jpg"
-  },
-  {
-    "number": "SM186",
-    "name": "Flareon",
-    "front": "https://www.serebii.net/card/smpromos/186.jpg"
-  },
-  {
-    "number": "SM187",
-    "name": "Marowak GX",
-    "front": "https://www.serebii.net/card/smpromos/187.jpg"
-  },
-  {
-    "number": "SM188",
-    "name": "Kangaskhan GX",
-    "front": "https://www.serebii.net/card/smpromos/188.jpg"
-  },
-  {
-    "number": "SM189",
-    "name": "Blastoise GX",
-    "front": "https://www.serebii.net/card/smpromos/189.jpg"
-  },
-  {
-    "number": "SM190",
-    "name": "Detective Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/190.jpg"
-  },
-  {
-    "number": "SM191",
-    "name": "Mewtwo & Mew GX",
-    "front": "https://www.serebii.net/card/smpromos/191.jpg"
-  },
-  {
-    "number": "SM192",
-    "name": "Lucario & Melmetal GX",
-    "front": "https://www.serebii.net/card/smpromos/192.jpg"
-  },
-  {
-    "number": "SM193",
-    "name": "Garchomp & Giratina GX",
-    "front": "https://www.serebii.net/card/smpromos/193.jpg"
-  },
-  {
-    "number": "SM194",
-    "name": "Detective Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/194.jpg"
-  },
-  {
-    "number": "SM195",
-    "name": "Charizard GX",
-    "front": "https://www.serebii.net/card/smpromos/195.jpg"
-  },
-  {
-    "number": "SM196",
-    "name": "Mewtwo GX",
-    "front": "https://www.serebii.net/card/smpromos/196.jpg"
-  },
-  {
-    "number": "SM197",
-    "name": "Greninja GX",
-    "front": "https://www.serebii.net/card/smpromos/197.jpg"
-  },
-  {
-    "number": "SM198",
-    "name": "Bulbasaur",
-    "front": "https://www.serebii.net/card/smpromos/198.jpg"
-  },
-  {
-    "number": "SM199",
-    "name": "Psyduck",
-    "front": "https://www.serebii.net/card/smpromos/199.jpg"
-  },
-  {
-    "number": "SM200",
-    "name": "Snubbull",
-    "front": "https://www.serebii.net/card/smpromos/200.jpg"
-  },
-  {
-    "number": "SM201",
-    "name": "Reshiram & Charizard GX",
-    "front": "https://www.serebii.net/card/smpromos/201.jpg"
-  },
-  {
-    "number": "SM202",
-    "name": "Amoonguss",
-    "front": "https://www.serebii.net/card/smpromos/202.jpg"
-  },
-  {
-    "number": "SM203",
-    "name": "Tapu Fini",
-    "front": "https://www.serebii.net/card/smpromos/203.jpg"
-  },
-  {
-    "number": "SM204",
-    "name": "Necrozma",
-    "front": "https://www.serebii.net/card/smpromos/204.jpg"
-  },
-  {
-    "number": "SM205",
-    "name": "Terrakion",
-    "front": "https://www.serebii.net/card/smpromos/205.jpg"
-  },
-  {
-    "number": "SM206",
-    "name": "Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/206.jpg"
-  },
-  {
-    "number": "SM207",
-    "name": "Sudowoodo",
-    "front": "https://www.serebii.net/card/smpromos/207.jpg"
-  },
-  {
-    "number": "SM208",
-    "name": "Vikavolt",
-    "front": "https://www.serebii.net/card/smpromos/208.jpg"
-  },
-  {
-    "number": "SM209",
-    "name": "Stakataka",
-    "front": "https://www.serebii.net/card/smpromos/209.jpg"
-  },
-  {
-    "number": "SM210",
-    "name": "Moltres & Articuno GX",
-    "front": "https://www.serebii.net/card/smpromos/210.jpg"
-  },
-  {
-    "number": "SM211",
-    "name": "Charizard GX",
-    "front": "https://www.serebii.net/card/smpromos/211.jpg"
-  },
-  {
-    "number": "SM212",
-    "name": "Gyarados GX",
-    "front": "https://www.serebii.net/card/smpromos/212.jpg"
-  },
-  {
-    "number": "SM213",
-    "name": "Raichu GX",
-    "front": "https://www.serebii.net/card/smpromos/213.jpg"
-  },
-  {
-    "number": "SM214",
-    "name": "Mewtwo",
-    "front": "https://www.serebii.net/card/smpromos/214.jpg"
-  },
-  {
-    "number": "SM215",
-    "name": "Mew",
-    "front": "https://www.serebii.net/card/smpromos/215.jpg"
-  },
-  {
-    "number": "SM216",
-    "name": "Porygon-Z GX",
-    "front": "https://www.serebii.net/card/smpromos/216.jpg"
-  },
-  {
-    "number": "SM217",
-    "name": "Trevenant & Dusknoir GX",
-    "front": "https://www.serebii.net/card/smpromos/217.jpg"
-  },
-  {
-    "number": "SM218",
-    "name": "Buzzwole",
-    "front": "https://www.serebii.net/card/smpromos/218.jpg"
-  },
-  {
-    "number": "SM219",
-    "name": "Entei",
-    "front": "https://www.serebii.net/card/smpromos/219.jpg"
-  },
-  {
-    "number": "SM220",
-    "name": "Phione",
-    "front": "https://www.serebii.net/card/smpromos/220.jpg"
-  },
-  {
-    "number": "SM221",
-    "name": "Blacephalon",
-    "front": "https://www.serebii.net/card/smpromos/221.jpg"
-  },
-  {
-    "number": "SM222",
-    "name": "Mismagius",
-    "front": "https://www.serebii.net/card/smpromos/222.jpg"
-  },
-  {
-    "number": "SM223",
-    "name": "Terrakion",
-    "front": "https://www.serebii.net/card/smpromos/223.jpg"
-  },
-  {
-    "number": "SM224",
-    "name": "Celebi",
-    "front": "https://www.serebii.net/card/smpromos/224.jpg"
-  },
-  {
-    "number": "SM225",
-    "name": "Victini",
-    "front": "https://www.serebii.net/card/smpromos/225.jpg"
-  },
-  {
-    "number": "SM226",
-    "name": "Charizard",
-    "front": "https://www.serebii.net/card/smpromos/226.jpg"
-  },
-  {
-    "number": "SM227",
-    "name": "Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/227.jpg"
-  },
-  {
-    "number": "SM228",
-    "name": "Armored Mewtwo",
-    "front": "https://www.serebii.net/card/smpromos/228.jpg"
-  },
-  {
-    "number": "SM229",
-    "name": "Venusaur & Snivy GX",
-    "front": "https://www.serebii.net/card/smpromos/229.jpg"
-  },
-  {
-    "number": "SM230",
-    "name": "Charizard & Braixen GX",
-    "front": "https://www.serebii.net/card/smpromos/230.jpg"
-  },
-  {
-    "number": "SM231",
-    "name": "Champions Festival",
-    "front": "https://www.serebii.net/card/smpromos/231.jpg"
-  },
-  {
-    "number": "SM232",
-    "name": "Pikachu GX",
-    "front": "https://www.serebii.net/card/smpromos/232.jpg"
-  },
-  {
-    "number": "SM233",
-    "name": "Eevee GX",
-    "front": "https://www.serebii.net/card/smpromos/233.jpg"
-  },
-  {
-    "number": "SM234",
-    "name": "Pikachu",
-    "front": "https://www.serebii.net/card/smpromos/234.jpg"
-  },
-  {
-    "number": "SM235",
-    "name": "Eevee",
-    "front": "https://www.serebii.net/card/smpromos/235.jpg"
-  },
-  {
-    "number": "SM236",
-    "name": "Alolan Sandslash GX",
-    "front": "https://www.serebii.net/card/smpromos/236.jpg"
-  },
-  {
-    "number": "SM237",
-    "name": "Leafeon",
-    "front": "https://www.serebii.net/card/smpromos/237.jpg"
-  },
-  {
-    "number": "SM238",
-    "name": "Glaceon",
-    "front": "https://www.serebii.net/card/smpromos/238.jpg"
-  },
-  {
-    "number": "SM239",
-    "name": "Carracosta GX",
-    "front": "https://www.serebii.net/card/smpromos/239.jpg"
-  },
-  {
-    "number": "SM240",
-    "name": "Espeon & Deoxys GX",
-    "front": "https://www.serebii.net/card/smpromos/240.jpg"
-  },
-  {
-    "number": "SM241",
-    "name": "Umbreon & Darkrai GX",
-    "front": "https://www.serebii.net/card/smpromos/241.jpg"
-  },
-  {
-    "number": "SM242",
-    "name": "Eevee GX",
-    "front": "https://www.serebii.net/card/smpromos/242.jpg"
-  },
-  {
-    "number": "SM243",
-    "name": "Regigigas",
-    "front": "https://www.serebii.net/card/smpromos/243.jpg"
-  },
-  {
-    "number": "SM244",
-    "name": "Aipom",
-    "front": "https://www.serebii.net/card/smpromos/244.jpg"
-  },
-  {
-    "number": "SM245",
-    "name": "Mismagius",
-    "front": "https://www.serebii.net/card/smpromos/245.jpg"
-  },
-  {
-    "number": "SM246",
-    "name": "Sabrina & Brycen",
-    "front": "https://www.serebii.net/card/smpromos/246.jpg"
-  },
-  {
-    "number": "SM247",
-    "name": "Reshiram & Charizard GX",
-    "front": "https://www.serebii.net/card/smpromos/247.jpg"
-  },
-  {
-    "number": "SM248",
-    "name": "Pikachu & Zekrom GX",
-    "front": "https://www.serebii.net/card/smpromos/248.jpg"
-  }
+  {"number":"SM1","name":"Rowlet","front":"https://www.serebii.net/card/smpromos/1.jpg"},
+  {"number":"SM2","name":"Litten","front":"https://www.serebii.net/card/smpromos/2.jpg"},
+  {"number":"SM3","name":"Popplio","front":"https://www.serebii.net/card/smpromos/3.jpg"},
+  {"number":"SM4","name":"Pikachu","front":"https://www.serebii.net/card/smpromos/4.jpg"},
+  {"number":"SM5","name":"Snorlax GX","front":"https://www.serebii.net/card/smpromos/5.jpg"},
+  {"number":"SM6","name":"Rockruff","front":"https://www.serebii.net/card/smpromos/6.jpg"},
+  {"number":"SM7","name":"Pikipek","front":"https://www.serebii.net/card/smpromos/7.jpg"},
+  {"number":"SM8","name":"Litten","front":"https://www.serebii.net/card/smpromos/8.jpg"},
+  {"number":"SM9","name":"Togedemaru","front":"https://www.serebii.net/card/smpromos/9.jpg"},
+  {"number":"SM10","name":"Shiinotic","front":"https://www.serebii.net/card/smpromos/10.jpg"},
+  {"number":"SM11","name":"Bruxish","front":"https://www.serebii.net/card/smpromos/11.jpg"},
+  {"number":"SM12","name":"Passimian","front":"https://www.serebii.net/card/smpromos/12.jpg"},
+  {"number":"SM13","name":"Oranguru","front":"https://www.serebii.net/card/smpromos/13.jpg"},
+  {"number":"SM14","name":"Lycanroc GX","front":"https://www.serebii.net/card/smpromos/14.jpg"},
+  {"number":"SM15","name":"Zygarde","front":"https://www.serebii.net/card/smpromos/15.jpg"},
+  {"number":"SM16","name":"Solgaleo GX","front":"https://www.serebii.net/card/smpromos/16.jpg"},
+  {"number":"SM17","name":"Lunala GX","front":"https://www.serebii.net/card/smpromos/17.jpg"},
+  {"number":"SM18","name":"Alolan Sandslash","front":"https://www.serebii.net/card/smpromos/18.jpg"},
+  {"number":"SM19","name":"Oricorio","front":"https://www.serebii.net/card/smpromos/19.jpg"},
+  {"number":"SM20","name":"Mudsdale","front":"https://www.serebii.net/card/smpromos/20.jpg"},
+  {"number":"SM21","name":"Drampa","front":"https://www.serebii.net/card/smpromos/21.jpg"},
+  {"number":"SM22","name":"Rowlet","front":"https://www.serebii.net/card/smpromos/22.jpg"},
+  {"number":"SM23","name":"Litten","front":"https://www.serebii.net/card/smpromos/23.jpg"},
+  {"number":"SM24","name":"Popplio","front":"https://www.serebii.net/card/smpromos/24.jpg"},
+  {"number":"SM25","name":"Lurantis","front":"https://www.serebii.net/card/smpromos/25.jpg"},
+  {"number":"SM26","name":"Tsareena","front":"https://www.serebii.net/card/smpromos/26.jpg"},
+  {"number":"SM27","name":"Turtonator","front":"https://www.serebii.net/card/smpromos/27.jpg"},
+  {"number":"SM28","name":"Vikavolt","front":"https://www.serebii.net/card/smpromos/28.jpg"},
+  {"number":"SM29","name":"Mimikyu","front":"https://www.serebii.net/card/smpromos/29.jpg"},
+  {"number":"SM30","name":"Tapu Koko","front":"https://www.serebii.net/card/smpromos/30.jpg"},
+  {"number":"SM31","name":"Tapu Koko","front":"https://www.serebii.net/card/smpromos/31.jpg"},
+  {"number":"SM32","name":"Tapu Bulu GX","front":"https://www.serebii.net/card/smpromos/32.jpg"},
+  {"number":"SM33","name":"Tapu Koko GX","front":"https://www.serebii.net/card/smpromos/33.jpg"},
+  {"number":"SM34","name":"Bewear GX","front":"https://www.serebii.net/card/smpromos/34.jpg"},
+  {"number":"SM35","name":"Espeon GX","front":"https://www.serebii.net/card/smpromos/35.jpg"},
+  {"number":"SM36","name":"Umbreon GX","front":"https://www.serebii.net/card/smpromos/36.jpg"},
+  {"number":"SM37","name":"Decidueye GX","front":"https://www.serebii.net/card/smpromos/37.jpg"},
+  {"number":"SM38","name":"Incineroar GX","front":"https://www.serebii.net/card/smpromos/38.jpg"},
+  {"number":"SM39","name":"Primarina GX","front":"https://www.serebii.net/card/smpromos/39.jpg"},
+  {"number":"SM40","name":"Jangmo-o","front":"https://www.serebii.net/card/smpromos/40.jpg"},
+  {"number":"SM41","name":"Komala","front":"https://www.serebii.net/card/smpromos/41.jpg"},
+  {"number":"SM42","name":"Cosmog","front":"https://www.serebii.net/card/smpromos/42.jpg"},
+  {"number":"SM43","name":"Alolan Meowth","front":"https://www.serebii.net/card/smpromos/43.jpg"},
+  {"number":"SM44","name":"Togedemaru","front":"https://www.serebii.net/card/smpromos/44.jpg"},
+  {"number":"SM45","name":"Tapu Lele","front":"https://www.serebii.net/card/smpromos/45.jpg"},
+  {"number":"SM46","name":"Seviper","front":"https://www.serebii.net/card/smpromos/46.jpg"},
+  {"number":"SM47","name":"Crabominable","front":"https://www.serebii.net/card/smpromos/47.jpg"},
+  {"number":"SM48","name":"Zygarde","front":"https://www.serebii.net/card/smpromos/48.jpg"},
+  {"number":"SM49","name":"Bewear","front":"https://www.serebii.net/card/smpromos/49.jpg"},
+  {"number":"SM50","name":"Tapu Koko GX","front":"https://www.serebii.net/card/smpromos/50.jpg"},
+  {"number":"SM51","name":"Alolan Meowth","front":"https://www.serebii.net/card/smpromos/51.jpg"},
+  {"number":"SM52","name":"Golisopod","front":"https://www.serebii.net/card/smpromos/52.jpg"},
+  {"number":"SM53","name":"Dhelmise","front":"https://www.serebii.net/card/smpromos/53.jpg"},
+  {"number":"SM54","name":"Lucario","front":"https://www.serebii.net/card/smpromos/54.jpg"},
+  {"number":"SM55","name":"Decidueye","front":"https://www.serebii.net/card/smpromos/55.jpg"},
+  {"number":"SM56","name":"Tsareena GX","front":"https://www.serebii.net/card/smpromos/56.jpg"},
+  {"number":"SM57","name":"Ho-Oh GX","front":"https://www.serebii.net/card/smpromos/57.jpg"},
+  {"number":"SM58","name":"Necrozma GX","front":"https://www.serebii.net/card/smpromos/58.jpg"},
+  {"number":"SM59","name":"Marshadow GX","front":"https://www.serebii.net/card/smpromos/59.jpg"},
+  {"number":"SM60","name":"Charizard GX","front":"https://www.serebii.net/card/smpromos/60.jpg"},
+  {"number":"SM61","name":"Tapu Bulu","front":"https://www.serebii.net/card/smpromos/61.jpg"},
+  {"number":"SM62","name":"Golisopod GX","front":"https://www.serebii.net/card/smpromos/62.jpg"},
+  {"number":"SM63","name":"Salazzle GX","front":"https://www.serebii.net/card/smpromos/63.jpg"},
+  {"number":"SM64","name":"Silvally","front":"https://www.serebii.net/card/smpromos/64.jpg"},
+  {"number":"SM65","name":"Alolan Raichu","front":"https://www.serebii.net/card/smpromos/65.jpg"},
+  {"number":"SM66","name":"Pheromosa GX","front":"https://www.serebii.net/card/smpromos/66.jpg"},
+  {"number":"SM67","name":"Celesteela GX","front":"https://www.serebii.net/card/smpromos/67.jpg"},
+  {"number":"SM68","name":"Xurkitree GX","front":"https://www.serebii.net/card/smpromos/68.jpg"},
+  {"number":"SM69","name":"Buzzwole GX","front":"https://www.serebii.net/card/smpromos/69.jpg"},
+  {"number":"SM70","name":"Shining Ho-Oh","front":"https://www.serebii.net/card/smpromos/70.jpg"},
+  {"number":"SM71","name":"Kommo-o GX","front":"https://www.serebii.net/card/smpromos/71.jpg"},
+  {"number":"SM72","name":"Alolan Raichu","front":"https://www.serebii.net/card/smpromos/72.jpg"},
+  {"number":"SM73","name":"Salazzle","front":"https://www.serebii.net/card/smpromos/73.jpg"},
+  {"number":"SM74","name":"Regirock","front":"https://www.serebii.net/card/smpromos/74.jpg"},
+  {"number":"SM75","name":"Registeel","front":"https://www.serebii.net/card/smpromos/75.jpg"},
+  {"number":"SM76","name":"Pikachu","front":"https://www.serebii.net/card/smpromos/76.jpg"},
+  {"number":"SM77","name":"Mewtwo","front":"https://www.serebii.net/card/smpromos/77.jpg"},
+  {"number":"SM78","name":"Champions Festival","front":"https://www.serebii.net/card/smpromos/78.jpg"},
+  {"number":"SM79","name":"Shining Celebi","front":"https://www.serebii.net/card/smpromos/79.jpg"},
+  {"number":"SM80","name":"Ho-Oh GX","front":"https://www.serebii.net/card/smpromos/80.jpg"},
+  {"number":"SM81","name":"Pikachu","front":"https://www.serebii.net/card/smpromos/81.jpg"},
+  {"number":"SM82","name":"Shining Lugia","front":"https://www.serebii.net/card/smpromos/82.jpg"},
+  {"number":"SM83","name":"Zorua","front":"https://www.serebii.net/card/smpromos/83.jpg"},
+  {"number":"SM84","name":"Zoroark GX","front":"https://www.serebii.net/card/smpromos/84.jpg"},
+  {"number":"SM85","name":"Marshadow","front":"https://www.serebii.net/card/smpromos/85.jpg"},
+  {"number":"SM86","name":"Pikachu","front":"https://www.serebii.net/card/smpromos/86.jpg"},
+  {"number":"SM87","name":"Latias","front":"https://www.serebii.net/card/smpromos/87.jpg"},
+  {"number":"SM88","name":"Latios","front":"https://www.serebii.net/card/smpromos/88.jpg"},
+  {"number":"SM89","name":"Zoroark","front":"https://www.serebii.net/card/smpromos/89.jpg"},
+  {"number":"SM90","name":"Raichu GX","front":"https://www.serebii.net/card/smpromos/90.jpg"},
+  {"number":"SM91","name":"Silvally GX","front":"https://www.serebii.net/card/smpromos/91.jpg"},
+  {"number":"SM92","name":"Tapu Fini","front":"https://www.serebii.net/card/smpromos/92.jpg"},
+  {"number":"SM93","name":"Marshadow","front":"https://www.serebii.net/card/smpromos/93.jpg"},
+  {"number":"SM94","name":"Wash Rotom","front":"https://www.serebii.net/card/smpromos/94.jpg"},
+  {"number":"SM95","name":"Lucario","front":"https://www.serebii.net/card/smpromos/95.jpg"},
+  {"number":"SM96","name":"Heatran","front":"https://www.serebii.net/card/smpromos/96.jpg"},
+  {"number":"SM97","name":"Gumshoos","front":"https://www.serebii.net/card/smpromos/97.jpg"},
+  {"number":"SM98","name":"Pikachu","front":"https://www.serebii.net/card/smpromos/98.jpg"},
+  {"number":"SM99","name":"Mimikyu","front":"https://www.serebii.net/card/smpromos/99.jpg"},
+  {"number":"SM100","name":"Lucario GX","front":"https://www.serebii.net/card/smpromos/100.jpg"},
+  {"number":"SM101","name":"Dawn Wings Necrozma GX","front":"https://www.serebii.net/card/smpromos/101.jpg"},
+  {"number":"SM102","name":"Dusk Mane Necrozma GX","front":"https://www.serebii.net/card/smpromos/102.jpg"},
+  {"number":"SM103","name":"Lunala GX","front":"https://www.serebii.net/card/smpromos/103.jpg"},
+  {"number":"SM104","name":"Solgaleo GX","front":"https://www.serebii.net/card/smpromos/104.jpg"},
+  {"number":"SM105","name":"Lycanroc","front":"https://www.serebii.net/card/smpromos/105.jpg"},
+  {"number":"SM106","name":"Dawn Wings Necrozma","front":"https://www.serebii.net/card/smpromos/106.jpg"},
+  {"number":"SM107","name":"Dusk Mane Necrozma","front":"https://www.serebii.net/card/smpromos/107.jpg"},
+  {"number":"SM108","name":"Ash's Pikachu","front":"https://www.serebii.net/card/smpromos/108.jpg"},
+  {"number":"SM109","name":"Ash's Pikachu","front":"https://www.serebii.net/card/smpromos/109.jpg"},
+  {"number":"SM110","name":"Ash's Pikachu","front":"https://www.serebii.net/card/smpromos/110.jpg"},
+  {"number":"SM111","name":"Ash's Pikachu","front":"https://www.serebii.net/card/smpromos/111.jpg"},
+  {"number":"SM112","name":"Ash's Pikachu","front":"https://www.serebii.net/card/smpromos/112.jpg"},
+  {"number":"SM113","name":"Ash's Pikachu","front":"https://www.serebii.net/card/smpromos/113.jpg"},
+  {"number":"SM114","name":"Ash's Pikachu","front":"https://www.serebii.net/card/smpromos/114.jpg"},
+  {"number":"SM115","name":"Pheromosa","front":"https://www.serebii.net/card/smpromos/115.jpg"},
+  {"number":"SM116","name":"Xurkitree","front":"https://www.serebii.net/card/smpromos/116.jpg"},
+  {"number":"SM117","name":"Malamar","front":"https://www.serebii.net/card/smpromos/117.jpg"},
+  {"number":"SM118","name":"Lycanroc","front":"https://www.serebii.net/card/smpromos/118.jpg"},
+  {"number":"SM119","name":"Exeggcute","front":"https://www.serebii.net/card/smpromos/119.jpg"},
+  {"number":"SM120","name":"Rockruff","front":"https://www.serebii.net/card/smpromos/120.jpg"},
+  {"number":"SM121","name":"Raikou GX","front":"https://www.serebii.net/card/smpromos/121.jpg"},
+  {"number":"SM122","name":"Zygarde GX","front":"https://www.serebii.net/card/smpromos/122.jpg"},
+  {"number":"SM123","name":"Dawn Wings Necrozma","front":"https://www.serebii.net/card/smpromos/123.jpg"},
+  {"number":"SM124","name":"Dusk Mane Necrozma","front":"https://www.serebii.net/card/smpromos/124.jpg"},
+  {"number":"SM125","name":"Naganadel GX","front":"https://www.serebii.net/card/smpromos/125.jpg"},
+  {"number":"SM126","name":"Ultra Necrozma GX","front":"https://www.serebii.net/card/smpromos/126.jpg"},
+  {"number":"SM127","name":"Alolan Sandslash","front":"https://www.serebii.net/card/smpromos/127.jpg"},
+  {"number":"SM128","name":"Alolan Ninetales","front":"https://www.serebii.net/card/smpromos/128.jpg"},
+  {"number":"SM129","name":"Kyogre","front":"https://www.serebii.net/card/smpromos/129.jpg"},
+  {"number":"SM130","name":"Manectric","front":"https://www.serebii.net/card/smpromos/130.jpg"},
+  {"number":"SM131","name":"Celesteela","front":"https://www.serebii.net/card/smpromos/131.jpg"},
+  {"number":"SM132","name":"Delcatty","front":"https://www.serebii.net/card/smpromos/132.jpg"},
+  {"number":"SM133","name":"Thundurus GX","front":"https://www.serebii.net/card/smpromos/133.jpg"},
+  {"number":"SM134","name":"Tornadus GX","front":"https://www.serebii.net/card/smpromos/134.jpg"},
+  {"number":"SM135","name":"Latias","front":"https://www.serebii.net/card/smpromos/135.jpg"},
+  {"number":"SM136","name":"Latios","front":"https://www.serebii.net/card/smpromos/136.jpg"},
+  {"number":"SM137","name":"Reshiram GX","front":"https://www.serebii.net/card/smpromos/137.jpg"},
+  {"number":"SM138","name":"Zekrom GX","front":"https://www.serebii.net/card/smpromos/138.jpg"},
+  {"number":"SM139","name":"Salamence GX","front":"https://www.serebii.net/card/smpromos/139.jpg"},
+  {"number":"SM140","name":"Salamence","front":"https://www.serebii.net/card/smpromos/140.jpg"},
+  {"number":"SM141","name":"White Kyurem GX","front":"https://www.serebii.net/card/smpromos/141.jpg"},
+  {"number":"SM142","name":"Kyurem","front":"https://www.serebii.net/card/smpromos/142.jpg"},
+  {"number":"SM143","name":"Moltres","front":"https://www.serebii.net/card/smpromos/143.jpg"},
+  {"number":"SM144","name":"Articuno","front":"https://www.serebii.net/card/smpromos/144.jpg"},
+  {"number":"SM145","name":"Zapdos","front":"https://www.serebii.net/card/smpromos/145.jpg"},
+  {"number":"SM146","name":"Leafeon GX","front":"https://www.serebii.net/card/smpromos/146.jpg"},
+  {"number":"SM147","name":"Glaceon GX","front":"https://www.serebii.net/card/smpromos/147.jpg"},
+  {"number":"SM148","name":"Champions Festival","front":"https://www.serebii.net/card/smpromos/148.jpg"},
+  {"number":"SM149","name":"Suicune","front":"https://www.serebii.net/card/smpromos/149.jpg"},
+  {"number":"SM150","name":"Raikou","front":"https://www.serebii.net/card/smpromos/150.jpg"},
+  {"number":"SM151","name":"Giratina","front":"https://www.serebii.net/card/smpromos/151.jpg"},
+  {"number":"SM152","name":"Tapu Lele","front":"https://www.serebii.net/card/smpromos/152.jpg"},
+  {"number":"SM153","name":"Rowlet","front":"https://www.serebii.net/card/smpromos/153.jpg"},
+  {"number":"SM154","name":"Salandit","front":"https://www.serebii.net/card/smpromos/154.jpg"},
+  {"number":"SM155","name":"Kingdra GX","front":"https://www.serebii.net/card/smpromos/155.jpg"},
+  {"number":"SM156","name":"Dragonite GX","front":"https://www.serebii.net/card/smpromos/156.jpg"},
+  {"number":"SM157","name":"Pikachu","front":"https://www.serebii.net/card/smpromos/157.jpg"},
+  {"number":"SM158","name":"Charizard","front":"https://www.serebii.net/card/smpromos/158.jpg"},
+  {"number":"SM159","name":"Zapdos","front":"https://www.serebii.net/card/smpromos/159.jpg"},
+  {"number":"SM160","name":"Nidoqueen","front":"https://www.serebii.net/card/smpromos/160.jpg"},
+  {"number":"SM161","name":"Jirachi","front":"https://www.serebii.net/card/smpromos/161.jpg"},
+  {"number":"SM162","name":"Pikachu","front":"https://www.serebii.net/card/smpromos/162.jpg"},
+  {"number":"SM163","name":"Mimikyu","front":"https://www.serebii.net/card/smpromos/163.jpg"},
+  {"number":"SM164","name":"Deoxys","front":"https://www.serebii.net/card/smpromos/164.jpg"},
+  {"number":"SM165","name":"Ultra Necrozma","front":"https://www.serebii.net/card/smpromos/165.jpg"},
+  {"number":"SM166","name":"Magikarp & Wailord GX","front":"https://www.serebii.net/card/smpromos/166.jpg"},
+  {"number":"SM167","name":"Celebi & Venusaur GX","front":"https://www.serebii.net/card/smpromos/167.jpg"},
+  {"number":"SM168","name":"Pikachu & Zekrom GX","front":"https://www.serebii.net/card/smpromos/168.jpg"},
+  {"number":"SM169","name":"Eevee & Snorlax GX","front":"https://www.serebii.net/card/smpromos/169.jpg"},
+  {"number":"SM170","name":"Detective Pikachu","front":"https://www.serebii.net/card/smpromos/170.jpg"},
+  {"number":"SM171","name":"Flareon GX","front":"https://www.serebii.net/card/smpromos/171.jpg"},
+  {"number":"SM172","name":"Vaporeon GX","front":"https://www.serebii.net/card/smpromos/172.jpg"},
+  {"number":"SM173","name":"Jolteon GX","front":"https://www.serebii.net/card/smpromos/173.jpg"},
+  {"number":"SM174","name":"Eevee GX","front":"https://www.serebii.net/card/smpromos/174.jpg"},
+  {"number":"SM175","name":"Eevee GX","front":"https://www.serebii.net/card/smpromos/175.jpg"},
+  {"number":"SM176","name":"Eevee GX","front":"https://www.serebii.net/card/smpromos/176.jpg"},
+  {"number":"SM177","name":"Meltan","front":"https://www.serebii.net/card/smpromos/177.jpg"},
+  {"number":"SM178","name":"Melmetal GX","front":"https://www.serebii.net/card/smpromos/178.jpg"},
+  {"number":"SM179","name":"Volcanion","front":"https://www.serebii.net/card/smpromos/179.jpg"},
+  {"number":"SM180","name":"Stakataka","front":"https://www.serebii.net/card/smpromos/180.jpg"},
+  {"number":"SM181","name":"Melmetal","front":"https://www.serebii.net/card/smpromos/181.jpg"},
+  {"number":"SM182","name":"Persian","front":"https://www.serebii.net/card/smpromos/182.jpg"},
+  {"number":"SM183","name":"Pikachu","front":"https://www.serebii.net/card/smpromos/183.jpg"},
+  {"number":"SM184","name":"Eevee","front":"https://www.serebii.net/card/smpromos/184.jpg"},
+  {"number":"SM185","name":"Typhlosion","front":"https://www.serebii.net/card/smpromos/185.jpg"},
+  {"number":"SM186","name":"Flareon","front":"https://www.serebii.net/card/smpromos/186.jpg"},
+  {"number":"SM187","name":"Marowak GX","front":"https://www.serebii.net/card/smpromos/187.jpg"},
+  {"number":"SM188","name":"Kangaskhan GX","front":"https://www.serebii.net/card/smpromos/188.jpg"},
+  {"number":"SM189","name":"Blastoise GX","front":"https://www.serebii.net/card/smpromos/189.jpg"},
+  {"number":"SM190","name":"Detective Pikachu","front":"https://www.serebii.net/card/smpromos/190.jpg"},
+  {"number":"SM191","name":"Mewtwo & Mew GX","front":"https://www.serebii.net/card/smpromos/191.jpg"},
+  {"number":"SM192","name":"Lucario & Melmetal GX","front":"https://www.serebii.net/card/smpromos/192.jpg"},
+  {"number":"SM193","name":"Garchomp & Giratina GX","front":"https://www.serebii.net/card/smpromos/193.jpg"},
+  {"number":"SM194","name":"Detective Pikachu","front":"https://www.serebii.net/card/smpromos/194.jpg"},
+  {"number":"SM195","name":"Charizard GX","front":"https://www.serebii.net/card/smpromos/195.jpg"},
+  {"number":"SM196","name":"Mewtwo GX","front":"https://www.serebii.net/card/smpromos/196.jpg"},
+  {"number":"SM197","name":"Greninja GX","front":"https://www.serebii.net/card/smpromos/197.jpg"},
+  {"number":"SM198","name":"Bulbasaur","front":"https://www.serebii.net/card/smpromos/198.jpg"},
+  {"number":"SM199","name":"Psyduck","front":"https://www.serebii.net/card/smpromos/199.jpg"},
+  {"number":"SM200","name":"Snubbull","front":"https://www.serebii.net/card/smpromos/200.jpg"},
+  {"number":"SM201","name":"Reshiram & Charizard GX","front":"https://www.serebii.net/card/smpromos/201.jpg"},
+  {"number":"SM202","name":"Amoonguss","front":"https://www.serebii.net/card/smpromos/202.jpg"},
+  {"number":"SM203","name":"Tapu Fini","front":"https://www.serebii.net/card/smpromos/203.jpg"},
+  {"number":"SM204","name":"Necrozma","front":"https://www.serebii.net/card/smpromos/204.jpg"},
+  {"number":"SM205","name":"Terrakion","front":"https://www.serebii.net/card/smpromos/205.jpg"},
+  {"number":"SM206","name":"Pikachu","front":"https://www.serebii.net/card/smpromos/206.jpg"},
+  {"number":"SM207","name":"Sudowoodo","front":"https://www.serebii.net/card/smpromos/207.jpg"},
+  {"number":"SM208","name":"Vikavolt","front":"https://www.serebii.net/card/smpromos/208.jpg"},
+  {"number":"SM209","name":"Stakataka","front":"https://www.serebii.net/card/smpromos/209.jpg"},
+  {"number":"SM210","name":"Moltres & Articuno GX","front":"https://www.serebii.net/card/smpromos/210.jpg"},
+  {"number":"SM211","name":"Charizard GX","front":"https://www.serebii.net/card/smpromos/211.jpg"},
+  {"number":"SM212","name":"Gyarados GX","front":"https://www.serebii.net/card/smpromos/212.jpg"},
+  {"number":"SM213","name":"Raichu GX","front":"https://www.serebii.net/card/smpromos/213.jpg"},
+  {"number":"SM214","name":"Mewtwo","front":"https://www.serebii.net/card/smpromos/214.jpg"},
+  {"number":"SM215","name":"Mew","front":"https://www.serebii.net/card/smpromos/215.jpg"},
+  {"number":"SM216","name":"Porygon-Z GX","front":"https://www.serebii.net/card/smpromos/216.jpg"},
+  {"number":"SM217","name":"Trevenant & Dusknoir GX","front":"https://www.serebii.net/card/smpromos/217.jpg"},
+  {"number":"SM218","name":"Buzzwole","front":"https://www.serebii.net/card/smpromos/218.jpg"},
+  {"number":"SM219","name":"Entei","front":"https://www.serebii.net/card/smpromos/219.jpg"},
+  {"number":"SM220","name":"Phione","front":"https://www.serebii.net/card/smpromos/220.jpg"},
+  {"number":"SM221","name":"Blacephalon","front":"https://www.serebii.net/card/smpromos/221.jpg"},
+  {"number":"SM222","name":"Mismagius","front":"https://www.serebii.net/card/smpromos/222.jpg"},
+  {"number":"SM223","name":"Terrakion","front":"https://www.serebii.net/card/smpromos/223.jpg"},
+  {"number":"SM224","name":"Celebi","front":"https://www.serebii.net/card/smpromos/224.jpg"},
+  {"number":"SM225","name":"Victini","front":"https://www.serebii.net/card/smpromos/225.jpg"},
+  {"number":"SM226","name":"Charizard","front":"https://www.serebii.net/card/smpromos/226.jpg"},
+  {"number":"SM227","name":"Pikachu","front":"https://www.serebii.net/card/smpromos/227.jpg"},
+  {"number":"SM228","name":"Armored Mewtwo","front":"https://www.serebii.net/card/smpromos/228.jpg"},
+  {"number":"SM229","name":"Venusaur & Snivy GX","front":"https://www.serebii.net/card/smpromos/229.jpg"},
+  {"number":"SM230","name":"Charizard & Braixen GX","front":"https://www.serebii.net/card/smpromos/230.jpg"},
+  {"number":"SM231","name":"Champions Festival","front":"https://www.serebii.net/card/smpromos/231.jpg"},
+  {"number":"SM232","name":"Pikachu GX","front":"https://www.serebii.net/card/smpromos/232.jpg"},
+  {"number":"SM233","name":"Eevee GX","front":"https://www.serebii.net/card/smpromos/233.jpg"},
+  {"number":"SM234","name":"Pikachu","front":"https://www.serebii.net/card/smpromos/234.jpg"},
+  {"number":"SM235","name":"Eevee","front":"https://www.serebii.net/card/smpromos/235.jpg"},
+  {"number":"SM236","name":"Alolan Sandslash GX","front":"https://www.serebii.net/card/smpromos/236.jpg"},
+  {"number":"SM237","name":"Leafeon","front":"https://www.serebii.net/card/smpromos/237.jpg"},
+  {"number":"SM238","name":"Glaceon","front":"https://www.serebii.net/card/smpromos/238.jpg"},
+  {"number":"SM239","name":"Carracosta GX","front":"https://www.serebii.net/card/smpromos/239.jpg"},
+  {"number":"SM240","name":"Espeon & Deoxys GX","front":"https://www.serebii.net/card/smpromos/240.jpg"},
+  {"number":"SM241","name":"Umbreon & Darkrai GX","front":"https://www.serebii.net/card/smpromos/241.jpg"},
+  {"number":"SM242","name":"Eevee GX","front":"https://www.serebii.net/card/smpromos/242.jpg"},
+  {"number":"SM243","name":"Regigigas","front":"https://www.serebii.net/card/smpromos/243.jpg"},
+  {"number":"SM244","name":"Aipom","front":"https://www.serebii.net/card/smpromos/244.jpg"},
+  {"number":"SM245","name":"Mismagius","front":"https://www.serebii.net/card/smpromos/245.jpg"},
+  {"number":"SM246","name":"Sabrina & Brycen","front":"https://www.serebii.net/card/smpromos/246.jpg"},
+  {"number":"SM247","name":"Reshiram & Charizard GX","front":"https://www.serebii.net/card/smpromos/247.jpg"},
+  {"number":"SM248","name":"Pikachu & Zekrom GX","front":"https://www.serebii.net/card/smpromos/248.jpg"}
 ]);
 const SM_PROMO_FRONT_BY_NUMBER = new Map(SM_PROMO_FRONT_SCANS.map(card => [card.number, card]));
+const MEP_PROMO_FRONT_BY_NUMBER = new Map(MEP_PROMO_CARDS.map(card => [normalizeCardNumber(card.localId), card]));
 
 const PHYSICAL_PROMO_SET_IDS = new Set(['mep','svp','swshp','smp','xyp','bwp','dpp','hgssp','np','basep','wp','miscp']);
 const MEP_PROMO_SET = {
@@ -6229,7 +4538,7 @@ function getCardArtworkSources(card) {
     if (entry && (scanName === name || aliases[numberKey]?.includes(name))) promoFront = entry.front;
   }
   if (setId === 'mep') {
-    const entry = MEP_PROMO_CARDS.find(item => normalizeCardNumber(item.localId) === number);
+    const entry = MEP_PROMO_FRONT_BY_NUMBER.get(number);
     const scanName = String(entry?.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
     // Older catalogue records omitted X/Y for these exact numbered printings.
     const legacyAliases = { '23': ['megacharizardex'], '29': ['megacharizardex'], '30': ['megacharizardex'] };
@@ -6284,7 +4593,7 @@ function getCardArtworkSources(card) {
 }
 
 function setTcgImageFallbacks(img, card, quality = 'small') {
-  if (!img) return;
+  if (!img || !card) return;
   img._tcgCard = card;
   img._tcgQuality = quality;
   if (quality === 'large' && !img._tcgRetryButton) {
@@ -6299,7 +4608,7 @@ function setTcgImageFallbacks(img, card, quality = 'small') {
       event.stopPropagation();
       retryTcgArtwork(img);
     };
-    document.querySelector('.tcg-zoom-toolbar').appendChild(button);
+    document.querySelector('.tcg-zoom-toolbar')?.appendChild(button);
     img._tcgRetryButton = button;
   }
   setTcgArtworkUnavailable(img, false);
@@ -6560,7 +4869,7 @@ async function loadTcgDexCardDetail(id, deadline, forceRefresh = false) {
       { timeoutMs: 5000, deadline }, 0
     );
     if (data?.id !== id || !data?.set?.id) throw new Error('Invalid card detail');
-    tcgDetailCache.set(id, { savedAt: Date.now(), data });
+    setBoundedCache(tcgDetailCache, id, { savedAt: Date.now(), data }, 1000);
     return data;
   } catch (error) {
     if (cached) return cached.data;
@@ -6634,23 +4943,6 @@ function getDisplayedSetCardTotal(set) {
 let tcgSetsCache = null;
 let activeTcgSet = null;
   let activeTcgSetFilter = 'all';
-  let activeSetVariantCardId = null;
-
-document.addEventListener('click', (e) => {
-  if (!activeSetVariantCardId) return;
-
-  const selector = e.target.closest('.tcg-variant-selector');
-  const check = e.target.closest('.tcg-set-owned-check');
-
-  // Clicking inside the popup or on its trigger should not close it
-  if (selector || check) return;
-
-  activeSetVariantCardId = null;
-
-  if (activeTcgSet) {
-    renderCurrentSetCards();
-  }
-});
   
 async function fetchPhysicalTcgSets(forceRefresh = false) {
   if (tcgSetsRequest) return tcgSetsRequest;
@@ -6872,7 +5164,6 @@ function getPokemonIdFromCardName(cardName) {
 
 function inferSetCardVariantsFromPokemonTcg(card) {
   const tcgPrices = card?.tcgplayer?.prices || {};
-  const cmPrices = card?.cardmarket?.prices || {};
 
   const hasNormal = Boolean(
     tcgPrices.normal ||
@@ -7000,25 +5291,6 @@ function getTcgDexTcgPlayerFinishBuckets(card) {
       tcg.reverseHolofoil ||
       null
   };
-}
-
-function hasUsableTcgDexPriceBucket(bucket) {
-  if (!bucket || typeof bucket !== 'object') {
-    return false;
-  }
-
-  return [
-    bucket.marketPrice,
-    bucket.market,
-    bucket.midPrice,
-    bucket.mid,
-    bucket.lowPrice,
-    bucket.low,
-    bucket.highPrice,
-    bucket.high
-  ].some(value =>
-    getNumericPrice(value) != null
-  );
 }
 
 // Curated physical-printing supplements.
@@ -8190,19 +6462,9 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
             dexCard
           );
 
-        const finishEvidence =
-          applyCardAuxiliaryPrintingEvidence(
-            dexCard,
-            fusedEvidence
-          );
-
-        console.log('[TCGdex Variant]', {
-          card: card.name,
-          cardId: dexCard.id,
-          variants: dexCard.variants,
-          variantsDetailed: dexCard.variants_detailed,
-          resolved: finishEvidence
-        });
+        const finishEvidence = applyCardVariantSupplement(
+          card, applyCardAuxiliaryPrintingEvidence(dexCard, fusedEvidence)
+        );
 
         const variants = {
           standard: finishEvidence.standard,
@@ -8439,23 +6701,41 @@ async function fetchCardsForSet(setId, forceRefresh = false) {
   if (isExcludedDeckProductSet({ id: setId })) return [];
   if (tcgSetRequests.has(setId)) return tcgSetRequests.get(setId);
   const request = (async () => {
-    try { return await loadCardsForSet(setId, forceRefresh); }
+    try { return applyCachedVariantSupplements(await loadCardsForSet(setId, forceRefresh)); }
     catch (error) {
       console.warn('[SETS] Could not refresh set:', setId, error);
       const memory = window.tcgSetCardsCache?.[setId];
-      if (memory?.length) return filterCollectorCards(memory);
+      if (memory?.length) return applyCachedVariantSupplements(filterCollectorCards(memory));
       try {
         const key = setId === YELLOW_A_SET_ID
           ? 'pokeroulette_set_cards_v51_yellow-a-alternate'
           : getSetCardsCacheKey(setId);
         const saved = JSON.parse(localStorage.getItem(key));
-        if (saved?.data?.length) return filterCollectorCards(saved.data);
+        if (saved?.data?.length) return applyCachedVariantSupplements(filterCollectorCards(saved.data));
       } catch (cacheError) {}
       return [];
     }
   })();
   tcgSetRequests.set(setId, request);
   try { return await request; } finally { tcgSetRequests.delete(setId); }
+}
+
+function applyCachedVariantSupplements(cards) {
+  // Apply narrow corrections to saved catalogues too, without deleting caches
+  // or changing any ownership IDs, fingerprints, or saved variant keys.
+  return cards.map(card => {
+    if (!getCardVariantSupplement(card)) return card;
+    const evidence = applyCardVariantSupplement(card, {
+      ...card.variants, baseFinish: card.baseFinish
+    });
+    return {
+      ...card, baseFinish: evidence.baseFinish,
+      variants: {
+        ...card.variants, standard: evidence.standard,
+        reverseHolo: evidence.reverseHolo, other: evidence.other
+      }
+    };
+  });
 }
 
 async function fetchSvpCatalogueCards(url, headers) {
@@ -8728,6 +7008,10 @@ baseFinish:
 
 
 function resetSetsScrollToTop() {
+  if (setCardsTopScrollFrame !== null) {
+    cancelAnimationFrame(setCardsTopScrollFrame);
+    setCardsTopScrollFrame = null;
+  }
   const setsBody =
     document.querySelector('#setsModal .modal-body');
 
@@ -8771,7 +7055,6 @@ async function openTcgSet(set) {
   activeTcgSet = set;
   updateSetsRefreshButton();
   activeTcgSetFilter = 'all';
-  activeSetVariantCardId = null;
   
   const grid = document.getElementById('setsGrid');
   const loading = document.getElementById('setsLoading');
@@ -9160,7 +7443,6 @@ async function renderTcgSets(forceRefresh = false) {
   resetSetsScrollToTop();
   activeTcgSet = null;
   updateSetsRefreshButton();
-  activeSetVariantCardId = null;
   
   const loading = document.getElementById('setsLoading');
   const grid = document.getElementById('setsGrid');
@@ -9374,9 +7656,12 @@ function updateCounts() {
 }
 
 let firestoreUnsubscribe = null;
+let authSessionVersion = 0;
 function setupAuthListener() {
   if (!auth) return;
   auth.onAuthStateChanged(async (user) => {
+    const sessionVersion = ++authSessionVersion;
+    const previousUid = activeUid;
     if (firestoreUnsubscribe) { firestoreUnsubscribe(); firestoreUnsubscribe = null; }
     currentUser = user;
     const loggedInView = document.getElementById('authLoggedInView');
@@ -9386,6 +7671,7 @@ function setupAuthListener() {
 
     if (user) {
       activeUid = user.uid;
+      if (previousUid && previousUid !== user.uid) reloadMemoryFromLocal();
       try { localStorage.setItem('p_last_uid', user.uid); } catch (e) {}
       if (loggedInView) loggedInView.style.display = 'flex';
       if (loggedOutView) loggedOutView.style.display = 'none';
@@ -9395,6 +7681,7 @@ function setupAuthListener() {
       if (db) {
         try {
           const snap = await db.collection("users").doc(user.uid).get();
+          if (sessionVersion !== authSessionVersion || currentUser?.uid !== user.uid) return;
           if (snap.exists) {
             const data = snap.data();
             memCol = new Set(Array.isArray(data.collection) ? data.collection.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : []);
@@ -9406,9 +7693,14 @@ if (Array.isArray(data.setsCardVariantsCollection)) {
 saveLocalState();
             if (currentCardsList.length > 0) renderTcgCards(currentCardsList);
           } else { writeFullCollectionToCloud(); }
-        } catch (err) { reloadMemoryFromLocal(); }
+        } catch (err) {
+          if (sessionVersion !== authSessionVersion || currentUser?.uid !== user.uid) return;
+          reloadMemoryFromLocal();
+        }
 
+        if (sessionVersion !== authSessionVersion || currentUser?.uid !== user.uid) return;
         firestoreUnsubscribe = db.collection("users").doc(user.uid).onSnapshot((doc) => {
+          if (sessionVersion !== authSessionVersion || currentUser?.uid !== user.uid) return;
           if (doc.metadata.hasPendingWrites) return;
           if (doc.exists) {
             const data = doc.data();
@@ -9492,7 +7784,6 @@ function openModal(id) {
         tcgSetsListScrollTop = 0;
         resetSetsScrollToTop();
         activeTcgSet = null;
-        activeSetVariantCardId = null;
       }
     }
   });
@@ -9525,7 +7816,6 @@ function openModal(id) {
   if (id === 'setsModal') {
     tcgSetsListScrollTop = 0;
     activeTcgSet = null;
-    activeSetVariantCardId = null;
     resetSetsScrollToTop();
   }
 }
@@ -9687,7 +7977,6 @@ function closeModal(e, id) {
       tcgSetsListScrollTop = 0;
       resetSetsScrollToTop();
       activeTcgSet = null;
-      activeSetVariantCardId = null;
     }
   }
 }
@@ -10251,34 +8540,40 @@ function updateCardAura(types) {
   card.style.boxShadow = `0 14px 32px rgba(0,0,0,0.55), 0 0 24px rgba(${pRgb}, 0.45), inset 0 0 16px rgba(${sRgb}, 0.25)`;
 }
 
+const evolutionDataCache = new Map();
+const evolutionDataRequests = new Map();
+async function getEvolutionData(url) {
+  if (evolutionDataCache.has(url)) return evolutionDataCache.get(url);
+  if (evolutionDataRequests.has(url)) return evolutionDataRequests.get(url);
+  const request = fetchJsonWithRetry(url, { deadline: Date.now() + 15000 }, 1);
+  evolutionDataRequests.set(url, request);
+  try {
+    const data = await request;
+    setBoundedCache(evolutionDataCache, url, data, 128);
+    return data;
+  } finally {
+    evolutionDataRequests.delete(url);
+  }
+}
 async function fetchLoreAndEvolution(speciesUrl, fallbackId) {
   const reqId = ++activeLoreRequestId;
-  const loreBox = document.getElementById('pokeLore');
   const evoBox = document.getElementById('evoChain');
   if (!isSpinning) {
-    if (loreBox) loreBox.innerText = "Accessing Pokédex lore...";
     if (evoBox) { evoBox.style.display = 'none'; evoBox.innerHTML = ''; }
   }
   try {
     const url = speciesUrl || `https://pokeapi.co/api/v2/pokemon-species/${fallbackId}/`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("Species error");
-    const data = await res.json();
+    const data = await getEvolutionData(url);
     if (isSpinning || reqId !== activeLoreRequestId) return;
     const cleanSpeciesName = getCleanNationalDexName(data.name, (data.names && data.names.find(n => n.language.name === 'en')?.name));
     const pokeName = document.getElementById('pokeName');
     if (pokeName) pokeName.innerText = cleanSpeciesName;
-    const enEntry = data.flavor_text_entries ? data.flavor_text_entries.find(e => e.language.name === 'en') : null;
-    if (loreBox) loreBox.innerText = enEntry ? enEntry.flavor_text.replace(/[\n\f\r]/g, ' ').replace(/\s+/g, ' ').trim() : "No Pokédex lore entry recorded.";
     if (data.evolution_chain?.url) {
-      const evoRes = await fetch(data.evolution_chain.url);
-      const evoData = await evoRes.json();
+      const evoData = await getEvolutionData(data.evolution_chain.url);
       if (reqId === activeLoreRequestId) renderEvolutionChain(evoData.chain);
     }
   } catch (err) {
-    if (!isSpinning && reqId === activeLoreRequestId && loreBox) {
-      loreBox.innerText = "PokéRoulette analyzer synchronized.";
-    }
+    if (!isSpinning && reqId === activeLoreRequestId) console.warn('[EVOLUTION] Details unavailable:', err);
   }
 }
 
@@ -10504,7 +8799,7 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
     } catch (error) {}
   }
   if (!bypassCache && saved?.complete && Date.now() - saved.savedAt < TTL_MS) {
-    memoryTcgCache.set(cacheKey, saved);
+    setBoundedCache(memoryTcgCache, cacheKey, saved, 128);
     const cards = filterCollectorCards(saved.data);
     sortCardsList(cards);
     return cards;
@@ -10629,7 +8924,7 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   // written over the complete catalogue or treated as "no cards exist".
   if (complete) {
     const record = { savedAt: Date.now(), complete: true, data: cards };
-    memoryTcgCache.set(cacheKey, record);
+    setBoundedCache(memoryTcgCache, cacheKey, record, 128);
     try {
       localStorage.setItem(cacheKey, JSON.stringify(record));
       localStorage.removeItem(`${cacheKey}_partial`);
@@ -10743,6 +9038,7 @@ function openTcgZoom(index, fromModal = false) {
 function updateZoomModalContent() {
   if (!currentCardsList.length) return;
   const card = currentCardsList[currentZoomIndex];
+  if (!card) return;
   const tcgZoomImg = document.getElementById('tcgZoomImg');
   const tcgZoomTitle = document.getElementById('tcgZoomTitle');
   const tcgZoomMeta = document.getElementById('tcgZoomMeta');
@@ -10906,6 +9202,7 @@ function closeTcgZoom() {
 
 function hideActive() {
   ++activeTcgRequestId;
+  ++activeLoreRequestId;
   document.body.classList.remove('has-active');
   const pokeCard = document.getElementById('pokeCard');
   if (pokeCard) pokeCard.style.display = 'none';
@@ -11118,15 +9415,17 @@ function submitSearch() {
   );
 }
 
+let pokemonLoadRequestId = 0;
 async function loadPoke(id, log = false) {
+  if (isSpinning) return;
+  const requestId = ++pokemonLoadRequestId;
   const sList = document.getElementById('sList');
   if (sList) sList.style.display = 'none';
   const input = document.getElementById('sInput');
   if (input) { input.value = ''; input.blur(); }
   try {
-    const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
-    if (!res.ok) throw new Error("Pokemon not found");
-    const data = await res.json();
+    const data = await fetchJsonWithRetry(`https://pokeapi.co/api/v2/pokemon/${id}`, { deadline: Date.now() + 15000 }, 1);
+    if (requestId !== pokemonLoadRequestId || isSpinning) return;
     const targetDeg = (270 - (TYPES.indexOf(data.types[0].type.name) * 20 + 10) + 360) % 360;
     const w = document.getElementById('wheel');
     if (w) {
@@ -11138,6 +9437,7 @@ async function loadPoke(id, log = false) {
     renderCard(data, false);
     if (log) addRec(data);
   } catch (e) {
+    if (requestId !== pokemonLoadRequestId || isSpinning) return;
     showToast("Failed to load Pokémon data.", "error");
   }
 }
@@ -11152,6 +9452,7 @@ function navigateDex(d) {
 
 async function spinAndPick() {
   if (isSpinning) return;
+  ++pokemonLoadRequestId;
   const spinStartedAt = performance.now();
   initAudio();
   const sList = document.getElementById('sList');
@@ -11196,11 +9497,11 @@ hideActive();
     iv *= 1.1;
   }
   try {
-    const tRes = await fetch(`https://pokeapi.co/api/v2/type/${TYPES[idx]}`);
-    const tData = await tRes.json();
+    const deadline = Date.now() + 20000;
+    const tData = await fetchJsonWithRetry(`https://pokeapi.co/api/v2/type/${TYPES[idx]}`, { deadline }, 1);
     const valid = tData.pokemon.filter(p => parseInt(p.pokemon.url.split('/').filter(Boolean).pop()) <= TOTAL);
-    const pRes = await fetch(valid[Math.floor(Math.random() * valid.length)].pokemon.url);
-    const pData = await pRes.json();
+    if (!valid.length) throw new Error('No eligible Pokémon for this type');
+    const pData = await fetchJsonWithRetry(valid[Math.floor(Math.random() * valid.length)].pokemon.url, { deadline }, 1);
     const shiny = Math.floor(Math.random() * 100) === 0;
     
     setTimeout(() => {
@@ -11269,12 +9570,6 @@ if (cardEl) {
   }, { passive: true });
 }
 
-document.addEventListener('click', e => {
-  const sw = e.target.closest('.search-wrap');
-  const sl = document.getElementById('sList');
-  if (!sw && sl) sl.style.display = 'none';
-});
-
 const DEX_CACHE_KEY = 'pokedex_directory_v1';
 const DEX_CACHE_TIME_KEY = 'pokedex_directory_timestamp';
 const DEX_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
@@ -11294,9 +9589,7 @@ async function loadPokemonDirectory() {
   } catch (e) {}
 
   try {
-    const res = await fetch(`https://pokeapi.co/api/v2/pokemon?limit=${TOTAL}`);
-    if (!res.ok) throw new Error(`PokéAPI returned HTTP ${res.status}`);
-    const data = await res.json();
+    const data = await fetchJsonWithRetry(`https://pokeapi.co/api/v2/pokemon?limit=${TOTAL}`, { deadline: Date.now() + 15000 }, 1);
     const freshDirectory = data.results.map((p, i) => ({
       id: i + 1,
       name: p.name,
@@ -11413,8 +9706,9 @@ function syncAppViewportLayout() {
 
   if (!dock) return;
 
+  const dockRect = dock.getBoundingClientRect();
   const dockHeight =
-    Math.ceil(dock.getBoundingClientRect().height) ||
+    Math.ceil(dockRect.height) ||
     dock.offsetHeight ||
     78;
 
@@ -11423,7 +9717,7 @@ function syncAppViewportLayout() {
     `${dockHeight}px`
   );
   // Measure the actual dock edge, not a guessed visual-viewport bottom.
-  const dockTop = dock.getBoundingClientRect().top;
+  const dockTop = dockRect.top;
   root.style.setProperty('--app-content-height', `${Math.max(0, Math.floor(dockTop - viewportTop))}px`);
   fitEncounterToViewport();
 }
@@ -11448,8 +9742,13 @@ function fitEncounterToViewport() {
   }
 }
 
+let appViewportLayoutFrame = null;
 function scheduleAppViewportLayout() {
-  requestAnimationFrame(syncAppViewportLayout);
+  if (appViewportLayoutFrame !== null) return;
+  appViewportLayoutFrame = requestAnimationFrame(() => {
+    appViewportLayoutFrame = null;
+    syncAppViewportLayout();
+  });
 }
 
 window.addEventListener('load', syncAppViewportLayout);

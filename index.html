@@ -1634,6 +1634,27 @@ body.has-active .hub-item-label {
   gap: 0.65rem;
 }
 
+.tcg-set-footer {
+  display: flex;
+  justify-content: center;
+  padding: 1rem 0 0.4rem;
+}
+.tcg-set-footer[hidden] { display: none; }
+.tcg-set-back-top {
+  background: #334155;
+  color: #fff;
+  border: 1px solid #475569;
+  border-radius: 99px;
+  padding: 0.6rem 1.25rem;
+  min-height: 44px;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.tcg-set-back-top:active { background: #475569; }
+.tcg-set-back-top:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+
 .tcg-set-card {
   min-width: 0;
   background: none;
@@ -8879,6 +8900,9 @@ const percentage = totalCount > 0
 </div>
 
 <div class="tcg-set-cards" id="tcgSetCards"></div>
+<div class="tcg-set-footer" id="tcgSetFooter" hidden>
+  <button type="button" class="tcg-set-back-top" onclick="scrollSetCardsToTop()">Back To Top</button>
+</div>
 `;
 
   renderCurrentSetCards();
@@ -8913,6 +8937,30 @@ function updateCurrentSetProgress() {
   if (progressFill) {
     progressFill.style.width = `${percentage}%`;
   }
+}
+
+let setCardsTopScrollFrame = null;
+function scrollSetCardsToTop() {
+  const body = document.querySelector('#setsModal .modal-body');
+  if (!body) return;
+  if (setCardsTopScrollFrame !== null) cancelAnimationFrame(setCardsTopScrollFrame);
+  setCardsTopScrollFrame = null;
+  const startTop = body.scrollTop;
+  if (!startTop || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    body.scrollTop = 0;
+    return;
+  }
+  const startedAt = performance.now();
+  const animate = now => {
+    if (!activeTcgSet || document.getElementById('setsModal')?.style.display === 'none') {
+      setCardsTopScrollFrame = null;
+      return;
+    }
+    const progress = Math.min(1, Math.max(0, (now - startedAt) / 320));
+    body.scrollTop = startTop * Math.pow(1 - progress, 3);
+    setCardsTopScrollFrame = progress < 1 ? requestAnimationFrame(animate) : null;
+  };
+  setCardsTopScrollFrame = requestAnimationFrame(animate);
 }
 
 function renderCurrentSetCards() {
@@ -8962,6 +9010,9 @@ function renderCurrentSetCards() {
 
       return true;
     });
+
+  const footer = document.getElementById('tcgSetFooter');
+  if (footer) footer.hidden = visibleCards.length === 0;
 
   visibleCards.forEach(({ card, originalIndex }) => {
     const item =

@@ -1101,9 +1101,7 @@ body.has-active .hub-item-label {
 }
 .zoom-check-circle.checked .zoom-check-box { color: #fff; border-color: #fff; }
 .tcg-zoom-arrow {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+  position: static;
   background: rgba(30, 41, 59, 0.9);
   border: 1px solid #475569;
   color: #fff;
@@ -1121,11 +1119,27 @@ body.has-active .hub-item-label {
   transition: transform 0.15s, background 0.15s;
 }
 .tcg-zoom-arrow:active {
-  transform: translateY(-50%) scale(0.9);
+  transform: scale(0.9);
   background: #475569;
 }
-.tcg-zoom-arrow.left { left: -8px; }
-.tcg-zoom-arrow.right { right: -8px; }
+.tcg-zoom-bottom-controls {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+}
+.tcg-zoom-bottom-controls .tcg-zoom-arrow {
+  width: 44px;
+  height: 44px;
+}
+.tcg-zoom-bottom-controls .tcg-zoom-price-row {
+  justify-self: center;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-top: 0;
+  flex-wrap: wrap;
+}
 .tcg-zoom-title {
   font-size: clamp(0.95rem, 1.8dvh, 1.15rem);
   font-weight: 800;
@@ -2670,7 +2684,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 
 </style>
 </head>
-<body data-app-build="v54">
+<body data-app-build="v55">
 <div class="viewport">
   <header>
     <h1
@@ -2854,17 +2868,19 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
       <button type="button" class="zoom-check-circle" id="zoomCheckCircle" onclick="toggleZoomCardOwned(event)" aria-pressed="false"><span id="zoomCheckLabel">Add to Dex</span><span class="zoom-check-box" aria-hidden="true">✓</span></button>
     </div>
     <div class="tcg-zoom-view-area" id="zoomViewArea">
-      <button class="tcg-zoom-arrow left" id="zoomLeftArrow" onclick="navigateZoomCard(-1)">‹</button>
       <div class="flat-card-container">
         <img class="tcg-zoom-img" id="tcgZoomImg" src="" alt="Card HD" onerror="handleTcgImageError(this)" />
       </div>
-      <button class="tcg-zoom-arrow right" id="zoomRightArrow" onclick="navigateZoomCard(1)">›</button>
     </div>
     <div class="tcg-zoom-title" id="tcgZoomTitle">Card Title</div>
     <div class="tcg-zoom-meta" id="tcgZoomMeta">Set · Number</div>
     <div class="tcg-zoom-variants" id="tcgZoomVariants" style="display:none;"></div>
+    <div class="tcg-zoom-bottom-controls">
+      <button type="button" aria-label="Previous card" class="tcg-zoom-arrow left" id="zoomLeftArrow" onclick="navigateZoomCard(-1)">‹</button>
     <div class="tcg-zoom-price-row" id="tcgZoomPrice">
       <span>Est. Value:</span> <strong id="tcgZoomPriceVal">£--.--</strong>
+    </div>
+      <button type="button" aria-label="Next card" class="tcg-zoom-arrow right" id="zoomRightArrow" onclick="navigateZoomCard(1)">›</button>
     </div>
     <button class="tcg-zoom-close" onclick="closeTcgZoom()">Close Preview</button>
   </div>

@@ -1620,11 +1620,13 @@ body.has-active .hub-item-label {
 .tcg-set-card img {
   display: block;
   width: 100%;
+  height: auto;
   aspect-ratio: 2.5 / 3.5;
   object-fit: contain;
   border-radius: 7px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.35);
 }
+.tcg-set-card img:not([src]) { visibility: hidden; }
 
 .tcg-set-card-number {
   margin-top: 0.3rem;
@@ -1687,6 +1689,7 @@ body.has-active .hub-item-label {
 }
   .tcg-set-card-image-wrap {
   position: relative;
+  aspect-ratio: 2.5 / 3.5;
 }
 
 .tcg-set-owned-check {
@@ -1734,21 +1737,19 @@ body.has-active .hub-item-label {
   transform: scale(0.88);
 }
 
-/* Uncollected cards in Sets */
-.tcg-set-card img {
-  filter: saturate(0.35) brightness(0.82);
-  opacity: 0.68;
-  transition:
-    filter 0.2s ease,
-    opacity 0.2s ease,
-    transform 0.2s ease,
-    outline 0.2s ease;
+/* Dim uncollected artwork without filtered image layers in the long scroller. */
+.tcg-set-card-image-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 7px;
+  background: rgba(15, 23, 42, 0.38);
+  pointer-events: none;
 }
+.tcg-set-card.card-owned .tcg-set-card-image-wrap::after { display: none; }
 
 /* Collected cards in Sets */
 .tcg-set-card.card-owned img {
-  filter: none;
-  opacity: 1;
   outline: 2px solid var(--green);
   outline-offset: 2px;
 }
@@ -2664,7 +2665,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 #accountModal #authUserEmail { overflow-wrap: anywhere; }
 </style>
 </head>
-<body data-app-build="v61">
+<body data-app-build="v63">
 <div class="viewport">
   <header>
     <h1
@@ -7167,6 +7168,7 @@ function updateSetsRefreshButton() {
 }
 
 async function openTcgSet(set) {
+  disposeSetThumbnails();
   if (!activeTcgSet) {
     tcgSetsListScrollTop = document.querySelector('#setsModal .modal-body')?.scrollTop || 0;
   }
@@ -7368,11 +7370,157 @@ function scrollSetCardsToTop() {
   setCardsTopScrollFrame = requestAnimationFrame(animate);
 }
 
+// Keep only nearby thumbnails decoded. Native lazy loading plus filtered images
+// in this long, nested iOS scroller could leave blank or clipped card tiles.
+let setThumbnailLoader = null;
+function disposeSetThumbnails() {
+  setThumbnailLoader?.dispose();
+  setThumbnailLoader = null;
+}
+
+function createSetThumbnailLoader(root) {
+  const records = new Map();
+  const queue = new Set();
+  let active = 0;
+  let disposed = false;
+  let observer = null;
+  let frame = null;
+
+  function release(record) {
+    clearTimeout(record.timer);
+    record.version++;
+    if (record.state === 'loading') active--;
+    record.state = 'idle';
+    record.img.onload = record.img.onerror = null;
+    record.img.removeAttribute('src');
+    record.img._tcgArtworkFallbacks = [];
+    queue.delete(record);
+  }
+
+  function pump() {
+    if (disposed) return;
+    for (const record of queue) {
+      if (active >= 4) break;
+      queue.delete(record);
+      if (!record.near || !record.img.isConnected || record.state !== 'idle') continue;
+      start(record);
+    }
+  }
+
+  function start(record) {
+    const img = record.img;
+    record.state = 'loading';
+    active++;
+    const version = ++record.version;
+    let timeouts = 0;
+    const current = () => !disposed && record.version === version && img.isConnected;
+    setTcgImageFallbacks(img, record.card);
+    const sources = getCardArtworkSources(record.card).small;
+    const first = sources.includes(record.card.resolvedSmallImg)
+      ? record.card.resolvedSmallImg : record.card.smallImg;
+    img._tcgArtworkFallbacks = sources.filter(source => source !== first);
+    const onload = img.onload;
+    const onerror = img.onerror;
+    function finish() {
+      clearTimeout(record.timer);
+      if (record.state !== 'loading') return;
+      record.state = 'loaded';
+      active--;
+      pump();
+    }
+    function armTimeout() {
+      clearTimeout(record.timer);
+      record.timer = setTimeout(() => {
+        if (!current() || record.state !== 'loading') return;
+        // A request that never fires load/error must not block the entire queue.
+        if (++timeouts >= 3) img._tcgArtworkFallbacks = [];
+        img.onerror();
+      }, 15000);
+    }
+    img.onload = () => {
+      if (!current()) return;
+      const source = img.getAttribute('src');
+      onload();
+      if (img.getAttribute('src') === source) finish();
+      else if (img.src === TCG_CARD_ARTWORK_UNAVAILABLE) finish();
+      else armTimeout();
+    };
+    img.onerror = () => {
+      if (!current() || record.state !== 'loading') return;
+      onerror();
+      if (img.src === TCG_CARD_ARTWORK_UNAVAILABLE) finish();
+      else armTimeout();
+    };
+    img.loading = 'eager';
+    img.decoding = 'async';
+    img.src = first;
+    armTimeout();
+  }
+
+  function update(entries) {
+    if (disposed) return;
+    // Release old rows before scheduling newly visible rows in the same batch.
+    for (const entry of entries) {
+      const record = records.get(entry.target);
+      if (!record) continue;
+      record.near = entry.isIntersecting;
+      if (!record.near) release(record);
+    }
+    for (const entry of entries) {
+      const record = records.get(entry.target);
+      if (record?.near && record.state === 'idle') queue.add(record);
+    }
+    pump();
+  }
+
+  // Root the observer in the actual scrolling panel, not the document viewport.
+  if (window.IntersectionObserver) {
+    observer = new window.IntersectionObserver(update, { root, rootMargin: '500px 0px' });
+  }
+  function checkPositions() {
+    frame = null;
+    if (disposed) return;
+    const bounds = root.getBoundingClientRect();
+    update(Array.from(records.keys(), target => {
+      const rect = target.getBoundingClientRect();
+      return { target, isIntersecting: rect.bottom >= bounds.top - 500 && rect.top <= bounds.bottom + 500 };
+    }));
+  }
+  function scheduleCheck() {
+    if (!disposed && frame === null) frame = requestAnimationFrame(checkPositions);
+  }
+  if (!observer) {
+    root.addEventListener('scroll', scheduleCheck, { passive: true });
+    window.addEventListener('resize', scheduleCheck);
+  }
+  return {
+    observe(img, card) {
+      if (disposed) return;
+      records.set(img, { img, card, state: 'idle', near: false, version: 0, timer: null });
+      if (observer) observer.observe(img);
+      else scheduleCheck();
+    },
+    dispose() {
+      disposed = true;
+      observer?.disconnect();
+      if (frame !== null) cancelAnimationFrame(frame);
+      root.removeEventListener('scroll', scheduleCheck);
+      window.removeEventListener('resize', scheduleCheck);
+      for (const record of records.values()) release(record);
+      records.clear();
+      queue.clear();
+    }
+  };
+}
+
 function renderCurrentSetCards() {
   const cardGrid =
     document.getElementById('tcgSetCards');
 
   if (!cardGrid) return;
+
+  disposeSetThumbnails();
+  setThumbnailLoader = createSetThumbnailLoader(document.querySelector('#setsModal .modal-body'));
 
   updateCurrentSetProgress();
 
@@ -7438,8 +7586,8 @@ function renderCurrentSetCards() {
 
         <img
           alt="${card.name}"
-          loading="lazy"
-          onerror="handleTcgImageError(this)"
+          width="250"
+          height="350"
         >
 
         <div class="tcg-set-owned-check ${owned ? 'checked' : ''}">
@@ -7478,8 +7626,6 @@ function renderCurrentSetCards() {
       </div>
     `;
     const setCardImg = item.querySelector('.tcg-set-card-image-wrap img');
-    setTcgImageFallbacks(setCardImg, card);
-    setCardImg.src = card.smallImg;
 
     const checkCircle =
       item.querySelector('.tcg-set-owned-check');
@@ -7553,10 +7699,12 @@ variantOptions.forEach(option => {
     };
 
     cardGrid.appendChild(item);
+    setThumbnailLoader.observe(setCardImg, card);
   });
 }
   
 async function renderTcgSets(forceRefresh = false) {
+  disposeSetThumbnails();
   const requestId = ++setsViewRequestId;
   if (!activeTcgSet) {
     tcgSetsListScrollTop = document.querySelector('#setsModal .modal-body')?.scrollTop || 0;
@@ -7902,6 +8050,7 @@ function openModal(id) {
       if (modal.id === 'dexModal') resetDexScrollToTop();
 
       if (modal.id === 'setsModal') {
+        disposeSetThumbnails();
         ++setsViewRequestId;
         tcgSetsListScrollTop = 0;
         resetSetsScrollToTop();
@@ -8095,6 +8244,7 @@ function closeModal(e, id) {
     if (id === 'dexModal') resetDexScrollToTop();
 
     if (id === 'setsModal') {
+      disposeSetThumbnails();
       ++setsViewRequestId;
       tcgSetsListScrollTop = 0;
       resetSetsScrollToTop();
@@ -8154,6 +8304,7 @@ async function refreshSetsView() {
 
   if (activeTcgSet) {
     const requestId = ++setsViewRequestId;
+    disposeSetThumbnails();
     const set = activeTcgSet;
     const setId = set.id;
 

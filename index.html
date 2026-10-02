@@ -2664,7 +2664,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 #accountModal #authUserEmail { overflow-wrap: anywhere; }
 </style>
 </head>
-<body data-app-build="v60">
+<body data-app-build="v61">
 <div class="viewport">
   <header>
     <h1
@@ -4427,6 +4427,75 @@ const SM_PROMO_FRONT_SCANS = Object.freeze([
 const SM_PROMO_FRONT_BY_NUMBER = new Map(SM_PROMO_FRONT_SCANS.map(card => [card.number, card]));
 const MEP_PROMO_FRONT_BY_NUMBER = new Map(MEP_PROMO_CARDS.map(card => [normalizeCardNumber(card.localId), card]));
 
+
+// Checked English printings: Southern Islands (18), gold W-stamp promos (7),
+// and the international Ancient Mew movie promo. IDs stay distinct from the
+// unstamped expansion printings so collection ticks cannot cross over.
+const VINTAGE_CARD_CATALOGUES = Object.freeze({
+  si1: Object.freeze([
+    {"id": "si1-1", "image": "https://assets.tcgdex.net/en/neo/si1/1", "localId": "1", "name": "Mew", "number": "1"},
+    {"id": "si1-2", "image": "https://assets.tcgdex.net/en/neo/si1/2", "localId": "2", "name": "Pidgeot", "number": "2"},
+    {"id": "si1-3", "image": "https://assets.tcgdex.net/en/neo/si1/3", "localId": "3", "name": "Onix", "number": "3"},
+    {"id": "si1-4", "image": "https://assets.tcgdex.net/en/neo/si1/4", "localId": "4", "name": "Togepi", "number": "4"},
+    {"id": "si1-5", "image": "https://assets.tcgdex.net/en/neo/si1/5", "localId": "5", "name": "Ivysaur", "number": "5"},
+    {"id": "si1-6", "image": "https://assets.tcgdex.net/en/neo/si1/6", "localId": "6", "name": "Raticate", "number": "6"},
+    {"id": "si1-7", "image": "https://assets.tcgdex.net/en/neo/si1/7", "localId": "7", "name": "Ledyba", "number": "7"},
+    {"id": "si1-8", "image": "https://assets.tcgdex.net/en/neo/si1/8", "localId": "8", "name": "Jigglypuff", "number": "8"},
+    {"id": "si1-9", "image": "https://assets.tcgdex.net/en/neo/si1/9", "localId": "9", "name": "Butterfree", "number": "9"},
+    {"id": "si1-10", "image": "https://assets.tcgdex.net/en/neo/si1/10", "localId": "10", "name": "Tentacruel", "number": "10"},
+    {"id": "si1-11", "image": "https://assets.tcgdex.net/en/neo/si1/11", "localId": "11", "name": "Marill", "number": "11"},
+    {"id": "si1-12", "image": "https://assets.tcgdex.net/en/neo/si1/12", "localId": "12", "name": "Lapras", "number": "12"},
+    {"id": "si1-13", "image": "https://assets.tcgdex.net/en/neo/si1/13", "localId": "13", "name": "Exeggutor", "number": "13"},
+    {"id": "si1-14", "image": "https://assets.tcgdex.net/en/neo/si1/14", "localId": "14", "name": "Slowking", "number": "14"},
+    {"id": "si1-15", "image": "https://assets.tcgdex.net/en/neo/si1/15", "localId": "15", "name": "Wartortle", "number": "15"},
+    {"id": "si1-16", "image": "https://assets.tcgdex.net/en/neo/si1/16", "localId": "16", "name": "Lickitung", "number": "16"},
+    {"id": "si1-17", "image": "https://assets.tcgdex.net/en/neo/si1/17", "localId": "17", "name": "Vileplume", "number": "17"},
+    {"id": "si1-18", "image": "https://assets.tcgdex.net/en/neo/si1/18", "localId": "18", "name": "Primeape", "number": "18"}
+  ]),
+  wp: Object.freeze([
+    {"id": "wp-37", "localId": "37", "name": "Brock's Vulpix", "front": "https://www.cardtrader.com/uploads/blueprints/image/120620/brock-s-vulpix-w-promo-37-132-gym-challange-promos.jpg", "number": "37"},
+    {"id": "wp-19", "localId": "19", "name": "Dark Arbok", "front": "https://www.cardtrader.com/uploads/blueprints/image/129502/dark-arbok-w-stamped-promo-19-82-team-rocket-promos.jpg", "number": "19"},
+    {"id": "wp-32", "localId": "32", "name": "Dark Charmeleon", "front": "https://www.cardtrader.com/uploads/blueprints/image/129503/dark-charmeleon-w-stamped-promo-32-82-team-rocket-promos.jpg", "number": "32"},
+    {"id": "wp-50", "localId": "50", "name": "Kabuto", "front": "https://www.cardtrader.com/uploads/blueprints/image/119670/kabuto-w-promo-50-62-w-promos.jpg", "number": "50"},
+    {"id": "wp-54", "localId": "54", "name": "Misty's Psyduck", "front": "https://www.cardtrader.com/uploads/blueprints/image/120886/misty-s-psyduck-w-promo-54-132-w-promos.jpg", "number": "54"},
+    {"id": "wp-60", "localId": "60", "name": "Pikachu", "front": "https://www.cardtrader.com/uploads/blueprints/image/121533/pikachu-w-promo-60-64-jungle-promos.jpg", "number": "60"},
+    {"id": "wp-63", "localId": "63", "name": "Wartortle", "front": "https://www.cardtrader.com/uploads/blueprints/image/111380/wartortle-w-promo-63-130-w-promos.jpg", "number": "63"}
+  ]),
+  miscp: Object.freeze([{ id: 'miscp-001', localId: '001', number: '1', name: 'Ancient Mew',
+    front: 'https://tcgplayer-cdn.tcgplayer.com/product/108589_in_1000x1000.jpg',
+    alternateFront: 'https://static.tcgcollector.com/content/images/4e/72/3b/4e723beab389aad8ad532e80f3228d6257a5b5e72240e9489502b1453c1e1346.jpg' }])
+});
+const VINTAGE_CARD_BY_IDENTITY = new Map(Object.entries(VINTAGE_CARD_CATALOGUES).flatMap(([setId, cards]) =>
+  cards.map(card => [`${setId}:${normalizeCardNumber(card.localId)}:${normalizePokemonCardName(card.name)}`, card])
+));
+const VINTAGE_SET_DETAILS = Object.freeze({
+  si1: { name: 'Southern Islands', releaseDate: '2001/07/31', series: 'Neo' },
+  wp: { name: 'W Promotional', releaseDate: '1999/09/01', series: 'Base' },
+  // This is the English movie distribution date, not the provider's 1996 placeholder.
+  miscp: { name: 'Miscellaneous Promos', releaseDate: '2000/07/21', series: 'Miscellaneous' }
+});
+function getVintageCatalogueCards(setId) {
+  return (VINTAGE_CARD_CATALOGUES[setId] || []).map(card => ({
+    ...card, rarity: 'Promo',
+    set: { id: setId, name: VINTAGE_SET_DETAILS[setId].name },
+    artworkTcgDexSetId: setId,
+    images: card.image ? { small: `${card.image}/low.webp`, large: `${card.image}/high.webp` } : {},
+    // The W stamp defines this printing; it is not an additional finish here.
+    ...(setId === 'wp' || setId === 'miscp' ? { _previousVariants: {
+      standard: true, reverseHolo: false, other: false,
+      baseFinish: setId === 'miscp' ? 'holo' : 'normal'
+    }} : {})
+  }));
+}
+function repairVintageSetDetails(sets) {
+  return sets.map(set => {
+    const checked = VINTAGE_SET_DETAILS[set.id];
+    if (!checked) return set;
+    const count = Math.max(Number(set.total) || 0, VINTAGE_CARD_CATALOGUES[set.id].length);
+    return { ...set, ...checked, total: count, printedTotal: count };
+  });
+}
+
 const PHYSICAL_PROMO_SET_IDS = new Set(['mep','svp','swshp','smp','xyp','bwp','dpp','hgssp','np','basep','wp','miscp']);
 const MEP_PROMO_SET = {
   id: 'mep', name: 'Mega Evolution Promos', series: 'Mega Evolution',
@@ -4435,7 +4504,7 @@ const MEP_PROMO_SET = {
   images: { logo: 'https://images.pokemontcg.io/swshp/logo.png', symbol: '' }
 };
 function getSetCardsCacheKey(setId) {
-  const version = setId === 'smp' ? 'v54' : setId === 'mep' ? 'v58' : 'v51';
+  const version = setId === 'wp' ? 'v61' : setId === 'smp' ? 'v54' : setId === 'mep' ? 'v58' : 'v51';
   return `pokeroulette_set_cards_${version}_${setId}`;
 }
 
@@ -4446,14 +4515,14 @@ function isPhysicalPromoSetId(id) {
 async function fetchPhysicalPromoSets(forceRefresh = false) {
   let catalogue;
   try { catalogue = await getTcgDexSets(forceRefresh); }
-  catch (error) { return [{ ...MEP_PROMO_SET }]; }
+  catch (error) { return repairVintageSetDetails([{ ...MEP_PROMO_SET }, ...['wp', 'miscp'].map(id => ({ id, images: MEP_PROMO_SET.images }))]); }
   const briefs = catalogue.filter(set => /promo/i.test(set.name || '') && !isExcludedCollectorSet(set));
   const deadline = Date.now() + 45000;
   const promos = await mapTcgLimited(briefs, async brief => {
     let detail = brief;
     try { detail = await fetchJsonWithRetry(`https://api.tcgdex.net/v2/en/sets/${encodeURIComponent(brief.id)}`, { deadline }); }
     catch (error) {}
-    const liveCount = Array.isArray(detail.cards)
+    const liveCount = Array.isArray(detail.cards) && detail.cards.length
       ? filterCollectorCards(detail.cards).length
       : detail.cardCount?.total || brief.cardCount?.total || 0;
     const count = brief.id === 'mep' ? Math.max(liveCount, MEP_PROMO_CARDS.length) : liveCount;
@@ -4466,7 +4535,7 @@ async function fetchPhysicalPromoSets(forceRefresh = false) {
     };
   });
   if (!promos.some(set => set.id === 'mep')) promos.push({ ...MEP_PROMO_SET });
-  return promos;
+  return repairVintageSetDetails(promos);
 }
 
 async function fetchPromoCatalogueCards(setId, url, headers, forceRefresh = false) {
@@ -4480,6 +4549,10 @@ async function fetchPromoCatalogueCards(setId, url, headers, forceRefresh = fals
   primary.forEach(card => merged.set(normalizeCardNumber(card.number || card.localId), card));
   const detail = sources[1].status === 'fulfilled' ? sources[1].value : null;
   const references = new Map((detail?.cards || []).map(card => [normalizeCardNumber(card.localId), card]));
+  for (const card of getVintageCatalogueCards(setId)) {
+    const key = normalizeCardNumber(card.localId);
+    references.set(key, { ...card, ...references.get(key) });
+  }
   if (setId === 'mep') {
     for (const brief of MEP_PROMO_CARDS) {
       const number = normalizeCardNumber(brief.localId);
@@ -4515,6 +4588,17 @@ function getCardArtworkSources(card) {
   const localId = String(card.localId || card.number || '').trim();
   const number = normalizeCardNumber(localId);
   const name = String(card.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const vintage = VINTAGE_CARD_BY_IDENTITY.get(`${setId}:${number}:${normalizePokemonCardName(card.name)}`);
+  if (vintage) {
+    if (vintage.image) return {
+      small: [`${vintage.image}/low.webp`, `${vintage.image}/high.webp`],
+      large: [`${vintage.image}/high.webp`, `${vintage.image}/low.webp`]
+    };
+    const fronts = [vintage.front, vintage.alternateFront].filter(Boolean);
+    return { small: fronts.slice(), large: fronts.slice() };
+  }
+  // Avoid normal expansion art or HTTP-200 backs for these exact promo printings.
+  if (setId === 'wp' || (setId === 'miscp' && name === 'ancientmew')) return { small: [], large: [] };
   if (setId === 'svp') {
     const svpNumber = normalizeSvpCardNumber(localId);
     const entry = SVP_CARD_BY_NUMBER.get(svpNumber);
@@ -4626,6 +4710,11 @@ function setTcgImageFallbacks(img, card, quality = 'small') {
   // The zoom image is reused between cards, so restore its handlers each time.
   img.onerror = () => handleTcgImageError(img);
   img.onload = () => {
+    if (img.src !== TCG_CARD_ARTWORK_UNAVAILABLE && img.naturalWidth > 0 &&
+        (img.naturalWidth < 10 || img.naturalHeight < 10)) {
+      handleTcgImageError(img);
+      return;
+    }
     setTcgArtworkUnavailable(img, img.src === TCG_CARD_ARTWORK_UNAVAILABLE);
     if (quality === 'small' && img.src !== TCG_CARD_ARTWORK_UNAVAILABLE) {
       card.resolvedSmallImg = img.currentSrc || img.src;
@@ -4956,7 +5045,7 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
 
   // 1. Use memory cache first
   if (tcgSetsCache && !forceRefresh) {
-    return tcgSetsCache;
+    return repairVintageSetDetails(tcgSetsCache);
   }
 
   // 2. Check saved browser cache
@@ -4972,13 +5061,13 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
         cached.data.length &&
         Date.now() - cached.savedAt < CACHE_TIME
       ) {
-        tcgSetsCache = cached.data;
+        tcgSetsCache = repairVintageSetDetails(cached.data);
 
         console.log(
           `[SETS] Loaded ${cached.data.length} sets from cache`
         );
 
-        return cached.data;
+        return repairVintageSetDetails(cached.data);
       }
     } catch (error) {
       console.warn(
@@ -5059,14 +5148,14 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
     }
 
     // 4. Save successful result
-    tcgSetsCache = physicalSets;
+    tcgSetsCache = repairVintageSetDetails(physicalSets);
 
     try {
       localStorage.setItem(
         CACHE_KEY,
         JSON.stringify({
           savedAt: Date.now(),
-          data: physicalSets
+          data: tcgSetsCache
         })
       );
     } catch (error) {
@@ -5080,7 +5169,7 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
       `[SETS] ${physicalSets.length} physical sets loaded`
     );
 
-    return physicalSets;
+    return tcgSetsCache;
 
   } catch (error) {
     console.error(
@@ -5090,7 +5179,7 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
 
     if (tcgSetsCache?.length) {
       showToast('Refresh unavailable. Showing saved sets.', 'warning');
-      return tcgSetsCache;
+      return repairVintageSetDetails(tcgSetsCache);
     }
 
     // 5. Last resort: use an old cache even if expired
@@ -5108,11 +5197,11 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
         '[SETS] Using expired cache because live API failed'
         );
 
-        tcgSetsCache = cached.data;
+        tcgSetsCache = repairVintageSetDetails(cached.data);
 
         showToast('Showing saved sets. Refresh is unavailable.', 'warning');
 
-        return cached.data;
+        return repairVintageSetDetails(cached.data);
       }
     } catch (cacheError) {
       console.error(
@@ -6841,9 +6930,11 @@ async function loadCardsForSet(setId, forceRefresh = false) {
     const url =
       `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}&pageSize=250`;
 
-    const cards = setId === 'svp'
+    const cards = setId === 'wp'
+      ? getVintageCatalogueCards('wp')
+      : setId === 'svp'
       ? await fetchSvpCatalogueCards(url, headers)
-      : isPhysicalPromoSetId(setId)
+      : (isPhysicalPromoSetId(setId) || setId === 'si1')
         ? await fetchPromoCatalogueCards(setId, url, headers, forceRefresh)
         : await fetchPokemonTcgPages(url, { headers });
 
@@ -6910,7 +7001,7 @@ baseFinish:
 
     // Enrich each card with TCGdex's explicit physical variant flags
     // and main/base-printing price before caching.
-    formatted = await enrichSetCardsWithTcgDex(
+    formatted = setId === 'wp' ? formatted : await enrichSetCardsWithTcgDex(
       formatted,
       setId,
       formatted[0]?.setName || ''
@@ -8787,6 +8878,24 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   try { return await request; } finally { tcgDataRequests.delete(key); }
 }
 
+function ensureVintagePokemonCards(cards, cleanName) {
+  const result = filterCollectorCards(cards);
+  for (const card of getVintageCatalogueCards('wp')) {
+    if (!matchesExactPokemonName(card.name, cleanName)) continue;
+    if (result.some(old => String(old.id).startsWith('wp-') &&
+        normalizeCardNumber(old.number) === normalizeCardNumber(card.number) &&
+        normalizePokemonCardName(old.name) === normalizePokemonCardName(card.name))) continue;
+    const artwork = getCardArtworkSources(card);
+    result.push({
+      id: card.id, name: card.name, number: card.number, setName: card.set.name,
+      rarity: 'Promo', rarityScore: getRarityScore('Promo'), priceGBP: null,
+      smallImg: artwork.small[0], smallImgFallbacks: artwork.small.slice(1),
+      largeImg: artwork.large[0], largeImgFallbacks: artwork.large.slice(1)
+    });
+  }
+  return result;
+}
+
 async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
   const cacheKey = `tcg_complete_cache_v58_${normalizePokemonCardName(cleanName).replace(/[^a-z0-9]/g, '')}`;
@@ -8800,7 +8909,7 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   }
   if (!bypassCache && saved?.complete && Date.now() - saved.savedAt < TTL_MS) {
     setBoundedCache(memoryTcgCache, cacheKey, saved, 128);
-    const cards = filterCollectorCards(saved.data);
+    const cards = ensureVintagePokemonCards(saved.data, cleanName);
     sortCardsList(cards);
     return cards;
   }
@@ -8810,7 +8919,7 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
     try {
       const partial = JSON.parse(localStorage.getItem(`${cacheKey}_partial`));
       if (Array.isArray(partial?.data) && Date.now() - partial.savedAt < 60000) {
-        const cards = filterCollectorCards(partial.data);
+        const cards = ensureVintagePokemonCards(partial.data, cleanName);
         tcgCardListStatus.set(cards, { partial: true });
         sortCardsList(cards);
         return cards;
@@ -8878,7 +8987,7 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   failures.forEach(result => console.warn('[TCG] Catalogue source unavailable:', result.reason));
 
   if (!complete && saved?.complete) {
-    const cards = filterCollectorCards(saved.data);
+    const cards = ensureVintagePokemonCards(saved.data, cleanName);
     tcgCardListStatus.set(cards, { stale: true });
     sortCardsList(cards);
     return cards;
@@ -8888,7 +8997,8 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const merged = new Map();
   // Stable provider priority preserves ownership IDs. Price availability must
   // never choose a different card ID for the same physical printing.
-  for (const card of results.flatMap(result => result.status === 'fulfilled' ? result.value : [])) {
+  for (const card of [...results.flatMap(result => result.status === 'fulfilled' ? result.value : []),
+    ...getVintageCatalogueCards('wp')]) {
     if (!card?.id || isExcludedCollectorCard(card) || !matchesExactPokemonName(card.name, cleanName)) continue;
     const key = getPhysicalCardKey(card);
     const existing = merged.get(key);

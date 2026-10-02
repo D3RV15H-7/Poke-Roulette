@@ -158,12 +158,21 @@ header h1 span {
 }
 .suggestions li {
   padding: 0.55rem 0.85rem;
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 4rem minmax(0, 1fr) 1rem;
+  column-gap: 0.5rem;
+  align-items: baseline;
   font-size: 0.84rem;
   border-bottom: 1px solid #1e293b;
   cursor: pointer;
 }
+.suggestion-number {
+  color: var(--sub);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.suggestion-name { min-width: 0; }
 .suggestions li:last-child {
   border-bottom: none;
 }
@@ -2687,9 +2696,18 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
   min-height: 0;
 }
 
+/* Account Sync is a content-sized sheet resting directly above the dock. */
+#accountModal .modal-body {
+  height: auto;
+  min-height: 0;
+  flex: 0 1 auto;
+  overflow-y: auto;
+}
+#accountModal .modal-body > * { flex-shrink: 0; }
+#accountModal #authUserEmail { overflow-wrap: anywhere; }
 </style>
 </head>
-<body data-app-build="v56">
+<body data-app-build="v57">
 <div class="viewport">
   <header>
     <h1
@@ -4268,7 +4286,7 @@ const MEP_PROMO_CARDS = Object.freeze([
   {
     "id": "mep-023",
     "localId": "023",
-    "name": "Mega Charizard ex",
+    "name": "Mega Charizard X ex",
     "front": "https://www.serebii.net/card/megapromos/23.jpg"
   },
   {
@@ -4304,13 +4322,13 @@ const MEP_PROMO_CARDS = Object.freeze([
   {
     "id": "mep-029",
     "localId": "029",
-    "name": "Mega Charizard ex",
+    "name": "Mega Charizard X ex",
     "front": "https://www.serebii.net/card/megapromos/29.jpg"
   },
   {
     "id": "mep-030",
     "localId": "030",
-    "name": "Mega Charizard ex",
+    "name": "Mega Charizard Y ex",
     "front": "https://www.serebii.net/card/megapromos/30.jpg"
   },
   {
@@ -6087,7 +6105,7 @@ const MEP_PROMO_SET = {
   images: { logo: 'https://images.pokemontcg.io/swshp/logo.png', symbol: '' }
 };
 function getSetCardsCacheKey(setId) {
-  const version = setId === 'smp' ? 'v54' : setId === 'mep' ? 'v52' : 'v51';
+  const version = setId === 'smp' ? 'v54' : setId === 'mep' ? 'v58' : 'v51';
   return `pokeroulette_set_cards_${version}_${setId}`;
 }
 
@@ -6190,9 +6208,11 @@ function getCardArtworkSources(card) {
     if (entry && (scanName === name || aliases[numberKey]?.includes(name))) promoFront = entry.front;
   }
   if (setId === 'mep') {
-    const entry = MEP_PROMO_CARDS.find(item => normalizeCardNumber(item.localId) === number &&
-      String(item.name).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '') === name);
-    if (entry?.front) promoFront = entry.front;
+    const entry = MEP_PROMO_CARDS.find(item => normalizeCardNumber(item.localId) === number);
+    const scanName = String(entry?.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    // Older catalogue records omitted X/Y for these exact numbered printings.
+    const legacyAliases = { '23': ['megacharizardex'], '29': ['megacharizardex'], '30': ['megacharizardex'] };
+    if (entry?.front && (scanName === name || legacyAliases[number]?.includes(name))) promoFront = entry.front;
   }
   const frontScans = MCDONALDS_FRONT_SCANS_BY_SET[MCDONALDS_FRONT_SET_ALIASES[setId] || setId];
   const verified = (frontScans && frontScans[`${number}:${name}`]) ||
@@ -6226,6 +6246,11 @@ function getCardArtworkSources(card) {
   ))];
   // A back-of-card placeholder returns HTTP 200, so onerror cannot detect it.
   // For this verified printing, omit unreliable provider images entirely.
+  if (setId === 'mep') {
+    // Provider placeholders can be HTTP 200 card backs: use only matched front scans.
+    const fronts = promoFront ? unique([promoFront]) : [];
+    return { small: fronts.slice(), large: fronts.slice() };
+  }
   if (frontScans) {
     // All source-CDN scans in this set may be card-back placeholders.
     // Never fall back to them after a successful front scan has been found.
@@ -8695,11 +8720,20 @@ function resetSetsScrollToTop() {
   }
 }
 
+function showSetCardsRetryButton() {
+  const button = document.getElementById('setsRefreshBtn');
+  if (!button) return;
+  button.hidden = false;
+  button.textContent = 'Refresh Cards';
+  button.title = 'Refresh Cards';
+  button.setAttribute('aria-label', 'Refresh Cards');
+}
+
 function updateSetsRefreshButton() {
   const button = document.getElementById('setsRefreshBtn');
   if (!button) return;
-  button.hidden = Boolean(activeTcgSet);
-  const label = 'Refresh Sets';
+  button.hidden = false;
+  const label = activeTcgSet ? 'Refresh Cards' : 'Refresh Sets';
   button.textContent = label;
   button.title = label;
   button.setAttribute('aria-label', label);
@@ -8743,6 +8777,7 @@ async function openTcgSet(set) {
   loading.style.display = 'none';
 
   if (!cards.length) {
+    showSetCardsRetryButton();
     grid.innerHTML = `
       <div class="tcg-set-detail-head">
         <button type="button" class="tcg-set-back" onclick="renderTcgSets()">
@@ -8754,7 +8789,8 @@ async function openTcgSet(set) {
         color:var(--sub);
         padding:2rem 0;
       ">
-        Unable to load this set. Tap Refresh Cards to retry.
+        <div>Unable to load set.</div>
+        <div style="margin-top:0.35rem;">Tap Refresh Cards to retry.</div>
       </div>
     `;
     return;
@@ -9690,6 +9726,7 @@ async function refreshSetsView() {
     if (requestId !== setsViewRequestId || activeTcgSet !== set) return;
 
     if (!cards.length) {
+      showSetCardsRetryButton();
       if (loading) {
         loading.style.display = 'none';
       }
@@ -9701,7 +9738,8 @@ async function refreshSetsView() {
             color:var(--sub);
             padding:2rem 0;
           ">
-            Unable to refresh this set.
+            <div>Unable to load set.</div>
+            <div style="margin-top:0.35rem;">Tap Refresh Cards to retry.</div>
           </div>
         `);
       }
@@ -10405,7 +10443,7 @@ async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
 
 async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const cleanName = getCleanNationalDexName(pokeName, speciesName);
-  const cacheKey = `tcg_complete_cache_v54_${normalizePokemonCardName(cleanName).replace(/[^a-z0-9]/g, '')}`;
+  const cacheKey = `tcg_complete_cache_v58_${normalizePokemonCardName(cleanName).replace(/[^a-z0-9]/g, '')}`;
   const TTL_MS = 86400000;
   let saved = memoryTcgCache.get(cacheKey) || null;
   if (!saved) {
@@ -10955,17 +10993,8 @@ function handleSearch(val) {
     const li = document.createElement('li');
 
     li.innerHTML = `
-      <span>
-        <span style="
-          color:var(--sub);
-          font-weight:700;
-          margin-right:0.4rem;
-        ">
-          #${String(p.id).padStart(4, '0')}
-        </span>
-
-        ${p.cleanName}
-      </span>
+      <span class="suggestion-number">#${String(p.id).padStart(4, '0')}</span>
+      <span class="suggestion-name">${p.cleanName}</span>
 
       ${
         memCol.has(p.id)

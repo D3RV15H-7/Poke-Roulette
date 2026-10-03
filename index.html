@@ -1072,6 +1072,8 @@ body.has-active .hub-item-label {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
+  line-height: 1;
   font-size: 1.25rem;
   font-weight: 900;
   cursor: pointer;
@@ -1079,6 +1081,7 @@ body.has-active .hub-item-label {
   box-shadow: 0 4px 12px rgba(0,0,0,0.6);
   transition: transform 0.15s, background 0.15s;
 }
+.tcg-zoom-arrow svg { width: 18px; height: 18px; display: block; flex-shrink: 0; }
 .tcg-zoom-arrow:active {
   transform: scale(0.9);
   background: #475569;
@@ -1427,6 +1430,7 @@ body.has-active .hub-item-label {
 .app-toast.toast-warning {
   border-color: var(--gold);
 }
+.app-toast.toast-removed { border-color: #f59e0b; }
 #setsGrid {
   display: flex;
   flex-direction: column;
@@ -2662,10 +2666,25 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
   overflow-y: auto;
 }
 #accountModal .modal-body > * { flex-shrink: 0; }
+
+/* Three-card preview: keep neighbouring artwork visible inside the panel. */
+#zoomViewArea { overflow: hidden; user-select: none; -webkit-user-select: none; }
+.tcg-zoom-content .tcg-carousel-card {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: var(--zoom-card-width, 74%);
+  height: var(--zoom-card-height, 100%);
+  max-width: none; max-height: none;
+  transform: translate(-50%, -50%);
+}
+.tcg-carousel-card[hidden] { display: none; }
+.tcg-carousel-card[data-offset="-1"],
+.tcg-carousel-card[data-offset="1"] { cursor: pointer; }
+.tcg-carousel-card:focus-visible { outline: 2px solid var(--gold); outline-offset: -3px; }
 #accountModal #authUserEmail { overflow-wrap: anywhere; }
 </style>
 </head>
-<body data-app-build="v64">
+<body data-app-build="v65">
 <div class="viewport">
   <header>
     <h1
@@ -2849,19 +2868,25 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
       <button type="button" class="zoom-check-circle" id="zoomCheckCircle" onclick="toggleZoomCardOwned(event)" aria-pressed="false"><span id="zoomCheckLabel">Add to Dex</span><span class="zoom-check-box" aria-hidden="true">✓</span></button>
     </div>
     <div class="tcg-zoom-view-area" id="zoomViewArea">
-      <div class="flat-card-container">
+      <div class="flat-card-container tcg-carousel-card" data-offset="-1" role="button" tabindex="0" aria-label="Previous card" onclick="navigateZoomCard(-1)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();navigateZoomCard(-1);}" hidden>
+        <img class="tcg-zoom-img" alt="Previous card" />
+      </div>
+      <div class="flat-card-container tcg-carousel-card" data-offset="0">
         <img class="tcg-zoom-img" id="tcgZoomImg" src="" alt="Card HD" onerror="handleTcgImageError(this)" />
+      </div>
+      <div class="flat-card-container tcg-carousel-card" data-offset="1" role="button" tabindex="0" aria-label="Next card" onclick="navigateZoomCard(1)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();navigateZoomCard(1);}" hidden>
+        <img class="tcg-zoom-img" alt="Next card" />
       </div>
     </div>
     <div class="tcg-zoom-title" id="tcgZoomTitle">Card Title</div>
     <div class="tcg-zoom-meta" id="tcgZoomMeta">Set · Number</div>
     <div class="tcg-zoom-variants" id="tcgZoomVariants" style="display:none;"></div>
     <div class="tcg-zoom-bottom-controls">
-      <button type="button" aria-label="Previous card" class="tcg-zoom-arrow left" id="zoomLeftArrow" onclick="navigateZoomCard(-1)">‹</button>
+      <button type="button" aria-label="Previous card" class="tcg-zoom-arrow left" id="zoomLeftArrow" onclick="navigateZoomCard(-1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button>
     <div class="tcg-zoom-price-row" id="tcgZoomPrice">
       <span>Est. Value:</span> <strong id="tcgZoomPriceVal">£--.--</strong>
     </div>
-      <button type="button" aria-label="Next card" class="tcg-zoom-arrow right" id="zoomRightArrow" onclick="navigateZoomCard(1)">›</button>
+      <button type="button" aria-label="Next card" class="tcg-zoom-arrow right" id="zoomRightArrow" onclick="navigateZoomCard(1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg></button>
     </div>
     <button class="tcg-zoom-close" onclick="closeTcgZoom()">Close Preview</button>
   </div>
@@ -3048,10 +3073,10 @@ function showToast(msg, type = 'success') {
   const toast = document.getElementById('appToast');
   if (!toast) return;
 
-  const icons = { success: '✓', error: '✕', warning: '!' };
+  const icons = { success: '✓', removed: '✓', error: '✕', warning: '!' };
   toast.className = `app-toast toast-${type} visible`;
   const icon = document.createElement('span');
-  icon.style.cssText = `color:var(--${type === 'warning' ? 'gold' : type === 'error' ? 'red' : 'green'});font-size:0.9rem;`;
+  icon.style.cssText = `color:${type === 'removed' ? '#f59e0b' : `var(--${type === 'warning' ? 'gold' : type === 'error' ? 'red' : 'green'})`};font-size:0.9rem;`;
   icon.textContent = icons[type] || '•';
   const message = document.createElement('span');
   message.textContent = String(msg);
@@ -3445,7 +3470,7 @@ function saveLocalState() {
   }
 }
   
-function writeFullCollectionToCloud(actionMessage = null) {
+function writeFullCollectionToCloud(actionMessage = null, actionType = 'success') {
   if (!currentUser || !db) return;
   
   const payload = {
@@ -3457,7 +3482,7 @@ function writeFullCollectionToCloud(actionMessage = null) {
 };
   
   db.collection("users").doc(currentUser.uid).set(payload, { merge: true })
-    .then(() => { if (actionMessage) showToast(actionMessage, "success"); })
+    .then(() => { if (actionMessage) showToast(actionMessage, actionType); })
     .catch(err => {
       console.warn('[SYNC] Collection saved locally; cloud sync failed:', err);
       showToast('Saved on this device. Account sync is unavailable.', 'warning');
@@ -3511,7 +3536,7 @@ function toggleCardCollection(cardId, pokemonId = null) {
   }
 
   const toastMsg = wasAdded ? "Card Added to Dex Collection" : "Card Removed from Dex Collection";
-  writeFullCollectionToCloud(toastMsg);
+  writeFullCollectionToCloud(toastMsg, wasAdded ? 'success' : 'removed');
 }
 
  function toggleSetCardVariant(card, variant) {
@@ -3534,7 +3559,7 @@ function toggleCardCollection(cardId, pokemonId = null) {
   saveLocalState();
   showToast(wasOwned
     ? 'Card Removed from Sets Collection'
-    : 'Card Added to Sets Collection');
+    : 'Card Added to Sets Collection', wasOwned ? 'removed' : 'success');
   writeFullCollectionToCloud();
 } 
 
@@ -9327,11 +9352,12 @@ function renderTcgCards(cards) {
 }
 
 function openTcgZoom(index, fromModal = false) {
+  cancelZoomCarousel();
   openedFromDexModal = fromModal;
   currentZoomIndex = index;
-  updateZoomModalContent();
   const modal = document.getElementById('tcgZoomModal');
   if (modal) modal.style.display = 'flex';
+  updateZoomModalContent();
 }
 
 function updateZoomModalContent() {
@@ -9407,6 +9433,7 @@ function updateZoomModalContent() {
   const rightArrow = document.getElementById('zoomRightArrow');
   if (leftArrow) leftArrow.style.display = currentZoomIndex > 0 ? 'flex' : 'none';
   if (rightArrow) rightArrow.style.display = currentZoomIndex < currentCardsList.length - 1 ? 'flex' : 'none';
+  renderZoomCarousel();
 }
 
 function toggleZoomCardOwned(e) {
@@ -9475,27 +9502,247 @@ function toggleZoomCardOwned(e) {
 }
 
 function navigateZoomCard(d) {
-  if (!currentCardsList.length) return;
-  const newIndex = currentZoomIndex + d;
-  if (newIndex >= 0 && newIndex < currentCardsList.length) {
-    currentZoomIndex = newIndex;
+  if (zoomCarousel.animating || ![-1, 1].includes(d)) return;
+  const next = currentZoomIndex + d;
+  if (next < 0 || next >= currentCardsList.length) return;
+  settleZoomCarousel(d);
+}
+
+// Only the current card and its immediate neighbours are kept in the preview.
+const zoomCarousel = { frame: null, animating: false, drag: 0, pointer: null, ignoreClickUntil: 0, generation: 0 };
+const zoomViewArea = document.getElementById('zoomViewArea');
+
+function cancelZoomCarousel() {
+  zoomCarousel.generation++;
+  if (zoomCarousel.frame !== null) cancelAnimationFrame(zoomCarousel.frame);
+  zoomCarousel.frame = null;
+  zoomCarousel.animating = false;
+  zoomCarousel.drag = 0;
+  zoomCarousel.pointer = null;
+}
+
+function getZoomCarouselMetrics() {
+  const width = zoomViewArea?.clientWidth || 0;
+  const height = zoomViewArea?.clientHeight || 0;
+  const cardWidth = Math.min(width * 0.76, height * 63 / 88);
+  zoomViewArea?.style.setProperty('--zoom-card-width', `${cardWidth}px`);
+  zoomViewArea?.style.setProperty('--zoom-card-height', `${cardWidth * 88 / 63}px`);
+  return { step: cardWidth * 0.92 + 10, measurable: width > 0 && height > 0 };
+}
+
+function paintZoomCarousel(drag = 0) {
+  const { step } = getZoomCarouselMetrics();
+  zoomCarousel.drag = drag;
+  zoomViewArea?.querySelectorAll('.tcg-carousel-card').forEach(slot => {
+    const offset = Number(slot.dataset.offset);
+    const distance = Math.min(1, Math.abs(offset + drag / step));
+    slot.style.transform = `translate(-50%, -50%) translateX(${offset * step + drag}px) scale(${1 - distance * 0.16})`;
+    slot.style.opacity = String(1 - distance * 0.16);
+    slot.style.zIndex = String(3 - Math.round(distance * 2));
+  });
+}
+
+function renderZoomCarousel() {
+  cancelZoomCarousel();
+  if (!zoomViewArea) return;
+  zoomViewArea.querySelectorAll('.tcg-carousel-card').forEach(slot => {
+    const offset = Number(slot.dataset.offset);
+    const card = currentCardsList[currentZoomIndex + offset];
+    const img = slot.querySelector('img');
+    slot.hidden = !card;
+    if (!card) {
+      img.onload = img.onerror = null;
+      img.removeAttribute('src');
+      img._tcgCard = null;
+      img._tcgArtworkFallbacks = [];
+      return;
+    }
+    img.alt = card.name;
+    img.decoding = 'async';
+    if (offset === 0) {
+      slot.removeAttribute('role');
+      slot.removeAttribute('tabindex');
+      slot.removeAttribute('aria-label');
+    } else {
+      slot.setAttribute('role', 'button');
+      slot.setAttribute('tabindex', '0');
+      slot.setAttribute('aria-label', `${offset < 0 ? 'Previous' : 'Next'} card: ${card.name}`);
+      if (img._tcgCard !== card || img._tcgQuality !== 'small' || !img.hasAttribute('src')) {
+        setTcgImageFallbacks(img, card);
+        img.src = card.smallImg;
+      }
+    }
+  });
+  paintZoomCarousel();
+}
+
+function commitZoomCarousel(direction) {
+  if (direction) {
+    const oldImg = document.getElementById('tcgZoomImg');
+    const newImg = zoomViewArea.querySelector(`[data-offset="${direction}"] img`);
+    // Promote the visible neighbour itself, so its artwork stays painted while
+    // the HD source loads. Recycle the far slot for the new outside neighbour.
+    oldImg.removeAttribute('id');
+    newImg.id = 'tcgZoomImg';
+    if (oldImg._tcgRetryButton) {
+      newImg._tcgRetryButton = oldImg._tcgRetryButton;
+      delete oldImg._tcgRetryButton;
+      newImg._tcgRetryButton.onclick = event => {
+        event.stopPropagation();
+        retryTcgArtwork(newImg);
+      };
+    }
+    zoomViewArea.querySelectorAll('.tcg-carousel-card').forEach(slot => {
+      let offset = Number(slot.dataset.offset) - direction;
+      if (offset < -1) offset = 1;
+      if (offset > 1) offset = -1;
+      slot.dataset.offset = String(offset);
+    });
+    currentZoomIndex += direction;
     updateZoomModalContent();
+  } else {
+    paintZoomCarousel();
   }
 }
 
-let zoomTouchX = 0;
-const zoomViewArea = document.getElementById('zoomViewArea');
+function settleZoomCarousel(direction) {
+  if (!zoomViewArea) return;
+  const { step, measurable } = getZoomCarouselMetrics();
+  const start = zoomCarousel.drag;
+  const target = -direction * step;
+  if (!measurable || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    cancelZoomCarousel();
+    commitZoomCarousel(direction);
+    return;
+  }
+  zoomCarousel.animating = true;
+  zoomCarousel.pointer = null;
+  const generation = ++zoomCarousel.generation;
+  const cards = currentCardsList;
+  const index = currentZoomIndex;
+  const startedAt = performance.now();
+  const duration = Math.max(140, 280 * Math.min(1, Math.abs(target - start) / step));
+  function animate(now) {
+    if (generation !== zoomCarousel.generation) return;
+    if (cards !== currentCardsList || index !== currentZoomIndex ||
+        document.getElementById('tcgZoomModal')?.style.display !== 'flex') {
+      cancelZoomCarousel();
+      return;
+    }
+    const progress = Math.min(1, Math.max(0, (now - startedAt) / duration));
+    paintZoomCarousel(start + (target - start) * (1 - Math.pow(1 - progress, 3)));
+    if (progress < 1) zoomCarousel.frame = requestAnimationFrame(animate);
+    else {
+      zoomCarousel.frame = null;
+      zoomCarousel.animating = false;
+      commitZoomCarousel(direction);
+    }
+  }
+  zoomCarousel.frame = requestAnimationFrame(animate);
+}
+
+function beginZoomSwipe(x, y, id) {
+  if (zoomCarousel.animating || currentCardsList.length < 2) return;
+  zoomCarousel.pointer = { x, y, id, startedAt: performance.now(), horizontal: false, dx: 0 };
+}
+
+function moveZoomSwipe(x, y, event) {
+  const pointer = zoomCarousel.pointer;
+  if (!pointer) return;
+  const dx = x - pointer.x, dy = y - pointer.y;
+  if (!pointer.horizontal) {
+    if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) {
+      zoomCarousel.pointer = null;
+      return;
+    }
+    if (Math.abs(dx) < 6 || Math.abs(dx) <= Math.abs(dy) * 1.15) return;
+    pointer.horizontal = true;
+    if (event.pointerId != null) zoomViewArea.setPointerCapture?.(event.pointerId);
+  }
+  if (event.cancelable) event.preventDefault();
+  pointer.dx = dx;
+  const { step } = getZoomCarouselMetrics();
+  const beyondEdge = (dx > 0 && currentZoomIndex === 0) ||
+    (dx < 0 && currentZoomIndex === currentCardsList.length - 1);
+  paintZoomCarousel(Math.max(-step, Math.min(step, dx * (beyondEdge ? 0.25 : 1))));
+}
+
+function endZoomSwipe(cancelled = false) {
+  const pointer = zoomCarousel.pointer;
+  zoomCarousel.pointer = null;
+  if (!pointer?.horizontal) return;
+  zoomCarousel.ignoreClickUntil = performance.now() + 350;
+  const { step } = getZoomCarouselMetrics();
+  const velocity = Math.abs(pointer.dx) / Math.max(1, performance.now() - pointer.startedAt);
+  let direction = !cancelled && (Math.abs(pointer.dx) > step * 0.2 ||
+    (Math.abs(pointer.dx) > 18 && velocity > 0.45)) ? (pointer.dx < 0 ? 1 : -1) : 0;
+  const next = currentZoomIndex + direction;
+  if (next < 0 || next >= currentCardsList.length) direction = 0;
+  settleZoomCarousel(direction);
+}
+
 if (zoomViewArea) {
-  zoomViewArea.addEventListener('touchstart', e => { zoomTouchX = e.changedTouches[0].screenX; }, { passive: true });
-  zoomViewArea.addEventListener('touchend', e => {
-    const dX = e.changedTouches[0].screenX - zoomTouchX;
-    if (Math.abs(dX) > 40) navigateZoomCard(dX < 0 ? 1 : -1);
-  }, { passive: true });
+  zoomViewArea.querySelectorAll('.tcg-carousel-card').forEach(slot => {
+    slot.onclick = () => {
+      const direction = Number(slot.dataset.offset);
+      if (direction) navigateZoomCard(direction);
+    };
+    slot.onkeydown = event => {
+      const direction = Number(slot.dataset.offset);
+      if (direction && ['Enter', ' '].includes(event.key)) {
+        event.preventDefault();
+        navigateZoomCard(direction);
+      }
+    };
+  });
+  zoomViewArea.addEventListener('click', event => {
+    if (performance.now() < zoomCarousel.ignoreClickUntil) {
+      event.preventDefault(); event.stopPropagation();
+    }
+  }, true);
+  if (window.PointerEvent) {
+    zoomViewArea.addEventListener('pointerdown', event => {
+      if (!event.isPrimary || event.button !== 0) return;
+      beginZoomSwipe(event.clientX, event.clientY, event.pointerId);
+    });
+    zoomViewArea.addEventListener('pointermove', event => {
+      if (zoomCarousel.pointer?.id === event.pointerId) moveZoomSwipe(event.clientX, event.clientY, event);
+    });
+    zoomViewArea.addEventListener('pointerup', event => {
+      if (zoomCarousel.pointer?.id === event.pointerId) endZoomSwipe();
+    });
+    zoomViewArea.addEventListener('pointercancel', () => endZoomSwipe(true));
+    zoomViewArea.addEventListener('lostpointercapture', () => endZoomSwipe(true));
+  } else {
+    zoomViewArea.addEventListener('touchstart', event => {
+      if (event.touches.length !== 1) return endZoomSwipe(true);
+      const touch = event.touches[0]; beginZoomSwipe(touch.clientX, touch.clientY, touch.identifier);
+    }, { passive: true });
+    zoomViewArea.addEventListener('touchmove', event => {
+      if (event.touches.length !== 1) return endZoomSwipe(true);
+      const touch = event.touches[0]; moveZoomSwipe(touch.clientX, touch.clientY, event);
+    }, { passive: false });
+    zoomViewArea.addEventListener('touchend', () => endZoomSwipe(), { passive: true });
+    zoomViewArea.addEventListener('touchcancel', () => endZoomSwipe(true), { passive: true });
+  }
+  const resizeCarousel = () => {
+    if (document.getElementById('tcgZoomModal')?.style.display !== 'flex') return;
+    cancelZoomCarousel(); paintZoomCarousel();
+  };
+  if (window.ResizeObserver) new window.ResizeObserver(resizeCarousel).observe(zoomViewArea);
+  else window.addEventListener('resize', resizeCarousel);
 }
 
 function closeTcgZoom() {
+  cancelZoomCarousel();
   const modal = document.getElementById('tcgZoomModal');
   if (modal) modal.style.display = 'none';
+  zoomViewArea?.querySelectorAll('img').forEach(img => {
+    img.onload = img.onerror = null;
+    img.removeAttribute('src');
+    img._tcgCard = null;
+    img._tcgArtworkFallbacks = [];
+  });
   if (openedFromDexModal && activeDexModalPoke) openDexCardsModal(activeDexModalPoke);
 }
 

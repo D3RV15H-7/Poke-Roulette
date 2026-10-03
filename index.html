@@ -2687,7 +2687,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 }
 #accountModal .modal-body > * { flex-shrink: 0; }
 
-/* Three-card preview: keep neighbouring artwork visible inside the panel. */
+/* Five-card preview: the second neighbour is already loaded as it enters view. */
 #zoomViewArea { overflow: hidden; user-select: none; -webkit-user-select: none; }
 .tcg-zoom-content .tcg-carousel-card {
   position: absolute;
@@ -2698,6 +2698,8 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
   transform: translate(-50%, -50%);
 }
 .tcg-carousel-card[hidden] { display: none; }
+.tcg-carousel-card[data-offset="-2"],
+.tcg-carousel-card[data-offset="2"] { pointer-events: none; }
 .tcg-carousel-card.artwork-unavailable img { visibility: hidden; }
 .tcg-carousel-artwork-message {
   position: absolute;
@@ -2724,7 +2726,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 #accountModal #authUserEmail { overflow-wrap: anywhere; }
 </style>
 </head>
-<body data-app-build="v69">
+<body data-app-build="v70">
 <div class="viewport">
   <header>
     <h1
@@ -2908,6 +2910,9 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
       <button type="button" class="zoom-check-circle" id="zoomCheckCircle" onclick="toggleZoomCardOwned(event)" aria-pressed="false"><span id="zoomCheckLabel">Add to Dex</span><span class="zoom-check-box" aria-hidden="true">✓</span></button>
     </div>
     <div class="tcg-zoom-view-area" id="zoomViewArea">
+      <div class="flat-card-container tcg-carousel-card" data-offset="-2" aria-hidden="true" hidden>
+        <img class="tcg-zoom-img" alt="Earlier card" />
+      </div>
       <div class="flat-card-container tcg-carousel-card" data-offset="-1" role="button" tabindex="0" aria-label="Previous card" onclick="navigateZoomCard(-1)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();navigateZoomCard(-1);}" hidden>
         <img class="tcg-zoom-img" alt="Previous card" />
       </div>
@@ -2916,6 +2921,9 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
       </div>
       <div class="flat-card-container tcg-carousel-card" data-offset="1" role="button" tabindex="0" aria-label="Next card" onclick="navigateZoomCard(1)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();navigateZoomCard(1);}" hidden>
         <img class="tcg-zoom-img" alt="Next card" />
+      </div>
+      <div class="flat-card-container tcg-carousel-card" data-offset="2" aria-hidden="true" hidden>
+        <img class="tcg-zoom-img" alt="Later card" />
       </div>
     </div>
     <div class="tcg-zoom-title" id="tcgZoomTitle">Card Title</div>
@@ -9669,7 +9677,7 @@ function navigateZoomCard(d) {
   settleZoomCarousel(d);
 }
 
-// Only the current card and its immediate neighbours are kept in the preview.
+// Keep the current card and two neighbours per side; recycle only the farthest slot.
 const zoomCarousel = { frame: null, animating: false, drag: 0, pointer: null, ignoreClickUntil: 0, generation: 0 };
 const zoomViewArea = document.getElementById('zoomViewArea');
 
@@ -9721,16 +9729,24 @@ function renderZoomCarousel() {
       return;
     }
     img.alt = card.name;
+    img.loading = 'eager';
     img.decoding = 'async';
-    if (offset === 0) {
-      slot.removeAttribute('role');
-      slot.removeAttribute('tabindex');
-      slot.removeAttribute('aria-label');
-    } else {
+    if (Math.abs(offset) === 1) {
+      slot.removeAttribute('aria-hidden');
       slot.setAttribute('role', 'button');
       slot.setAttribute('tabindex', '0');
       slot.setAttribute('aria-label', `${offset < 0 ? 'Previous' : 'Next'} card: ${card.name}`);
-      if (img._tcgCard !== card || img._tcgQuality !== 'small' || !img.hasAttribute('src')) {
+    } else {
+      slot.removeAttribute('role');
+      slot.removeAttribute('tabindex');
+      slot.removeAttribute('aria-label');
+      if (offset === 0) slot.removeAttribute('aria-hidden');
+      else slot.setAttribute('aria-hidden', 'true');
+    }
+    if (offset !== 0) {
+      // Retain the painted image when a loaded card changes position, including
+      // the old HD centre. Only the recycled outside slot needs a new source.
+      if (img._tcgCard !== card || !img.hasAttribute('src')) {
         setTcgImageFallbacks(img, card);
         img.src = card.smallImg;
       }
@@ -9744,7 +9760,8 @@ function commitZoomCarousel(direction) {
     const oldImg = document.getElementById('tcgZoomImg');
     const newImg = zoomViewArea.querySelector(`[data-offset="${direction}"] img`);
     // Promote the visible neighbour itself, so its artwork stays painted while
-    // the HD source loads. Recycle the far slot for the new outside neighbour.
+    // the HD source loads. The preloaded second neighbour becomes the visible
+    // edge immediately; recycle only the slot leaving the five-card window.
     oldImg.removeAttribute('id');
     newImg.id = 'tcgZoomImg';
     if (oldImg._tcgRetryButton) {
@@ -9757,8 +9774,8 @@ function commitZoomCarousel(direction) {
     }
     zoomViewArea.querySelectorAll('.tcg-carousel-card').forEach(slot => {
       let offset = Number(slot.dataset.offset) - direction;
-      if (offset < -1) offset = 1;
-      if (offset > 1) offset = -1;
+      if (offset < -2) offset = 2;
+      if (offset > 2) offset = -2;
       slot.dataset.offset = String(offset);
     });
     currentZoomIndex += direction;

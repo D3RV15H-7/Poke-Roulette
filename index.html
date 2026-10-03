@@ -2724,7 +2724,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 #accountModal #authUserEmail { overflow-wrap: anywhere; }
 </style>
 </head>
-<body data-app-build="v68">
+<body data-app-build="v69">
 <div class="viewport">
   <header>
     <h1
@@ -7672,12 +7672,45 @@ function createSetThumbnailLoader(root) {
   };
 }
 
+// Keep the variant panel open for multiple selections, then dismiss it when
+// the user returns to browsing the cards. Capture events before modal handlers.
+let openSetCardVariantSelector = null;
+
+function closeSetCardVariantSelector() {
+  if (!openSetCardVariantSelector) return;
+  openSetCardVariantSelector.style.display = 'none';
+  openSetCardVariantSelector = null;
+}
+
+function dismissSetCardVariantsOnOutsidePress(event) {
+  if (!openSetCardVariantSelector) return;
+  if (openSetCardVariantSelector.contains(event.target)) return;
+  // The checkbox handles its own open/close toggle.
+  if (event.target.closest?.('.tcg-set-owned-check')) return;
+  closeSetCardVariantSelector();
+}
+
+if ('PointerEvent' in window) {
+  document.addEventListener('pointerdown', dismissSetCardVariantsOnOutsidePress, { capture: true, passive: true });
+} else {
+  document.addEventListener('touchstart', dismissSetCardVariantsOnOutsidePress, { capture: true, passive: true });
+  document.addEventListener('mousedown', dismissSetCardVariantsOnOutsidePress, { capture: true, passive: true });
+}
+document.addEventListener('click', dismissSetCardVariantsOnOutsidePress, true);
+document.addEventListener('scroll', event => {
+  if (!openSetCardVariantSelector?.contains(event.target)) closeSetCardVariantSelector();
+}, { capture: true, passive: true });
+document.addEventListener('wheel', event => {
+  if (!openSetCardVariantSelector?.contains(event.target)) closeSetCardVariantSelector();
+}, { capture: true, passive: true });
+
 function renderCurrentSetCards() {
   const cardGrid =
     document.getElementById('tcgSetCards');
 
   if (!cardGrid) return;
 
+  closeSetCardVariantSelector();
   disposeSetThumbnails();
   setThumbnailLoader = createSetThumbnailLoader(document.querySelector('#setsModal .modal-body'));
 
@@ -7799,17 +7832,16 @@ function renderCurrentSetCards() {
         const isOpen =
           selector.style.display === 'flex';
 
-        // Close any other open selectors
-        document
-          .querySelectorAll('.tcg-variant-selector')
-          .forEach(otherSelector => {
-            otherSelector.style.display = 'none';
-          });
+        closeSetCardVariantSelector();
 
         selector.style.display =
           isOpen ? 'none' : 'flex';
+        openSetCardVariantSelector = isOpen ? null : selector;
       };
     }
+
+    // Tapping empty space inside the panel must not open the full card view.
+    item.querySelector('.tcg-variant-selector').onclick = e => e.stopPropagation();
 
     const variantOptions =
   item.querySelectorAll('.tcg-variant-option');

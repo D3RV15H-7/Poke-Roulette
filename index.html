@@ -683,11 +683,22 @@ body.has-active .wheel-wrap {
   gap: 0.3rem;
 }
 .tcg-title-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
   font-size: 0.65rem;
   font-weight: 800;
   color: #f8fafc;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+.tcg-title-card-back {
+  display: block;
+  width: 1.04em;
+  height: 1.45em;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: 2px;
 }
 .tcg-count-text {
   color: var(--gold);
@@ -2726,7 +2737,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 #accountModal #authUserEmail { overflow-wrap: anywhere; }
 </style>
 </head>
-<body data-app-build="v70">
+<body data-app-build="v71">
 <div class="viewport">
   <header>
     <h1
@@ -2832,7 +2843,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
     <div class="tcg-section-wrap" id="tcgWrap">
       <div class="tcg-header-row">
         <div class="tcg-title-actions">
-          <span class="tcg-title-text" id="tcgSectionTitle">🃏 Card Variations</span>
+          <span class="tcg-title-text" id="tcgSectionTitle"><img class="tcg-title-card-back" src="data:image/webp;base64,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" alt="" aria-hidden="true" draggable="false" />Card Variations</span>
           <button class="tcg-header-refresh-btn" onclick="refreshCurrentCardSearch()" title="Refresh Cards" aria-label="Refresh card variations">↻</button>
         </div>
         <span class="tcg-count-text" id="tcgCountText">Loading cards...</span>

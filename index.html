@@ -2665,7 +2665,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 #accountModal #authUserEmail { overflow-wrap: anywhere; }
 </style>
 </head>
-<body data-app-build="v63">
+<body data-app-build="v64">
 <div class="viewport">
   <header>
     <h1
@@ -3524,13 +3524,17 @@ function toggleCardCollection(cardId, pokemonId = null) {
 
   if (!key) return;
 
-  if (memSetCardVariants.has(key)) {
+  const wasOwned = memSetCardVariants.has(key);
+  if (wasOwned) {
     memSetCardVariants.delete(key);
   } else {
     memSetCardVariants.add(key);
   }
 
   saveLocalState();
+  showToast(wasOwned
+    ? 'Card Removed from Sets Collection'
+    : 'Card Added to Sets Collection');
   writeFullCollectionToCloud();
 } 
 

@@ -2684,7 +2684,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 #accountModal #authUserEmail { overflow-wrap: anywhere; }
 </style>
 </head>
-<body data-app-build="v65">
+<body data-app-build="v66">
 <div class="viewport">
   <header>
     <h1
@@ -9657,7 +9657,10 @@ function moveZoomSwipe(x, y, event) {
     }
     if (Math.abs(dx) < 6 || Math.abs(dx) <= Math.abs(dy) * 1.15) return;
     pointer.horizontal = true;
-    if (event.pointerId != null) zoomViewArea.setPointerCapture?.(event.pointerId);
+    if (event.pointerId != null) {
+      try { zoomViewArea.setPointerCapture?.(event.pointerId); }
+      catch (error) { /* Window listeners still track this drag if capture is unavailable. */ }
+    }
   }
   if (event.cancelable) event.preventDefault();
   pointer.dx = dx;
@@ -9702,29 +9705,51 @@ if (zoomViewArea) {
   }, true);
   if (window.PointerEvent) {
     zoomViewArea.addEventListener('pointerdown', event => {
-      if (!event.isPrimary || event.button !== 0) return;
+      // Touch is handled below, including on Safari versions with PointerEvent.
+      // Never handle the same finger through both event streams.
+      if (event.pointerType === 'touch' || !event.isPrimary || event.button !== 0) return;
       beginZoomSwipe(event.clientX, event.clientY, event.pointerId);
     });
-    zoomViewArea.addEventListener('pointermove', event => {
+    window.addEventListener('pointermove', event => {
+      if (event.pointerType === 'touch') return;
       if (zoomCarousel.pointer?.id === event.pointerId) moveZoomSwipe(event.clientX, event.clientY, event);
-    });
-    zoomViewArea.addEventListener('pointerup', event => {
+    }, { passive: false });
+    window.addEventListener('pointerup', event => {
+      if (event.pointerType === 'touch') return;
       if (zoomCarousel.pointer?.id === event.pointerId) endZoomSwipe();
     });
-    zoomViewArea.addEventListener('pointercancel', () => endZoomSwipe(true));
-    zoomViewArea.addEventListener('lostpointercapture', () => endZoomSwipe(true));
-  } else {
-    zoomViewArea.addEventListener('touchstart', event => {
-      if (event.touches.length !== 1) return endZoomSwipe(true);
-      const touch = event.touches[0]; beginZoomSwipe(touch.clientX, touch.clientY, touch.identifier);
-    }, { passive: true });
-    zoomViewArea.addEventListener('touchmove', event => {
-      if (event.touches.length !== 1) return endZoomSwipe(true);
-      const touch = event.touches[0]; moveZoomSwipe(touch.clientX, touch.clientY, event);
-    }, { passive: false });
-    zoomViewArea.addEventListener('touchend', () => endZoomSwipe(), { passive: true });
-    zoomViewArea.addEventListener('touchcancel', () => endZoomSwipe(true), { passive: true });
+    window.addEventListener('pointercancel', event => {
+      if (event.pointerType !== 'touch' && zoomCarousel.pointer?.id === event.pointerId) endZoomSwipe(true);
+    });
+    zoomViewArea.addEventListener('lostpointercapture', event => {
+      // A child's lost-capture event bubbles here during a normal handoff.
+      // Only losing the carousel's own capture cancels its active pointer.
+      if (event.target === zoomViewArea && event.pointerType !== 'touch' &&
+          zoomCarousel.pointer?.id === event.pointerId) endZoomSwipe(true);
+    });
   }
+  zoomViewArea.addEventListener('touchstart', event => {
+    if (event.touches.length !== 1) return endZoomSwipe(true);
+    const touch = event.touches[0]; beginZoomSwipe(touch.clientX, touch.clientY, `touch:${touch.identifier}`);
+  }, { passive: true });
+  zoomViewArea.addEventListener('touchmove', event => {
+    if (!String(zoomCarousel.pointer?.id).startsWith('touch:')) return;
+    if (event.touches.length !== 1) return endZoomSwipe(true);
+    const touch = event.touches[0];
+    if (zoomCarousel.pointer.id === `touch:${touch.identifier}`) moveZoomSwipe(touch.clientX, touch.clientY, event);
+  }, { passive: false, capture: true });
+  zoomViewArea.addEventListener('touchend', event => {
+    const pointer = zoomCarousel.pointer;
+    if (!String(pointer?.id).startsWith('touch:')) return;
+    const touch = Array.from(event.changedTouches).find(t => pointer.id === `touch:${t.identifier}`);
+    if (!touch) return;
+    // Include the release position even if Safari coalesced the last move.
+    moveZoomSwipe(touch.clientX, touch.clientY, event);
+    endZoomSwipe();
+  }, { passive: false });
+  zoomViewArea.addEventListener('touchcancel', () => {
+    if (String(zoomCarousel.pointer?.id).startsWith('touch:')) endZoomSwipe(true);
+  }, { passive: true });
   const resizeCarousel = () => {
     if (document.getElementById('tcgZoomModal')?.style.display !== 'flex') return;
     cancelZoomCarousel(); paintZoomCarousel();

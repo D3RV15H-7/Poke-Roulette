@@ -1590,24 +1590,27 @@ body.has-active .hub-item-label {
   gap: 0.65rem;
 }
 
-.tcg-set-footer {
-  display: flex;
-  justify-content: center;
-  padding: 1rem 0 0.4rem;
-}
-.tcg-set-footer[hidden] { display: none; }
+/* Fixed to the Sets window, above the navigation dock. */
 .tcg-set-back-top {
+  position: absolute;
+  left: max(14px, calc(50% - 236px));
+  bottom: 12px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
   background: #334155;
   color: #fff;
-  border: 1px solid #475569;
-  border-radius: 99px;
-  padding: 0.6rem 1.25rem;
-  min-height: 44px;
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 800;
+  border: 1px solid #64748b;
+  border-radius: 50%;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
   cursor: pointer;
+  touch-action: manipulation;
 }
+.tcg-set-back-top[hidden] { display: none; }
+.tcg-set-back-top svg { width: 22px; height: 22px; pointer-events: none; }
 .tcg-set-back-top:active { background: #475569; }
 .tcg-set-back-top:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
 
@@ -2684,7 +2687,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 #accountModal #authUserEmail { overflow-wrap: anywhere; }
 </style>
 </head>
-<body data-app-build="v66">
+<body data-app-build="v67">
 <div class="viewport">
   <header>
     <h1
@@ -2979,6 +2982,14 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
     <div id="setsGrid"></div>
 
   </div>
+  <button type="button" id="setCardsBackTop" class="tcg-set-back-top" hidden
+    aria-label="Back to top" title="Back to top"
+    onclick="event.stopPropagation(); scrollSetCardsToTop()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 19V5M5 12l7-7 7 7" />
+    </svg>
+  </button>
 </div>
 
 <div class="modal" id="accountModal" onclick="closeModal(event, 'accountModal')">
@@ -7175,6 +7186,7 @@ function resetSetsScrollToTop() {
       behavior: 'auto'
     });
   }
+  updateSetCardsBackTop();
 }
 
 function showSetCardsRetryButton() {
@@ -7336,9 +7348,6 @@ const percentage = totalCount > 0
 </div>
 
 <div class="tcg-set-cards" id="tcgSetCards"></div>
-<div class="tcg-set-footer" id="tcgSetFooter" hidden>
-  <button type="button" class="tcg-set-back-top" onclick="scrollSetCardsToTop()">Back To Top</button>
-</div>
 `;
 
   renderCurrentSetCards();
@@ -7376,6 +7385,31 @@ function updateCurrentSetProgress() {
 }
 
 let setCardsTopScrollFrame = null;
+function updateSetCardsBackTop() {
+  const modal = document.getElementById('setsModal');
+  const body = modal?.querySelector('.modal-body');
+  const button = document.getElementById('setCardsBackTop');
+  if (!button || !body) return;
+  const cardGrid = document.getElementById('tcgSetCards');
+  const scrollableDistance = Math.max(0, body.scrollHeight - body.clientHeight);
+  button.hidden = !(modal.style.display === 'flex' && activeTcgSet &&
+    cardGrid?.childElementCount && scrollableDistance > 0 &&
+    body.scrollTop > scrollableDistance / 8);
+}
+
+// Install once; content/filter changes can alter the threshold without a scroll.
+{
+  const body = document.querySelector('#setsModal .modal-body');
+  const grid = document.getElementById('setsGrid');
+  body?.addEventListener('scroll', updateSetCardsBackTop, { passive: true });
+  window.addEventListener('resize', updateSetCardsBackTop, { passive: true });
+  if (typeof ResizeObserver === 'function' && body && grid) {
+    const observer = new ResizeObserver(updateSetCardsBackTop);
+    observer.observe(body);
+    observer.observe(grid);
+  }
+}
+
 function scrollSetCardsToTop() {
   const body = document.querySelector('#setsModal .modal-body');
   if (!body) return;
@@ -7384,6 +7418,7 @@ function scrollSetCardsToTop() {
   const startTop = body.scrollTop;
   if (!startTop || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
     body.scrollTop = 0;
+    updateSetCardsBackTop();
     return;
   }
   const startedAt = performance.now();
@@ -7394,6 +7429,7 @@ function scrollSetCardsToTop() {
     }
     const progress = Math.min(1, Math.max(0, (now - startedAt) / 320));
     body.scrollTop = startTop * Math.pow(1 - progress, 3);
+    updateSetCardsBackTop();
     setCardsTopScrollFrame = progress < 1 ? requestAnimationFrame(animate) : null;
   };
   setCardsTopScrollFrame = requestAnimationFrame(animate);
@@ -7593,9 +7629,6 @@ function renderCurrentSetCards() {
       return true;
     });
 
-  const footer = document.getElementById('tcgSetFooter');
-  if (footer) footer.hidden = visibleCards.length === 0;
-
   visibleCards.forEach(({ card, originalIndex }) => {
     const item =
       document.createElement('div');
@@ -7730,6 +7763,7 @@ variantOptions.forEach(option => {
     cardGrid.appendChild(item);
     setThumbnailLoader.observe(setCardImg, card);
   });
+  updateSetCardsBackTop();
 }
   
 async function renderTcgSets(forceRefresh = false) {
@@ -8352,6 +8386,7 @@ async function refreshSetsView() {
       `;
       if (loading) grid.after(loading);
     }
+    updateSetCardsBackTop();
 
     if (loading) {
       loading.style.display = 'block';

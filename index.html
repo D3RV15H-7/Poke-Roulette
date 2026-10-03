@@ -1439,6 +1439,7 @@ body.has-active .hub-item-label {
 }
 
 .tcg-set-item {
+  position: relative;
   width: 100%;
   min-height: 78px;
 
@@ -1766,6 +1767,22 @@ body.has-active .hub-item-label {
   outline: 2px solid var(--green);
   outline-offset: -2px;
 }
+
+.tcg-set-complete-tick {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--green);
+  color: #fff;
+  pointer-events: none;
+}
+.tcg-set-complete-tick svg { width: 13px; height: 13px; }
+.tcg-set-item.set-complete .tcg-set-name { padding-right: 20px; }
 
 /* TCG Set card variant selector */
 .tcg-set-card-image-wrap {
@@ -2681,13 +2698,33 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
   transform: translate(-50%, -50%);
 }
 .tcg-carousel-card[hidden] { display: none; }
+.tcg-carousel-card.artwork-unavailable img { visibility: hidden; }
+.tcg-carousel-artwork-message {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 1rem;
+  border: 1px solid #475569;
+  border-radius: inherit;
+  background: #0f172a;
+  color: #cbd5e1;
+  font-size: 0.85rem;
+  text-align: center;
+  pointer-events: none;
+}
+.tcg-carousel-artwork-message[hidden] { display: none; }
+.tcg-carousel-artwork-message small { color: var(--sub); font-size: 0.65rem; }
 .tcg-carousel-card[data-offset="-1"],
 .tcg-carousel-card[data-offset="1"] { cursor: pointer; }
 .tcg-carousel-card:focus-visible { outline: 2px solid var(--gold); outline-offset: -3px; }
 #accountModal #authUserEmail { overflow-wrap: anywhere; }
 </style>
 </head>
-<body data-app-build="v67">
+<body data-app-build="v68">
 <div class="viewport">
   <header>
     <h1
@@ -4651,6 +4688,14 @@ function getTcgDexArtworkSeries(setId) {
   return match?.[1] || '';
 }
 
+// Independently checked front for the exact 2021 promo, including old cache IDs.
+const CARD_ARTWORK_RECOVERY_SOURCES = Object.freeze({
+  'mcd21:1:bulbasaur': {
+    small: ['https://tcgplayer-cdn.tcgplayer.com/product/232316_200w.jpg', 'https://tcgplayer-cdn.tcgplayer.com/product/232316_in_1000x1000.jpg'],
+    large: ['https://tcgplayer-cdn.tcgplayer.com/product/232316_in_1000x1000.jpg', 'https://tcgplayer-cdn.tcgplayer.com/product/232316_200w.jpg']
+  }
+});
+
 function getCardArtworkSources(card) {
   const setId = String(card.set?.id || String(card.id || '').split('-').slice(0, -1).join('-')).trim().toLowerCase();
   const localId = String(card.localId || card.number || '').trim();
@@ -4740,15 +4785,19 @@ function getCardArtworkSources(card) {
     const fronts = verified ? [verified] : [];
     return { small: [...new Set(fronts)], large: [...new Set(fronts)] };
   }
-  const small = unique([promoFront, verified, ...audited.small, card.images?.small, card.smallImg, card.images?.large, card.largeImg, ...(card.smallImgFallbacks || []), ...extra]);
-  const large = unique([promoFront, verified, ...audited.large, card.images?.large, card.largeImg, card.images?.small, card.smallImg, ...(card.largeImgFallbacks || []), ...extra]);
+  const recovery = CARD_ARTWORK_RECOVERY_SOURCES[`${setId === '2021swsh' ? 'mcd21' : setId}:${number}:${name}`];
+  const small = unique([...(recovery?.small || []), promoFront, verified, ...audited.small, card.images?.small, card.smallImg, card.images?.large, card.largeImg, ...(card.smallImgFallbacks || []), ...extra]);
+  const large = unique([...(recovery?.large || []), promoFront, verified, ...audited.large, card.images?.large, card.largeImg, card.images?.small, card.smallImg, ...(card.largeImgFallbacks || []), ...extra]);
   return { small, large };
 }
 
 function setTcgImageFallbacks(img, card, quality = 'small') {
   if (!img || !card) return;
+  clearTimeout(img._tcgArtworkTimer);
+  if (img._tcgCard !== card) img._tcgRetryAttempted = false;
   img._tcgCard = card;
   img._tcgQuality = quality;
+  img._tcgArtworkDeadline = Date.now() + 30000;
   if (quality === 'large' && !img._tcgRetryButton) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -4764,9 +4813,10 @@ function setTcgImageFallbacks(img, card, quality = 'small') {
     document.querySelector('.tcg-zoom-toolbar')?.appendChild(button);
     img._tcgRetryButton = button;
   }
-  setTcgArtworkUnavailable(img, false);
   // Repair old cached records at display time in every card view.
   const artwork = getCardArtworkSources(card);
+  img._tcgCanRetry = artwork[quality === 'large' ? 'large' : 'small'].length > 0;
+  setTcgArtworkUnavailable(img, !img._tcgCanRetry);
   card.smallImg = artwork.small[0] || TCG_CARD_ARTWORK_UNAVAILABLE;
   card.largeImg = artwork.large[0] || TCG_CARD_ARTWORK_UNAVAILABLE;
   card.smallImgFallbacks = artwork.small.slice(1);
@@ -4779,6 +4829,7 @@ function setTcgImageFallbacks(img, card, quality = 'small') {
   // The zoom image is reused between cards, so restore its handlers each time.
   img.onerror = () => handleTcgImageError(img);
   img.onload = () => {
+    clearTimeout(img._tcgArtworkTimer);
     if (img.src !== TCG_CARD_ARTWORK_UNAVAILABLE && img.naturalWidth > 0 &&
         (img.naturalWidth < 10 || img.naturalHeight < 10)) {
       handleTcgImageError(img);
@@ -4789,22 +4840,59 @@ function setTcgImageFallbacks(img, card, quality = 'small') {
       card.resolvedSmallImg = img.currentSrc || img.src;
     }
   };
+  if (img._tcgCanRetry) armTcgPreviewArtworkTimeout(img);
+}
+
+function armTcgPreviewArtworkTimeout(img) {
+  clearTimeout(img._tcgArtworkTimer);
+  // Grid thumbnails already have their own bounded loader.
+  if (!img.closest('.tcg-carousel-card')) return;
+  const card = img._tcgCard;
+  const remaining = img._tcgArtworkDeadline - Date.now();
+  if (remaining <= 0) {
+    img._tcgArtworkFallbacks = [];
+    handleTcgImageError(img);
+    return;
+  }
+  img._tcgArtworkTimer = setTimeout(() => {
+    if (!img.isConnected || img._tcgCard !== card || !img.hasAttribute('src')) return;
+    handleTcgImageError(img);
+  }, Math.min(10000, remaining));
 }
 
 function setTcgArtworkUnavailable(img, unavailable) {
+  if (unavailable) clearTimeout(img._tcgArtworkTimer);
+  const slot = img.closest('.tcg-carousel-card');
+  if (slot) {
+    slot.classList.toggle('artwork-unavailable', unavailable);
+    let message = slot.querySelector('.tcg-carousel-artwork-message');
+    if (unavailable && !message) {
+      message = document.createElement('div');
+      message.className = 'tcg-carousel-artwork-message';
+      message.innerHTML = '<span>Artwork Unavailable</span><small>Card remains in the catalogue</small>';
+      slot.appendChild(message);
+    }
+    if (message) message.hidden = !unavailable;
+  }
   if (!img._tcgRetryButton) return;
-  img._tcgRetryButton.hidden = !unavailable;
+  // One real retry per card visit; do not leave a repeatedly ineffective icon.
+  img._tcgRetryButton.hidden = !unavailable || !img._tcgCanRetry || !!img._tcgRetryAttempted;
   img._tcgRetryButton.disabled = false;
   img._tcgRetryButton.setAttribute('aria-busy', 'false');
 }
 
 function retryTcgArtwork(img) {
   const card = img._tcgCard;
-  if (!card) return;
-  delete card.resolvedSmallImg;
+  if (!card || img._tcgRetryAttempted || img._tcgRetryButton?.disabled) return;
+  const loadedThumbnail = card.resolvedSmallImg;
   setTcgImageFallbacks(img, card, img._tcgQuality);
+  img._tcgRetryAttempted = true;
   const artwork = getCardArtworkSources(card);
-  const sources = artwork[img._tcgQuality === 'large' ? 'large' : 'small'];
+  const candidates = artwork[img._tcgQuality === 'large' ? 'large' : 'small'];
+  const sources = [...new Set([
+    ...(loadedThumbnail && artwork.small.includes(loadedThumbnail) ? [loadedThumbnail] : []),
+    ...candidates
+  ])];
   if (!sources.length) {
     img.src = TCG_CARD_ARTWORK_UNAVAILABLE;
     setTcgArtworkUnavailable(img, true);
@@ -4825,16 +4913,22 @@ function retryTcgArtwork(img) {
     img._tcgRetryButton.setAttribute('aria-busy', 'true');
   }
   img.src = fresh[0];
+  armTcgPreviewArtworkTimeout(img);
 }
 
 function handleTcgImageError(img) {
+  clearTimeout(img._tcgArtworkTimer);
   if (img.src === TCG_CARD_ARTWORK_UNAVAILABLE) {
     setTcgArtworkUnavailable(img, true);
     return;
   }
+  if (img.closest('.tcg-carousel-card') && Date.now() >= img._tcgArtworkDeadline) {
+    img._tcgArtworkFallbacks = [];
+  }
   const fallback = img._tcgArtworkFallbacks?.shift();
   if (fallback) {
     img.src = fallback;
+    armTcgPreviewArtworkTimeout(img);
     return;
   }
   img.src = TCG_CARD_ARTWORK_UNAVAILABLE;
@@ -7833,11 +7927,11 @@ async function renderTcgSets(forceRefresh = false) {
     ? Math.round((collectedCount / totalCount) * 100)
     : 0;
    
-if (totalCount > 0 && collectedCount >= totalCount) {
-  item.classList.add('set-complete');
-}
+const isComplete = totalCount > 0 && collectedCount >= totalCount;
+if (isComplete) item.classList.add('set-complete');
    
   item.innerHTML = `
+    ${isComplete ? `<span class="tcg-set-complete-tick" role="img" aria-label="Set 100% complete" title="Set 100% complete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>` : ''}
     ${
       (set.id === YELLOW_A_SET_ID ? YELLOW_A_VIRTUAL_SET.logo : set.logo)
         ? `<img class="tcg-set-logo" src="${set.id === YELLOW_A_SET_ID ? YELLOW_A_VIRTUAL_SET.logo : set.logo}" alt="${set.name}">`
@@ -9586,6 +9680,8 @@ function renderZoomCarousel() {
     const img = slot.querySelector('img');
     slot.hidden = !card;
     if (!card) {
+      clearTimeout(img._tcgArtworkTimer);
+      setTcgArtworkUnavailable(img, false);
       img.onload = img.onerror = null;
       img.removeAttribute('src');
       img._tcgCard = null;
@@ -9798,6 +9894,8 @@ function closeTcgZoom() {
   const modal = document.getElementById('tcgZoomModal');
   if (modal) modal.style.display = 'none';
   zoomViewArea?.querySelectorAll('img').forEach(img => {
+    clearTimeout(img._tcgArtworkTimer);
+    setTcgArtworkUnavailable(img, false);
     img.onload = img.onerror = null;
     img.removeAttribute('src');
     img._tcgCard = null;

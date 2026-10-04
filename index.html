@@ -2767,9 +2767,29 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 @media (prefers-reduced-motion: reduce) {
   .viewport.title-pull-reset { transition: none; }
 }
+/* v77: the same four dock columns in every view and encounter state. */
+.hub, body.has-active .hub {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%; max-width: 440px; gap: 0;
+  justify-content: normal;
+}
+.hub-item-wrap { min-width: 0; }
+/* A quiet grab handle on the panels that support pull-down dismissal. */
+.pull-dismiss-panel::before {
+  content: ""; display: block; flex: 0 0 4px;
+  width: 40px; height: 4px; border-radius: 99px;
+  margin: 0 auto 0.6rem;
+  background: rgba(148, 163, 184, 0.35);
+  pointer-events: none;
+}
+.dex-cards-content { position: relative; }
+.dex-cards-content.pull-dismiss-panel::before { margin-bottom: 0; }
+#dexCardsGrid { min-height: 0; overscroll-behavior-y: contain; }
+#dexCardsBackTop { left: 1rem; bottom: 1rem; }
 </style>
 </head>
-<body data-app-build="v76">
+<body data-app-build="v77">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -2902,7 +2922,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
   <div class="hub">
 
     <div class="hub-item-wrap">
-      <button class="btn-hub" onclick="openModal('accountModal')" title="Account Sync" id="btnAccount">
+      <button class="btn-hub" onclick="navigateHub('accountModal')" title="Account Sync" id="btnAccount">
         <svg viewBox="0 0 24 24">
           <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
           <circle cx="12" cy="7" r="4"/>
@@ -2912,7 +2932,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
     </div>
 
     <div class="hub-item-wrap">
-      <button class="btn-hub" onclick="openModal('dexModal')" title="Collection">
+      <button class="btn-hub" onclick="navigateHub('dexModal')" title="Collection">
         <svg viewBox="0 0 24 24">
           <path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-9Z"/>
           <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
@@ -2925,7 +2945,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 
     <!-- NEW SETS BUTTON -->
     <div class="hub-item-wrap">
-      <button class="btn-hub" onclick="openModal('setsModal'); if (document.getElementById('setsModal')?.style.display === 'flex') renderTcgSets();" title="Card Sets">
+      <button class="btn-hub" onclick="navigateHub('setsModal')" title="Card Sets">
         <svg viewBox="0 0 24 24">
           <rect x="4" y="5" width="14" height="16" rx="2"/>
           <path d="M8 5V3h12v16h-2"/>
@@ -2937,7 +2957,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
     </div>
 
     <div class="hub-item-wrap">
-      <button class="btn-hub info-button" onclick="openModal('infoModal')" title="App Info & Legal" aria-label="Info">
+      <button class="btn-hub info-button" onclick="navigateHub('infoModal')" title="App Info & Legal" aria-label="Info">
         <svg viewBox="0 0 24 24">
           <circle cx="12" cy="12" r="10"/>
           <circle class="info-dot" cx="12" cy="7.5" r="1.35"/>
@@ -2998,6 +3018,14 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
     <div class="dex-cards-grid" id="dexCardsGrid">
       <div style="grid-column:span 3;text-align:center;color:var(--sub);padding:2rem 0;font-size:0.8rem;">Loading cards...</div>
     </div>
+    <button type="button" id="dexCardsBackTop" class="tcg-set-back-top" hidden
+      aria-label="Back to top" title="Back to top"
+      onclick="event.stopPropagation(); scrollDexCardsToTop()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 19V5M5 12l7-7 7 7" />
+      </svg>
+    </button>
   </div>
 </div>
 
@@ -8398,13 +8426,26 @@ function resetDexScrollToTop() {
   }
 }
 
-function openModal(id) {
+// Dock destinations are accessible even while a nested card window is open.
+function navigateHub(id) {
+  if (!['accountModal', 'dexModal', 'setsModal', 'infoModal'].includes(id)) return;
+  document.activeElement?.blur();
+  // Closing a Dex preview normally returns to its card grid. Dock navigation
+  // chooses another destination, so do not reopen that grid during cleanup.
+  openedFromDexModal = false;
+  if (document.getElementById('tcgZoomModal')?.style.display === 'flex') closeTcgZoom();
+  closeDexCardsModal();
+  openModal(id, true);
+  if (id === 'setsModal') renderTcgSets();
+}
+
+function openModal(id, forceOpen = false) {
   const el = document.getElementById(id);
   if (!el) return;
 
   // Hub/modal navigation is exclusive:
   // tapping the open view closes it; opening another closes the current view.
-  const isAlreadyOpen = el.style.display === 'flex';
+  const isAlreadyOpen = !forceOpen && el.style.display === 'flex';
 
   document.querySelectorAll('.modal').forEach(modal => {
     if (modal.id !== id && modal.style.display !== 'none') {
@@ -8507,6 +8548,7 @@ function installHubPullToClose() {
     let tracking = false;
     let dragging = false;
     const body = getHubModalPanel(modal);
+    body?.classList.add('pull-dismiss-panel');
 
     modal.addEventListener('touchstart', event => {
       if (event.touches.length !== 1 || modal.dataset.pullClosing === '1') return;
@@ -8751,7 +8793,57 @@ async function refreshSetsView() {
   await renderTcgSets(true);
 }
 
+let dexCardsTopScrollFrame = null;
+function cancelDexCardsTopScroll() {
+  if (dexCardsTopScrollFrame !== null) cancelAnimationFrame(dexCardsTopScrollFrame);
+  dexCardsTopScrollFrame = null;
+}
+function updateDexCardsBackTop() {
+  const grid = document.getElementById('dexCardsGrid');
+  const button = document.getElementById('dexCardsBackTop');
+  if (!grid || !button) return;
+  const distance = Math.max(0, grid.scrollHeight - grid.clientHeight);
+  button.hidden = !(document.getElementById('dexCardsModal')?.style.display === 'flex' &&
+    grid.querySelector('.dex-card-thumb-cell') && distance > 0 && grid.scrollTop > distance / 8);
+}
+function scrollDexCardsToTop() {
+  const grid = document.getElementById('dexCardsGrid');
+  if (!grid) return;
+  cancelDexCardsTopScroll();
+  const startTop = grid.scrollTop;
+  if (!startTop || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    grid.scrollTop = 0;
+    updateDexCardsBackTop();
+    return;
+  }
+  const startedAt = performance.now();
+  const animate = now => {
+    if (document.getElementById('dexCardsModal')?.style.display !== 'flex') {
+      dexCardsTopScrollFrame = null;
+      return;
+    }
+    const progress = Math.min(1, Math.max(0, (now - startedAt) / 320));
+    grid.scrollTop = startTop * Math.pow(1 - progress, 3);
+    updateDexCardsBackTop();
+    dexCardsTopScrollFrame = progress < 1 ? requestAnimationFrame(animate) : null;
+  };
+  dexCardsTopScrollFrame = requestAnimationFrame(animate);
+}
+{
+  const grid = document.getElementById('dexCardsGrid');
+  grid?.addEventListener('scroll', updateDexCardsBackTop, { passive: true });
+  grid?.addEventListener('touchstart', cancelDexCardsTopScroll, { passive: true });
+  grid?.addEventListener('wheel', cancelDexCardsTopScroll, { passive: true });
+  window.addEventListener('resize', updateDexCardsBackTop, { passive: true });
+  if (grid && typeof ResizeObserver === 'function') {
+    const observer = new ResizeObserver(updateDexCardsBackTop);
+    observer.observe(grid);
+    observer.observe(grid.parentElement);
+  }
+}
+
 async function openDexCardsModal(p, bypassCache = false) {
+  cancelDexCardsTopScroll();
   const requestId = ++dexCardsRequestId;
   activeDexModalPoke = p;
   const modal = document.getElementById('dexCardsModal');
@@ -8767,6 +8859,7 @@ async function openDexCardsModal(p, bypassCache = false) {
     resetHubModalPull(modal);
     modal.style.display = 'flex';
   }
+  updateDexCardsBackTop();
   try {
     const cardsList = await fetchTcgCardsData(p.name, p.species?.name, bypassCache);
     if (requestId !== dexCardsRequestId || activeDexModalPoke !== p) return;
@@ -8788,6 +8881,7 @@ function renderDexCardsGrid(cardsList) {
     const message = tcgCardListStatus.get(cardsList)?.partial
       ? 'Search incomplete. Tap ↻ to retry.' : 'No physical cards found';
     grid.innerHTML = `<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">${message}</div>`;
+    updateDexCardsBackTop();
     return;
   }
   const frag = document.createDocumentFragment();
@@ -8829,6 +8923,7 @@ function renderDexCardsGrid(cardsList) {
   });
   grid.innerHTML = '';
   grid.appendChild(frag);
+  updateDexCardsBackTop();
 }
 
 function refreshCurrentCardSearch() {
@@ -8866,12 +8961,14 @@ function refreshCurrentCardSearch() {
   }
 }
 function closeDexCardsModal() {
+  cancelDexCardsTopScroll();
   ++dexCardsRequestId;
   const modal = document.getElementById('dexCardsModal');
   if (modal) {
     resetHubModalPull(modal);
     modal.style.display = 'none';
   }
+  updateDexCardsBackTop();
 }
 
 function renderRecents() {

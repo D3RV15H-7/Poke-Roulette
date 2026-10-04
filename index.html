@@ -2752,7 +2752,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 #accountModal #authUserEmail { overflow-wrap: anywhere; }
 </style>
 </head>
-<body data-app-build="v74">
+<body data-app-build="v75">
 <div class="viewport">
   <header>
     <h1
@@ -3174,6 +3174,8 @@ function showToast(msg, type = 'success') {
 
 function getCardFingerprint(card) {
   if (!card) return '';
+  const reprint = get30thClassicCollectionKey(card);
+  if (reprint) return `fp_${reprint}`;
   const classic = getClassicCollectionIdentity(card);
   if (classic) return `fp_celebrationsclassiccollection_${classic.key}`;
   const cleanSet = String(card.setName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -3185,6 +3187,7 @@ function getCardOwnershipKeys(card) {
   if (!card) return [];
   const id = String(card.id || '').trim();
   const keys = [id, id.toLowerCase(), getCardFingerprint(card)];
+  if (get30thClassicCollectionKey(card)) return [...new Set(keys.filter(Boolean))];
   const classic = getClassicCollectionIdentity(card);
   if (classic) {
     // Recognise saved TCGdex selections made before its CC position was
@@ -3429,7 +3432,7 @@ function getAvailableSetCardVariants(card) {
 function migrateLegacySetCardOwnership(cards) {
   if (!Array.isArray(cards) || !cards.length) return false;
 
-  let changed = false;
+  let changed = migrateReprintSetCardVariants(cards);
 
   cards.forEach(card => {
     if (!card) return;
@@ -3625,6 +3628,7 @@ function toggleCardCollection(cardId, pokemonId = null) {
 
  function toggleSetCardVariant(card, variant) {
   if (!card || !variant) return;
+  migrateReprintSetCardVariants([card]);
 
   initAudio();
   playTick();
@@ -5060,7 +5064,78 @@ function getPhysicalCardNumber(card) {
   return getClassicCollectionIdentity(card)?.number || normalizeCardNumber(card.number || card.localId);
 }
 
+// Reprints can share a printed number. Their collection identity must also
+// include the card name, and both halves of a LEGEND remain separate cards.
+function get30thClassicCollectionKey(card) {
+  if (!card) return '';
+  const setName = String(card.setName || card.set?.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const setId = String(card.set?.id || card.setId || card.artworkTcgDexSetId || '').toLowerCase();
+  const id = String(card.id || '').toLowerCase();
+  if (!['30thclassiccollection', '30thcelebrationclassiccollection'].includes(setName) &&
+      setId !== '30th-c' && !id.startsWith('30th-c-')) return '';
+  const name = String(card.name || '').normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (!name || name === 'unknown') return `30thcelebrationclassiccollection_id_${id}`;
+  let side = '';
+  if (name === 'darkraicresselialegend') {
+    const position = /^30th-c-0*(19|20)$/.exec(id);
+    const number = normalizeCardNumber(card.number || card.localId);
+    const half = position ? (position[1] === '19' ? '99' : '100')
+      : ['19', '99'].includes(number) ? '99' : ['20', '100'].includes(number) ? '100' : `id_${id}`;
+    side = `_${half}`;
+  }
+  return `30thcelebrationclassiccollection_${name}${side}`;
+}
+
+function getLegacyReprintFingerprints(card) {
+  const setName = String(card.setName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const numbers = new Set([card.number, card.localId].filter(Boolean));
+  const ordinal = /^30th-c-(\d+)$/.exec(String(card.id || '').toLowerCase());
+  if (ordinal) numbers.add(String(Number(ordinal[1])));
+  const keys = [];
+  const classic = getClassicCollectionIdentity(card);
+  if (classic) keys.push(`fp_celebrationsclassiccollection_${classic.key}`);
+  for (const number of numbers) {
+    const cleanNum = String(number).toLowerCase().replace(/[^a-z0-9]/g, '');
+    for (const name of new Set([setName, '30thclassiccollection', '30thcelebrationclassiccollection'])) {
+      keys.push(`fp_${name}_${cleanNum}`);
+    }
+  }
+  return [...new Set(keys)];
+}
+
+function migrateReprintSetCardVariants(cards) {
+  let changed = false;
+  for (const card of cards || []) {
+    if (!get30thClassicCollectionKey(card)) continue;
+    const fingerprint = getCardFingerprint(card);
+    // Keep the one-time migration record with this account's synced variant
+    // data. An old shared key must never re-add a card after it is unticked.
+    const marker = `migrated_v75:${fingerprint}`;
+    if (memSetCardVariants.has(marker)) continue;
+    const legacy = getLegacyReprintFingerprints(card);
+    for (const variant of ['standard', 'holo', 'reverseHolo', 'other']) {
+      if (legacy.some(key => memSetCardVariants.has(`${key}__${variant}`))) {
+        memSetCardVariants.add(getSetCardVariantKey(card, variant));
+      }
+    }
+    const id = String(card.id || '');
+    if (memSetCardCol.has(id) || memSetCardCol.has(id.toLowerCase()) ||
+        legacy.some(key => memSetCardCol.has(key))) {
+      memSetCardVariants.add(getSetCardVariantKey(card, 'standard'));
+    }
+    // A shared historical tick cannot identify which reprint was intended.
+    // Preserve each displayed selection and allow independent removal now.
+    // Retain old keys for backwards compatibility and other saved releases.
+    memSetCardVariants.add(marker);
+    changed = true;
+  }
+  return changed;
+}
+
 function getPhysicalCardKey(card) {
+  const reprint = get30thClassicCollectionKey(card);
+  if (reprint) return reprint;
   const classic = getClassicCollectionIdentity(card);
   // Several different Classic Collection cards share their original number.
   if (classic) return `celebrationsclassiccollection_${classic.key}`;

@@ -2810,9 +2810,21 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 .dex-cards-content.pull-dismiss-panel::before { margin-bottom: 0; }
 #dexCardsGrid { min-height: 0; overscroll-behavior-y: contain; }
 #dexCardsBackTop { left: 1rem; bottom: 1rem; }
+/* v80: gender symbols use the same inline geometry on every device. */
+.card-name-with-symbol { white-space: nowrap; }
+.card-name-symbol {
+  display: inline-block; width: 0.9em; height: 0.9em;
+  vertical-align: -0.1em; margin-left: 0.08em;
+}
+.card-name-symbol svg { display: block; width: 100%; height: 100%; }
+.card-name-symbol-text {
+  position: absolute; width: 1px; height: 1px; padding: 0;
+  margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
 </style>
 </head>
-<body data-app-build="v78">
+<body data-app-build="v80">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -8035,10 +8047,9 @@ function renderCurrentSetCards() {
         #${card.number}
       </div>
 
-      <div class="tcg-set-card-name">
-        ${card.name}
-      </div>
+      <div class="tcg-set-card-name"></div>
     `;
+    renderCardName(item.querySelector('.tcg-set-card-name'), card.name);
     const setCardImg = item.querySelector('.tcg-set-card-image-wrap img');
 
     const checkCircle =
@@ -8126,6 +8137,11 @@ try {
 } catch (error) {}
 
 function resolveTcgSetSeries(set) {
+  // McDonald's collections share one section across both catalogue providers.
+  const setId = String(set.id || '').toLowerCase();
+  const collectionName = [set.name, set.series, KNOWN_SETS[setId]]
+    .join(' ').toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (/^mcd\d+$/.test(setId) || collectionName.includes('mcdonald')) return 'McDonalds';
   // Yellow A is a collection of Sun & Moon alternate printings.
   if (set.id === YELLOW_A_SET_ID) return 'Sun & Moon';
   const promoSeries = {
@@ -8158,7 +8174,20 @@ function groupTcgSetsBySeries(sets) {
   const dateKey = set => String(set.releaseDate || '').replace(/\//g, '-');
   const newestFirst = (a, b) => dateKey(b).localeCompare(dateKey(a));
   for (const group of groups.values()) group.sets.sort(newestFirst);
-  return [...groups.values()].sort((a, b) => newestFirst(a.sets[0], b.sets[0]));
+  const ordered = [...groups.values()].sort((a, b) => newestFirst(a.sets[0], b.sets[0]));
+  // Keep this special collection near Black & White / HeartGold & SoulSilver,
+  // regardless of the release year of its newest set.
+  const mcdonaldsIndex = ordered.findIndex(group => group.name === 'McDonalds');
+  if (mcdonaldsIndex !== -1) {
+    const [mcdonalds] = ordered.splice(mcdonaldsIndex, 1);
+    const blackWhiteIndex = ordered.findIndex(group => group.name === 'Black & White');
+    const heartGoldIndex = ordered.findIndex(group => group.name === 'HeartGold & SoulSilver');
+    const olderIndex = ordered.findIndex(group => dateKey(group.sets[0]) < '2011-01-01');
+    const insertionIndex = blackWhiteIndex !== -1 ? blackWhiteIndex + 1 :
+      heartGoldIndex !== -1 ? heartGoldIndex : olderIndex !== -1 ? olderIndex : ordered.length;
+    ordered.splice(insertionIndex, 0, mcdonalds);
+  }
+  return ordered;
 }
 
 function setTcgSeriesExpanded(section, expanded) {
@@ -8982,6 +9011,40 @@ async function openDexCardsModal(p, bypassCache = false) {
   }
 }
 
+// Keep the stored name intact; only its visible gender glyph is formatted.
+function renderCardName(element, name) {
+  if (!element) return;
+  const text = String(name ?? '');
+  const fragment = document.createDocumentFragment();
+  const symbolPattern = /([^\s♀♂]*)([ \t]*)([♀♂])([\uFE0E\uFE0F]?)/g;
+  let end = 0;
+  for (const match of text.matchAll(symbolPattern)) {
+    fragment.appendChild(document.createTextNode(text.slice(end, match.index)));
+    const word = document.createElement('span');
+    word.className = 'card-name-with-symbol';
+    word.appendChild(document.createTextNode(match[1] + match[2]));
+    const symbol = document.createElement('span');
+    symbol.className = 'card-name-symbol';
+    symbol.setAttribute('role', 'img');
+    symbol.setAttribute('aria-label', match[3] === '♂' ? 'Male' : 'Female');
+    // SVG avoids the lowered emoji baseline seen on iOS. Geometry is fixed,
+    // while size and colour follow the name in both previews and thumbnails.
+    symbol.innerHTML = match[3] === '♂'
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="15" r="5"/><path d="m13 11 8-8M16 3h5v5"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M12 13v9M8 18h8"/></svg>';
+    const originalSymbol = document.createElement('span');
+    originalSymbol.className = 'card-name-symbol-text';
+    originalSymbol.setAttribute('aria-hidden', 'true');
+    originalSymbol.textContent = match[3] + match[4];
+    symbol.appendChild(originalSymbol);
+    word.appendChild(symbol);
+    fragment.appendChild(word);
+    end = match.index + match[0].length;
+  }
+  fragment.appendChild(document.createTextNode(text.slice(end)));
+  element.replaceChildren(fragment);
+}
+
 function renderDexCardsGrid(cardsList) {
   const grid = document.getElementById('dexCardsGrid');
   if (!grid) return;
@@ -9010,7 +9073,7 @@ function renderDexCardsGrid(cardsList) {
     const dexCardImg = cell.querySelector('.tcg-card-thumb');
     setTcgImageFallbacks(dexCardImg, card);
     dexCardImg.src = card.smallImg;
-    cell.querySelector('.dex-cell-name').textContent = card.name;
+    renderCardName(cell.querySelector('.dex-cell-name'), card.name);
     cell.querySelector('.dex-cell-name').title = card.name;
     cell.setAttribute('aria-label', `${card.name}, ${card.setName}, number ${card.number}`);
     const checkCircle = cell.querySelector('.card-check-circle');
@@ -9867,7 +9930,7 @@ function renderTcgCards(cards) {
       const stripCardImg = node.querySelector('.tcg-card-thumb');
       setTcgImageFallbacks(stripCardImg, card);
       stripCardImg.src = card.smallImg;
-      node.querySelector('.tcg-card-name').textContent = card.name;
+      renderCardName(node.querySelector('.tcg-card-name'), card.name);
       node.querySelector('.tcg-card-name').title = card.name;
       node.setAttribute('aria-label', `${card.name}, ${card.setName}, number ${card.number}`);
       const checkCircle = node.querySelector('.card-check-circle');
@@ -9912,7 +9975,7 @@ function updateZoomModalContent() {
     setTcgImageFallbacks(tcgZoomImg, card, 'large');
     tcgZoomImg.src = card.largeImg || card.smallImg;
   }
-  if (tcgZoomTitle) tcgZoomTitle.innerText = card.name;
+  renderCardName(tcgZoomTitle, card.name);
   if (tcgZoomMeta) tcgZoomMeta.innerText = `${card.setName} · #${card.number}`;
   if (tcgZoomCounter) tcgZoomCounter.innerText = `${currentZoomIndex + 1} / ${currentCardsList.length}`;
   const priceValEl = document.getElementById('tcgZoomPriceVal');

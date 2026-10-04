@@ -2824,7 +2824,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 }
 </style>
 </head>
-<body data-app-build="v80">
+<body data-app-build="v81">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -4740,6 +4740,60 @@ function repairVintageSetDetails(sets) {
   });
 }
 
+// v81: checked English McDonald's releases from both catalogue providers.
+// Preserve existing IDs and metadata; fill gaps even when an older cache is used.
+const MCDONALDS_CATALOGUE = Object.freeze([{"id":"mcd11","dexId":"2011bw","name":"McDonald's Collection 2011","releaseDate":"2011/06/17","cards":[["1","Snivy"],["2","Maractus"],["3","Tepig"],["4","Oshawott"],["5","Alomomola"],["6","Blitzle"],["7","Munna"],["8","Sandile"],["9","Zorua"],["10","Klink"],["11","Pidove"],["12","Audino"]]},{"id":"mcd12","dexId":"2012bw","name":"McDonald's Collection 2012","releaseDate":"2012/06/15","cards":[["1","Servine"],["2","Pansage"],["3","Dwebble"],["4","Pignite"],["5","Dewott"],["6","Emolga"],["7","Woobat"],["8","Drilbur"],["9","Purrloin"],["10","Scraggy"],["11","Klang"],["12","Axew"]]},{"id":"mcd14","dexId":"2014xy","name":"McDonald's Collection 2014","releaseDate":"2014/05/23","cards":[["1","Weedle"],["2","Chespin"],["3","Fennekin"],["4","Froakie"],["5","Pikachu"],["6","Inkay"],["7","Honedge"],["8","Snubbull"],["9","Swirlix"],["10","Bunnelby"],["11","Fletchling"],["12","Furfrou"]]},{"id":"mcd15","dexId":"2015xy","name":"McDonald's Collection 2015","releaseDate":"2015/11/27","cards":[["1","Treecko"],["2","Lotad"],["3","Torchic"],["4","Staryu"],["5","Mudkip"],["6","Pikachu"],["7","Electrike"],["8","Rhyhorn"],["9","Meditite"],["10","Marill"],["11","Zigzagoon"],["12","Skitty"]]},{"id":"mcd16","dexId":"2016xy","name":"McDonald's Collection 2016","releaseDate":"2016/08/20","cards":[["1","Vulpix"],["2","Torchic"],["3","Fennekin"],["4","Magikarp"],["5","Totodile"],["6","Pikachu"],["7","Scraggy"],["8","Jigglypuff"],["9","Togepi"],["10","Dedenne"],["11","Meowth"],["12","Eevee"]]},{"id":"mcd17","dexId":"2017sm","name":"McDonald's Collection 2017","releaseDate":"2017/08/03","cards":[["1","Rowlet"],["2","Grubbin"],["3","Litten"],["4","Popplio"],["5","Pikachu"],["6","Cosmog"],["7","Crabrawler"],["8","Alolan Meowth"],["9","Alolan Diglett"],["10","Cutiefly"],["11","Pikipek"],["12","Yungoos"]]},{"id":"mcd18","dexId":"2018sm","name":"McDonald's Collection 2018","releaseDate":"2018/10/19","cards":[["1","Growlithe"],["2","Psyduck"],["3","Horsea"],["4","Pikachu"],["5","Slowpoke"],["6","Machop"],["7","Cubone"],["8","Magnemite"],["9","Dratini"],["10","Chansey"],["11","Eevee"],["12","Porygon"]]},{"id":"mcd19","dexId":"2019sm","name":"McDonald's Collection 2019","releaseDate":"2019/10/15","cards":[["1","Caterpie"],["2","Alolan Exeggutor"],["3","Magmar"],["4","Alolan Sandshrew"],["5","Lapras"],["6","Pikachu"],["7","Gastly"],["8","Mankey"],["9","Onix"],["10","Alolan Meowth"],["11","Alolan Dugtrio"],["12","Eevee"]]},{"id":"mcd21","dexId":"2021swsh","name":"McDonald's Collection 2021","releaseDate":"2021/02/09","cards":[["1","Bulbasaur"],["2","Chikorita"],["3","Treecko"],["4","Turtwig"],["5","Snivy"],["6","Chespin"],["7","Rowlet"],["8","Grookey"],["9","Charmander"],["10","Cyndaquil"],["11","Torchic"],["12","Chimchar"],["13","Tepig"],["14","Fennekin"],["15","Litten"],["16","Scorbunny"],["17","Squirtle"],["18","Totodile"],["19","Mudkip"],["20","Piplup"],["21","Oshawott"],["22","Froakie"],["23","Popplio"],["24","Sobble"],["25","Pikachu"]]},{"id":"mcd22","dexId":"2022swsh","name":"McDonald's Collection 2022","releaseDate":"2022/08/03","cards":[["1","Ledyba"],["2","Rowlet"],["3","Gossifleur"],["4","Growlithe"],["5","Victini"],["6","Lapras"],["7","Pikachu"],["8","Chinchou"],["9","Flaaffy"],["10","Tynamo"],["11","Cutiefly"],["12","Bewear"],["13","Pangoro"],["14","Drampa"],["15","Smeargle"]]},{"id":"mcd23","dexId":"2023sv","name":"McDonald's Collection 2023","releaseDate":"2023/08/01","cards":[["1","Sprigatito"],["2","Fuecoco"],["3","Quaxly"],["4","Cetoddle"],["5","Cetitan"],["6","Pikachu"],["7","Pawmi"],["8","Kilowattrel"],["9","Flittle"],["10","Sandaconda"],["11","Klawf"],["12","Blissey"],["13","Tandemaus"],["14","Cyclizar"],["15","Kirlia"]]},{"id":"mcd24","dexId":"2024sv","name":"McDonald's Collection 2024","releaseDate":"2024/12/04","cards":[["1","Charizard"],["2","Pikachu"],["3","Miraidon"],["4","Jigglypuff"],["5","Hatenna"],["6","Dragapult"],["7","Quagsire"],["8","Koraidon"],["9","Umbreon"],["10","Hydreigon"],["11","Roaring Moon"],["12","Dragonite"],["13","Eevee"],["14","Rayquaza"],["15","Drampa"]]}]);
+const MCDONALDS_CHECKED_FRONTS = Object.freeze({"2023sv-1":[516512,true],"2023sv-2":[516513,true],"2023sv-3":[516514,true],"2023sv-4":[516515,false],"2023sv-5":[516516,true],"2023sv-6":[516517,true],"2023sv-7":[516518,false],"2023sv-8":[516519,false],"2023sv-9":[516520,false],"2023sv-10":[516521,false],"2023sv-11":[516522,true],"2023sv-12":[516523,false],"2023sv-13":[516524,false],"2023sv-14":[516525,false],"2023sv-15":[516526,false],"2024sv-1":[614370,false],"2024sv-2":[614371,true],"2024sv-3":[614372,true],"2024sv-4":[614373,false],"2024sv-5":[614374,false],"2024sv-6":[614375,false],"2024sv-7":[614376,false],"2024sv-8":[614377,true],"2024sv-9":[614378,false],"2024sv-10":[614379,true],"2024sv-11":[614380,true],"2024sv-12":[614381,true],"2024sv-13":[614382,false],"2024sv-14":[614383,false],"2024sv-15":[614384,true]});
+const MCDONALDS_FALLBACK_LOGO = "https://www.pikawiz.com/images/logos/mcdonalds.png";
+function getMcDonaldsSetInfo(id) {
+  const key = String(id || '').toLowerCase();
+  return MCDONALDS_CATALOGUE.find(set => set.id === key || set.dexId === key) || null;
+}
+function ensureMcDonaldsSets(sets) {
+  const result = [];
+  const found = new Map();
+  for (const set of sets) {
+    const info = getMcDonaldsSetInfo(set.id);
+    if (!info) { result.push(set); continue; }
+    const previous = found.get(info.id);
+    // Primary IDs are already used by saved collections. Avoid duplicate aliases.
+    if (!previous || set.id === info.id) found.set(info.id, set);
+  }
+  for (const info of MCDONALDS_CATALOGUE) {
+    const old = found.get(info.id);
+    result.push({
+      ...old, id: old?.id || info.id, name: old?.name || info.name,
+      series: 'McDonalds', releaseDate: old?.releaseDate || info.releaseDate,
+      total: Math.max(Number(old?.total) || 0, info.cards.length),
+      printedTotal: Math.max(Number(old?.printedTotal) || 0, info.cards.length),
+      logo: old?.logo || old?.images?.logo || MCDONALDS_FALLBACK_LOGO,
+      symbol: old?.symbol || old?.images?.symbol || ''
+    });
+  }
+  return result.sort((a, b) => String(b.releaseDate).localeCompare(String(a.releaseDate)));
+}
+function getMcDonaldsCatalogueCards(setId) {
+  const info = getMcDonaldsSetInfo(setId);
+  if (!info) return [];
+  return info.cards.map(([localId, name]) => {
+    const checked = MCDONALDS_CHECKED_FRONTS[`${info.dexId}-${localId}`];
+    return {
+      id: `${setId}-${localId}`, localId, name,
+      ...(checked ? {
+        images: {
+          small: `https://tcgplayer-cdn.tcgplayer.com/product/${checked[0]}_200w.jpg`,
+          large: `https://tcgplayer-cdn.tcgplayer.com/product/${checked[0]}_in_1000x1000.jpg`
+        },
+        _previousVariants: {
+          standard: true, holo: checked[1], reverseHolo: false, other: false,
+          hasNormal: !checked[1], hasHolo: checked[1],
+          baseFinish: checked[1] ? 'holo' : 'normal', source: 'checked-mcdonalds-catalogue'
+        }
+      } : {})
+    };
+  });
+}
+
 const PHYSICAL_PROMO_SET_IDS = new Set(['mep','svp','swshp','smp','xyp','bwp','dpp','hgssp','np','basep','wp','miscp']);
 const MEP_PROMO_SET = {
   id: 'mep', name: 'Mega Evolution Promos', series: 'Mega Evolution',
@@ -4760,9 +4814,16 @@ async function fetchPhysicalPromoSets(forceRefresh = false) {
   let catalogue;
   try { catalogue = await getTcgDexSets(forceRefresh); }
   catch (error) { return repairVintageSetDetails([{ ...MEP_PROMO_SET }, ...['wp', 'miscp'].map(id => ({ id, images: MEP_PROMO_SET.images }))]); }
-  const briefs = catalogue.filter(set => /promo/i.test(set.name || '') && !isExcludedCollectorSet(set));
+  const briefs = catalogue.filter(set => (/promo/i.test(set.name || '') || getMcDonaldsSetInfo(set.id)) && !isExcludedCollectorSet(set));
   const deadline = Date.now() + 45000;
   const promos = await mapTcgLimited(briefs, async brief => {
+    const mcdonalds = getMcDonaldsSetInfo(brief.id);
+    if (mcdonalds) return {
+      id: mcdonalds.id, name: mcdonalds.name, series: 'McDonalds',
+      total: mcdonalds.cards.length, printedTotal: mcdonalds.cards.length,
+      releaseDate: mcdonalds.releaseDate,
+      images: { logo: MCDONALDS_FALLBACK_LOGO, symbol: '' }
+    };
     let detail = brief;
     try { detail = await fetchJsonWithRetry(`https://api.tcgdex.net/v2/en/sets/${encodeURIComponent(brief.id)}`, { deadline }); }
     catch (error) {}
@@ -4784,16 +4845,23 @@ async function fetchPhysicalPromoSets(forceRefresh = false) {
 
 async function fetchPromoCatalogueCards(setId, url, headers, forceRefresh = false) {
   const deadline = Date.now() + 45000;
+  const mcdonalds = getMcDonaldsSetInfo(setId);
+  const dexSetId = mcdonalds?.dexId || setId;
+  let previousCards = window.tcgSetCardsCache?.[setId] || [];
+  if (mcdonalds && !previousCards.length) {
+    try { previousCards = JSON.parse(localStorage.getItem(getSetCardsCacheKey(setId)) || 'null')?.data || []; }
+    catch (error) {}
+  }
   const sources = await Promise.allSettled([
     fetchPokemonTcgPages(url, { headers }, deadline),
-    fetchJsonWithRetry(`https://api.tcgdex.net/v2/en/sets/${encodeURIComponent(setId)}`, { deadline })
+    fetchJsonWithRetry(`https://api.tcgdex.net/v2/en/sets/${encodeURIComponent(dexSetId)}`, { deadline })
   ]);
   const merged = new Map();
   const primary = sources[0].status === 'fulfilled' ? sources[0].value : [];
   primary.forEach(card => merged.set(normalizeCardNumber(card.number || card.localId), card));
   const detail = sources[1].status === 'fulfilled' ? sources[1].value : null;
   const references = new Map((detail?.cards || []).map(card => [normalizeCardNumber(card.localId), card]));
-  for (const card of getVintageCatalogueCards(setId)) {
+  for (const card of [...getVintageCatalogueCards(setId), ...getMcDonaldsCatalogueCards(setId)]) {
     const key = normalizeCardNumber(card.localId);
     references.set(key, { ...card, ...references.get(key) });
   }
@@ -4805,15 +4873,22 @@ async function fetchPromoCatalogueCards(setId, url, headers, forceRefresh = fals
   }
   for (const [number, brief] of references) {
     const old = merged.get(number);
+    const previous = mcdonalds && previousCards.find(card =>
+      normalizeCardNumber(card.number || card.localId) === number &&
+      normalizePokemonCardName(card.name) === normalizePokemonCardName(brief.name));
     merged.set(number, {
       ...brief, ...old,
-      id: old?.id || brief.id,
+      id: old?.id || previous?.id || (mcdonalds ? `${setId}-${number}` : brief.id),
       number: old?.number || brief.localId,
       localId: brief.localId,
       rarity: old?.rarity || 'Promo',
-      artworkTcgDexSetId: setId,
-      set: old?.set || { id: setId, name: setId === 'mep' ? MEP_PROMO_SET.name : (detail?.name || KNOWN_SETS[setId] || setId) },
-      images: old?.images || (brief.image ? { small: `${brief.image}/low.webp`, large: `${brief.image}/high.webp` } : {})
+      artworkTcgDexSetId: dexSetId,
+      ...(mcdonalds ? {
+        _previousPriceGBP: previous?.priceGBP,
+        _previousVariants: old ? undefined : (previous?.variants || brief._previousVariants)
+      } : {}),
+      set: old?.set || { id: setId, name: setId === 'mep' ? MEP_PROMO_SET.name : (previous?.setName || mcdonalds?.name || detail?.name || KNOWN_SETS[setId] || setId) },
+      images: (mcdonalds && brief.images) || old?.images || (brief.image ? { small: `${brief.image}/low.webp`, large: `${brief.image}/high.webp` } : {})
     });
   }
   if (!merged.size) throw new Error(`Promo catalogue unavailable for ${setId}`);
@@ -4865,6 +4940,14 @@ const CARD_ARTWORK_RECOVERY_SOURCES = Object.freeze({
 function getCardArtworkSources(card) {
   const setId = String(card.set?.id || String(card.id || '').split('-').slice(0, -1).join('-')).trim().toLowerCase();
   const localId = String(card.localId || card.number || '').trim();
+  const mcdonalds = getMcDonaldsSetInfo(setId);
+  const checkedMcDonalds = mcdonalds && getMcDonaldsCatalogueCards(setId).find(entry =>
+    normalizeCardNumber(entry.localId) === normalizeCardNumber(localId) &&
+    normalizePokemonCardName(entry.name) === normalizePokemonCardName(card.name));
+  if (checkedMcDonalds?.images) return {
+    small: [checkedMcDonalds.images.small, checkedMcDonalds.images.large],
+    large: [checkedMcDonalds.images.large, checkedMcDonalds.images.small]
+  };
   const number = normalizeCardNumber(localId);
   const name = String(card.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const vintage = VINTAGE_CARD_BY_IDENTITY.get(`${setId}:${number}:${normalizePokemonCardName(card.name)}`);
@@ -5445,7 +5528,7 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
 
   // 1. Use memory cache first
   if (tcgSetsCache && !forceRefresh) {
-    return repairVintageSetDetails(tcgSetsCache);
+    return ensureMcDonaldsSets(repairVintageSetDetails(tcgSetsCache));
   }
 
   // 2. Check saved browser cache
@@ -5461,13 +5544,13 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
         cached.data.length &&
         Date.now() - cached.savedAt < CACHE_TIME
       ) {
-        tcgSetsCache = repairVintageSetDetails(cached.data);
+        tcgSetsCache = ensureMcDonaldsSets(repairVintageSetDetails(cached.data));
 
         console.log(
           `[SETS] Loaded ${cached.data.length} sets from cache`
         );
 
-        return repairVintageSetDetails(cached.data);
+        return ensureMcDonaldsSets(repairVintageSetDetails(cached.data));
       }
     } catch (error) {
       console.warn(
@@ -5548,7 +5631,7 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
     }
 
     // 4. Save successful result
-    tcgSetsCache = repairVintageSetDetails(physicalSets);
+    tcgSetsCache = ensureMcDonaldsSets(repairVintageSetDetails(physicalSets));
 
     try {
       localStorage.setItem(
@@ -5579,7 +5662,7 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
 
     if (tcgSetsCache?.length) {
       showToast('Refresh unavailable. Showing saved sets.', 'warning');
-      return repairVintageSetDetails(tcgSetsCache);
+      return ensureMcDonaldsSets(repairVintageSetDetails(tcgSetsCache));
     }
 
     // 5. Last resort: use an old cache even if expired
@@ -5597,11 +5680,11 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
         '[SETS] Using expired cache because live API failed'
         );
 
-        tcgSetsCache = repairVintageSetDetails(cached.data);
+        tcgSetsCache = ensureMcDonaldsSets(repairVintageSetDetails(cached.data));
 
         showToast('Showing saved sets. Refresh is unavailable.', 'warning');
 
-        return repairVintageSetDetails(cached.data);
+        return ensureMcDonaldsSets(repairVintageSetDetails(cached.data));
       }
     } catch (cacheError) {
       console.error(
@@ -7334,7 +7417,7 @@ async function loadCardsForSet(setId, forceRefresh = false) {
       ? getVintageCatalogueCards('wp')
       : setId === 'svp'
       ? await fetchSvpCatalogueCards(url, headers)
-      : (isPhysicalPromoSetId(setId) || setId === 'si1')
+      : (isPhysicalPromoSetId(setId) || setId === 'si1' || getMcDonaldsSetInfo(setId))
         ? await fetchPromoCatalogueCards(setId, url, headers, forceRefresh)
         : await fetchPokemonTcgPages(url, { headers });
 

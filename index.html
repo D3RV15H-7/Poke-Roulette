@@ -1464,6 +1464,29 @@ body.has-active .hub-item-label {
   padding-top: 0.5rem;
 }
 
+/* v78: expandable series headings above the existing set tiles. */
+.tcg-series-group { min-width: 0; margin-bottom: 0.7rem; }
+.tcg-series-heading {
+  width: 100%; display: flex; align-items: center; gap: 0.65rem;
+  padding: 0.85rem 0.2rem; border: 0; border-bottom: 1px solid #334155;
+  background: transparent; color: #f8fafc; text-align: left;
+  font: inherit; cursor: pointer; border-radius: 6px;
+}
+.tcg-series-title { flex: 1; min-width: 0; font-size: 1rem; font-weight: 900; }
+.tcg-series-count {
+  flex-shrink: 0; color: var(--sub); font-size: 0.7rem; font-weight: 700;
+  padding: 0.25rem 0.5rem; background: var(--card); border-radius: 99px;
+}
+.tcg-series-chevron {
+  width: 18px; height: 18px; flex-shrink: 0; color: var(--sub);
+  transition: transform 0.18s ease;
+}
+.tcg-series-heading[aria-expanded="false"] .tcg-series-chevron { transform: rotate(-90deg); }
+.tcg-series-heading:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.tcg-series-sets { display: flex; flex-direction: column; gap: 0.55rem; padding-top: 0.65rem; }
+.tcg-series-sets[hidden], .tcg-series-group[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .tcg-series-chevron { transition: none; } }
+
 .tcg-set-item {
   position: relative;
   width: 100%;
@@ -2789,7 +2812,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 #dexCardsBackTop { left: 1rem; bottom: 1rem; }
 </style>
 </head>
-<body data-app-build="v77">
+<body data-app-build="v78">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3094,8 +3117,8 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
     <div class="tcg-set-search-wrap">
       <span class="tcg-set-search-icon">⌕</span>
       <input id="tcgSetSearchInput" class="tcg-set-search-input" type="search"
-        placeholder="Search sets..." autocomplete="off" spellcheck="false"
-        aria-label="Search Pokémon TCG sets">
+        placeholder="Search sets or series..." autocomplete="off" spellcheck="false"
+        aria-label="Search Pokémon TCG sets or series">
     </div>
 
     <div id="setsGrid"></div>
@@ -8094,6 +8117,84 @@ variantOptions.forEach(option => {
   updateSetCardsBackTop();
 }
   
+// v78: preserve each series' collapsed state across returns and app launches.
+const TCG_SERIES_STATE_KEY = 'pokeroulette_collapsed_set_series_v78';
+const collapsedTcgSeries = new Set();
+try {
+  const saved = JSON.parse(localStorage.getItem(TCG_SERIES_STATE_KEY) || '[]');
+  if (Array.isArray(saved)) saved.filter(key => typeof key === 'string').forEach(key => collapsedTcgSeries.add(key));
+} catch (error) {}
+
+function resolveTcgSetSeries(set) {
+  // Yellow A is a collection of Sun & Moon alternate printings.
+  if (set.id === YELLOW_A_SET_ID) return 'Sun & Moon';
+  const promoSeries = {
+    mep: 'Mega Evolution', svp: 'Scarlet & Violet', swshp: 'Sword & Shield',
+    smp: 'Sun & Moon', xyp: 'XY', bwp: 'Black & White',
+    dpp: 'Diamond & Pearl', hgssp: 'HeartGold & SoulSilver', basep: 'Base'
+  };
+  let series = String(set.series || '').trim().replace(/\s+Series$/i, '');
+  if (!series || /^(?:promo|promos|black star promos)$/i.test(series)) series = promoSeries[set.id] || '';
+  const key = series.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
+  const names = {
+    megaevolution: 'Mega Evolution', megaevolutions: 'Mega Evolution',
+    scarletandviolet: 'Scarlet & Violet', swordandshield: 'Sword & Shield',
+    sunandmoon: 'Sun & Moon', blackandwhite: 'Black & White',
+    diamondandpearl: 'Diamond & Pearl', heartgoldandsoulsilver: 'HeartGold & SoulSilver',
+    ex: 'EX', xy: 'XY', base: 'Base', neo: 'Neo', platinum: 'Platinum',
+    ecard: 'E-Card', pop: 'POP'
+  };
+  return names[key] || series || 'Other Sets';
+}
+
+function groupTcgSetsBySeries(sets) {
+  const groups = new Map();
+  for (const set of sets) {
+    const name = resolveTcgSetSeries(set);
+    const key = name.toLowerCase();
+    if (!groups.has(key)) groups.set(key, { key, name, sets: [] });
+    groups.get(key).sets.push(set);
+  }
+  const dateKey = set => String(set.releaseDate || '').replace(/\//g, '-');
+  const newestFirst = (a, b) => dateKey(b).localeCompare(dateKey(a));
+  for (const group of groups.values()) group.sets.sort(newestFirst);
+  return [...groups.values()].sort((a, b) => newestFirst(a.sets[0], b.sets[0]));
+}
+
+function setTcgSeriesExpanded(section, expanded) {
+  section.querySelector('.tcg-series-heading').setAttribute('aria-expanded', String(expanded));
+  section.querySelector('.tcg-series-sets').hidden = !expanded;
+}
+
+function createTcgSeriesSection(group, index) {
+  const section = document.createElement('section');
+  section.className = 'tcg-series-group';
+  section.dataset.seriesKey = group.key;
+  section.dataset.seriesName = group.name;
+  const heading = document.createElement('button');
+  heading.type = 'button';
+  heading.className = 'tcg-series-heading';
+  heading.id = `tcgSeriesHeading${index}`;
+  heading.innerHTML = '<span class="tcg-series-title"></span><span class="tcg-series-count"></span><svg class="tcg-series-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+  heading.querySelector('.tcg-series-title').textContent = `${group.name} Series`;
+  heading.querySelector('.tcg-series-count').textContent = `${group.sets.length} ${group.sets.length === 1 ? 'set' : 'sets'}`;
+  const list = document.createElement('div');
+  list.className = 'tcg-series-sets';
+  list.id = `tcgSeriesSets${index}`;
+  list.setAttribute('aria-labelledby', heading.id);
+  heading.setAttribute('aria-controls', list.id);
+  section.append(heading, list);
+  setTcgSeriesExpanded(section, !collapsedTcgSeries.has(group.key));
+  heading.onclick = () => {
+    const expanded = heading.getAttribute('aria-expanded') !== 'true';
+    setTcgSeriesExpanded(section, expanded);
+    if (expanded) collapsedTcgSeries.delete(group.key);
+    else collapsedTcgSeries.add(group.key);
+    try { localStorage.setItem(TCG_SERIES_STATE_KEY, JSON.stringify([...collapsedTcgSeries])); } catch (error) {}
+  };
+  return section;
+}
+
 async function renderTcgSets(forceRefresh = false) {
   disposeSetThumbnails();
   const requestId = ++setsViewRequestId;
@@ -8128,11 +8229,16 @@ async function renderTcgSets(forceRefresh = false) {
 
   const frag = document.createDocumentFragment();
 
- for (const set of sets) {
+ const groups = groupTcgSetsBySeries(sets);
+ for (const [index, group] of groups.entries()) {
+  const section = createTcgSeriesSection(group, index);
+  const list = section.querySelector('.tcg-series-sets');
+  for (const set of group.sets) {
   const item = document.createElement('button');
 
   item.type = 'button';
   item.className = 'tcg-set-item';
+  item.dataset.searchText = `${set.name} ${set.id} ${group.name} Series`.toLowerCase();
 
   // Work out collection progress for this set
   let collectedCount = 0;
@@ -8203,7 +8309,9 @@ if (isComplete) item.classList.add('set-complete');
     openTcgSet(set);
   };
 
-  frag.appendChild(item);
+  list.appendChild(item);
+  }
+  frag.appendChild(section);
 }
 
 grid.appendChild(frag);
@@ -10856,18 +10964,25 @@ function formatTcgSetDisplayDate(value) {
 function filterTcgSetsBySearch() {
   const input = document.getElementById('tcgSetSearchInput');
   const grid = document.getElementById('setsGrid');
-  if (!input || !grid) return;
+  if (!input || !grid || activeTcgSet) return;
 
   const query = String(input.value || '').trim().toLowerCase();
-  const cards = Array.from(grid.children).filter(el =>
-    !el.classList.contains('tcg-set-search-empty')
-  );
-
   let visible = 0;
-  cards.forEach(card => {
-    const show = !query || String(card.textContent || '').toLowerCase().includes(query);
-    card.style.display = show ? '' : 'none';
-    if (show) visible++;
+  grid.querySelectorAll('.tcg-series-group').forEach(section => {
+    let matches = 0;
+    const cards = section.querySelectorAll('.tcg-set-item');
+    cards.forEach(card => {
+      const show = !query || card.dataset.searchText.includes(query);
+      card.hidden = !show;
+      card.style.display = show ? '' : 'none';
+      if (show) matches++;
+    });
+    section.hidden = matches === 0;
+    section.querySelector('.tcg-series-count').textContent =
+      query && matches !== cards.length ? `${matches} / ${cards.length} sets` : `${matches} ${matches === 1 ? 'set' : 'sets'}`;
+    // Search reveals matches without overwriting the remembered browsing state.
+    setTcgSeriesExpanded(section, query ? true : !collapsedTcgSeries.has(section.dataset.seriesKey));
+    visible += matches;
   });
 
   let empty = grid.querySelector('.tcg-set-search-empty');

@@ -2752,7 +2752,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 #accountModal #authUserEmail { overflow-wrap: anywhere; }
 </style>
 </head>
-<body data-app-build="v73">
+<body data-app-build="v74">
 <div class="viewport">
   <header>
     <h1
@@ -3671,8 +3671,53 @@ function toTitleCase(str) {
   return str.replace(/[-_]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 }
 
+// Exact PokéAPI form slugs for National Dex entries; keep true species hyphens intact.
+const NATIONAL_DEX_SPECIES_ALIASES = Object.freeze({
+  "deoxys-normal": "deoxys",
+  "wormadam-plant": "wormadam",
+  "giratina-altered": "giratina",
+  "shaymin-land": "shaymin",
+  "basculin-red-striped": "basculin",
+  "darmanitan-standard": "darmanitan",
+  "frillish-male": "frillish",
+  "jellicent-male": "jellicent",
+  "tornadus-incarnate": "tornadus",
+  "thundurus-incarnate": "thundurus",
+  "landorus-incarnate": "landorus",
+  "keldeo-ordinary": "keldeo",
+  "meloetta-aria": "meloetta",
+  "pyroar-male": "pyroar",
+  "meowstic-male": "meowstic",
+  "aegislash-shield": "aegislash",
+  "pumpkaboo-average": "pumpkaboo",
+  "gourgeist-average": "gourgeist",
+  "zygarde-50": "zygarde",
+  "oricorio-baile": "oricorio",
+  "lycanroc-midday": "lycanroc",
+  "wishiwashi-solo": "wishiwashi",
+  "minior-red-meteor": "minior",
+  "mimikyu-disguised": "mimikyu",
+  "toxtricity-amped": "toxtricity",
+  "eiscue-ice": "eiscue",
+  "indeedee-male": "indeedee",
+  "morpeko-full-belly": "morpeko",
+  "urshifu-single-strike": "urshifu",
+  "basculegion-male": "basculegion",
+  "enamorus-incarnate": "enamorus",
+  "oinkologne-male": "oinkologne",
+  "maushold-family-of-four": "maushold",
+  "squawkabilly-green-plumage": "squawkabilly",
+  "palafin-zero": "palafin",
+  "tatsugiri-curly": "tatsugiri",
+  "dudunsparce-two-segment": "dudunsparce",
+  "oricorio-pom-pom": "oricorio",
+  "oricorio-pau": "oricorio",
+  "oricorio-sensu": "oricorio"
+});
+
 function getCleanNationalDexName(pokeName, speciesName) {
   let target = (speciesName || pokeName || '').toLowerCase().trim();
+  target = NATIONAL_DEX_SPECIES_ALIASES[target] || target;
 
   const officialNameKey = target.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/♀/g, 'f').replace(/♂/g, 'm').replace(/[^a-z0-9]/g, '');
@@ -3699,7 +3744,7 @@ function getCleanNationalDexName(pokeName, speciesName) {
   }
 
   if (speciesName) {
-    return toTitleCase(speciesName);
+    return toTitleCase(target);
   }
 
   if (!target) return '';
@@ -10546,6 +10591,13 @@ const DEX_CACHE_KEY = 'pokedex_directory_v1';
 const DEX_CACHE_TIME_KEY = 'pokedex_directory_timestamp';
 const DEX_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
+function repairNationalDexDirectory(entries) {
+  return entries.map(p => {
+    const name = NATIONAL_DEX_SPECIES_ALIASES[String(p.name || '').toLowerCase().trim()] || p.name;
+    return { ...p, name, cleanName: getCleanNationalDexName(name) };
+  });
+}
+
 async function loadPokemonDirectory() {
   const now = Date.now();
   try {
@@ -10554,7 +10606,8 @@ async function loadPokemonDirectory() {
     if (cached && cachedTime && (now - cachedTime) < DEX_CACHE_MAX_AGE) {
       const parsed = JSON.parse(cached);
       if (Array.isArray(parsed) && parsed.length === TOTAL) {
-        dir = parsed;
+        dir = repairNationalDexDirectory(parsed);
+        try { localStorage.setItem(DEX_CACHE_KEY, JSON.stringify(dir)); } catch (e) {}
         return;
       }
     }
@@ -10562,11 +10615,10 @@ async function loadPokemonDirectory() {
 
   try {
     const data = await fetchJsonWithRetry(`https://pokeapi.co/api/v2/pokemon?limit=${TOTAL}`, { deadline: Date.now() + 15000 }, 1);
-    const freshDirectory = data.results.map((p, i) => ({
+    const freshDirectory = repairNationalDexDirectory(data.results.map((p, i) => ({
       id: i + 1,
-      name: p.name,
-      cleanName: getCleanNationalDexName(p.name)
-    }));
+      name: p.name
+    })));
     if (freshDirectory.length !== TOTAL) throw new Error(`Expected ${TOTAL} Pokémon`);
     dir = freshDirectory;
     try {
@@ -10579,7 +10631,8 @@ async function loadPokemonDirectory() {
       if (oldCache) {
         const parsed = JSON.parse(oldCache);
         if (Array.isArray(parsed) && parsed.length === TOTAL) {
-          dir = parsed;
+          dir = repairNationalDexDirectory(parsed);
+          try { localStorage.setItem(DEX_CACHE_KEY, JSON.stringify(dir)); } catch (e) {}
           return;
         }
       }

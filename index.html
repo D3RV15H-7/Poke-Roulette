@@ -2752,7 +2752,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 #accountModal #authUserEmail { overflow-wrap: anywhere; }
 </style>
 </head>
-<body data-app-build="v72">
+<body data-app-build="v73">
 <div class="viewport">
   <header>
     <h1
@@ -10407,7 +10407,8 @@ function paintPokemonSwipe(delta) {
   stage.classList.toggle('pokemon-swiping', Math.abs(delta) > .1 || pokemonSwipe.busy);
   const box = stage.querySelector('.img-box');
   const fadeOnly = stage.classList.contains('pokemon-swipe-no-art');
-  box.style.transform = delta ? `translateX(${fadeOnly ? delta * .1 : delta}px) scale(${1 - .14 * progress})` : '';
+  const artworkDelta = fadeOnly ? delta * .1 : delta;
+  box.style.transform = delta ? `translateX(${artworkDelta}px) scale(${1 - .14 * progress})` : '';
   box.style.opacity = delta ? String(1 - (fadeOnly ? 1 : .35) * progress) : '';
   for (const slot of stage.querySelectorAll('.pokemon-swipe-neighbour')) {
     const direction = Number(slot.dataset.dexDirection);
@@ -10419,7 +10420,8 @@ function paintPokemonSwipe(delta) {
   }
   const merge = Math.min(1, progress / .22);
   for (const rail of stage.querySelectorAll('.evo-side')) {
-    rail.style.transform = merge ? `translate(${(rail._swipeMergeX || 0) * merge}px, -50%) scale(${1 - .65 * merge})` : '';
+    // Follow the artwork while closing the remaining gap to its moving centre.
+    rail.style.transform = merge ? `translate(${artworkDelta + (rail._swipeMergeX || 0) * merge}px, -50%) scale(${1 - .65 * merge})` : '';
     rail.style.opacity = merge ? String(1 - merge) : '';
   }
 }

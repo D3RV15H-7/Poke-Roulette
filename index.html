@@ -2856,7 +2856,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 }
 </style>
 </head>
-<body data-app-build="v85">
+<body data-app-build="v87">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -4865,7 +4865,7 @@ function ensureSupplementalPromoSets(sets) {
   for (const info of SUPPLEMENTAL_PROMO_SETS) {
     const old = result.get(info.id);
     result.set(info.id, {
-      ...old, id: info.id, name: info.name, series: 'Other Sets',
+      ...old, id: info.id, name: info.name, series: 'Other',
       releaseDate: info.releaseDate, total: info.cards.length, printedTotal: info.cards.length,
       logo: info.logo || old?.logo || MEP_PROMO_SET.images.logo,
       symbol: old?.symbol || ''
@@ -8334,13 +8334,82 @@ variantOptions.forEach(option => {
   updateSetCardsBackTop();
 }
   
-// v78: preserve each series' collapsed state across returns and app launches.
-const TCG_SERIES_STATE_KEY = 'pokeroulette_collapsed_set_series_v78';
-const collapsedTcgSeries = new Set();
+// v87: explicit open/closed preferences survive a fresh app launch.
+const TCG_SERIES_STATE_KEY = 'pokeroulette_set_series_view_v87';
+const tcgSeriesExpandedState = new Map();
+let lastSavedTcgSeriesState = null;
+let tcgSeriesSaveWarningShown = false;
+function normalizeTcgSeriesStateKey(key) {
+  const normalized = String(key).trim().toLowerCase().replace(/\s+series$/, '');
+  return normalized === 'other sets' ? 'other' : normalized;
+}
 try {
-  const saved = JSON.parse(localStorage.getItem(TCG_SERIES_STATE_KEY) || '[]');
-  if (Array.isArray(saved)) saved.filter(key => typeof key === 'string').forEach(key => collapsedTcgSeries.add(key));
+  const saved = JSON.parse(localStorage.getItem(TCG_SERIES_STATE_KEY) || 'null');
+  if (saved?.version === 1 && saved.expanded && typeof saved.expanded === 'object' &&
+      !Array.isArray(saved.expanded)) {
+    for (const [key, expanded] of Object.entries(saved.expanded)) {
+      if (typeof expanded === 'boolean' && key.trim()) {
+        tcgSeriesExpandedState.set(normalizeTcgSeriesStateKey(key), expanded);
+      }
+    }
+  }
 } catch (error) {}
+if (!tcgSeriesExpandedState.size) {
+  try {
+    const legacy = JSON.parse(localStorage.getItem('pokeroulette_collapsed_set_series_v78') || '[]');
+    if (Array.isArray(legacy)) {
+      for (const key of legacy) {
+        if (typeof key === 'string' && key.trim()) tcgSeriesExpandedState.set(normalizeTcgSeriesStateKey(key), false);
+      }
+    }
+  } catch (error) {}
+}
+function isTcgSeriesExpanded(key) {
+  return tcgSeriesExpandedState.get(normalizeTcgSeriesStateKey(key)) !== false;
+}
+function saveTcgSeriesViewState() {
+  if (!tcgSeriesExpandedState.size) return true;
+  const serialized = JSON.stringify({ version: 1, expanded: Object.fromEntries(tcgSeriesExpandedState) });
+  if (serialized === lastSavedTcgSeriesState) return true;
+  const write = () => {
+    localStorage.setItem(TCG_SERIES_STATE_KEY, serialized);
+    lastSavedTcgSeriesState = serialized;
+    tcgSeriesSaveWarningShown = false;
+  };
+  try { write(); return true; } catch (error) {
+    // Preferences take priority over replaceable catalogue caches. Never
+    // remove collection ticks, account data, or other saved preferences.
+    if (error?.name === 'QuotaExceededError' || error?.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+      try {
+        const caches = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (!key || !/^(?:pokeroulette_set_cards_|tcg_complete_cache_)/.test(key)) continue;
+          try {
+            const record = JSON.parse(localStorage.getItem(key) || 'null');
+            if (Array.isArray(record?.data) && Number.isFinite(record.savedAt)) caches.push({key, savedAt: record.savedAt});
+          } catch (cacheError) {}
+        }
+        caches.sort((a, b) => a.savedAt - b.savedAt);
+        for (const cache of caches) {
+          localStorage.removeItem(cache.key);
+          try { write(); return true; } catch (retryError) {
+            if (retryError?.name !== 'QuotaExceededError' && retryError?.name !== 'NS_ERROR_DOM_QUOTA_REACHED') break;
+          }
+        }
+      } catch (cacheError) {}
+    }
+  }
+  if (!tcgSeriesSaveWarningShown) {
+    tcgSeriesSaveWarningShown = true;
+    showToast("Couldn't save the Sets layout on this device.", 'warning');
+  }
+  return false;
+}
+window.addEventListener('pagehide', saveTcgSeriesViewState);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') saveTcgSeriesViewState();
+});
 
 function resolveTcgSetSeries(set) {
   // McDonald's collections share one section across both catalogue providers.
@@ -8364,9 +8433,9 @@ function resolveTcgSetSeries(set) {
     sunandmoon: 'Sun & Moon', blackandwhite: 'Black & White',
     diamondandpearl: 'Diamond & Pearl', heartgoldandsoulsilver: 'HeartGold & SoulSilver',
     ex: 'EX', xy: 'XY', base: 'Base', neo: 'Neo', platinum: 'Platinum',
-    ecard: 'E-Card', pop: 'POP'
+    ecard: 'E-Card', pop: 'POP', other: 'Other', othersets: 'Other'
   };
-  return names[key] || series || 'Other Sets';
+  return names[key] || series || 'Other';
 }
 
 function groupTcgSetsBySeries(sets) {
@@ -8419,13 +8488,13 @@ function createTcgSeriesSection(group, index) {
   list.setAttribute('aria-labelledby', heading.id);
   heading.setAttribute('aria-controls', list.id);
   section.append(heading, list);
-  setTcgSeriesExpanded(section, !collapsedTcgSeries.has(group.key));
+  if (!tcgSeriesExpandedState.has(group.key)) tcgSeriesExpandedState.set(group.key, true);
+  setTcgSeriesExpanded(section, isTcgSeriesExpanded(group.key));
   heading.onclick = () => {
     const expanded = heading.getAttribute('aria-expanded') !== 'true';
     setTcgSeriesExpanded(section, expanded);
-    if (expanded) collapsedTcgSeries.delete(group.key);
-    else collapsedTcgSeries.add(group.key);
-    try { localStorage.setItem(TCG_SERIES_STATE_KEY, JSON.stringify([...collapsedTcgSeries])); } catch (error) {}
+    tcgSeriesExpandedState.set(group.key, expanded);
+    saveTcgSeriesViewState();
   };
   return section;
 }
@@ -8550,6 +8619,7 @@ if (isComplete) item.classList.add('set-complete');
 }
 
 grid.appendChild(frag);
+saveTcgSeriesViewState();
 filterTcgSetsBySearch();
 requestAnimationFrame(() => {
   if (requestId !== setsViewRequestId || activeTcgSet) return;
@@ -11250,7 +11320,7 @@ function filterTcgSetsBySearch() {
     section.querySelector('.tcg-series-count').textContent =
       query && matches !== cards.length ? `${matches} / ${cards.length} sets` : `${matches} ${matches === 1 ? 'set' : 'sets'}`;
     // Search reveals matches without overwriting the remembered browsing state.
-    setTcgSeriesExpanded(section, query ? true : !collapsedTcgSeries.has(section.dataset.seriesKey));
+    setTcgSeriesExpanded(section, query ? true : isTcgSeriesExpanded(section.dataset.seriesKey));
     visible += matches;
   });
 

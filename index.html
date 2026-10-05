@@ -2856,7 +2856,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 }
 </style>
 </head>
-<body data-app-build="v87">
+<body data-app-build="v88">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -8843,11 +8843,20 @@ function resetDexScrollToTop() {
 function navigateHub(id) {
   if (!['accountModal', 'dexModal', 'setsModal', 'infoModal'].includes(id)) return;
   document.activeElement?.blur();
+  // A second tap also minimises nested cards belonging to that dock view.
+  const zoomOpen = document.getElementById('tcgZoomModal')?.style.display === 'flex';
+  const isAlreadyOpen = document.getElementById(id)?.style.display === 'flex' ||
+    (id === 'dexModal' && (document.getElementById('dexCardsModal')?.style.display === 'flex' ||
+      (zoomOpen && openedFromDexModal)));
   // Closing a Dex preview normally returns to its card grid. Dock navigation
   // chooses another destination, so do not reopen that grid during cleanup.
   openedFromDexModal = false;
-  if (document.getElementById('tcgZoomModal')?.style.display === 'flex') closeTcgZoom();
+  if (zoomOpen) closeTcgZoom();
   closeDexCardsModal();
+  if (isAlreadyOpen) {
+    closeModal(null, id);
+    return;
+  }
   openModal(id, true);
   if (id === 'setsModal') renderTcgSets();
 }

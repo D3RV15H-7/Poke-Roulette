@@ -1146,6 +1146,21 @@ body.has-active .hub-item-label {
   font-weight: 700;
   text-align: center;
 }
+.tcg-zoom-set-link-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0.25rem; max-width: 100%;
+}
+.tcg-zoom-set-link-row .tcg-zoom-meta { min-width: 0; }
+.tcg-zoom-set-link {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 28px; width: 28px; height: 28px; padding: 0;
+  color: var(--sub); background: transparent; border: none;
+  border-radius: 50%; cursor: pointer; touch-action: manipulation;
+}
+.tcg-zoom-set-link svg { width: 20px; height: 20px; display: block; }
+.tcg-zoom-set-link:active { color: var(--green); }
+.tcg-zoom-set-link:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.tcg-zoom-set-link:disabled { opacity: 0.45; cursor: wait; }
 .tcg-zoom-price-row {
   display: flex;
   align-items: center;
@@ -2856,7 +2871,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 }
 </style>
 </head>
-<body data-app-build="v88">
+<body data-app-build="v89">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3066,7 +3081,12 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
       </div>
     </div>
     <div class="tcg-zoom-title" id="tcgZoomTitle">Card Title</div>
-    <div class="tcg-zoom-meta" id="tcgZoomMeta">Set · Number</div>
+    <div class="tcg-zoom-set-link-row">
+      <button type="button" class="tcg-zoom-set-link" id="zoomOpenSetBtn" title="Open this set" aria-label="Open this set in Sets" onclick="openZoomCardSet(event)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m7.5 14 4.5-4.5 4.5 4.5"/></svg>
+      </button>
+      <div class="tcg-zoom-meta" id="tcgZoomMeta">Set · Number</div>
+    </div>
     <div class="tcg-zoom-variants" id="tcgZoomVariants" style="display:none;"></div>
     <div class="tcg-zoom-bottom-controls">
       <button type="button" aria-label="Previous card" class="tcg-zoom-arrow left" id="zoomLeftArrow" onclick="navigateZoomCard(-1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button>
@@ -10239,6 +10259,66 @@ function renderTcgCards(cards) {
   strip.appendChild(frag);
 }
 
+const zoomSetNavigation = { requestId: 0, pending: false };
+
+function findSetForPreviewCard(card, sets) {
+  const name = normalizeSetMatchName(card.setName || card.set?.name);
+  const named = name ? sets.filter(set => normalizeSetMatchName(set.name) === name) : [];
+  if (named.length === 1) return named[0];
+  const setId = String(card.setId || card.set?.id || '').toLowerCase();
+  const exact = setId && sets.find(set => String(set.id).toLowerCase() === setId);
+  if (exact) return exact;
+  const mcDonalds = getMcDonaldsSetInfo(setId || String(card.id || '').split('-')[0]);
+  if (mcDonalds) {
+    const matching = sets.find(set => getMcDonaldsSetInfo(set.id)?.id === mcDonalds.id);
+    if (matching) return matching;
+  }
+  // Older saved cards have only their card ID and visible set name. Match the
+  // longest full catalogue ID, including set IDs that themselves contain '-'.
+  const cardId = String(card.id || '').toLowerCase();
+  const candidates = sets.filter(set => set.id && cardId.startsWith(String(set.id).toLowerCase() + '-'));
+  candidates.sort((a, b) => String(b.id).length - String(a.id).length);
+  return candidates[0] || null;
+}
+
+async function openZoomCardSet(event) {
+  event?.stopPropagation();
+  if (zoomSetNavigation.pending) return;
+  const card = currentCardsList[currentZoomIndex];
+  if (!card || document.getElementById('tcgZoomModal')?.style.display !== 'flex') return;
+  const requestId = ++zoomSetNavigation.requestId;
+  zoomSetNavigation.pending = true;
+  const button = document.getElementById('zoomOpenSetBtn');
+  if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); }
+  try {
+    const sets = await fetchPhysicalTcgSets();
+    if (requestId !== zoomSetNavigation.requestId ||
+        document.getElementById('tcgZoomModal')?.style.display !== 'flex' ||
+        currentCardsList[currentZoomIndex]?.id !== card.id) return;
+    const set = findSetForPreviewCard(card, sets);
+    if (!set) {
+      showToast('Unable to find this set. Please try again.', 'warning');
+      return;
+    }
+    // Open the destination directly; dock toggling must not minimise Sets
+    // when this shortcut is used from a card already within that view.
+    openedFromDexModal = false;
+    closeTcgZoom();
+    closeDexCardsModal();
+    openModal('setsModal', true);
+    await openTcgSet(set);
+  } catch (error) {
+    if (requestId === zoomSetNavigation.requestId) {
+      showToast('Unable to open this set. Please try again.', 'warning');
+    }
+  } finally {
+    if (requestId === zoomSetNavigation.requestId) {
+      zoomSetNavigation.pending = false;
+      if (button) { button.disabled = false; button.removeAttribute('aria-busy'); }
+    }
+  }
+}
+
 function openTcgZoom(index, fromModal = false) {
   cancelZoomCarousel();
   openedFromDexModal = fromModal;
@@ -10262,6 +10342,11 @@ function updateZoomModalContent() {
   }
   renderCardName(tcgZoomTitle, card.name);
   if (tcgZoomMeta) tcgZoomMeta.innerText = `${card.setName} · #${card.number}`;
+  const openSetButton = document.getElementById('zoomOpenSetBtn');
+  if (openSetButton) {
+    openSetButton.title = `Open ${card.setName} in Sets`;
+    openSetButton.setAttribute('aria-label', `Open ${card.setName} in Sets`);
+  }
   if (tcgZoomCounter) tcgZoomCounter.innerText = `${currentZoomIndex + 1} / ${currentCardsList.length}`;
   const priceValEl = document.getElementById('tcgZoomPriceVal');
   if (priceValEl) priceValEl.innerText = card.priceGBP ? `£${Number(card.priceGBP).toFixed(2)}` : 'Market N/A';
@@ -10658,6 +10743,10 @@ if (zoomViewArea) {
 }
 
 function closeTcgZoom() {
+  ++zoomSetNavigation.requestId;
+  zoomSetNavigation.pending = false;
+  const openSetButton = document.getElementById('zoomOpenSetBtn');
+  if (openSetButton) { openSetButton.disabled = false; openSetButton.removeAttribute('aria-busy'); }
   cancelZoomCarousel();
   const modal = document.getElementById('tcgZoomModal');
   if (modal) modal.style.display = 'none';

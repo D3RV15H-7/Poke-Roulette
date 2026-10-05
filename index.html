@@ -2782,6 +2782,38 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
   letter-spacing: 0.02em;
 }
 #appRefreshHandle[data-refresh-armed="true"] #appRefreshHint { color: var(--green, #10b981); }
+/* v85: a quiet progress ring without moving the title or hint layout. */
+.title-refresh-feedback { position: relative; display: inline-block; }
+.title-refresh-progress {
+  position: absolute; width: 18px; height: 18px; left: -25px; top: 50%;
+  margin-top: -9px; overflow: visible; color: var(--sub);
+  opacity: 0; transform: scale(0.8); pointer-events: none;
+  transition: opacity 140ms ease, transform 140ms ease, color 140ms ease;
+}
+.title-refresh-progress circle { fill: none; stroke: currentColor; stroke-width: 2; }
+.title-refresh-track { opacity: 0.18; }
+.title-refresh-ring {
+  stroke-linecap: round; stroke-dasharray: 100;
+  stroke-dashoffset: var(--title-refresh-remaining, 100);
+  transform: rotate(-90deg); transform-origin: 12px 12px;
+}
+#appRefreshHandle[data-refresh-active="true"] .title-refresh-progress {
+  opacity: 1; transform: scale(1);
+}
+#appRefreshHandle[data-refresh-armed="true"] .title-refresh-progress,
+#appRefreshHandle[data-refreshing="true"] .title-refresh-progress {
+  color: var(--green, #10b981); filter: drop-shadow(0 0 3px rgba(16,185,129,0.3));
+}
+#appRefreshHandle[data-refreshing="true"] .title-refresh-progress {
+  animation: title-refresh-spin 800ms linear infinite;
+}
+#appRefreshHandle[data-refreshing="true"] .title-refresh-ring { stroke-dashoffset: 25; }
+#appRefreshHandle[data-refreshing="true"] #appRefreshHint { color: var(--green, #10b981); }
+@keyframes title-refresh-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .title-refresh-progress { transition: none; }
+  #appRefreshHandle[data-refreshing="true"] .title-refresh-progress { animation: none; }
+}
 .viewport.title-pulling, .viewport.title-pull-reset {
   transform: translate3d(0, var(--title-pull-offset, 0px), 0);
 }
@@ -2824,7 +2856,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 }
 </style>
 </head>
-<body data-app-build="v83">
+<body data-app-build="v85">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -2836,7 +2868,13 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
       onclick="refreshAppFromTitle(event)"
       onkeydown="if(event.key === 'Enter' || event.key === ' '){ event.preventDefault(); refreshAppFromTitle(); }"
     >Poké<span>Roulette</span></h1>
-    <span id="appRefreshHint" role="status" aria-live="polite">Pull down to refresh</span>
+    <span class="title-refresh-feedback">
+      <svg class="title-refresh-progress" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle class="title-refresh-track" cx="12" cy="12" r="9" />
+        <circle class="title-refresh-ring" cx="12" cy="12" r="9" pathLength="100" />
+      </svg>
+      <span id="appRefreshHint" role="status" aria-live="polite">Pull down to refresh</span>
+    </span>
   </header>
 
 <div class="search-wrap">
@@ -11303,8 +11341,8 @@ function fitEncounterToViewport() {
   }
 }
 
-// v76: gestures start on the title only, at the top of the main page.
-const titleRefreshState = { drag: null, suppressClickUntil: 0, refreshing: false, resetTimer: null };
+// Gestures start on the title only, at the top of the main page.
+const titleRefreshState = { drag: null, suppressClickUntil: 0, refreshing: false, resetTimer: null, reloadTimer: null };
 function refreshAppFromTitle(event) {
   if (event?.type === 'click' && Date.now() < titleRefreshState.suppressClickUntil) {
     event.preventDefault();
@@ -11312,8 +11350,22 @@ function refreshAppFromTitle(event) {
   }
   if (titleRefreshState.refreshing) return;
   titleRefreshState.refreshing = true;
+  const handle = document.getElementById('appRefreshHandle');
+  handle.dataset.refreshActive = 'true';
+  handle.dataset.refreshing = 'true';
+  handle.removeAttribute('data-refresh-armed');
+  handle.style.setProperty('--title-refresh-remaining', '0');
   document.getElementById('appRefreshHint').textContent = 'Refreshing…';
-  window.location.reload();
+  // Paint feedback before navigating; the timer also covers paused frames.
+  let reloaded = false;
+  const reload = () => {
+    if (reloaded) return;
+    reloaded = true;
+    clearTimeout(titleRefreshState.reloadTimer);
+    window.location.reload();
+  };
+  titleRefreshState.reloadTimer = setTimeout(reload, 200);
+  requestAnimationFrame(() => requestAnimationFrame(reload));
 }
 function installTitlePullRefresh() {
   const handle = document.getElementById('appRefreshHandle');
@@ -11329,7 +11381,11 @@ function installTitlePullRefresh() {
   function reset() {
     state.drag = null;
     handle.removeAttribute('data-refresh-armed');
-    if (!state.refreshing) hint.textContent = 'Pull down to refresh';
+    if (!state.refreshing) {
+      handle.removeAttribute('data-refresh-active');
+      handle.style.setProperty('--title-refresh-remaining', '100');
+      hint.textContent = 'Pull down to refresh';
+    }
     viewport.classList.remove('title-pulling');
     viewport.classList.add('title-pull-reset');
     viewport.style.setProperty('--title-pull-offset', '0px');
@@ -11356,6 +11412,9 @@ function installTitlePullRefresh() {
     if (!canPull() || dy < 0 || Math.abs(dx) > Math.abs(dy)) { reset(); return; }
     if (event.cancelable) event.preventDefault();
     drag.armed = dy >= threshold;
+    const progress = Math.min(1, Math.max(0, dy / threshold));
+    handle.dataset.refreshActive = 'true';
+    handle.style.setProperty('--title-refresh-remaining', String(100 * (1 - progress)));
     viewport.classList.add('title-pulling');
     viewport.style.setProperty('--title-pull-offset', `${Math.min(52, dy * 0.45)}px`);
     handle.dataset.refreshArmed = String(drag.armed);

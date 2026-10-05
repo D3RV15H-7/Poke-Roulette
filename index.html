@@ -2788,6 +2788,21 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 .tcg-carousel-card[data-offset="1"] { cursor: pointer; }
 .tcg-carousel-card:focus-visible { outline: 2px solid var(--gold); outline-offset: -3px; }
 #accountModal #authUserEmail { overflow-wrap: anywhere; }
+.profile-stats {
+  margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid #334155;
+}
+.profile-stats h4 { font-size: 0.85rem; margin: 0 0 0.65rem; font-weight: 800; }
+.profile-stats dl { margin: 0; }
+.profile-stats dl > div {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.75rem; padding: 0.55rem 0; border-bottom: 1px solid rgba(148,163,184,0.12);
+}
+.profile-stats dt { color: var(--sub); font-size: 0.73rem; font-weight: 600; }
+.profile-stats dd {
+  margin: 0; color: var(--green); font-size: 0.82rem;
+  font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.profile-stats p { color: var(--sub); font-size: 0.6rem; line-height: 1.5; margin: 0.65rem 0 0; }
 /* v76: pull the title to refresh; the dock stays in place. */
 #appRefreshHandle { touch-action: none; user-select: none; -webkit-user-select: none; }
 #appRefreshHandle .app-title-refresh { touch-action: none; }
@@ -2871,7 +2886,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 }
 </style>
 </head>
-<body data-app-build="v89">
+<body data-app-build="v91">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3225,6 +3240,18 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
       </div>
       <div id="authErrorMsg" style="color:var(--red);font-size:0.75rem;text-align:center;display:none;"></div>
     </div>
+    <section class="profile-stats" aria-labelledby="profileStatsHeading">
+      <h4 id="profileStatsHeading">Your Stats</h4>
+      <dl>
+        <div><dt>Collected cards in Sets</dt><dd id="profileStatCards">—</dd></div>
+        <div><dt>Sets with collected cards</dt><dd id="profileStatSets">—</dd></div>
+        <div><dt>100% completed sets</dt><dd id="profileStatComplete">—</dd></div>
+        <div><dt>Wheel spins</dt><dd id="profileStatSpins">0</dd></div>
+        <div><dt>Collected card variants</dt><dd id="profileStatVariants">—</dd></div>
+        <div><dt>Pokémon owned in Dex</dt><dd id="profileStatDex">0 / 1,025</dd></div>
+      </dl>
+      <p id="profileStatsNote">Cards count once, even with multiple variants. Sign in to sync your stats across devices. Spin tracking began with the Profile stats update.</p>
+    </section>
   </div>
 </div>
 
@@ -3290,6 +3317,13 @@ let memCol = new Set();
 let memCardCol = new Set();
 let memSetCardCol = new Set();
 let memSetCardVariants = new Set();
+const WHEEL_SPINS_STORAGE_KEY = 'pokeroulette_wheel_spins_v90';
+let wheelSpinCount = 0;
+const wheelSpinStates = new Map();
+const wheelSpinSyncRequests = new Map();
+let wheelSpinDeviceId = '';
+try { wheelSpinDeviceId = localStorage.getItem('p_spin_device_v91') || ''; } catch (error) {}
+let profileStatsRequestId = 0;
 
 let toastTimer = null;
 function showToast(msg, type = 'success') {
@@ -3658,6 +3692,7 @@ function reloadMemoryFromLocal() {
   memCardCol = readStoredCollection(getCardStorageKey());
   memSetCardCol = readStoredCollection(getSetCardStorageKey());
   memSetCardVariants = readStoredCollection(getSetCardVariantsStorageKey());
+  reloadWheelSpinState();
   updateCounts();
 }
 reloadMemoryFromLocal();
@@ -8391,34 +8426,10 @@ function saveTcgSeriesViewState() {
   if (!tcgSeriesExpandedState.size) return true;
   const serialized = JSON.stringify({ version: 1, expanded: Object.fromEntries(tcgSeriesExpandedState) });
   if (serialized === lastSavedTcgSeriesState) return true;
-  const write = () => {
-    localStorage.setItem(TCG_SERIES_STATE_KEY, serialized);
+  if (writePriorityLocalValue(TCG_SERIES_STATE_KEY, serialized)) {
     lastSavedTcgSeriesState = serialized;
     tcgSeriesSaveWarningShown = false;
-  };
-  try { write(); return true; } catch (error) {
-    // Preferences take priority over replaceable catalogue caches. Never
-    // remove collection ticks, account data, or other saved preferences.
-    if (error?.name === 'QuotaExceededError' || error?.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-      try {
-        const caches = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (!key || !/^(?:pokeroulette_set_cards_|tcg_complete_cache_)/.test(key)) continue;
-          try {
-            const record = JSON.parse(localStorage.getItem(key) || 'null');
-            if (Array.isArray(record?.data) && Number.isFinite(record.savedAt)) caches.push({key, savedAt: record.savedAt});
-          } catch (cacheError) {}
-        }
-        caches.sort((a, b) => a.savedAt - b.savedAt);
-        for (const cache of caches) {
-          localStorage.removeItem(cache.key);
-          try { write(); return true; } catch (retryError) {
-            if (retryError?.name !== 'QuotaExceededError' && retryError?.name !== 'NS_ERROR_DOM_QUOTA_REACHED') break;
-          }
-        }
-      } catch (cacheError) {}
-    }
+    return true;
   }
   if (!tcgSeriesSaveWarningShown) {
     tcgSeriesSaveWarningShown = true;
@@ -8737,6 +8748,263 @@ function clearHistory() {
   renderRecents();
 }
 
+// Save small user preferences/counters before expendable catalogue caches.
+function writePriorityLocalValue(key, value) {
+  try { localStorage.setItem(key, value); return true; } catch (error) {
+    if (!['QuotaExceededError', 'NS_ERROR_DOM_QUOTA_REACHED'].includes(error?.name)) return false;
+    try {
+      const caches = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const cacheKey = localStorage.key(i);
+        if (!cacheKey || !/^(?:pokeroulette_set_cards_|tcg_complete_cache_)/.test(cacheKey)) continue;
+        try {
+          const record = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+          if (Array.isArray(record?.data) && Number.isFinite(record.savedAt)) caches.push({key: cacheKey, savedAt: record.savedAt});
+        } catch (cacheError) {}
+      }
+      caches.sort((a, b) => a.savedAt - b.savedAt);
+      for (const cache of caches) {
+        localStorage.removeItem(cache.key);
+        try { localStorage.setItem(key, value); return true; } catch (retryError) {
+          if (!['QuotaExceededError', 'NS_ERROR_DOM_QUOTA_REACHED'].includes(retryError?.name)) break;
+        }
+      }
+    } catch (cacheError) {}
+  }
+  return false;
+}
+
+function validSpinCount(value) {
+  const count = Number(value);
+  return Number.isSafeInteger(count) && count >= 0 ? count : 0;
+}
+function getWheelSpinState(uid = activeUid) {
+  const scope = uid || 'guest';
+  if (wheelSpinStates.has(scope)) return wheelSpinStates.get(scope);
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem('p_spins_v91_' + scope) || 'null'); } catch (error) {}
+  const state = {
+    count: validSpinCount(saved?.count), ack: validSpinCount(saved?.ack),
+    cloudTotal: validSpinCount(saved?.cloudTotal)
+  };
+  state.count = Math.max(state.count, state.ack);
+  if (!saved) {
+    let legacy = 0, claimed = '';
+    try {
+      legacy = validSpinCount(localStorage.getItem(WHEEL_SPINS_STORAGE_KEY));
+      claimed = localStorage.getItem('p_spin_v90_claim_v91') || '';
+    } catch (error) {}
+    // Preserve the existing device counter once for the first signed-in
+    // account. Guest spins made after this upgrade remain guest-only.
+    if (!uid && !claimed) state.count = legacy;
+    else if (uid && legacy && !claimed && writePriorityLocalValue('p_spin_v90_claim_v91', uid)) {
+      state.count = legacy;
+      const guest = getWheelSpinState(null);
+      guest.count = Math.max(0, guest.count - legacy);
+      saveWheelSpinState(null, guest);
+    }
+  }
+  wheelSpinStates.set(scope, state);
+  return state;
+}
+function saveWheelSpinState(uid, state) {
+  return writePriorityLocalValue('p_spins_v91_' + (uid || 'guest'), JSON.stringify(state));
+}
+function reloadWheelSpinState() {
+  const state = getWheelSpinState();
+  wheelSpinCount = activeUid
+    ? state.cloudTotal + Math.max(0, state.count - state.ack)
+    : state.count;
+}
+function ensureWheelSpinDeviceId() {
+  if (/^[a-zA-Z0-9_-]{16,80}$/.test(wheelSpinDeviceId)) return wheelSpinDeviceId;
+  const bytes = new Uint8Array(16);
+  window.crypto.getRandomValues(bytes);
+  const id = 'spin_' + Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+  if (!writePriorityLocalValue('p_spin_device_v91', id)) return '';
+  wheelSpinDeviceId = id;
+  return id;
+}
+function applyAccountWheelSpinStats(uid, data) {
+  const state = getWheelSpinState(uid);
+  const ack = validSpinCount(data?.wheelSpinDevices?.[wheelSpinDeviceId]);
+  state.ack = Math.max(state.ack, ack);
+  state.count = Math.max(state.count, state.ack);
+  state.cloudTotal = Math.max(state.cloudTotal, validSpinCount(data?.wheelSpinCount));
+  saveWheelSpinState(uid, state);
+  if (activeUid === uid) {
+    reloadWheelSpinState();
+    if (document.getElementById('accountModal')?.style.display === 'flex') refreshProfileStats();
+  }
+}
+function syncWheelSpinsToAccount() {
+  const uid = currentUser?.uid;
+  if (!uid || uid !== activeUid || !db) return Promise.resolve(false);
+  if (wheelSpinSyncRequests.has(uid)) return wheelSpinSyncRequests.get(uid);
+  const state = getWheelSpinState(uid);
+  if (state.count <= state.ack) return Promise.resolve(true);
+  const deviceId = ensureWheelSpinDeviceId();
+  if (!deviceId || !saveWheelSpinState(uid, state)) return Promise.resolve(false);
+  const count = state.count, database = db;
+  const task = (async () => {
+    try {
+      const ref = database.collection('users').doc(uid);
+      const data = await database.runTransaction(async transaction => {
+        const snap = await transaction.get(ref);
+        const remote = snap.exists ? snap.data() : {};
+        const devices = remote.wheelSpinDevices && typeof remote.wheelSpinDevices === 'object'
+          ? remote.wheelSpinDevices : {};
+        const previous = validSpinCount(devices[deviceId]);
+        const delta = Math.max(0, count - previous);
+        const total = validSpinCount(remote.wheelSpinCount) + delta;
+        const updatedDevices = { ...devices, [deviceId]: Math.max(count, previous) };
+        if (delta) transaction.set(ref, {
+          wheelSpinCount: total, wheelSpinDevices: updatedDevices
+        }, { merge: true });
+        // A repeated or uncertain commit contributes zero on retry.
+        return { wheelSpinCount: total, wheelSpinDevices: updatedDevices };
+      });
+      applyAccountWheelSpinStats(uid, data);
+      return true;
+    } catch (error) {
+      // The persisted per-device counter remains pending for the next
+      // login, foreground return, Profile visit, or online event.
+      return false;
+    }
+  })();
+  wheelSpinSyncRequests.set(uid, task);
+  task.then(success => {
+    if (wheelSpinSyncRequests.get(uid) === task) wheelSpinSyncRequests.delete(uid);
+    if (success && currentUser?.uid === uid && activeUid === uid && state.count > state.ack) {
+      syncWheelSpinsToAccount();
+    }
+  });
+  return task;
+}
+window.addEventListener('online', () => syncWheelSpinsToAccount());
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') syncWheelSpinsToAccount();
+});
+function recordWheelSpin() {
+  const state = getWheelSpinState();
+  state.count++;
+  if (!saveWheelSpinState(activeUid, state)) {
+    showToast("Couldn't save the spin count on this device.", 'warning');
+  }
+  reloadWheelSpinState();
+  syncWheelSpinsToAccount();
+}
+
+function calculateProfileStats(sets) {
+  const owned = new Set(), ownedVariants = new Set(), groups = new Map();
+  const consumedVariants = new Set(), consumedLegacy = new Set(), cachedTotals = new Map();
+  const reprintsMigrated = [...memSetCardVariants].some(key =>
+    typeof key === 'string' && key.startsWith('migrated_v75:fp_30thcelebrationclassiccollection_'));
+  const supersededReprint = key => reprintsMigrated &&
+    /^fp_(?:30thclassiccollection|30thcelebrationclassiccollection)_(?:cc)?\d+(?:__|$)/i.test(key);
+  const prefixes = [];
+  const clean = value => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  for (const set of sets) {
+    const names = [set.name, resolveSetName(set), getMcDonaldsSetInfo(set.id)?.name];
+    for (const name of names.filter(Boolean)) prefixes.push({ prefix: 'fp_' + clean(name) + '_', set });
+  }
+  prefixes.sort((a, b) => b.prefix.length - a.prefix.length);
+  const setForFingerprint = fp => {
+    if (fp.startsWith('fp_standalone_')) {
+      const entry = SUPPLEMENTAL_PROMO_BY_CARD.get(fp.slice('fp_standalone_'.length));
+      if (entry) return sets.find(set => set.id === entry.setId) || null;
+    }
+    return prefixes.find(entry => fp.startsWith(entry.prefix))?.set || null;
+  };
+  const add = (fp, set, finishes = []) => {
+    owned.add(fp);
+    // Even older selections without a currently available catalogue entry
+    // contribute to totals; their set is grouped by its stored fingerprint.
+    const unknown = /^fp_([^_]+)_/.exec(fp)?.[1];
+    const groupKey = set?.id || (unknown ? 'saved:' + unknown : 'saved:' + fp);
+    if (!groups.has(groupKey)) groups.set(groupKey, { set, cards: new Set() });
+    groups.get(groupKey).cards.add(fp);
+    for (const finish of finishes) ownedVariants.add(fp + '__' + finish);
+  };
+  for (const set of sets) {
+    let cards = window.tcgSetCardsCache?.[set.id];
+    if (!Array.isArray(cards) || !cards.length) {
+      try { cards = JSON.parse(localStorage.getItem(getSetCardsCacheKey(set.id)) || 'null')?.data; } catch (error) {}
+    }
+    if (!Array.isArray(cards)) continue;
+    cards = filterCollectorCards(cards);
+    cachedTotals.set(set.id, new Set(cards.map(getCardFingerprint)).size);
+    for (const card of cards) {
+      const fp = getCardFingerprint(card);
+      const finishes = getOwnedSetCardVariants(card);
+      for (const finish of ['standard', 'holo', 'reverseHolo', 'other']) consumedVariants.add(fp + '__' + finish);
+      for (const key of getCardOwnershipKeys(card)) consumedLegacy.add(key);
+      // Superseded shared-number reprint keys must not add phantom cards.
+      if (get30thClassicCollectionKey(card) && memSetCardVariants.has('migrated_v75:' + fp)) {
+        for (const legacy of getLegacyReprintFingerprints(card)) {
+          consumedLegacy.add(legacy);
+          for (const finish of ['standard', 'holo', 'reverseHolo', 'other']) consumedVariants.add(legacy + '__' + finish);
+        }
+      }
+      if (isSetCardCollected(card)) add(fp, set, finishes.length ? finishes : ['standard']);
+    }
+  }
+  for (const key of memSetCardVariants) {
+    if (typeof key !== 'string' || consumedVariants.has(key) || supersededReprint(key)) continue;
+    const match = /^(fp_.+)__(standard|holo|reverseHolo|other)$/.exec(key);
+    if (match) add(match[1], setForFingerprint(match[1]), [match[2]]);
+  }
+  for (const key of memSetCardCol) {
+    if (typeof key !== 'string' || consumedLegacy.has(key) || supersededReprint(key)) continue;
+    if (key.startsWith('fp_')) add(key, setForFingerprint(key), ['standard']);
+    else {
+      const set = findSetForPreviewCard({id: key}, sets);
+      const mcd = set && getMcDonaldsSetInfo(set.id);
+      const sourceId = mcd && key.toLowerCase().startsWith(mcd.dexId + '-') ? mcd.dexId : set?.id;
+      const number = set ? key.slice(String(sourceId).length + 1) : '';
+      const fp = set ? getCardFingerprint({id:key, name:'', number, setName:set.name}) : key;
+      add(fp, set, ['standard']);
+    }
+  }
+  let complete = 0, unavailable = false;
+  for (const group of groups.values()) {
+    if (!group.set) { unavailable = true; continue; }
+    const total = Math.max(cachedTotals.get(group.set.id) || 0,
+      getDisplayedSetCardTotal(group.set), Number(group.set.total) || 0);
+    if (total > 0 && group.cards.size >= total) complete++;
+    else if (!total) unavailable = true;
+  }
+  return { cards: owned.size, sets: groups.size, complete, variants: ownedVariants.size, unavailable };
+}
+
+async function refreshProfileStats() {
+  const modal = document.getElementById('accountModal');
+  if (!modal || modal.style.display !== 'flex') return;
+  const requestId = ++profileStatsRequestId, uid = activeUid;
+  syncWheelSpinsToAccount();
+  reloadWheelSpinState();
+  const paint = (id, value) => { const element = document.getElementById(id); if (element) element.textContent = value; };
+  paint('profileStatSpins', wheelSpinCount.toLocaleString('en-GB'));
+  paint('profileStatDex', memCol.size.toLocaleString('en-GB') + ' / ' + TOTAL.toLocaleString('en-GB'));
+  let sets = [];
+  try { sets = await fetchPhysicalTcgSets(); } catch (error) {}
+  if (requestId !== profileStatsRequestId || uid !== activeUid || modal.style.display !== 'flex') return;
+  const stats = calculateProfileStats(sets);
+  for (const [id, value] of Object.entries({
+    profileStatCards: stats.cards, profileStatSets: stats.sets,
+    profileStatComplete: stats.complete, profileStatVariants: stats.variants
+  })) paint(id, value.toLocaleString('en-GB'));
+  const spinState = getWheelSpinState();
+  reloadWheelSpinState();
+  paint('profileStatSpins', wheelSpinCount.toLocaleString('en-GB'));
+  const syncNote = activeUid
+    ? (spinState.count > spinState.ack ? ' Spin sync pending; saved on this device.' : ' Your stats sync with your account.')
+    : ' Sign in to sync your stats across devices.';
+  paint('profileStatsNote', 'Cards count once, even with multiple variants.' + syncNote +
+    ' Spin tracking began with the Profile stats update.' +
+    (stats.unavailable ? ' Some completed-set totals are currently unavailable.' : ''));
+}
+
 function updateCounts() {
   const count = memCol.size;
   const tCount = document.getElementById('tCount');
@@ -8747,6 +9015,7 @@ function updateCounts() {
   if (tOwned) tOwned.innerText = count;
   if (tMissing) tMissing.innerText = TOTAL - count;
   if (bagBadge) bagBadge.innerText = count;
+  if (document.getElementById('accountModal')?.style.display === 'flex') refreshProfileStats();
 }
 
 let firestoreUnsubscribe = null;
@@ -8765,6 +9034,7 @@ function setupAuthListener() {
 
     if (user) {
       activeUid = user.uid;
+      reloadWheelSpinState();
       if (previousUid && previousUid !== user.uid) reloadMemoryFromLocal();
       try { localStorage.setItem('p_last_uid', user.uid); } catch (e) {}
       if (loggedInView) loggedInView.style.display = 'flex';
@@ -8778,6 +9048,7 @@ function setupAuthListener() {
           if (sessionVersion !== authSessionVersion || currentUser?.uid !== user.uid) return;
           if (snap.exists) {
             const data = snap.data();
+            applyAccountWheelSpinStats(user.uid, data);
             memCol = new Set(Array.isArray(data.collection) ? data.collection.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : []);
 memCardCol = new Set(Array.isArray(data.cardsCollection) ? data.cardsCollection.map(String) : []);
 memSetCardCol = new Set(Array.isArray(data.setsCardsCollection) ? data.setsCardsCollection.map(String) : []);
@@ -8798,6 +9069,7 @@ saveLocalState();
           if (doc.metadata.hasPendingWrites) return;
           if (doc.exists) {
             const data = doc.data();
+            applyAccountWheelSpinStats(user.uid, data);
             memCol = new Set(Array.isArray(data.collection) ? data.collection.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : []);
 memCardCol = new Set(Array.isArray(data.cardsCollection) ? data.cardsCollection.map(String) : []);
 memSetCardCol = new Set(Array.isArray(data.setsCardsCollection) ? data.setsCardsCollection.map(String) : []);
@@ -8808,6 +9080,7 @@ saveLocalState();
             if (currentCardsList.length > 0) renderTcgCards(currentCardsList);
           }
         }, (err) => {});
+        syncWheelSpinsToAccount();
       }
     } else {
       activeUid = null;
@@ -8924,6 +9197,7 @@ function openModal(id, forceOpen = false) {
 
   resetHubModalPull(el);
   el.style.display = 'flex';
+  if (id === 'accountModal') refreshProfileStats();
   if (id === 'dexModal') {
     resetDexScrollToTop();
     requestAnimationFrame(() => {
@@ -11030,6 +11304,7 @@ async function spinAndPick() {
 
   if (btn) btn.disabled = true;
  isSpinning = true;
+  recordWheelSpin();
 
 // Fully reset shiny state before a new encounter
 isShiny = false;

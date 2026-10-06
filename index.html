@@ -1525,6 +1525,11 @@ body.has-active .hub-item-label {
   flex-shrink: 0; color: var(--sub); font-size: 0.7rem; font-weight: 700;
   padding: 0.25rem 0.5rem; background: var(--card); border-radius: 99px;
 }
+.tcg-series-owned-count {
+  flex-shrink: 0; color: var(--green); font-size: 0.65rem; font-weight: 800;
+  padding: 0.15rem 0.35rem; background: rgba(16,185,129,0.12); border-radius: 99px;
+  font-variant-numeric: tabular-nums;
+}
 .tcg-series-chevron {
   width: 18px; height: 18px; flex-shrink: 0; color: var(--sub);
   transition: transform 0.18s ease;
@@ -2938,7 +2943,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 }
 </style>
 </head>
-<body data-app-build="v95">
+<body data-app-build="v96">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3229,7 +3234,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 
  <div class="modal-head">
   <div>
-    <h3 style="font-size:1.15rem;font-weight:800;">Pokémon TCG Sets</h3>
+    <h3 style="font-size:1.15rem;font-weight:800;"><span aria-hidden="true">🗂️</span> Pokémon TCG Sets</h3>
     <div style="font-size:0.75rem;color:var(--sub);font-weight:600;margin-top:0.15rem;">
       Browse physical card sets
     </div>
@@ -8565,11 +8570,12 @@ function createTcgSeriesSection(group, index) {
   section.className = 'tcg-series-group';
   section.dataset.seriesKey = group.key;
   section.dataset.seriesName = group.name;
+  section._tcgSeriesSets = group.sets;
   const heading = document.createElement('button');
   heading.type = 'button';
   heading.className = 'tcg-series-heading';
   heading.id = `tcgSeriesHeading${index}`;
-  heading.innerHTML = '<span class="tcg-series-title"></span><span class="tcg-series-count"></span><svg class="tcg-series-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+  heading.innerHTML = '<span class="tcg-series-title"></span><span class="tcg-series-count"></span><span class="tcg-series-owned-count">0</span><svg class="tcg-series-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
   heading.querySelector('.tcg-series-title').textContent = `${group.name} Series`;
   heading.querySelector('.tcg-series-count').textContent = `${group.sets.length} ${group.sets.length === 1 ? 'set' : 'sets'}`;
   const list = document.createElement('div');
@@ -8587,6 +8593,26 @@ function createTcgSeriesSection(group, index) {
     saveTcgSeriesViewState();
   };
   return section;
+}
+
+function updateTcgSeriesOwnedCounts() {
+  const modal = document.getElementById('setsModal');
+  if (modal?.style.display !== 'flex' || modal.classList.contains('viewing-set')) return;
+  const sections = [...modal.querySelectorAll('.tcg-series-group')];
+  if (!sections.length) return;
+  // Reuse the Account ownership mapping, including legacy selections, aliases
+  // and standalone promos. No card/set downloads are needed for these badges.
+  const sets = sections.flatMap(section => section._tcgSeriesSets || []);
+  const { collectedSetIds } = calculateProfileStats(sets);
+  for (const section of sections) {
+    const badge = section.querySelector('.tcg-series-owned-count');
+    if (!badge) continue;
+    const count = (section._tcgSeriesSets || []).filter(set => collectedSetIds.has(set.id)).length;
+    badge.textContent = String(count);
+    const description = `${count} ${count === 1 ? 'set' : 'sets'} in this series with at least one collected card`;
+    badge.title = description;
+    badge.setAttribute('aria-label', description);
+  }
 }
 
 async function renderTcgSets(forceRefresh = false) {
@@ -8709,6 +8735,7 @@ if (isComplete) item.classList.add('set-complete');
 }
 
 grid.appendChild(frag);
+updateTcgSeriesOwnedCounts();
 saveTcgSeriesViewState();
 filterTcgSetsBySearch();
 requestAnimationFrame(() => {
@@ -9033,7 +9060,8 @@ function calculateProfileStats(sets) {
     if (total > 0 && group.cards.size >= total) complete++;
     else if (!total) unavailable = true;
   }
-  return { cards: owned.size, sets: groups.size, complete, variants: ownedVariants.size, unavailable };
+  const collectedSetIds = new Set([...groups.values()].filter(group => group.set && group.cards.size > 0).map(group => group.set.id));
+  return { cards: owned.size, sets: groups.size, complete, variants: ownedVariants.size, unavailable, collectedSetIds };
 }
 
 async function refreshProfileStats() {
@@ -9076,6 +9104,7 @@ function updateCounts() {
   if (tOwned) tOwned.innerText = count;
   if (tMissing) tMissing.innerText = TOTAL - count;
   if (bagBadge) bagBadge.innerText = count;
+  updateTcgSeriesOwnedCounts();
   if (document.getElementById('accountModal')?.style.display === 'flex') refreshProfileStats();
 }
 

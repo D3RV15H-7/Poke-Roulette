@@ -2775,7 +2775,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
   min-height: 0;
 }
 
-/* Account Sync is a content-sized sheet resting directly above the dock. */
+/* Account is a content-sized sheet resting directly above the dock. */
 #accountModal .modal-body {
   height: auto;
   min-height: 0;
@@ -2822,13 +2822,32 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 .tcg-carousel-card:focus-visible { outline: 2px solid var(--gold); outline-offset: -3px; }
 #accountModal #authUserEmail { overflow-wrap: anywhere; }
 .profile-stats {
-  margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid #334155;
+  margin-top: 0.75rem;
+}
+.account-sync-description {
+  font-size: 0.75rem; color: var(--sub); line-height: 1.5; margin-top: 0.65rem;
+}
+#accountModal #authLoggedInView,
+#accountModal #authLoggedOutView {
+  border-top: 1px solid #334155; margin-top: 0.9rem; padding-top: 0.85rem;
+}
+.account-stats-footer {
+  color: var(--sub); font-size: 0.6rem; line-height: 1.5; margin-top: 0.65rem;
 }
 .profile-stats h4 { font-size: 0.85rem; margin: 0 0 0.65rem; font-weight: 800; }
 .profile-stats dl { margin: 0; }
 .profile-stats dl > div {
   display: flex; align-items: center; justify-content: space-between;
   gap: 0.75rem; padding: 0.55rem 0; border-bottom: 1px solid rgba(148,163,184,0.12);
+}
+.profile-stats dl > .profile-stat-detail {
+  padding: 0.35rem 0 0.35rem 0.7rem; border-bottom: 0;
+}
+.profile-stats .profile-stat-detail dt { font-size: 0.65rem; font-weight: 500; }
+.profile-stats .profile-stat-detail dd { font-size: 0.73rem; }
+.profile-stats dl > .profile-stat-parent { border-bottom: 0; padding-bottom: 0.25rem; }
+.profile-stats dl > .profile-stat-detail + div:not(.profile-stat-detail) {
+  border-top: 1px solid rgba(148,163,184,0.12); margin-top: 0.25rem;
 }
 .profile-stats dt { color: var(--sub); font-size: 0.73rem; font-weight: 600; }
 .profile-stats dd {
@@ -2919,7 +2938,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 }
 </style>
 </head>
-<body data-app-build="v92">
+<body data-app-build="v93">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3058,7 +3077,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
   <div class="hub">
 
     <div class="hub-item-wrap">
-      <button class="btn-hub" onclick="navigateHub('accountModal')" title="Account Sync" id="btnAccount">
+      <button class="btn-hub" onclick="navigateHub('accountModal')" title="Account" id="btnAccount">
         <svg viewBox="0 0 24 24">
           <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
           <circle cx="12" cy="7" r="4"/>
@@ -3261,12 +3280,24 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 <div class="modal" id="accountModal" onclick="closeModal(event, 'accountModal')">
   <div class="modal-body" onclick="event.stopPropagation()">
     <div class="modal-head">
-      <h3 style="font-size:1.15rem;font-weight:800;">👤 Account Sync</h3>
+      <h3 style="font-size:1.15rem;font-weight:800;">👤 Account</h3>
       <button style="background:#334155;color:#fff;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;" onclick="closeModal(null, 'accountModal')">✕</button>
     </div>
+    <p class="account-sync-description">Your collected Pokemon cards and stats are synced across all devices whilst logged in.</p>
+    <section class="profile-stats" aria-labelledby="profileStatsHeading">
+      <h4 id="profileStatsHeading">Your Stats</h4>
+      <dl>
+        <div><dt>Dex - Cards Collected</dt><dd id="profileStatDex">0 / 1,025</dd></div>
+        <div class="profile-stat-parent"><dt>Sets - Cards Collected</dt><dd id="profileStatCards">—</dd></div>
+        <div class="profile-stat-detail"><dt>Including Variants</dt><dd id="profileStatVariants">—</dd></div>
+        <div class="profile-stat-detail"><dt># of sets with cards collected</dt><dd id="profileStatSets">—</dd></div>
+        <div><dt>Sets - With 100% Completion</dt><dd id="profileStatComplete">—</dd></div>
+        <div><dt>Wheel spins</dt><dd id="profileStatSpins">0</dd></div>
+      </dl>
+      <p id="profileStatsSyncStatus" role="status" hidden></p>
+    </section>
     <div id="authLoggedInView" style="display:none;flex-direction:column;gap:1rem;padding:0.5rem 0;">
       <div style="font-size:0.9rem;font-weight:700;">Signed in as: <span id="authUserEmail" style="color:var(--gold);"></span></div>
-      <div style="font-size:0.75rem;color:var(--sub);">Your collected Pokémon and cards are synced across all devices.</div>
       <button class="btn-auth-primary" onclick="handleSignOut()">Sign Out</button>
     </div>
     <div id="authLoggedOutView" class="auth-form-wrap">
@@ -3279,18 +3310,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
       </div>
       <div id="authErrorMsg" style="color:var(--red);font-size:0.75rem;text-align:center;display:none;"></div>
     </div>
-    <section class="profile-stats" aria-labelledby="profileStatsHeading">
-      <h4 id="profileStatsHeading">Your Stats</h4>
-      <dl>
-        <div><dt>Collected cards in Sets</dt><dd id="profileStatCards">—</dd></div>
-        <div><dt>Sets with collected cards</dt><dd id="profileStatSets">—</dd></div>
-        <div><dt>100% completed sets</dt><dd id="profileStatComplete">—</dd></div>
-        <div><dt>Wheel spins</dt><dd id="profileStatSpins">0</dd></div>
-        <div><dt>Collected card variants</dt><dd id="profileStatVariants">—</dd></div>
-        <div><dt>Pokémon owned in Dex</dt><dd id="profileStatDex">0 / 1,025</dd></div>
-      </dl>
-      <p id="profileStatsNote">Cards count once, even with multiple variants. Sign in to sync your stats across devices. Spin tracking began with the Profile stats update.</p>
-    </section>
+    <p class="account-stats-footer" id="profileStatsNote">Wheel spin tracking began with Account stats update</p>
   </div>
 </div>
 
@@ -9036,12 +9056,14 @@ async function refreshProfileStats() {
   const spinState = getWheelSpinState();
   reloadWheelSpinState();
   paint('profileStatSpins', wheelSpinCount.toLocaleString('en-GB'));
-  const syncNote = activeUid
-    ? (spinState.count > spinState.ack ? ' Spin sync pending; saved on this device.' : ' Your stats sync with your account.')
-    : ' Sign in to sync your stats across devices.';
-  paint('profileStatsNote', 'Cards count once, even with multiple variants.' + syncNote +
-    ' Spin tracking began with the Profile stats update.' +
-    (stats.unavailable ? ' Some completed-set totals are currently unavailable.' : ''));
+  const status = document.getElementById('profileStatsSyncStatus');
+  if (status) {
+    const messages = [];
+    if (activeUid && spinState.count > spinState.ack) messages.push('Spin sync pending; saved on this device.');
+    if (stats.unavailable) messages.push('Some completed-set totals are currently unavailable.');
+    status.textContent = messages.join(' ');
+    status.hidden = messages.length === 0;
+  }
 }
 
 function updateCounts() {

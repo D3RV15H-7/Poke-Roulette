@@ -2982,9 +2982,35 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 #infoModal .modal-head > button,
 #setsModal .modal-head > div:last-child { flex-shrink: 0; }
 #setsModal .modal-head > div:first-child { min-width: 0; }
+/* v100: the estimate links to an eBay search for the displayed card. */
+a.tcg-zoom-price-row {
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  padding-left: 0.6rem;
+  padding-right: 0.6rem;
+}
+a.tcg-zoom-price-row:active { background: rgba(16, 185, 129, 0.23); }
+a.tcg-zoom-price-row:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+a.tcg-zoom-price-row[aria-disabled="true"] { cursor: default; }
+.zoom-ebay-mark {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.67rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  border-left: 1px solid rgba(16, 185, 129, 0.35);
+  padding-left: 0.35rem;
+}
+.zoom-ebay-mark > span:nth-child(1) { color: #ff6666; }
+.zoom-ebay-mark > span:nth-child(2) { color: #74a9ff; }
+.zoom-ebay-mark > span:nth-child(3) { color: #ffce4b; }
+.zoom-ebay-mark > span:nth-child(4) { color: #76d45a; }
+.zoom-ebay-mark svg { width: 10px; height: 10px; margin-left: 0.2rem; color: var(--green); }
 </style>
 </head>
-<body data-app-build="v99">
+<body data-app-build="v100">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3193,9 +3219,10 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
     <div class="tcg-zoom-variants" id="tcgZoomVariants" style="display:none;"></div>
     <div class="tcg-zoom-bottom-controls">
       <button type="button" aria-label="Previous card" class="tcg-zoom-arrow left" id="zoomLeftArrow" onclick="navigateZoomCard(-1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button>
-    <div class="tcg-zoom-price-row" id="tcgZoomPrice">
+    <a class="tcg-zoom-price-row" id="tcgZoomPrice" target="_blank" rel="noopener noreferrer" aria-label="Search this card on eBay (opens in a new tab)" onclick="event.stopPropagation()">
       <span>Est. Value:</span> <strong id="tcgZoomPriceVal">£--.--</strong>
-    </div>
+      <span class="zoom-ebay-mark" aria-hidden="true"><span>e</span><span>B</span><span>a</span><span>y</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h4v4M13 3 7 9M6 3H3v10h10v-3"/></svg></span>
+    </a>
       <button type="button" aria-label="Next card" class="tcg-zoom-arrow right" id="zoomRightArrow" onclick="navigateZoomCard(1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg></button>
     </div>
     <button class="tcg-zoom-close" onclick="closeTcgZoom()">Close Preview</button>
@@ -10870,6 +10897,19 @@ function openTcgZoom(index, fromModal = false) {
   updateZoomModalContent();
 }
 
+function getCardEbaySearchUrl(card) {
+  const name = String(card?.name || '').trim();
+  if (!name) return '';
+  const setName = String(card.setName || card.set?.name || '').trim();
+  const number = String(card.number ?? card.printedNumber ?? card.localId ?? '')
+    .replace(/^#+/, '').trim();
+  const query = [name, setName, number ? `#${number}` : '']
+    .filter(Boolean).join(' ').replace(/\s+/g, ' ');
+  const url = new URL('https://www.ebay.co.uk/sch/i.html');
+  url.searchParams.set('_nkw', query);
+  return url.href;
+}
+
 function updateZoomModalContent() {
   if (!currentCardsList.length) return;
   const card = currentCardsList[currentZoomIndex];
@@ -10893,6 +10933,23 @@ function updateZoomModalContent() {
   if (tcgZoomCounter) tcgZoomCounter.innerText = `${currentZoomIndex + 1} / ${currentCardsList.length}`;
   const priceValEl = document.getElementById('tcgZoomPriceVal');
   if (priceValEl) priceValEl.innerText = card.priceGBP ? `£${Number(card.priceGBP).toFixed(2)}` : 'Market N/A';
+  const ebayLink = document.getElementById('tcgZoomPrice');
+  if (ebayLink) {
+    const searchUrl = getCardEbaySearchUrl(card);
+    if (searchUrl) {
+      ebayLink.href = searchUrl;
+      const query = new URL(searchUrl).searchParams.get('_nkw');
+      const label = `Search eBay for ${query} (opens in a new tab)`;
+      ebayLink.title = label;
+      ebayLink.setAttribute('aria-label', label);
+      ebayLink.removeAttribute('aria-disabled');
+    } else {
+      ebayLink.removeAttribute('href');
+      ebayLink.removeAttribute('title');
+      ebayLink.setAttribute('aria-label', 'eBay search unavailable');
+      ebayLink.setAttribute('aria-disabled', 'true');
+    }
+  }
   
   const zoomCheckCircle = document.getElementById('zoomCheckCircle');
   const zoomContainer = document.getElementById('zoomContainer');

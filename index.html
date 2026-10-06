@@ -991,6 +991,39 @@ body.has-active .hub-item-label {
   width: 100%;
   min-height: 32px;
 }
+
+.zoom-left-actions {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+.zoom-share-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 4px 7px;
+  border: 1px solid #64748b;
+  border-radius: 99px;
+  background: #1e293b;
+  color: #cbd5e1;
+  font: inherit;
+  font-size: clamp(0.58rem, 1.1dvh, 0.68rem);
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.zoom-share-button svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.zoom-share-button:disabled { opacity: 0.5; cursor: wait; }
+.zoom-share-button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.zoom-share-button:active { transform: scale(0.96); }
+
 .tcg-zoom-view-area {
   position: relative;
   display: flex;
@@ -2886,7 +2919,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 }
 </style>
 </head>
-<body data-app-build="v91">
+<body data-app-build="v92">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3075,6 +3108,12 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 <div class="tcg-zoom-modal" id="tcgZoomModal" onclick="closeTcgZoom()">
   <div class="tcg-zoom-content" id="zoomContainer" onclick="event.stopPropagation()">
     <div class="tcg-zoom-toolbar">
+      <div class="zoom-left-actions">
+        <button type="button" class="zoom-share-button" id="zoomShareBtn" onclick="shareZoomCard(event)" aria-label="Share card image" title="Share card image">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V3m-4 4 4-4 4 4M6 11H4v10h16V11h-2"/></svg>
+          <span id="zoomShareLabel">Share</span>
+        </button>
+      </div>
       <div class="tcg-zoom-counter" id="tcgZoomCounter">1 / 1</div>
       <button type="button" class="zoom-check-circle" id="zoomCheckCircle" onclick="toggleZoomCardOwned(event)" aria-pressed="false"><span id="zoomCheckLabel">Add to Dex</span><span class="zoom-check-box" aria-hidden="true">✓</span></button>
     </div>
@@ -5235,7 +5274,7 @@ function setTcgImageFallbacks(img, card, quality = 'small') {
       event.stopPropagation();
       retryTcgArtwork(img);
     };
-    document.querySelector('.tcg-zoom-toolbar')?.appendChild(button);
+    document.querySelector('.zoom-left-actions')?.appendChild(button);
     img._tcgRetryButton = button;
   }
   // Repair old cached records at display time in every card view.
@@ -10533,6 +10572,152 @@ function renderTcgCards(cards) {
   strip.appendChild(frag);
 }
 
+// Prepare only the visible card before the tap: native file sharing requires
+// user activation, which can expire if we fetch artwork inside the click handler.
+const zoomShareState = { key: '', controller: null, file: null, url: '', loading: false, busy: false, mode: 'share' };
+
+function resetZoomShare() {
+  zoomShareState.controller?.abort();
+  Object.assign(zoomShareState, { key: '', controller: null, file: null, url: '', loading: false, busy: false, mode: 'share' });
+}
+
+function updateZoomShareButton() {
+  const button = document.getElementById('zoomShareBtn');
+  const label = document.getElementById('zoomShareLabel');
+  if (!button || !label) return;
+  const state = zoomShareState;
+  label.textContent = state.mode === 'save' ? 'Save Image' : state.mode === 'open' ? 'Open Image' : 'Share';
+  button.disabled = state.loading || state.busy || (!state.file && !state.url);
+  button.setAttribute('aria-busy', String(state.loading || state.busy));
+  const description = state.loading ? 'Preparing card image for sharing' :
+    state.mode === 'save' ? 'Save card image to share from your device' :
+    state.mode === 'open' ? 'Open card image to save or share' : 'Share card image';
+  button.title = description;
+  button.setAttribute('aria-label', description);
+}
+
+async function makeShareableCardImage(blob, signal) {
+  if (!/^image\/(?:png|jpeg|webp)$/i.test(blob.type) || !blob.size || blob.size > 20 * 1024 * 1024) {
+    throw new Error('Invalid card image');
+  }
+  const url = URL.createObjectURL(blob);
+  const image = new Image();
+  try {
+    await new Promise((resolve, reject) => {
+      const abort = () => { image.src = ''; reject(new DOMException('Cancelled', 'AbortError')); };
+      const finish = callback => { signal.removeEventListener('abort', abort); callback(); };
+      image.onload = () => finish(resolve);
+      image.onerror = () => finish(() => reject(new Error('Unable to decode card image')));
+      signal.addEventListener('abort', abort, { once: true });
+      if (signal.aborted) { abort(); return; }
+      image.src = url;
+    });
+    if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+    if (image.naturalWidth < 10 || image.naturalHeight < 10) throw new Error('Empty card image');
+    // PNG works for sharing even when the displayed artwork uses WebP.
+    const scale = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(image.naturalWidth * scale);
+    canvas.height = Math.round(image.naturalHeight * scale);
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Unable to prepare card image');
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const png = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if (!png || signal.aborted) throw new Error('Unable to prepare card image');
+    return png;
+  } finally {
+    image.onload = image.onerror = null;
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function prepareZoomCardShare(card) {
+  const artwork = getCardArtworkSources(card);
+  const sources = [...new Set([...artwork.large, card.resolvedSmallImg, ...artwork.small])]
+    .filter(url => url && url !== TCG_CARD_ARTWORK_UNAVAILABLE && isValidFrontCardImage(url)).slice(0, 3);
+  const key = JSON.stringify([card.id, getCardFingerprint(card), sources]);
+  if (zoomShareState.key === key) { updateZoomShareButton(); return; }
+  resetZoomShare();
+  const controller = new AbortController();
+  Object.assign(zoomShareState, { key, controller, url: sources[0] || '', loading: sources.length > 0 });
+  updateZoomShareButton();
+  const isCurrent = () => zoomShareState.controller === controller && !controller.signal.aborted;
+  for (const source of sources) {
+    if (!isCurrent()) return;
+    const attempt = new AbortController();
+    const abort = () => attempt.abort();
+    controller.signal.addEventListener('abort', abort, { once: true });
+    const timeout = setTimeout(abort, 8000);
+    try {
+      const response = await fetch(source, { signal: attempt.signal, credentials: 'omit' });
+      if (!response.ok) throw new Error('Card artwork unavailable');
+      const png = await makeShareableCardImage(await response.blob(), attempt.signal);
+      if (!isCurrent()) return;
+      const safeName = String(card.name || 'Pokemon card').normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-|-$/g, '').slice(0, 70) || 'Pokemon-card';
+      const safeNumber = String(card.number || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 15);
+      const file = new File([png], `${safeName}${safeNumber ? '-' + safeNumber : ''}.png`, { type: 'image/png' });
+      let canShareFiles = false;
+      try { canShareFiles = !!navigator.share && !!navigator.canShare?.({ files: [file] }); } catch {}
+      Object.assign(zoomShareState, { file, url: source, loading: false, mode: canShareFiles ? 'share' : 'save' });
+      updateZoomShareButton();
+      return;
+    } catch {
+      if (!isCurrent()) return;
+    } finally {
+      clearTimeout(timeout);
+      controller.signal.removeEventListener('abort', abort);
+    }
+  }
+  if (isCurrent()) {
+    Object.assign(zoomShareState, { loading: false, mode: 'open' });
+    updateZoomShareButton();
+  }
+}
+
+async function shareZoomCard(event) {
+  event?.preventDefault();
+  event?.stopPropagation();
+  const state = zoomShareState;
+  const card = currentCardsList[currentZoomIndex];
+  if (!card || document.getElementById('tcgZoomModal')?.style.display !== 'flex' || state.loading || state.busy) return;
+  if (zoomCarousel.animating || zoomCarousel.pointer) return;
+  if (state.mode === 'open' && state.url) {
+    window.open(state.url, '_blank', 'noopener,noreferrer');
+    showToast('Touch and hold the card image to save or share it.', 'warning');
+    return;
+  }
+  if (!state.file) return;
+  if (state.mode === 'save') {
+    const url = URL.createObjectURL(state.file);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = state.file.name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    showToast('Image downloaded. Share it from your device.');
+    return;
+  }
+  const controller = state.controller;
+  state.busy = true;
+  updateZoomShareButton();
+  try {
+    // Invoke immediately, without awaiting a network or conversion step.
+    await navigator.share({ files: [state.file], title: card.name,
+      text: `${card.name} · ${card.setName || card.set?.name || 'Pokémon TCG'} · #${card.number}` });
+  } catch (error) {
+    // Cancelling the phone's share menu is a normal action.
+    if (state.controller === controller && error?.name !== 'AbortError') {
+      state.mode = 'save';
+      showToast('Sharing unavailable here. Tap Save Image to share from your device.', 'warning');
+    }
+  } finally {
+    if (state.controller === controller) { state.busy = false; updateZoomShareButton(); }
+  }
+}
+
 const zoomSetNavigation = { requestId: 0, pending: false };
 
 function findSetForPreviewCard(card, sets) {
@@ -10614,6 +10799,7 @@ function updateZoomModalContent() {
     setTcgImageFallbacks(tcgZoomImg, card, 'large');
     tcgZoomImg.src = card.largeImg || card.smallImg;
   }
+  prepareZoomCardShare(card);
   renderCardName(tcgZoomTitle, card.name);
   if (tcgZoomMeta) tcgZoomMeta.innerText = `${card.setName} · #${card.number}`;
   const openSetButton = document.getElementById('zoomOpenSetBtn');
@@ -11017,6 +11203,7 @@ if (zoomViewArea) {
 }
 
 function closeTcgZoom() {
+  resetZoomShare();
   ++zoomSetNavigation.requestId;
   zoomSetNavigation.pending = false;
   const openSetButton = document.getElementById('zoomOpenSetBtn');

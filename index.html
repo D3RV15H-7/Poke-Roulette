@@ -3028,7 +3028,12 @@ a.tcg-zoom-price-row[aria-disabled="true"] { cursor: default; }
 .tcg-series-toggle-all {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.35rem;
+  width: 8rem;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  white-space: nowrap;
   min-height: 32px;
   padding: 0.35rem 0.65rem;
   background: #1e293b;
@@ -3038,17 +3043,18 @@ a.tcg-zoom-price-row[aria-disabled="true"] { cursor: default; }
   font: inherit;
   font-size: 0.69rem;
   font-weight: 800;
+  line-height: 1.25;
   cursor: pointer;
   touch-action: manipulation;
 }
 .tcg-series-toggle-all:active { background: #334155; }
 .tcg-series-toggle-all:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
 .tcg-series-toggle-all:disabled { opacity: 0.45; cursor: default; }
-.tcg-series-toggle-icon { display: block; width: 16px; height: 16px; color: var(--green); }
+.tcg-series-toggle-icon { display: block; width: 16px; height: 16px; flex: 0 0 16px; color: var(--green); }
 .tcg-series-toggle-all[data-action="expand"] .tcg-series-toggle-icon { transform: rotate(180deg); }
 </style>
 </head>
-<body data-app-build="v103">
+<body data-app-build="v104">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3362,8 +3368,8 @@ a.tcg-zoom-price-row[aria-disabled="true"] { cursor: default; }
     <div class="tcg-series-toggle-wrap">
       <button type="button" id="tcgSeriesToggleAll" class="tcg-series-toggle-all" disabled
         aria-controls="setsGrid" aria-label="Expand all set series" onclick="toggleAllTcgSeries(event)">
-        <svg class="tcg-series-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 14 6-5 6 5m-12-5 6-5 6 5"/></svg>
         <span id="tcgSeriesToggleLabel">Expand all</span>
+        <svg class="tcg-series-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 17 6-5 6 5m-12-5 6-5 6 5"/></svg>
       </button>
     </div>
     <div id="setsGrid"></div>

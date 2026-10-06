@@ -2943,7 +2943,7 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
 }
 </style>
 </head>
-<body data-app-build="v96">
+<body data-app-build="v97">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -5745,11 +5745,15 @@ function is30thClassicCollectionSet(set) {
     '30th celebration: classic collection';
 }
 
-function getDisplayedSetCardTotal(set) {
+function getDisplayedSetCardTotal(set, cards = null) {
   if (is30thClassicCollectionSet(set)) {
     return THIRTIETH_CLASSIC_COLLECTION_COUNT;
   }
-  return Number(set?.printedTotal || set?.total) || 0;
+  // A loaded checklist reflects this app's collector filtering (for example,
+  // alternate printings moved to Yellow A). Otherwise use the catalogue's
+  // full total, including secrets, rather than the printed denominator.
+  if (Array.isArray(cards) && cards.length) return cards.length;
+  return Math.max(Number(set?.total) || 0, Number(set?.printedTotal) || 0);
 }
 
 let tcgSetsCache = null;
@@ -7930,7 +7934,7 @@ async function openTcgSet(set) {
   isSetCardCollected(card)
 ).length;
 
-const totalCount = cards.length;
+const totalCount = getDisplayedSetCardTotal(set, cards);
 
 const percentage = totalCount > 0
   ? Math.round((collectedCount / totalCount) * 100)
@@ -7959,7 +7963,7 @@ const percentage = totalCount > 0
       <div class="tcg-set-detail-meta">
   ${formatTcgSetDisplayDate(set.releaseDate)}
   ·
-  ${cards.length} cards
+  ${totalCount} cards
 </div>
 
 <div class="tcg-set-progress">
@@ -8016,7 +8020,7 @@ function updateCurrentSetProgress() {
     isSetCardCollected(card)
   ).length;
 
-  const totalCount = currentCardsList.length;
+  const totalCount = getDisplayedSetCardTotal(activeTcgSet, currentCardsList);
 
   const percentage = totalCount > 0
     ? Math.round((collectedCount / totalCount) * 100)
@@ -8665,16 +8669,19 @@ async function renderTcgSets(forceRefresh = false) {
   let totalCount = getDisplayedSetCardTotal(set);
 
   try {
-    const cacheKey = getSetCardsCacheKey(set.id);
-    const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+    let cachedCards = window.tcgSetCardsCache?.[set.id];
+    if (!Array.isArray(cachedCards) || !cachedCards.length) {
+      const cacheKey = getSetCardsCacheKey(set.id);
+      cachedCards = JSON.parse(localStorage.getItem(cacheKey) || 'null')?.data;
+    }
 
-    if (cached && Array.isArray(cached.data)) {
-      const cards = filterCollectorCards(cached.data);
+    if (Array.isArray(cachedCards) && cachedCards.length) {
+      const cards = filterCollectorCards(cachedCards);
 
       // Migrate old Sets ticks as soon as cached card data is available.
       migrateLegacySetCardOwnership(cards);
 
-      totalCount = cards.length || totalCount;
+      totalCount = getDisplayedSetCardTotal(set, cards);
       if (set.id === 'mep') { set.total = totalCount; set.printedTotal = totalCount; }
 
       collectedCount = cards.filter(card =>
@@ -8704,7 +8711,7 @@ if (isComplete) item.classList.add('set-complete');
       <div class="tcg-set-meta">
         ${formatTcgSetDisplayDate(set.releaseDate)}
         ·
-        ${getDisplayedSetCardTotal(set)} cards
+        ${totalCount} cards
       </div>
 
       <div class="tcg-set-progress">
@@ -9055,8 +9062,8 @@ function calculateProfileStats(sets) {
   let complete = 0, unavailable = false;
   for (const group of groups.values()) {
     if (!group.set) { unavailable = true; continue; }
-    const total = Math.max(cachedTotals.get(group.set.id) || 0,
-      getDisplayedSetCardTotal(group.set), Number(group.set.total) || 0);
+    const total = is30thClassicCollectionSet(group.set) ? THIRTIETH_CLASSIC_COLLECTION_COUNT :
+      (cachedTotals.get(group.set.id) || getDisplayedSetCardTotal(group.set));
     if (total > 0 && group.cards.size >= total) complete++;
     else if (!total) unavailable = true;
   }

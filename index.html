@@ -1568,6 +1568,9 @@ body.has-active .hub-item-label {
   object-fit: contain;
   flex-shrink: 0;
 }
+.tcg-set-detail-logo { height: 52px; object-fit: contain; }
+.tcg-set-logo[data-logo-state]:not([data-logo-state="ready"]),
+.tcg-set-detail-logo[data-logo-state]:not([data-logo-state="ready"]) { opacity: 0; }
 
 .tcg-set-info {
   flex: 1;
@@ -3054,7 +3057,7 @@ a.tcg-zoom-price-row[aria-disabled="true"] { cursor: default; }
 .tcg-series-toggle-all[data-action="expand"] .tcg-series-toggle-icon { transform: rotate(180deg); }
 </style>
 </head>
-<body data-app-build="v104">
+<body data-app-build="v105">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -4999,12 +5002,100 @@ function getVintageCatalogueCards(setId) {
     }} : {})
   }));
 }
+// v105: retain artwork from both API-shaped and saved, normalized sets.
+// Known asset paths also repair catalogues saved by the old fallback bug.
+const TCG_SET_LOGO_PATHS = Object.freeze({"base1":"base/base1","base2":"base/base2","basep":"base/basep","base3":"base/base3","base4":"base/base4","base5":"base/base5","gym1":"gym/gym1","gym2":"gym/gym2","neo1":"neo/neo1","neo2":"neo/neo2","si1":"neo/si1","neo3":"neo/neo3","neo4":"neo/neo4","lc":"lc/lc","ecard1":"ecard/ecard1","ecard2":"ecard/ecard2","ecard3":"ecard/ecard3","ex1":"ex/ex1","ex2":"ex/ex2","np":"pop/np","ex3":"ex/ex3","ex4":"ex/ex4","ex5":"ex/ex5","ex6":"ex/ex6","pop1":"pop/pop1","ex7":"ex/ex7","ex8":"ex/ex8","ex9":"ex/ex9","pop2":"pop/pop2","ex10":"ex/ex10","ex11":"ex/ex11","ex12":"ex/ex12","pop3":"pop/pop3","ex13":"ex/ex13","pop4":"pop/pop4","ex14":"ex/ex14","ex15":"ex/ex15","ex16":"ex/ex16","pop5":"pop/pop5","dpp":"dp/dpp","dp1":"dp/dp1","dp2":"dp/dp2","pop6":"pop/pop6","dp3":"dp/dp3","dp4":"dp/dp4","pop7":"pop/pop7","dp5":"dp/dp5","dp6":"dp/dp6","pop8":"pop/pop8","dp7":"dp/dp7","pl1":"pl/pl1","pop9":"pop/pop9","pl2":"pl/pl2","pl3":"pl/pl3","pl4":"pl/pl4","ru1":"pl/ru1","hgss1":"hgss/hgss1","hgssp":"hgss/hgssp","hgss2":"hgss/hgss2","hgss3":"hgss/hgss3","hgss4":"hgss/hgss4","col1":"col/col1","bw1":"bw/bw1","bwp":"bw/bwp","bw2":"bw/bw2","bw3":"bw/bw3","bw4":"bw/bw4","bw5":"bw/bw5","bw6":"bw/bw6","dv1":"bw/dv1","bw7":"bw/bw7","bw8":"bw/bw8","bw9":"bw/bw9","bw10":"bw/bw10","xyp":"xy/xyp","bw11":"bw/bw11","xy0":"xy/xy0","xy1":"xy/xy1","xy2":"xy/xy2","xy3":"xy/xy3","xy4":"xy/xy4","xy5":"xy/xy5","dc1":"xy/dc1","xy6":"xy/xy6","xy7":"xy/xy7","xy8":"xy/xy8","xy9":"xy/xy9","g1":"xy/g1","xy10":"xy/xy10","xy11":"xy/xy11","xy12":"xy/xy12","sm1":"sm/sm1","smp":"sm/smp","sm2":"sm/sm2","sm3":"sm/sm3","sm4":"sm/sm4","sm5":"sm/sm5","sm6":"sm/sm6","sm7":"sm/sm7","sm8":"sm/sm8","sm9":"sm/sm9","det1":"sm/det1","sm10":"sm/sm10","sm11":"sm/sm11","sm115":"sm/sm115","sm12":"sm/sm12","swshp":"swsh/swshp","swsh1":"swsh/swsh1","swsh2":"swsh/swsh2","swsh3":"swsh/swsh3","fut2020":"swsh/fut2020","swsh3.5":"swsh/swsh3.5","swsh4":"swsh/swsh4","swsh4.5":"swsh/swsh4.5","swsh5":"swsh/swsh5","swsh6":"swsh/swsh6","swsh7":"swsh/swsh7","cel25":"swsh/cel25","swsh8":"swsh/swsh8","swsh9":"swsh/swsh9","swsh10":"swsh/swsh10","swsh10.5":"swsh/swsh10.5","swsh11":"swsh/swsh11","swsh12":"swsh/swsh12","swsh12.5":"swsh/swsh12.5","sv01":"sv/sv01","sv02":"sv/sv02","sv03":"sv/sv03","sv03.5":"sv/sv03.5","sv04":"sv/sv04","sv04.5":"sv/sv04.5","sv06":"sv/sv06","sv06.5":"sv/sv06.5","sv07":"sv/sv07","sv08":"sv/sv08","sv08.5":"sv/sv08.5","sv09":"sv/sv09","sv10":"sv/sv10","sv10.5b":"sv/sv10.5b","sv10.5w":"sv/sv10.5w","me01":"me/me01","me02":"me/me02","me02.5":"me/me02.5","me03":"me/me03","me04":"me/me04","me05":"me/me05"});
+const setLogoRecords = new Map();
+let setLogoSaveTimer = null;
+let savedSetLogoUrls = {};
+try {
+  const saved = JSON.parse(localStorage.getItem('pokeroulette_set_logo_urls_v105') || '{}');
+  if (saved && typeof saved === 'object' && !Array.isArray(saved)) savedSetLogoUrls = saved;
+} catch {}
+
+function getSetLogoSources(set) {
+  const id = String(set?.id || '');
+  const canonical = AUDITED_ARTWORK_SET_ALIASES[id] || id;
+  const route = AUDITED_ARTWORK_ROUTES[canonical]?.[0];
+  const path = TCG_SET_LOGO_PATHS[id] || TCG_SET_LOGO_PATHS[canonical] ||
+    (route && Object.values(TCG_SET_LOGO_PATHS).includes(route) ? route : '');
+  const normalize = url => typeof url === 'string' && url.trim()
+    ? (/^https:\/\/assets\.tcgdex\.net\/.*\/logo$/i.test(url.trim()) ? url.trim() + '.png' : url.trim()) : '';
+  const explicit = normalize(set?.logo || set?.images?.logo);
+  if (explicit.startsWith('data:image/')) return [explicit];
+  const sources = [...new Set([
+    explicit,
+    normalize(set?.images?.logo),
+    path ? `https://assets.tcgdex.net/en/${path}/logo.png` : '',
+    /^[a-z0-9._-]+$/i.test(id) ? `https://images.pokemontcg.io/${encodeURIComponent(id)}/logo.png` : ''
+  ].filter(Boolean))];
+  const saved = savedSetLogoUrls[id];
+  return sources.includes(saved) ? [saved, ...sources.filter(url => url !== saved)] : sources;
+}
+
+function repairSetArtworkMetadata(set) {
+  const sources = getSetLogoSources(set);
+  return { ...set, logo: sources[0] || '', symbol: set.symbol || set.images?.symbol || '' };
+}
+
+function rememberSetLogoUrl(id, url) {
+  if (!id || url.startsWith('data:') || savedSetLogoUrls[id] === url) return;
+  savedSetLogoUrls[id] = url;
+  clearTimeout(setLogoSaveTimer);
+  setLogoSaveTimer = setTimeout(() => {
+    try { localStorage.setItem('pokeroulette_set_logo_urls_v105', JSON.stringify(savedSetLogoUrls)); } catch {}
+  }, 200);
+}
+
+function attachSetLogo(img, set, eager = false) {
+  if (!img) return;
+  const sources = getSetLogoSources(set);
+  const record = { img, set, sources, index: 0, retried: false };
+  setLogoRecords.set(img, record);
+  img.alt = set.name || 'Set logo';
+  img.loading = eager ? 'eager' : 'lazy';
+  img.decoding = 'async';
+  img.dataset.logoState = 'loading';
+  img.onload = () => {
+    if (setLogoRecords.get(img) !== record) return;
+    img.dataset.logoState = 'ready';
+    rememberSetLogoUrl(set.id, record.sources[record.index]);
+  };
+  img.onerror = () => {
+    if (setLogoRecords.get(img) !== record) return;
+    if (record.index + 1 < sources.length) {
+      record.index++;
+      img.src = sources[record.index];
+    } else if (!record.retried && /^https?:/.test(sources[0] || '')) {
+      record.retried = true;
+      record.index = 0;
+      const retry = new URL(sources[0]);
+      retry.searchParams.set('pr_logo_retry', String(Date.now()));
+      img.src = retry.href;
+    } else {
+      img.dataset.logoState = 'failed';
+    }
+  };
+  if (sources.length) img.src = sources[0];
+  else img.dataset.logoState = 'failed';
+}
+
+function disposeSetLogos() {
+  for (const img of setLogoRecords.keys()) img.onload = img.onerror = null;
+  setLogoRecords.clear();
+}
+window.addEventListener('online', () => {
+  for (const [img, record] of setLogoRecords) {
+    if (img.isConnected && img.dataset.logoState === 'failed') attachSetLogo(img, record.set, img.loading === 'eager');
+  }
+});
+
 function repairVintageSetDetails(sets) {
   return sets.map(set => {
     const checked = VINTAGE_SET_DETAILS[set.id];
-    if (!checked) return set;
+    if (!checked) return repairSetArtworkMetadata(set);
     const count = Math.max(Number(set.total) || 0, VINTAGE_CARD_CATALOGUES[set.id].length);
-    return { ...set, ...checked, total: count, printedTotal: count };
+    return repairSetArtworkMetadata({ ...set, ...checked, total: count, printedTotal: count });
   });
 }
 
@@ -5897,7 +5988,9 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
           `[SETS] Loaded ${cached.data.length} sets from cache`
         );
 
-        return ensureMcDonaldsSets(repairVintageSetDetails(cached.data));
+        // Repair older catalogue entries without extending their freshness.
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ...cached, data: tcgSetsCache })); } catch {}
+        return tcgSetsCache;
       }
     } catch (error) {
       console.warn(
@@ -5922,8 +6015,12 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
     const setsById = new Map();
     let primarySets = sources[0].status === 'fulfilled' ? sources[0].value : (tcgSetsCache || []);
     if (!primarySets.length && sources[0].status === 'rejected') {
-      try { primarySets = JSON.parse(localStorage.getItem('pokeroulette_tcg_sets_v7_collector_sets') || 'null')?.data || []; }
-      catch (error) {}
+      for (const key of [CACHE_KEY, 'pokeroulette_tcg_sets_v7_collector_sets']) {
+        try {
+          const saved = JSON.parse(localStorage.getItem(key) || 'null')?.data;
+          if (Array.isArray(saved) && saved.length) { primarySets = saved; break; }
+        } catch (error) {}
+      }
     }
     for (const set of primarySets) setsById.set(set.id, set);
     for (const promo of sources[1].status === 'fulfilled' ? sources[1].value : []) {
@@ -5932,7 +6029,8 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
         ...promo, ...old,
         total: Math.max(old.total || 0, promo.total || 0),
         printedTotal: Math.max(old.printedTotal || 0, promo.printedTotal || 0),
-        images: { symbol: old.images?.symbol || promo.images?.symbol, logo: old.images?.logo || promo.images?.logo }
+        images: { symbol: old.symbol || old.images?.symbol || promo.symbol || promo.images?.symbol,
+          logo: old.logo || old.images?.logo || promo.logo || promo.images?.logo }
       } : promo);
     }
     const sets = [...setsById.values()];
@@ -5955,8 +6053,10 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
               ? THIRTIETH_CLASSIC_COLLECTION_COUNT
               : set.id === 'mep' ? Math.max(set.total || 0, MEP_PROMO_CARDS.length) : (set.total || set.printedTotal || 0),
         releaseDate: set.releaseDate || '',
-        symbol: set.images?.symbol || '',
-        logo: set.images?.logo || ''
+        symbol: set.symbol || set.images?.symbol || '',
+        // A failed primary request can return already-normalized cached sets.
+        // Their artwork lives on .logo, rather than .images.logo.
+        logo: set.logo || set.images?.logo || ''
       }))
       .sort((a, b) =>
         String(b.releaseDate).localeCompare(
@@ -6031,7 +6131,7 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
 
         showToast('Showing saved sets. Refresh is unavailable.', 'warning');
 
-        return ensureMcDonaldsSets(repairVintageSetDetails(cached.data));
+        return tcgSetsCache;
       }
     } catch (cacheError) {
       console.error(
@@ -8053,11 +8153,7 @@ const percentage = totalCount > 0
         ← Back to Sets
       </button>
 
-      ${
-        set.logo
-          ? `<img src="${set.logo}" alt="${set.name}">`
-          : ''
-      }
+      <img class="tcg-set-detail-logo" alt="">
 
       <div class="tcg-set-detail-title">
         ${set.name}
@@ -8113,6 +8209,7 @@ const percentage = totalCount > 0
 <div class="tcg-set-cards" id="tcgSetCards"></div>
 `;
 
+  attachSetLogo(grid.querySelector('.tcg-set-detail-logo'), set, true);
   renderCurrentSetCards();
 }
 
@@ -8205,6 +8302,7 @@ function scrollSetCardsToTop() {
 // in this long, nested iOS scroller could leave blank or clipped card tiles.
 let setThumbnailLoader = null;
 function disposeSetThumbnails() {
+  disposeSetLogos();
   setThumbnailLoader?.dispose();
   setThumbnailLoader = null;
 }
@@ -8793,6 +8891,7 @@ async function renderTcgSets(forceRefresh = false) {
 
   const frag = document.createDocumentFragment();
 
+ let eagerLogoCount = 0;
  const groups = groupTcgSetsBySeries(sets);
  for (const [index, group] of groups.entries()) {
   const section = createTcgSeriesSection(group, index);
@@ -8839,11 +8938,7 @@ if (isComplete) item.classList.add('set-complete');
    
   item.innerHTML = `
     ${isComplete ? `<span class="tcg-set-complete-tick" role="img" aria-label="Set 100% complete" title="Set 100% complete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></span>` : ''}
-    ${
-      (set.id === YELLOW_A_SET_ID ? YELLOW_A_VIRTUAL_SET.logo : set.logo)
-        ? `<img class="tcg-set-logo" src="${set.id === YELLOW_A_SET_ID ? YELLOW_A_VIRTUAL_SET.logo : set.logo}" alt="${set.name}">`
-        : ''
-    }
+    <img class="tcg-set-logo" alt="">
 
     <div class="tcg-set-info">
       <div class="tcg-set-name">${set.name}</div>
@@ -8872,6 +8967,8 @@ if (isComplete) item.classList.add('set-complete');
     </div>
   `;
 
+  attachSetLogo(item.querySelector('.tcg-set-logo'), set.id === YELLOW_A_SET_ID ? YELLOW_A_VIRTUAL_SET : set,
+    !list.hidden && eagerLogoCount++ < 4);
   item.onclick = () => {
     openTcgSet(set);
   };

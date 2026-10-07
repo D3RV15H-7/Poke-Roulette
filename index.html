@@ -2862,6 +2862,21 @@ html.is-standalone body.has-active #pokeCard { --encounter-card-size: 112px; }
   margin: 0; color: var(--green); font-size: 0.82rem;
   font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap;
 }
+.profile-stats dd.profile-stat-loading { min-width: 14px; flex-shrink: 0; }
+.profile-stats dd.profile-stat-loading::before {
+  content: '';
+  display: inline-block;
+  width: 14px; height: 14px; box-sizing: border-box;
+  border: 2px solid rgba(16,185,129,0.2);
+  border-top-color: var(--green);
+  border-right-color: var(--green);
+  border-radius: 50%; vertical-align: middle;
+  animation: profileStatLoadingSpin 0.8s linear infinite;
+}
+@keyframes profileStatLoadingSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .profile-stats dd.profile-stat-loading::before { animation: none; }
+}
 .profile-stats p { color: var(--sub); font-size: 0.6rem; line-height: 1.5; margin: 0.65rem 0 0; }
 /* v76: pull the title to refresh; the dock stays in place. */
 #appRefreshHandle { touch-action: none; user-select: none; -webkit-user-select: none; }
@@ -3057,7 +3072,7 @@ a.tcg-zoom-price-row[aria-disabled="true"] { cursor: default; }
 .tcg-series-toggle-all[data-action="expand"] .tcg-series-toggle-icon { transform: rotate(180deg); }
 </style>
 </head>
-<body data-app-build="v105">
+<body data-app-build="v106">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3399,10 +3414,10 @@ a.tcg-zoom-price-row[aria-disabled="true"] { cursor: default; }
       <h4 id="profileStatsHeading">Your Stats</h4>
       <dl>
         <div><dt>Dex - Cards Collected</dt><dd id="profileStatDex">0 / 1,025</dd></div>
-        <div class="profile-stat-parent"><dt>Sets - Cards Collected</dt><dd id="profileStatCards">—</dd></div>
-        <div class="profile-stat-detail"><dt>Including Variants</dt><dd id="profileStatVariants">—</dd></div>
-        <div class="profile-stat-detail"><dt># of sets with cards collected</dt><dd id="profileStatSets">—</dd></div>
-        <div class="profile-stat-detail"><dt># of sets with 100% completion</dt><dd id="profileStatComplete">—</dd></div>
+        <div class="profile-stat-parent"><dt>Sets - Cards Collected</dt><dd id="profileStatCards" class="profile-stat-loading" aria-busy="true" aria-label="Loading statistic"></dd></div>
+        <div class="profile-stat-detail"><dt>Including Variants</dt><dd id="profileStatVariants" class="profile-stat-loading" aria-busy="true" aria-label="Loading statistic"></dd></div>
+        <div class="profile-stat-detail"><dt># of sets with cards collected</dt><dd id="profileStatSets" class="profile-stat-loading" aria-busy="true" aria-label="Loading statistic"></dd></div>
+        <div class="profile-stat-detail"><dt># of sets with 100% completion</dt><dd id="profileStatComplete" class="profile-stat-loading" aria-busy="true" aria-label="Loading statistic"></dd></div>
         <div><dt>Wheel spins</dt><dd id="profileStatSpins">0</dd></div>
       </dl>
       <p id="profileStatsSyncStatus" role="status" hidden></p>
@@ -9315,7 +9330,23 @@ async function refreshProfileStats() {
   const requestId = ++profileStatsRequestId, uid = activeUid;
   syncWheelSpinsToAccount();
   reloadWheelSpinState();
-  const paint = (id, value) => { const element = document.getElementById(id); if (element) element.textContent = value; };
+  const paint = (id, value) => {
+    const element = document.getElementById(id);
+    if (!element) return;
+    element.textContent = value;
+    element.classList.remove('profile-stat-loading');
+    element.removeAttribute('aria-busy');
+    element.removeAttribute('aria-label');
+  };
+  // Keep already-populated numbers visible during background updates.
+  for (const element of modal.querySelectorAll('.profile-stats dd')) {
+    if (!element.textContent.trim() || element.textContent.trim() === '—') {
+      element.textContent = '';
+      element.classList.add('profile-stat-loading');
+      element.setAttribute('aria-busy', 'true');
+      element.setAttribute('aria-label', 'Loading ' + element.previousElementSibling.textContent);
+    }
+  }
   paint('profileStatSpins', wheelSpinCount.toLocaleString('en-GB'));
   paint('profileStatDex', memCol.size.toLocaleString('en-GB') + ' / ' + TOTAL.toLocaleString('en-GB'));
   let sets = [];

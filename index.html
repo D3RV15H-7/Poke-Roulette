@@ -707,13 +707,6 @@ body.has-active .wheel-wrap {
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-.tcg-title-variations-icon {
-  display: block;
-  width: 1.8em;
-  height: 1.8em;
-  flex: 0 0 auto;
-  object-fit: contain;
-}
 .tcg-count-text {
   color: var(--gold);
   font-size: 0.6rem;
@@ -3170,8 +3163,8 @@ body.has-active .wheel-wrap { max-height: 0; }
 .center-hub-text.is-finding {
   white-space: nowrap;
 }
-/* v110: anchor navigation to CSS viewport geometry, independent of a stale
-   visualViewport height after the keyboard closes. Keep it outside scroll flow. */
+/* v111: use one measured screen edge for the dock and all content boundaries.
+   Translate by the dock's OWN border box, never a cached dock-height estimate. */
 :root { --dock-screen-height: 100vh; }
 @supports (height: 100dvh) { :root { --dock-screen-height: 100dvh; } }
 .hub-outer-wrap,
@@ -3179,14 +3172,14 @@ body.has-active .hub-outer-wrap,
 html.is-standalone .hub-outer-wrap,
 html.is-standalone body.has-active .hub-outer-wrap {
   position: fixed;
-  top: calc(var(--dock-screen-height) - var(--measured-dock-height, 78px));
+  top: var(--dock-viewport-bottom, var(--dock-screen-height));
   bottom: auto;
   left: 0;
   right: 0;
   width: 100%;
   margin: 0;
-  transform: none;
-  -webkit-transform: none;
+  transform: translateY(-100%);
+  -webkit-transform: translateY(-100%);
 }
 html.is-browser body { height: var(--dock-screen-height); }
 html.is-browser .viewport,
@@ -3197,9 +3190,25 @@ html.is-standalone body { min-height: var(--dock-screen-height); }
 html.is-standalone .viewport {
   min-height: max(0px, calc(var(--dock-screen-height) - max(clamp(0.2rem, 0.8dvh, 0.4rem), env(safe-area-inset-top))));
 }
+/* Restore the gentle invitation on the whole Poké Ball, not the rotating wheel. */
+@keyframes hubInvitePulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 5px 12px rgba(0,0,0,0.5), inset 0 0 0 2px rgba(255,255,255,0.45);
+  }
+  50% {
+    transform: scale(1.045);
+    box-shadow: 0 6px 19px rgba(255,99,80,0.4), inset 0 0 0 2px rgba(255,255,255,0.45);
+  }
+}
+.center-hub { animation: hubInvitePulse 2.6s ease-in-out infinite; }
+.center-hub.is-spinning { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .center-hub { animation: none; }
+}
 </style>
 </head>
-<body data-app-build="v110">
+<body data-app-build="v111">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3324,7 +3333,7 @@ html.is-standalone .viewport {
     <div class="tcg-section-wrap" id="tcgWrap">
       <div class="tcg-header-row">
         <div class="tcg-title-actions">
-          <span class="tcg-title-text" id="tcgSectionTitle"><img class="tcg-title-variations-icon" src="data:image/webp;base64,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" width="96" height="96" alt="" aria-hidden="true" decoding="async">Card Variations</span>
+          <span class="tcg-title-text" id="tcgSectionTitle">Card Variations</span>
           <button class="tcg-header-refresh-btn" onclick="refreshCurrentCardSearch()" title="Refresh Cards" aria-label="Refresh card variations">↻</button>
         </div>
         <span class="tcg-count-text" id="tcgCountText">Loading cards...</span>
@@ -12022,9 +12031,11 @@ async function spinAndPick() {
   const btn = document.getElementById('spinBtn');
   const w = document.getElementById('wheel');
   const hubText = document.getElementById('hubText');
+  const centerHub = document.getElementById('centerHub');
 
   if (btn) btn.disabled = true;
  isSpinning = true;
+  centerHub?.classList.add('is-spinning');
   recordWheelSpin();
 
 // Fully reset shiny state before a new encounter
@@ -12072,6 +12083,7 @@ hideActive();
     
     setTimeout(() => {
       isSpinning = false;
+      centerHub?.classList.remove('is-spinning');
       if (hubText) {
         hubText.classList.remove('is-finding');
         hubText.textContent = "TAP\nTO\nSPIN";
@@ -12085,6 +12097,7 @@ hideActive();
     }, Math.max(0, 3700 - (performance.now() - spinStartedAt)));
   } catch (e) {
     isSpinning = false;
+    centerHub?.classList.remove('is-spinning');
     if (hubText) {
       hubText.classList.remove('is-finding');
       hubText.textContent = "TAP\nTO\nSPIN";
@@ -12466,9 +12479,12 @@ function syncAppViewportLayout() {
   root.classList.toggle('is-browser', !standalone);
 
   const viewportTop = standalone ? 0 : (vv ? vv.offsetTop : 0);
-  // Installed-app geometry must not inherit a keyboard-sized visual viewport
-  // once the keyboard has closed; the dock itself follows CSS viewport height.
-  const viewportHeight = standalone ? window.innerHeight : (vv ? vv.height : window.innerHeight);
+  // Use the same window geometry before and after a spin, without depending
+  // on CSS viewport-unit re-evaluation when document content changes.
+  // Ignore keyboard-sized visualViewport measurements in the installed app.
+  const viewportHeight = Math.max(0, Math.round(standalone ? window.innerHeight : (vv ? vv.height : window.innerHeight)));
+  root.style.setProperty('--dock-screen-height', `${viewportHeight}px`);
+  root.style.setProperty('--dock-viewport-bottom', `${viewportTop + viewportHeight}px`);
 
   root.style.setProperty(
     '--app-visible-height',
@@ -12651,6 +12667,12 @@ function scheduleAppViewportLayout() {
 }
 
 window.addEventListener('load', syncAppViewportLayout);
+// Home Screen restoration and back/forward cache need a fresh screen edge too.
+window.addEventListener('pageshow', syncAppViewportLayout);
+window.addEventListener('focus', scheduleAppViewportLayout);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') scheduleAppViewportLayout();
+});
 window.addEventListener('resize', scheduleAppViewportLayout);
 window.addEventListener('orientationchange', () => {
   setTimeout(syncAppViewportLayout, 120);

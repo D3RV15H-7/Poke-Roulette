@@ -23,7 +23,10 @@
 <meta name="msapplication-navbutton-color" content="#1e293b" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<!-- An opaque status bar keeps iOS's Home Screen web view below the status bar
+     and reaching the bottom. Translucent mode can leave a system-owned gap
+     that CSS/innerHeight changes inside the document cannot fill (WebKit 301994). -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black" />
   
 <style>  
 :root {
@@ -3206,9 +3209,25 @@ html.is-standalone .viewport {
 @media (prefers-reduced-motion: reduce) {
   .center-hub { animation: none; }
 }
+/* v112: Home Screen navigation uses the native viewport bottom, as in v38.
+   Browser keeps its working visual-viewport pixel positioning. No calculated
+   top or translated docking in the installed app. Safe-area padding remains
+   INSIDE the dock so its background covers the entire lower edge. */
+html.is-standalone .hub-outer-wrap,
+html.is-standalone body.has-active .hub-outer-wrap {
+  position: fixed;
+  top: auto;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  margin: 0;
+  transform: none;
+  -webkit-transform: none;
+}
 </style>
 </head>
-<body data-app-build="v111">
+<body data-app-build="v112">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1

@@ -2732,7 +2732,7 @@ html.is-standalone {
 html.is-standalone body {
   position: static;
   height: auto;
-  min-height: 100svh;
+  min-height: var(--app-visible-height, 100svh);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2745,7 +2745,8 @@ html.is-standalone .viewport {
   position: static;
   width: min(100%, 480px);
   height: auto;
-  min-height: 100svh;
+  /* Body already provides the safe-area top padding; count it only once. */
+  min-height: max(0px, calc(var(--app-visible-height, 100svh) - max(clamp(0.2rem, 0.8dvh, 0.4rem), env(safe-area-inset-top))));
   padding: 0 0 calc(var(--measured-dock-height) + 1rem);
   overflow: visible;
 }
@@ -3163,17 +3164,16 @@ body.has-active .wheel-wrap { max-height: 0; }
 }
 .center-hub-text {
   color: #101322;
-  font-size: clamp(0.54rem, 1.35dvh, 0.75rem);
+  font-size: clamp(0.38rem, 0.95dvh, 0.5rem);
   line-height: 1.05;
   letter-spacing: 0;
 }
 .center-hub-text.is-finding {
-  font-size: clamp(0.38rem, 0.95dvh, 0.5rem);
   white-space: nowrap;
 }
 </style>
 </head>
-<body data-app-build="v108">
+<body data-app-build="v109">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3561,7 +3561,7 @@ body.has-active .wheel-wrap { max-height: 0; }
       <p><strong style="color:#fff;">PokéRoulette</strong> lets you spin for a Pokémon or search by name or Pokédex number, then explore its evolutions and trading cards.</p>
 
       <div style="background:#090d16; border:1px solid #334155; border-radius:10px; padding:0.65rem 0.8rem;">
-        <div style="color:var(--gold); font-weight:800; font-size:0.72rem; text-transform:uppercase; margin-bottom:0.3rem;">Your Collection</div>
+        <div style="color:var(--green); font-weight:800; font-size:0.72rem; text-transform:uppercase; margin-bottom:0.3rem;">Your Collection</div>
         <p>Mark Pokémon and card variations as collected in the Dex and Sets views. Use Profile to sign in and manage account sync. Your collection is also saved on this device.</p>
       </div>
       
@@ -10309,22 +10309,30 @@ searchInput?.addEventListener('focus', () => {
   }
 });
 
-// Close search dropdowns when clicking outside the search area
-document.addEventListener('click', (event) => {
-  const searchWrap = document.querySelector('.search-wrap');
+function closeMainSearchDropdowns() {
   const recents = document.getElementById('searchRecents');
   const suggestions = document.getElementById('sList');
+  if (recents) recents.style.display = 'none';
+  if (suggestions) suggestions.style.display = 'none';
+}
 
+// Capture outside taps before a child control can stop propagation. Allow the
+// original tap to continue so wheel, dock and card buttons still work normally.
+function dismissMainSearchOnOutsideInteraction(event) {
+  const searchWrap = document.querySelector('.search-wrap');
   if (!searchWrap || searchWrap.contains(event.target)) return;
-
-  if (recents) {
-    recents.style.display = 'none';
-  }
-
-  if (suggestions) {
-    suggestions.style.display = 'none';
-  }
-});
+  closeMainSearchDropdowns();
+  const input = document.getElementById('sInput');
+  if (document.activeElement === input) input.blur();
+  if (document.body.classList.contains('main-search-focused')) setMainSearchFocused(false);
+}
+document.addEventListener('click', dismissMainSearchOnOutsideInteraction, true);
+if (window.PointerEvent) {
+  document.addEventListener('pointerdown', dismissMainSearchOnOutsideInteraction, true);
+} else {
+  document.addEventListener('touchstart', dismissMainSearchOnOutsideInteraction, { capture: true, passive: true });
+  document.addEventListener('mousedown', dismissMainSearchOnOutsideInteraction, true);
+}
 
 function initAudio() {
   try {
@@ -11775,7 +11783,12 @@ if (mainSearchInput) {
 
   mainSearchInput.addEventListener('blur', () => {
     window.setTimeout(() => {
+      if (document.activeElement === mainSearchInput) return;
       setMainSearchFocused(false);
+      // Keep an option available while focus moves to it; its own click handler
+      // chooses the Pokémon. Keyboard dismissal and outside focus close the list.
+      const searchWrap = document.querySelector('.search-wrap');
+      if (!searchWrap?.contains(document.activeElement)) closeMainSearchDropdowns();
     }, 100);
   });
 }

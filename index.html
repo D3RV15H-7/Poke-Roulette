@@ -3099,8 +3099,14 @@ body {
   user-select: none;
   -webkit-user-drag: none;
 }
-body.has-active #appRefreshHandle h1.app-title-refresh { max-width: 310px; }
-body.has-active .app-title-logo { max-height: clamp(62px, 12dvh, 100px); }
+/* Compact the encounter header so Spin Again has room above the dock. */
+#appRefreshHandle .title-refresh-feedback {
+  margin-top: -0.3rem;
+  font-size: 0.6rem;
+  line-height: 1.3;
+}
+body.has-active #appRefreshHandle h1.app-title-refresh { max-width: 210px; }
+body.has-active .app-title-logo { max-height: clamp(54px, 8dvh, 70px); }
 .wheel-wrap {
   --wheel-size: min(clamp(240px, 46dvh, 340px), calc(100vw - 3rem));
   width: var(--wheel-size);
@@ -3161,9 +3167,13 @@ body.has-active .wheel-wrap { max-height: 0; }
   line-height: 1.05;
   letter-spacing: 0;
 }
+.center-hub-text.is-finding {
+  font-size: clamp(0.38rem, 0.95dvh, 0.5rem);
+  white-space: nowrap;
+}
 </style>
 </head>
-<body data-app-build="v107">
+<body data-app-build="v108">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -11994,7 +12004,10 @@ if (orbitWrap) {
 
 hideActive();
 
-  if (hubText) hubText.innerText = "FINDING";
+  if (hubText) {
+    hubText.classList.add('is-finding');
+    hubText.innerText = "FINDING";
+  }
 
   const idx = Math.floor(Math.random() * TYPES.length);
   const targetDeg = (270 - (idx * 20 + 10) + 360) % 360;
@@ -12020,7 +12033,10 @@ hideActive();
     
     setTimeout(() => {
       isSpinning = false;
-      if (hubText) hubText.textContent = "TAP\nTO\nSPIN";
+      if (hubText) {
+        hubText.classList.remove('is-finding');
+        hubText.textContent = "TAP\nTO\nSPIN";
+      }
       renderCard(pData, shiny);
       addRec(pData);
       playCry();
@@ -12030,7 +12046,10 @@ hideActive();
     }, Math.max(0, 3700 - (performance.now() - spinStartedAt)));
   } catch (e) {
     isSpinning = false;
-    if (hubText) hubText.textContent = "TAP\nTO\nSPIN";
+    if (hubText) {
+      hubText.classList.remove('is-finding');
+      hubText.textContent = "TAP\nTO\nSPIN";
+    }
     if (btn) btn.disabled = false;
     showToast("Spin error: Check connection.", "error");
   }

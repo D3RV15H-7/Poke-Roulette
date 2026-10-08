@@ -3228,7 +3228,7 @@ html.is-standalone body.has-active .hub-outer-wrap {
 }
 </style>
 </head>
-<body data-app-build="v115">
+<body data-app-build="v116">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -5995,9 +5995,194 @@ function getWheelTypeData(type) {
     }) };
   });
 }
-function preloadEncounterArtwork(data) {
-  const source = pokemonSwipeArt(data);
-  if (source) { const image = new Image(); image.decoding = 'async'; image.src = source; }
+// v116: prepare complete artwork and cry bytes before presentation. This cache
+// contains only public media, is bounded, and never touches collection storage.
+const encounterMedia = new Map();
+const encounterMediaRequests = new Map();
+const ENCOUNTER_MEDIA_CACHE = 'pokeroulette-encounter-media-v116';
+let encounterMediaStore = null;
+let encounterMediaWrites = Promise.resolve();
+let cryPlaybackToken = 0;
+let activeCrySource = null;
+let activeCryAudio = null;
+function mediaDeadline(promise, ms) {
+  let timer;
+  return Promise.race([promise, new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error('Media timed out')), ms);
+  })]).finally(() => clearTimeout(timer));
+}
+function encounterMediaStoreReady() {
+  if (!window.caches) return Promise.resolve(null);
+  if (!encounterMediaStore) encounterMediaStore = caches.open(ENCOUNTER_MEDIA_CACHE).catch(() => null);
+  return encounterMediaStore;
+}
+function mediaMirrorUrls(url) {
+  // The mirror serves exactly the same file from the official PokéAPI repository.
+  const match = /^https:\/\/raw\.githubusercontent\.com\/(PokeAPI\/(?:sprites|cries))\/(master|main)\/(.+)$/i.exec(url || '');
+  return match ? [url, `https://cdn.jsdelivr.net/gh/${match[1]}@${match[2]}/${match[3]}`] : [url];
+}
+async function readEncounterMediaBlob(url) {
+  try {
+    const cache = await mediaDeadline(encounterMediaStoreReady(), 200);
+    const response = cache && await mediaDeadline(cache.match(url), 200);
+    if (response && Date.now() - Number(response.headers.get('X-Poke-Media-Saved')) < 30 * 86400000) {
+      return await mediaDeadline(response.blob(), 300);
+    }
+  } catch (_) {}
+  return null;
+}
+function writeEncounterMediaBlob(url, blob, kind) {
+  if (!window.caches || blob.size > (kind === 'art' ? 2000000 : 1000000)) return;
+  encounterMediaWrites = encounterMediaWrites.catch(() => {}).then(async () => {
+    const cache = await encounterMediaStoreReady();
+    if (!cache) return;
+    await cache.delete(url); // Move reused keys to the end of this cache only.
+    await cache.put(url, new Response(blob, { headers: {
+      'Content-Type': blob.type, 'X-Poke-Media-Saved': String(Date.now()), 'X-Poke-Media-Kind': kind
+    } }));
+    const keys = await cache.keys();
+    for (let i = 0; i < keys.length - 64; i++) await cache.delete(keys[i]);
+  }).catch(() => {});
+}
+function rememberEncounterMedia(key, record) {
+  encounterMedia.delete(key);
+  encounterMedia.set(key, record);
+  while (encounterMedia.size > 24) {
+    const [oldKey, old] = encounterMedia.entries().next().value;
+    encounterMedia.delete(oldKey);
+    // Do not revoke an image still mounted in the page or an active audio file.
+    if (old.src && !Array.from(document.querySelectorAll('img')).some(img => img.src === old.src) && activeCryAudio !== old.audio) {
+      URL.revokeObjectURL?.(old.src);
+    }
+  }
+  return record;
+}
+async function decodeEncounterImage(src) {
+  const image = new Image();
+  image.decoding = 'async'; image.loading = 'eager'; image.fetchPriority = 'high';
+  await mediaDeadline(new Promise((resolve, reject) => {
+    image.onload = resolve;
+    image.onerror = () => reject(new Error('Artwork unavailable'));
+    image.src = src;
+    if (image.complete && image.naturalWidth) resolve();
+  }), 6500);
+  if (image.decode) await mediaDeadline(image.decode(), 2000);
+  if (!image.naturalWidth) throw new Error('Empty artwork');
+  image.onload = image.onerror = null;
+  return image;
+}
+async function decodeEncounterBlob(blob, kind) {
+  const src = URL.createObjectURL(blob);
+  try {
+    if (kind === 'art') return { src, image: await decodeEncounterImage(src) };
+    const record = { src, buffer: null, audio: null };
+    if (audioCtx?.decodeAudioData) {
+      try { record.buffer = await mediaDeadline(audioCtx.decodeAudioData(await blob.arrayBuffer()), 2000); } catch (_) {}
+    }
+    if (!record.buffer) {
+      const audio = record.audio = new Audio();
+      audio.preload = 'auto'; audio.volume = 0.65; audio.src = src;
+      audio.load();
+    }
+    return record;
+  } catch (error) { URL.revokeObjectURL(src); throw error; }
+}
+async function fetchEncounterMedia(url, kind) {
+  const key = `${kind}:${url}`;
+  if (encounterMedia.has(key)) return rememberEncounterMedia(key, encounterMedia.get(key));
+  if (encounterMediaRequests.has(key)) return encounterMediaRequests.get(key);
+  const task = (async () => {
+    const saved = await readEncounterMediaBlob(url);
+    if (saved) {
+      try { return rememberEncounterMedia(key, await decodeEncounterBlob(saved, kind)); } catch (_) {}
+    }
+    const controllers = [];
+    let won = false;
+    const tasks = mediaMirrorUrls(url).filter(Boolean).map((source, index) => (async () => {
+      if (index) await new Promise(resolve => setTimeout(resolve, 300));
+      if (won) throw new Error('Another media copy is ready');
+      const controller = new AbortController(); controllers.push(controller);
+      try {
+        return await mediaDeadline((async () => {
+          const response = await fetch(source, { signal: controller.signal, cache: 'force-cache', priority: 'high' });
+          if (!response.ok) throw new Error('Media unavailable');
+          const blob = await response.blob();
+          if (!blob.size || blob.size > 2000000) throw new Error('Invalid media');
+          const record = await decodeEncounterBlob(blob, kind);
+          if (controller.signal.aborted) { URL.revokeObjectURL(record.src); throw new Error('Media superseded'); }
+          return { record, blob };
+        })(), 7000);
+      } finally { controller.abort(); }
+    })());
+    if (!tasks.length) throw new Error('No media source');
+    // First fully downloaded and decoded copy wins, not first response headers.
+    const result = await new Promise((resolve, reject) => {
+      let remaining = tasks.length;
+      tasks.forEach(task => task.then(result => {
+        if (won) { URL.revokeObjectURL(result.record.src); return; }
+        won = true; resolve(result);
+        controllers.forEach(controller => controller.abort());
+      }, error => { if (!--remaining && !won) reject(error); }));
+    });
+    writeEncounterMediaBlob(url, result.blob, kind);
+    return rememberEncounterMedia(key, result.record);
+  })();
+  encounterMediaRequests.set(key, task);
+  try { return await task; } finally { encounterMediaRequests.delete(key); }
+}
+function encounterArtworkSources(p, shiny = false) {
+  const home = p?.sprites?.other?.home;
+  const official = p?.sprites?.other?.['official-artwork'];
+  return (shiny ? [home?.front_shiny, official?.front_shiny, p?.sprites?.front_shiny,
+    home?.front_default, official?.front_default, p?.sprites?.front_default] :
+    [home?.front_default, official?.front_default, p?.sprites?.front_default]).filter((src, index, list) => src && list.indexOf(src) === index);
+}
+async function prepareEncounterArtwork(p, shiny = false) {
+  const sources = encounterArtworkSources(p, shiny);
+  // A successfully decoded fallback can be reused while the preferred host is unavailable.
+  if (encounterMedia.has(`art:${sources[0]}`)) return encounterMedia.get(`art:${sources[0]}`);
+  for (const url of sources) {
+    try { return await fetchEncounterMedia(url, 'art'); } catch (_) {}
+  }
+  throw new Error('Artwork unavailable');
+}
+function prepareEncounterCry(p) {
+  const url = p?.cries?.latest || p?.cries?.legacy;
+  return url ? fetchEncounterMedia(url, 'cry') : Promise.reject(new Error('No Pokémon cry'));
+}
+function preloadEncounterId(id) {
+  if (!Number.isInteger(id) || id < 1 || id > TOTAL) return;
+  // National IDs are already known when the wheel chooses its result. Start
+  // these files alongside the Pokémon JSON request, not after it finishes.
+  const base = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/';
+  fetchEncounterMedia(`${base}other/home/${id}.png`, 'art').catch(() => {});
+  fetchEncounterMedia(`https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/${id}.ogg`, 'cry').catch(() => {});
+}
+function stopEncounterCry() {
+  ++cryPlaybackToken;
+  try { activeCrySource?.stop(); } catch (_) {}
+  activeCrySource = null;
+  if (activeCryAudio) { activeCryAudio.pause(); activeCryAudio.currentTime = 0; activeCryAudio = null; }
+}
+function startPreparedCry(record, token, pokemonId) {
+  if (token !== cryPlaybackToken || curId !== pokemonId || isSpinning || document.hidden) return;
+  if (record.buffer && audioCtx?.state === 'running') {
+    const source = audioCtx.createBufferSource(), gain = audioCtx.createGain();
+    source.buffer = record.buffer; gain.gain.value = 0.65;
+    source.connect(gain); gain.connect(audioCtx.destination);
+    activeCrySource = source;
+    source.onended = () => { if (activeCrySource === source) activeCrySource = null; source.disconnect(); gain.disconnect(); };
+    source.start();
+  } else if (record.audio) {
+    activeCryAudio = record.audio; record.audio.currentTime = 0;
+    record.audio.play().catch(() => {});
+  }
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) stopEncounterCry(); });
+
+function preloadEncounterArtwork(data, shiny = false) {
+  prepareEncounterArtwork(data, shiny).catch(() => {});
+  prepareEncounterCry(data).catch(() => {});
 }
 
 const tcgProgressListeners = new Map();
@@ -10687,7 +10872,7 @@ if (window.PointerEvent) {
 function initAudio() {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (audioCtx.state === 'suspended' || audioCtx.state === 'interrupted') audioCtx.resume().catch(() => {});
   } catch (e) {}
 }
 
@@ -10708,14 +10893,23 @@ function playTick() {
   } catch (e) {}
 }
 
-function playCry() {
+function playCry(automatic = false) {
   if (!curPoke?.cries) return;
-  const url = curPoke.cries.latest || curPoke.cries.legacy;
-  if (url) {
-    const a = new Audio(url);
-    a.volume = 0.65;
-    a.play().catch(() => {});
+  initAudio();
+  stopEncounterCry();
+  const token = cryPlaybackToken, pokemonId = curId, p = curPoke;
+  const url = p.cries.latest || p.cries.legacy;
+  const ready = encounterMedia.get('cry:' + url);
+  if (ready && (!ready.buffer || audioCtx?.state === 'running')) {
+    startPreparedCry(ready, token, pokemonId);
+    return;
   }
+  const startedAt = performance.now(), maxDelay = automatic ? 1400 : 2500;
+  const prepare = prepareEncounterCry(p);
+  const resume = audioCtx && audioCtx.state !== 'running' ? audioCtx.resume().catch(() => {}) : Promise.resolve();
+  mediaDeadline(Promise.all([prepare, resume]), maxDelay).then(([record]) => {
+    if (performance.now() - startedAt <= maxDelay) startPreparedCry(record, token, pokemonId);
+  }).catch(() => {}); // Keep a late file cached; never play it for a different encounter.
 }
 
 function playShinyJingle() {
@@ -10850,39 +11044,36 @@ function toggleShiny() {
 
 function updateArt() {
   if (!curPoke) return;
-  const p = curPoke;
-  let defaultImg, shinyImg;
-  if (p.sprites.other?.home?.front_default) {
-    defaultImg = p.sprites.other.home.front_default;
-    shinyImg = p.sprites.other.home.front_shiny || defaultImg;
-  } else if (p.sprites.other?.['official-artwork']?.front_default) {
-    defaultImg = p.sprites.other['official-artwork'].front_default;
-    shinyImg = p.sprites.other['official-artwork'].front_shiny || defaultImg;
-  } else {
-    defaultImg = p.sprites.front_default;
-    shinyImg = p.sprites.front_shiny || defaultImg;
+  const p = curPoke, shiny = isShiny;
+  const img = document.getElementById('pokeImg');
+  document.getElementById('shinyBtn')?.classList.toggle('active', shiny);
+  if (!img) return;
+  clearTimeout(img._artTimer);
+  img.onload = img.onerror = null;
+  const token = img._artToken = (img._artToken || 0) + 1;
+  const key = String(p.id) + ':' + shiny;
+  if (img.dataset.encounterArt !== key) {
+    img.dataset.encounterArt = key;
+    img.style.visibility = 'hidden'; img.removeAttribute('src');
   }
-  const pokeImg = document.getElementById('pokeImg');
-  const shinyBtn = document.getElementById('shinyBtn');
-  if (pokeImg) {
-    const urls = [isShiny ? shinyImg : defaultImg,
-      isShiny ? p.sprites.other?.['official-artwork']?.front_shiny : p.sprites.other?.['official-artwork']?.front_default,
-      isShiny ? p.sprites.front_shiny : p.sprites.front_default].filter((url,index,list) => url && list.indexOf(url) === index);
-    clearTimeout(pokeImg._artTimer);
-    const token = pokeImg._artToken = (pokeImg._artToken || 0) + 1;
-    let index = 0;
-    const arm = () => { pokeImg._artTimer = setTimeout(() => pokeImg.onerror?.(), 6000); };
-    pokeImg.onload = () => clearTimeout(pokeImg._artTimer);
-    pokeImg.onerror = () => {
-      if (pokeImg._artToken !== token) return;
-      clearTimeout(pokeImg._artTimer);
-      if (++index < urls.length) { pokeImg.src = urls[index]; arm(); }
-    };
-    pokeImg.decoding = 'async'; pokeImg.loading = 'eager'; pokeImg.fetchPriority = 'high';
-    if (urls.length) { pokeImg.src = urls[0]; arm(); }
-    else pokeImg.removeAttribute('src');
-  }
-  if (shinyBtn) shinyBtn.classList.toggle('active', isShiny);
+  img.alt = getCleanNationalDexName(p.name, p.species?.name);
+  img.decoding = 'async'; img.loading = 'eager'; img.fetchPriority = 'high';
+  img.setAttribute('aria-busy', 'true');
+  const paint = record => {
+    if (img._artToken !== token || curPoke !== p || isShiny !== shiny || isSpinning) return;
+    // Detached artwork has already downloaded and decoded in full. The blob
+    // URL cannot display a half-downloaded remote PNG on the main page.
+    img.onload = () => { if (img._artToken === token) img.style.visibility = ''; };
+    img.src = record.src;
+    img.style.visibility = ''; img.removeAttribute('aria-busy');
+    warmPokemonSwipeNeighbours(p);
+  };
+  const url = encounterArtworkSources(p, shiny)[0];
+  const ready = encounterMedia.get('art:' + url);
+  if (ready) paint(ready);
+  else prepareEncounterArtwork(p, shiny).then(paint).catch(() => {
+    if (img._artToken === token) img.removeAttribute('aria-busy');
+  });
 }
 
 function hexToRgb(hex) {
@@ -12091,6 +12282,9 @@ function closeTcgZoom() {
 }
 
 function hideActive() {
+  stopEncounterCry();
+  const artwork = document.getElementById('pokeImg');
+  if (artwork) ++artwork._artToken;
   resetPokemonSwipe();
   ++activeTcgRequestId;
   ++activeLoreRequestId;
@@ -12315,6 +12509,9 @@ let pokemonLoadRequestId = 0;
 async function loadPoke(id, log = false, swipeDirection = 0) {
   if (isSpinning || (swipeDirection && pokemonSwipe.busy)) return;
   if (!swipeDirection) resetPokemonSwipe();
+  initAudio();
+  stopEncounterCry();
+  preloadEncounterId(Number(id));
   const requestId = ++pokemonLoadRequestId;
   if (swipeDirection) beginPokemonSwipe(swipeDirection);
   const sList = document.getElementById('sList');
@@ -12324,6 +12521,7 @@ async function loadPoke(id, log = false, swipeDirection = 0) {
   try {
     const data = await getPokemonSwipeData(id);
     if (requestId !== pokemonLoadRequestId || isSpinning) return;
+    preloadEncounterArtwork(data);
     if (swipeDirection && !await finishPokemonSwipe(data, swipeDirection, requestId)) return;
     const targetDeg = (270 - (TYPES.indexOf(data.types[0].type.name) * 20 + 10) + 360) % 360;
     const w = document.getElementById('wheel');
@@ -12409,9 +12607,10 @@ hideActive();
     if (!valid.length) throw new Error('No eligible Pokémon for this type');
     const selected = valid[Math.floor(Math.random() * valid.length)].pokemon;
     const selectedId = Number(selected.url.split('/').filter(Boolean).pop());
+    preloadEncounterId(selectedId);
     const pData = await getPokemonSwipeData(selectedId);
-    preloadEncounterArtwork(pData);
     const shiny = Math.floor(Math.random() * 100) === 0;
+    preloadEncounterArtwork(pData, shiny);
     
     setTimeout(() => {
       isSpinning = false;
@@ -12422,7 +12621,7 @@ hideActive();
       }
       renderCard(pData, shiny);
       addRec(pData);
-      playCry();
+      playCry(true);
       if (shiny) triggerSparkle();
       if (btn) btn.disabled = false;
     // Keep the enlarged winning label visible for half a second after landing.
@@ -12451,6 +12650,8 @@ function renderCard(p, shiny = false) {
   const cleanName = getCleanNationalDexName(p.name, p.species?.name);
   const pokeName = document.getElementById('pokeName');
   if (pokeName) pokeName.innerText = cleanName;
+  stopEncounterCry();
+  preloadEncounterArtwork(p, shiny);
   updateArt();
   updateCardAura(p.types);
   updateBtn(memCol.has(parseInt(p.id, 10)));
@@ -12468,7 +12669,7 @@ function renderCard(p, shiny = false) {
     });
   }
   if (card) card.style.display = 'block';
-  warmPokemonSwipeNeighbours(p);
+  // Neighbour preloads start after the main artwork is ready.
 }
 
 // Only the encounter artwork slides. Evolution controls keep their own species IDs.
@@ -12493,15 +12694,13 @@ function setPokemonSwipeNeighbour(direction, data) {
   const slot = document.querySelector(`.pokemon-swipe-neighbour[data-dex-direction="${direction}"]`);
   if (!slot) return;
   const img = slot.querySelector('img');
-  const src = pokemonSwipeArt(data);
-  slot.dataset.pokemonId = String(data.id);
-  if (img.getAttribute('src') !== src) {
-    slot.dataset.ready = 'false';
-    img.onload = () => { slot.dataset.ready = 'true'; };
-    img.onerror = () => { slot.dataset.ready = 'false'; slot.style.display = 'none'; };
-    if (src) img.src = src; else img.removeAttribute('src');
-  }
-  if (img.complete && img.naturalWidth) slot.dataset.ready = 'true';
+  const origin = curId, target = adjacentPokemonId(origin, direction);
+  slot.dataset.pokemonId = String(data.id); slot.dataset.ready = 'false';
+  img.fetchPriority = 'low'; img.decoding = 'async';
+  prepareEncounterArtwork(data).then(record => {
+    if (curId !== origin || isSpinning || data.id !== target || Number(slot.dataset.pokemonId) !== data.id) return;
+    img.src = record.src; slot.dataset.ready = 'true';
+  }).catch(() => { if (Number(slot.dataset.pokemonId) === data.id) slot.dataset.ready = 'false'; });
 }
 function warmPokemonSwipeNeighbours(p) {
   setBoundedCache(pokemonSwipeDataCache, p.id, p, 8);

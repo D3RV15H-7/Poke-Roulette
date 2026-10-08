@@ -3228,7 +3228,7 @@ html.is-standalone body.has-active .hub-outer-wrap {
 }
 </style>
 </head>
-<body data-app-build="v113">
+<body data-app-build="v115">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -5230,39 +5230,45 @@ function rememberSetLogoUrl(id, url) {
 
 function attachSetLogo(img, set, eager = false) {
   if (!img) return;
+  clearTimeout(setLogoRecords.get(img)?.timer);
   const sources = getSetLogoSources(set);
-  const record = { img, set, sources, index: 0, retried: false };
+  const record = { img, set, sources, index: 0, retried: false, timer: null };
   setLogoRecords.set(img, record);
+  const arm = () => { clearTimeout(record.timer); record.timer = setTimeout(() => img.onerror?.(), 6000); };
   img.alt = set.name || 'Set logo';
   img.loading = eager ? 'eager' : 'lazy';
   img.decoding = 'async';
   img.dataset.logoState = 'loading';
   img.onload = () => {
     if (setLogoRecords.get(img) !== record) return;
+    clearTimeout(record.timer);
     img.dataset.logoState = 'ready';
     rememberSetLogoUrl(set.id, record.sources[record.index]);
   };
   img.onerror = () => {
+    clearTimeout(record.timer);
     if (setLogoRecords.get(img) !== record) return;
     if (record.index + 1 < sources.length) {
       record.index++;
       img.src = sources[record.index];
+      arm();
     } else if (!record.retried && /^https?:/.test(sources[0] || '')) {
       record.retried = true;
       record.index = 0;
       const retry = new URL(sources[0]);
       retry.searchParams.set('pr_logo_retry', String(Date.now()));
       img.src = retry.href;
+      arm();
     } else {
       img.dataset.logoState = 'failed';
     }
   };
-  if (sources.length) img.src = sources[0];
+  if (sources.length) { img.src = sources[0]; if (eager) arm(); }
   else img.dataset.logoState = 'failed';
 }
 
 function disposeSetLogos() {
-  for (const img of setLogoRecords.keys()) img.onload = img.onerror = null;
+  for (const [img, record] of setLogoRecords) { clearTimeout(record.timer); img.onload = img.onerror = null; }
   setLogoRecords.clear();
 }
 window.addEventListener('online', () => {
@@ -5428,7 +5434,7 @@ async function fetchPhysicalPromoSets(forceRefresh = false) {
   try { catalogue = await getTcgDexSets(forceRefresh); }
   catch (error) { return repairVintageSetDetails([{ ...MEP_PROMO_SET }, ...['wp', 'miscp'].map(id => ({ id, images: MEP_PROMO_SET.images }))]); }
   const briefs = catalogue.filter(set => (/promo/i.test(set.name || '') || getMcDonaldsSetInfo(set.id)) && !isExcludedCollectorSet(set));
-  const deadline = Date.now() + 45000;
+  const deadline = Date.now() + 4500;
   const promos = await mapTcgLimited(briefs, async brief => {
     const mcdonalds = getMcDonaldsSetInfo(brief.id);
     if (mcdonalds) return {
@@ -5438,7 +5444,7 @@ async function fetchPhysicalPromoSets(forceRefresh = false) {
       images: { logo: mcdonalds.logo || MCDONALDS_FALLBACK_LOGO, symbol: '' }
     };
     let detail = brief;
-    try { detail = await fetchJsonWithRetry(`https://api.tcgdex.net/v2/en/sets/${encodeURIComponent(brief.id)}`, { deadline }); }
+    try { detail = await fetchJsonWithRetry(`https://api.tcgdex.net/v2/en/sets/${encodeURIComponent(brief.id)}`, { deadline, timeoutMs: 1800 }, 0); }
     catch (error) {}
     const liveCount = Array.isArray(detail.cards) && detail.cards.length
       ? filterCollectorCards(detail.cards).length
@@ -5448,8 +5454,8 @@ async function fetchPhysicalPromoSets(forceRefresh = false) {
       id: brief.id, name: brief.id === 'mep' ? MEP_PROMO_SET.name : (detail.name || brief.name),
       series: detail.serie?.name || '', total: count, printedTotal: count,
       releaseDate: String(detail.releaseDate || '').replace(/-/g, '/'),
-      images: { logo: detail.logo ? `${detail.logo}.png` : MEP_PROMO_SET.images.logo,
-        symbol: detail.symbol ? `${detail.symbol}.png` : '' }
+      images: { logo: detail.logo ? `${detail.logo}.png` : brief.logo ? `${brief.logo}.png` : MEP_PROMO_SET.images.logo,
+        symbol: (detail.symbol || brief.symbol) ? `${detail.symbol || brief.symbol}.png` : '' }
     };
   });
   if (!promos.some(set => set.id === 'mep')) promos.push({ ...MEP_PROMO_SET });
@@ -5457,7 +5463,7 @@ async function fetchPhysicalPromoSets(forceRefresh = false) {
 }
 
 async function fetchPromoCatalogueCards(setId, url, headers, forceRefresh = false) {
-  const deadline = Date.now() + 45000;
+  const deadline = Date.now() + 12000;
   const mcdonalds = getMcDonaldsSetInfo(setId);
   const dexSetId = mcdonalds?.dexId || setId;
   let previousCards = window.tcgSetCardsCache?.[setId] || [];
@@ -5466,8 +5472,8 @@ async function fetchPromoCatalogueCards(setId, url, headers, forceRefresh = fals
     catch (error) {}
   }
   const sources = await Promise.allSettled([
-    fetchPokemonTcgPages(url, { headers }, deadline),
-    fetchJsonWithRetry(`https://api.tcgdex.net/v2/en/sets/${encodeURIComponent(dexSetId)}`, { deadline })
+    fetchPokemonTcgPages(url, { headers, timeoutMs: 5000, retries: 0 }, deadline),
+    fetchJsonWithRetry(`https://api.tcgdex.net/v2/en/sets/${encodeURIComponent(dexSetId)}`, { deadline, timeoutMs: 6500 }, 1)
   ]);
   const merged = new Map();
   const primary = sources[0].status === 'fulfilled' ? sources[0].value : [];
@@ -5702,6 +5708,7 @@ function setTcgImageFallbacks(img, card, quality = 'small') {
     setTcgArtworkUnavailable(img, img.src === TCG_CARD_ARTWORK_UNAVAILABLE);
     if (quality === 'small' && img.src !== TCG_CARD_ARTWORK_UNAVAILABLE) {
       card.resolvedSmallImg = img.currentSrc || img.src;
+      queueVisibleCardDetails(card);
     }
   };
   if (img._tcgCanRetry) armTcgPreviewArtworkTimeout(img);
@@ -5802,7 +5809,7 @@ function handleTcgImageError(img) {
 function getTcgCardCountLabel(cards) {
   cards = cards || [];
   const status = tcgCardListStatus.get(cards);
-  const suffix = status?.stale ? ' · saved' : status?.partial ? ' · partial' : '';
+  const suffix = status?.pending ? ' · loading' : status?.stale ? ' · saved' : status?.partial ? ' · partial' : '';
   return `${cards.length} Card${cards.length === 1 ? '' : 's'}${suffix}`;
 }
 
@@ -5937,6 +5944,274 @@ async function mapTcgLimited(items, mapper, concurrency = 6) {
   return results;
 }
 
+// v115: small reusable data caches; never clear account or collection storage.
+const fastDataRequests = new Map();
+function readFastData(key, maxAge) {
+  try {
+    const record = JSON.parse(localStorage.getItem(key) || 'null');
+    if (record?.data && Date.now() - record.savedAt < maxAge) return record.data;
+  } catch (_) {}
+  return null;
+}
+function saveFastData(key, data) {
+  try {
+    const prefix = /^(pokeroulette_fast_[a-z]+_v115_)/.exec(key)?.[1];
+    const limit = key.includes('_type_') ? 18 : key.includes('_card_') ? 96 : 64;
+    if (prefix && !localStorage.getItem(key)) {
+      const records = Object.keys(localStorage).filter(name => name.startsWith(prefix)).map(name => {
+        let savedAt = 0; try { savedAt = JSON.parse(localStorage.getItem(name))?.savedAt || 0; } catch (_) {}
+        return { name, savedAt };
+      }).sort((a,b) => a.savedAt-b.savedAt);
+      while (records.length >= limit) localStorage.removeItem(records.shift().name);
+    }
+    localStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), data }));
+  } catch (_) {}
+}
+function compactPokemonData(data) {
+  if (!data?.id || !Array.isArray(data.types) || !data.sprites) throw new Error('Invalid Pokémon response');
+  return { id: data.id, name: data.name, types: data.types, species: data.species,
+    sprites: { front_default: data.sprites.front_default, front_shiny: data.sprites.front_shiny,
+      other: { home: data.sprites.other?.home, 'official-artwork': data.sprites.other?.['official-artwork'] } }, cries: data.cries };
+}
+async function getFastPokemonData(kind, id, url, compact = data => data) {
+  const key = `pokeroulette_fast_${kind}_v115_${id}`;
+  const saved = readFastData(key, 30 * 86400000);
+  if (saved) return saved;
+  if (fastDataRequests.has(key)) return fastDataRequests.get(key);
+  const request = (async () => {
+    const data = compact(await fetchJsonWithRetry(url, { timeoutMs: 4000, deadline: Date.now() + 9000 }, 1));
+    saveFastData(key, data);
+    return data;
+  })();
+  fastDataRequests.set(key, request);
+  try { return await request; } finally { fastDataRequests.delete(key); }
+}
+function getWheelTypeData(type) {
+  return getFastPokemonData('type', type, `https://pokeapi.co/api/v2/type/${type}`, data => {
+    if (!Array.isArray(data?.pokemon)) throw new Error('Invalid Pokémon type response');
+    return { pokemon: data.pokemon.filter(entry => {
+      const id = Number(entry.pokemon?.url?.split('/').filter(Boolean).pop());
+      return id > 0 && id <= TOTAL;
+    }) };
+  });
+}
+function preloadEncounterArtwork(data) {
+  const source = pokemonSwipeArt(data);
+  if (source) { const image = new Image(); image.decoding = 'async'; image.src = source; }
+}
+
+const tcgProgressListeners = new Map();
+const deferredCataloguePaint = new Map();
+function publishTcgProgress(key, cards) {
+  for (const listener of tcgProgressListeners.get(key) || []) {
+    try { listener(cards); } catch (_) {}
+  }
+}
+function paintCatalogueWhenReady(view, paint) {
+  if (document.getElementById('tcgZoomModal')?.style.display === 'flex') deferredCataloguePaint.set(view, paint);
+  else paint();
+}
+function flushDeferredCataloguePaint() {
+  const paints = [...deferredCataloguePaint.values()];
+  deferredCataloguePaint.clear();
+  paints.forEach(paint => paint());
+}
+
+// A full checklist from either provider is usable; optional enrichment cannot
+// keep the entire set grid blank. The losing request has a bounded deadline.
+async function fetchFastSetCards(setId, url, headers) {
+  const deadline = Date.now() + 12000;
+  const primary = fetchPokemonTcgPages(url, { headers, timeoutMs: 5000, retries: 0 }, deadline);
+  const secondary = (async () => {
+    const dexSet = await findTcgDexSetForPokemonTcgSet(setId, activeTcgSet?.id === setId ? activeTcgSet.name : KNOWN_SETS[setId]);
+    if (!dexSet?.id) throw new Error('Set not available from TCGdex');
+    const detail = await fetchJsonWithRetry(`https://api.tcgdex.net/v2/en/sets/${encodeURIComponent(dexSet.id)}`,
+      { timeoutMs: 6000, deadline }, 0);
+    if (!Array.isArray(detail?.cards) || !detail.cards.length) throw new Error('Invalid set checklist');
+    const cards = detail.cards.map(brief => {
+      if (!brief?.id || !brief?.name || !brief.localId) throw new Error('Invalid card in set checklist');
+      return { ...brief, id: `${setId}-${normalizeCardNumber(brief.localId)}`,
+        number: brief.localId, artworkTcgDexSetId: dexSet.id,
+        _tcgDexDetailId: brief.id,
+        set: { id: setId, name: detail.name || dexSet.name },
+        images: { small: brief.image ? `${brief.image}/low.webp` : '', large: brief.image ? `${brief.image}/high.webp` : '' } };
+    });
+    return cards;
+  })();
+  return new Promise((resolve, reject) => {
+    let failures = 0;
+    for (const request of [primary, secondary]) request.then(cards => {
+      if (!Array.isArray(cards) || !cards.length) { if (++failures === 2) reject(new Error('Card services unavailable')); }
+      else resolve(cards);
+    }, () => { if (++failures === 2) reject(new Error('Card services unavailable')); });
+  });
+}
+
+// Details are requested for cards actually shown, with just two background
+// requests at a time. Thumbnail loading retains its own four-request queue.
+const visibleCardDetailQueue = new Map();
+const visibleCardDetailDone = new WeakSet();
+const visibleCardDetailBusy = new WeakSet();
+let visibleCardDetailActive = 0;
+function queueVisibleCardDetails(card) {
+  if (!card || !currentCardsList.includes(card) || visibleCardDetailDone.has(card) || visibleCardDetailBusy.has(card)) return;
+  if (card._detailsAt && Date.now() - card._detailsAt < 86400000) return;
+  visibleCardDetailQueue.set(card, card);
+  pumpVisibleCardDetails();
+}
+function pumpVisibleCardDetails() {
+  for (const card of visibleCardDetailQueue.keys()) {
+    if (visibleCardDetailActive >= 2) return;
+    visibleCardDetailQueue.delete(card);
+    if (!currentCardsList.includes(card) || visibleCardDetailDone.has(card)) continue;
+    visibleCardDetailActive++;
+    visibleCardDetailBusy.add(card);
+    (async () => {
+      try {
+        if (card._tcgDexDetailId) {
+          const detail = await getTcgDexCardDetail(card._tcgDexDetailId, Date.now() + 7000);
+          card.rarity = detail.rarity || card.rarity;
+          card.rarityScore = getRarityScore(card.rarity);
+          const fused = mergePhysicalVariantEvidence({ ...card.variants, baseFinish: card.baseFinish }, getTcgDexFinishEvidence(detail), detail);
+          const evidence = applyCardVariantSupplement(card, applyCardAuxiliaryPrintingEvidence(detail, fused));
+          card.variants = { standard: evidence.standard, reverseHolo: evidence.reverseHolo, other: evidence.other };
+          card.baseFinish = evidence.baseFinish;
+          card.priceGBP = getTcgDexBasePriceGBP(detail, evidence) ?? card.priceGBP;
+        } else {
+          const id = String(card.artworkPokemonSetId || card.id?.split('-').slice(0, -1).join('-') || '');
+          const result = await enrichSetCardsWithTcgDex([card], id, card.setName);
+          // The existing enrichment helper returns the original object if no
+          // detail was available. Leave that retryable rather than cache failure.
+          if (!result[0] || result[0] === card) return;
+          Object.assign(card, result[0]);
+        }
+        card._detailsAt = Date.now();
+        visibleCardDetailDone.add(card);
+        saveEnrichedCard(card);
+        if (currentCardsList.includes(card)) paintVisibleCardDetails(card);
+      } catch (_) { /* Keep artwork/checklist and permit retry on next display. */ }
+      finally {
+        visibleCardDetailBusy.delete(card);
+        visibleCardDetailActive--;
+        pumpVisibleCardDetails();
+      }
+    })();
+  }
+}
+function saveEnrichedCard(card) {
+  const key = card._metadataCacheKey;
+  if (!key) return;
+  try {
+    const saved = JSON.parse(localStorage.getItem(key) || 'null');
+    const previous = saved?.data?.find(old => old.id === card.id);
+    if (!previous || getCardFingerprint(previous) !== getCardFingerprint(card)) return;
+    Object.assign(previous, card);
+    localStorage.setItem(key, JSON.stringify(saved)); // Never extend membership freshness.
+  } catch (_) {}
+}
+function paintVisibleCardDetails(card) {
+  document.querySelectorAll('[data-live-card-id]').forEach(node => {
+    if (node.dataset.liveCardId !== card.id) return;
+    const frame = node.querySelector('.tcg-thumb-frame');
+    if (frame && card.priceGBP) {
+      let price = frame.querySelector('.tcg-card-price-badge');
+      if (!price) { price = document.createElement('div'); price.className = 'tcg-card-price-badge'; frame.append(price); }
+      price.textContent = `£${Number(card.priceGBP).toFixed(2)}`;
+    }
+    const selector = node.querySelector('.tcg-variant-selector');
+    if (selector) {
+      selector.innerHTML = getAvailableSetCardVariants(card).map(({ key, label }) =>
+        `<div class="tcg-variant-option" data-variant="${key}"><span>${label}</span><div class="tcg-variant-circle ${isSetCardVariantOwned(card, key) ? 'checked' : ''}">✓</div></div>`).join('');
+      selector.querySelectorAll('.tcg-variant-option').forEach(option => {
+        option.onclick = event => {
+          event.preventDefault(); event.stopPropagation();
+          toggleSetCardVariant(card, option.dataset.variant);
+          paintVisibleCardDetails(card);
+          const owned = isSetCardCollected(card);
+          node.classList.toggle('card-owned', owned);
+          node.querySelector('.tcg-set-owned-check')?.classList.toggle('checked', owned);
+          updateCurrentSetProgress();
+          if (activeTcgSetFilter !== 'all') renderCurrentSetCards();
+        };
+      });
+    }
+  });
+  // Update only text/variant controls. Never reset the visible image or carousel.
+  if (document.getElementById('tcgZoomModal')?.style.display === 'flex' && currentCardsList[currentZoomIndex] === card) {
+    const price = document.getElementById('tcgZoomPriceVal');
+    if (price) price.innerText = card.priceGBP ? `£${Number(card.priceGBP).toFixed(2)}` : 'Market N/A';
+    const variants = document.getElementById('tcgZoomVariants');
+    if (activeTcgSet && variants) {
+      variants.innerHTML = getAvailableSetCardVariants(card).map(({ key, label }) =>
+        `<div class="tcg-zoom-variant-option" data-variant="${key}"><span>${label}</span><span class="tcg-zoom-variant-circle ${isSetCardVariantOwned(card, key) ? 'checked' : ''}">✓</span></div>`).join('');
+      variants.querySelectorAll('.tcg-zoom-variant-option').forEach(option => {
+        option.onclick = event => {
+          event.preventDefault(); event.stopPropagation(); toggleSetCardVariant(card, option.dataset.variant);
+          paintVisibleCardDetails(card); updateCurrentSetProgress();
+        };
+      });
+    }
+  }
+}
+
+
+const BUNDLED_TCG_CATALOGUE_V115 = [{"id":"2011bw","name":"McDonald's Collection 2011","series":"McDonald's Collection","releaseDate":"2011/06/17","total":12,"printedTotal":12,"logo":"","symbol":""},{"id":"2012bw","name":"McDonald's Collection 2012","series":"McDonald's Collection","releaseDate":"2012/06/15","total":12,"printedTotal":12,"logo":"","symbol":""},{"id":"2014xy","name":"McDonald's Collection 2014","series":"McDonald's Collection","releaseDate":"2014/05/23","total":12,"printedTotal":12,"logo":"","symbol":""},{"id":"2015xy","name":"McDonald's Collection 2015","series":"McDonald's Collection","releaseDate":"2015/11/27","total":12,"printedTotal":12,"logo":"","symbol":""},{"id":"2016xy","name":"McDonald's Collection 2016","series":"McDonald's Collection","releaseDate":"2016/08/20","total":12,"printedTotal":12,"logo":"","symbol":""},{"id":"2017sm","name":"McDonald's Collection 2017","series":"McDonald's Collection","releaseDate":"2017/08/03","total":12,"printedTotal":12,"logo":"","symbol":""},{"id":"2018sm","name":"McDonald's Collection 2018","series":"McDonald's Collection","releaseDate":"2018/10/19","total":12,"printedTotal":12,"logo":"","symbol":""},{"id":"2019sm","name":"McDonald's Collection 2019","series":"McDonald's Collection","releaseDate":"2019/10/15","total":12,"printedTotal":12,"logo":"","symbol":""},{"id":"2021swsh","name":"McDonald's Collection 2021","series":"McDonald's Collection","releaseDate":"2021/02/09","total":25,"printedTotal":25,"logo":"","symbol":"https://assets.tcgdex.net/univ/mc/2021swsh/symbol.png"},{"id":"2022swsh","name":"McDonald's Collection 2022","series":"McDonald's Collection","releaseDate":"2022/08/03","total":15,"printedTotal":15,"logo":"","symbol":""},{"id":"2023sv","name":"McDonald's Collection 2023","series":"McDonald's Collection","releaseDate":"2023/08/01","total":15,"printedTotal":15,"logo":"","symbol":""},{"id":"2024sv","name":"McDonald's Collection 2024","series":"McDonald's Collection","releaseDate":"2024/12/04","total":15,"printedTotal":15,"logo":"","symbol":""},{"id":"30th-c","name":"30th Classic Collection","series":"Mega Evolution","releaseDate":"2026/09/16","total":30,"printedTotal":30,"logo":"","symbol":""},{"id":"30th","name":"30th Celebration","series":"Mega Evolution","releaseDate":"2026/09/16","total":158,"printedTotal":128,"logo":"","symbol":""},{"id":"A1","name":"Genetic Apex","series":"Pokémon TCG Pocket","releaseDate":"2024/10/30","total":286,"printedTotal":226,"logo":"https://assets.tcgdex.net/en/tcgp/A1/logo.png","symbol":"https://assets.tcgdex.net/univ/tcgp/A1/symbol.png"},{"id":"A1a","name":"Mythical Island","series":"Pokémon TCG Pocket","releaseDate":"2024/12/17","total":86,"printedTotal":68,"logo":"https://assets.tcgdex.net/en/tcgp/A1a/logo.png","symbol":""},{"id":"A2","name":"Space-Time Smackdown","series":"Pokémon TCG Pocket","releaseDate":"2025/01/30","total":207,"printedTotal":140,"logo":"https://assets.tcgdex.net/en/tcgp/A2/logo.png","symbol":""},{"id":"A2a","name":"Triumphant Light","series":"Pokémon TCG Pocket","releaseDate":"2025/02/28","total":96,"printedTotal":75,"logo":"https://assets.tcgdex.net/en/tcgp/A2a/logo.png","symbol":"https://assets.tcgdex.net/univ/tcgp/A2a/symbol.png"},{"id":"A2b","name":"Shining Revelry","series":"Pokémon TCG Pocket","releaseDate":"2025/03/27","total":111,"printedTotal":72,"logo":"https://assets.tcgdex.net/en/tcgp/A2b/logo.png","symbol":"https://assets.tcgdex.net/univ/tcgp/A2b/symbol.png"},{"id":"A3","name":"Celestial Guardians","series":"Pokémon TCG Pocket","releaseDate":"2025/04/30","total":239,"printedTotal":155,"logo":"https://assets.tcgdex.net/en/tcgp/A3/logo.png","symbol":""},{"id":"A3a","name":"Extradimensional Crisis","series":"Pokémon TCG Pocket","releaseDate":"2025/05/29","total":103,"printedTotal":69,"logo":"","symbol":""},{"id":"A3b","name":"Eevee Grove","series":"Pokémon TCG Pocket","releaseDate":"2025/06/26","total":107,"printedTotal":69,"logo":"","symbol":""},{"id":"A4","name":"Wisdom of Sea and Sky","series":"Pokémon TCG Pocket","releaseDate":"2025/07/30","total":241,"printedTotal":161,"logo":"https://assets.tcgdex.net/en/tcgp/A4/logo.png","symbol":""},{"id":"A4a","name":"Secluded Springs","series":"Pokémon TCG Pocket","releaseDate":"2025/08/28","total":105,"printedTotal":71,"logo":"https://assets.tcgdex.net/en/tcgp/A4a/logo.png","symbol":"https://assets.tcgdex.net/univ/tcgp/A4a/symbol.png"},{"id":"B1","name":"Mega Rising","series":"Pokémon TCG Pocket","releaseDate":"2025/10/30","total":331,"printedTotal":226,"logo":"https://assets.tcgdex.net/en/tcgp/B1/logo.png","symbol":"https://assets.tcgdex.net/univ/tcgp/B1/symbol.png"},{"id":"B1a","name":"Crimson Blaze","series":"Pokémon TCG Pocket","releaseDate":"2025/12/17","total":103,"printedTotal":69,"logo":"","symbol":""},{"id":"B2","name":"Fantastical Parade","series":"Pokémon TCG Pocket","releaseDate":"2026/01/29","total":234,"printedTotal":155,"logo":"https://assets.tcgdex.net/en/tcgp/B2/logo.png","symbol":"https://assets.tcgdex.net/univ/tcgp/B2/symbol.png"},{"id":"B2a","name":"Paldean Wonders","series":"Pokémon TCG Pocket","releaseDate":"2026/02/26","total":131,"printedTotal":93,"logo":"","symbol":""},{"id":"P-A","name":"Promos-A","series":"Pokémon TCG Pocket","releaseDate":"2024/10/30","total":100,"printedTotal":100,"logo":"https://assets.tcgdex.net/en/tcgp/P-A/logo.png","symbol":""},{"id":"base1","name":"Base Set","series":"Base","releaseDate":"1999/01/09","total":102,"printedTotal":102,"logo":"https://assets.tcgdex.net/en/base/base1/logo.png","symbol":""},{"id":"base2","name":"Jungle","series":"Base","releaseDate":"1999/06/16","total":64,"printedTotal":64,"logo":"https://assets.tcgdex.net/en/base/base2/logo.png","symbol":"https://assets.tcgdex.net/univ/base/base2/symbol.png"},{"id":"base3","name":"Fossil","series":"Base","releaseDate":"1999/10/10","total":62,"printedTotal":62,"logo":"https://assets.tcgdex.net/en/base/base3/logo.png","symbol":"https://assets.tcgdex.net/univ/base/base3/symbol.png"},{"id":"base4","name":"Base Set 2","series":"Base","releaseDate":"2000/02/24","total":130,"printedTotal":130,"logo":"https://assets.tcgdex.net/en/base/base4/logo.png","symbol":"https://assets.tcgdex.net/univ/base/base4/symbol.png"},{"id":"base5","name":"Team Rocket","series":"Base","releaseDate":"2000/04/24","total":83,"printedTotal":82,"logo":"https://assets.tcgdex.net/en/base/base5/logo.png","symbol":"https://assets.tcgdex.net/univ/base/base5/symbol.png"},{"id":"basep","name":"Wizards Black Star Promos","series":"Base","releaseDate":"1999/07/01","total":53,"printedTotal":53,"logo":"https://assets.tcgdex.net/en/base/basep/logo.png","symbol":"https://assets.tcgdex.net/univ/base/basep/symbol.png"},{"id":"bog","name":"Best of game","series":"E-Card","releaseDate":"2002/12/01","total":9,"printedTotal":9,"logo":"","symbol":"https://assets.tcgdex.net/univ/ecard/bog/symbol.png"},{"id":"bw1","name":"Black & White","series":"Black & White","releaseDate":"2011/04/25","total":115,"printedTotal":114,"logo":"https://assets.tcgdex.net/en/bw/bw1/logo.png","symbol":"https://assets.tcgdex.net/univ/bw/bw1/symbol.png"},{"id":"bw10","name":"Plasma Blast","series":"Black & White","releaseDate":"2013/08/14","total":105,"printedTotal":101,"logo":"https://assets.tcgdex.net/en/bw/bw10/logo.png","symbol":"https://assets.tcgdex.net/univ/bw/bw10/symbol.png"},{"id":"bw11","name":"Legendary Treasures","series":"Black & White","releaseDate":"2013/11/06","total":140,"printedTotal":113,"logo":"https://assets.tcgdex.net/en/bw/bw11/logo.png","symbol":"https://assets.tcgdex.net/univ/bw/bw11/symbol.png"},{"id":"bw2","name":"Emerging Powers","series":"Black & White","releaseDate":"2011/08/31","total":98,"printedTotal":98,"logo":"https://assets.tcgdex.net/en/bw/bw2/logo.png","symbol":"https://assets.tcgdex.net/univ/bw/bw2/symbol.png"},{"id":"bw3","name":"Noble Victories","series":"Black & White","releaseDate":"2011/11/16","total":102,"printedTotal":101,"logo":"https://assets.tcgdex.net/en/bw/bw3/logo.png","symbol":"https://assets.tcgdex.net/univ/bw/bw3/symbol.png"},{"id":"bw4","name":"Next Destinies","series":"Black & White","releaseDate":"2012/02/08","total":103,"printedTotal":99,"logo":"https://assets.tcgdex.net/en/bw/bw4/logo.png","symbol":"https://assets.tcgdex.net/univ/bw/bw4/symbol.png"},{"id":"bw5","name":"Dark Explorers","series":"Black & White","releaseDate":"2012/05/09","total":111,"printedTotal":108,"logo":"https://assets.tcgdex.net/en/bw/bw5/logo.png","symbol":"https://assets.tcgdex.net/univ/bw/bw5/symbol.png"},{"id":"bw6","name":"Dragons Exalted","series":"Black & White","releaseDate":"2012/08/15","total":128,"printedTotal":124,"logo":"https://assets.tcgdex.net/en/bw/bw6/logo.png","symbol":"https://assets.tcgdex.net/univ/bw/bw6/symbol.png"},{"id":"bw7","name":"Boundaries Crossed","series":"Black & White","releaseDate":"2012/11/07","total":153,"printedTotal":149,"logo":"https://assets.tcgdex.net/en/bw/bw7/logo.png","symbol":"https://assets.tcgdex.net/univ/bw/bw7/symbol.png"},{"id":"bw8","name":"Plasma Storm","series":"Black & White","releaseDate":"2013/02/06","total":138,"printedTotal":135,"logo":"https://assets.tcgdex.net/en/bw/bw8/logo.png","symbol":"https://assets.tcgdex.net/univ/bw/bw8/symbol.png"},{"id":"bw9","name":"Plasma Freeze","series":"Black & White","releaseDate":"2013/05/08","total":122,"printedTotal":116,"logo":"https://assets.tcgdex.net/en/bw/bw9/logo.png","symbol":"https://assets.tcgdex.net/univ/bw/bw9/symbol.png"},{"id":"bwp","name":"BW Black Star Promos","series":"Black & White","releaseDate":"2011/04/26","total":101,"printedTotal":101,"logo":"https://assets.tcgdex.net/en/bw/bwp/logo.png","symbol":"https://assets.tcgdex.net/univ/bw/bwp/symbol.png"},{"id":"cel25","name":"Celebrations","series":"Sword & Shield","releaseDate":"2021/10/08","total":25,"printedTotal":25,"logo":"https://assets.tcgdex.net/en/swsh/cel25/logo.png","symbol":"https://assets.tcgdex.net/univ/swsh/cel25/symbol.png"},{"id":"cel25cc","name":"Celebrations Classic Collection","series":"Sword & Shield","releaseDate":"2021/10/08","total":25,"printedTotal":25,"logo":"","symbol":""},{"id":"col1","name":"Call of Legends","series":"Call of Legends","releaseDate":"2011/02/09","total":106,"printedTotal":95,"logo":"https://assets.tcgdex.net/en/col/col1/logo.png","symbol":"https://assets.tcgdex.net/univ/col/col1/symbol.png"},{"id":"dc1","name":"Double Crisis","series":"XY","releaseDate":"2015/03/25","total":34,"printedTotal":34,"logo":"https://assets.tcgdex.net/en/xy/dc1/logo.png","symbol":"https://assets.tcgdex.net/univ/xy/dc1/symbol.png"},{"id":"det1","name":"Detective Pikachu","series":"Sun & Moon","releaseDate":"2019/03/29","total":18,"printedTotal":18,"logo":"https://assets.tcgdex.net/en/sm/det1/logo.png","symbol":"https://assets.tcgdex.net/univ/sm/det1/symbol.png"},{"id":"dp1","name":"Diamond & Pearl","series":"Diamond & Pearl","releaseDate":"2007/05/01","total":130,"printedTotal":130,"logo":"https://assets.tcgdex.net/en/dp/dp1/logo.png","symbol":"https://assets.tcgdex.net/univ/dp/dp1/symbol.png"},{"id":"dp2","name":"Mysterious Treasures","series":"Diamond & Pearl","releaseDate":"2007/08/01","total":124,"printedTotal":123,"logo":"https://assets.tcgdex.net/en/dp/dp2/logo.png","symbol":"https://assets.tcgdex.net/univ/dp/dp2/symbol.png"},{"id":"dp3","name":"Secret Wonders","series":"Diamond & Pearl","releaseDate":"2007/11/01","total":132,"printedTotal":132,"logo":"https://assets.tcgdex.net/en/dp/dp3/logo.png","symbol":"https://assets.tcgdex.net/univ/dp/dp3/symbol.png"},{"id":"dp4","name":"Great Encounters","series":"Diamond & Pearl","releaseDate":"2008/02/01","total":106,"printedTotal":106,"logo":"https://assets.tcgdex.net/en/dp/dp4/logo.png","symbol":"https://assets.tcgdex.net/univ/dp/dp4/symbol.png"},{"id":"dp5","name":"Majestic Dawn","series":"Diamond & Pearl","releaseDate":"2008/05/01","total":100,"printedTotal":100,"logo":"https://assets.tcgdex.net/en/dp/dp5/logo.png","symbol":"https://assets.tcgdex.net/univ/dp/dp5/symbol.png"},{"id":"dp6","name":"Legends Awakened","series":"Diamond & Pearl","releaseDate":"2008/08/01","total":146,"printedTotal":146,"logo":"https://assets.tcgdex.net/en/dp/dp6/logo.png","symbol":"https://assets.tcgdex.net/univ/dp/dp6/symbol.png"},{"id":"dp7","name":"Stormfront","series":"Diamond & Pearl","releaseDate":"2008/11/01","total":106,"printedTotal":100,"logo":"https://assets.tcgdex.net/en/dp/dp7/logo.png","symbol":"https://assets.tcgdex.net/univ/dp/dp7/symbol.png"},{"id":"dpp","name":"DP Black Star Promos","series":"Diamond & Pearl","releaseDate":"2007/05/01","total":56,"printedTotal":56,"logo":"https://assets.tcgdex.net/en/dp/dpp/logo.png","symbol":"https://assets.tcgdex.net/univ/dp/dpp/symbol.png"},{"id":"dv1","name":"Dragon Vault","series":"Black & White","releaseDate":"2012/10/05","total":21,"printedTotal":20,"logo":"https://assets.tcgdex.net/en/bw/dv1/logo.png","symbol":"https://assets.tcgdex.net/univ/bw/dv1/symbol.png"},{"id":"ecard1","name":"Expedition Base Set","series":"E-Card","releaseDate":"2002/09/15","total":165,"printedTotal":165,"logo":"https://assets.tcgdex.net/en/ecard/ecard1/logo.png","symbol":"https://assets.tcgdex.net/univ/ecard/ecard1/symbol.png"},{"id":"ecard2","name":"Aquapolis","series":"E-Card","releaseDate":"2003/01/15","total":186,"printedTotal":147,"logo":"https://assets.tcgdex.net/en/ecard/ecard2/logo.png","symbol":"https://assets.tcgdex.net/univ/ecard/ecard2/symbol.png"},{"id":"ecard3","name":"Skyridge","series":"E-Card","releaseDate":"2003/05/12","total":182,"printedTotal":144,"logo":"https://assets.tcgdex.net/en/ecard/ecard3/logo.png","symbol":"https://assets.tcgdex.net/univ/ecard/ecard3/symbol.png"},{"id":"ex1","name":"Ruby & Sapphire","series":"EX","releaseDate":"2003/07/01","total":109,"printedTotal":109,"logo":"https://assets.tcgdex.net/en/ex/ex1/logo.png","symbol":"https://assets.tcgdex.net/univ/ex/ex1/symbol.png"},{"id":"ex10","name":"Unseen Forces","series":"EX","releaseDate":"2005/08/22","total":117,"printedTotal":115,"logo":"https://assets.tcgdex.net/en/ex/ex10/logo.png","symbol":"https://assets.tcgdex.net/univ/ex/ex10/symbol.png"},{"id":"ex11","name":"Delta Species","series":"EX","releaseDate":"2005/10/31","total":114,"printedTotal":113,"logo":"https://assets.tcgdex.net/en/ex/ex11/logo.png","symbol":"https://assets.tcgdex.net/univ/ex/ex11/symbol.png"},{"id":"ex12","name":"Legend Maker","series":"EX","releaseDate":"2006/02/13","total":93,"printedTotal":92,"logo":"https://assets.tcgdex.net/en/ex/ex12/logo.png","symbol":"https://assets.tcgdex.net/univ/ex/ex12/symbol.png"},{"id":"ex13","name":"Holon Phantoms","series":"EX","releaseDate":"2006/05/03","total":111,"printedTotal":110,"logo":"https://assets.tcgdex.net/en/ex/ex13/logo.png","symbol":"https://assets.tcgdex.net/univ/ex/ex13/symbol.png"},{"id":"ex14","name":"Crystal Guardians","series":"EX","releaseDate":"2006/08/30","total":100,"printedTotal":100,"logo":"https://assets.tcgdex.net/en/ex/ex14/logo.png","symbol":"https://assets.tcgdex.net/univ/ex/ex14/symbol.png"},{"id":"ex15","name":"Dragon Frontiers","series":"EX","releaseDate":"2006/11/08","total":101,"printedTotal":101,"logo":"https://assets.tcgdex.net/en/ex/ex15/logo.png","symbol":"https://assets.tcgdex.net/univ/ex/ex15/symbol.png"},{"id":"ex16","name":"Power Keepers","series":"EX","releaseDate":"2007/02/17","total":108,"printedTotal":108,"logo":"https://assets.tcgdex.net/en/ex/ex16/logo.png","symbol":"https://assets.tcgdex.net/univ/ex/ex16/symbol.png"},{"id":"ex2","name":"Sandstorm","series":"EX","releaseDate":"2003/09/18","total":100,"printedTotal":100,"logo":"https://assets.tcgdex.net/en/ex/ex2/logo.png","symbol":"https://assets.tcgdex.net/univ/ex/ex2/symbol.png"},{"id":"ex3","name":"Dragon","series":"EX","releaseDate":"2003/11/24","total":100,"printedTotal":97,"logo":"https://assets.tcgdex.net/en/ex/ex3/logo.png","symbol":"https://assets.tcgdex.net/univ/ex/ex3/symbol.png"},{"id":"ex4","name":"Team Magma vs Team Aqua","series":"EX","releaseDate":"2004/03/01","total":97,"printedTotal":95,"logo":"https://assets.tcgdex.net/en/ex/ex4/logo.png","symbol":"https://assets.tcgdex.net/univ/ex/ex4/symbol.png"},{"id":"ex5.5","name":"Poké Card Creator Pack","series":"EX","releaseDate":"2004/07/01","total":5,"printedTotal":5,"logo":"","symbol":""},{"id":"ex5","name":"Hidden Legends","series":"EX","releaseDate":"2004/06/01","total":102,"printedTotal":101,"logo":"https://assets.tcgdex.net/en/ex/ex5/logo.png","symbol":"https://assets.tcgdex.net/univ/ex/ex5/symbol.png"},{"id":"ex6","name":"FireRed & LeafGreen","series":"EX","releaseDate":"2004/09/01","total":116,"printedTotal":112,"logo":"https://assets.tcgdex.net/en/ex/ex6/logo.png","symbol":"https://assets.tcgdex.net/univ/ex/ex6/symbol.png"},{"id":"ex7","name":"Team Rocket Returns","series":"EX","releaseDate":"2004/11/01","total":111,"printedTotal":109,"logo":"https://assets.tcgdex.net/en/ex/ex7/logo.png","symbol":"https://assets.tcgdex.net/univ/ex/ex7/symbol.png"},{"id":"ex8","name":"Deoxys","series":"EX","releaseDate":"2005/02/01","total":108,"printedTotal":107,"logo":"https://assets.tcgdex.net/en/ex/ex8/logo.png","symbol":"https://assets.tcgdex.net/univ/ex/ex8/symbol.png"},{"id":"ex9","name":"Emerald","series":"EX","releaseDate":"2005/05/09","total":107,"printedTotal":106,"logo":"https://assets.tcgdex.net/en/ex/ex9/logo.png","symbol":"https://assets.tcgdex.net/univ/ex/ex9/symbol.png"},{"id":"exu","name":"Unseen Forces Unown Collection","series":"EX","releaseDate":"2005/08/22","total":28,"printedTotal":28,"logo":"","symbol":""},{"id":"fut2020","name":"Pokémon Futsal 2020","series":"Sword & Shield","releaseDate":"2020/09/11","total":5,"printedTotal":5,"logo":"https://assets.tcgdex.net/en/swsh/fut2020/logo.png","symbol":"https://assets.tcgdex.net/univ/swsh/fut2020/symbol.png"},{"id":"g1","name":"Generations","series":"XY","releaseDate":"2016/02/22","total":117,"printedTotal":83,"logo":"https://assets.tcgdex.net/en/xy/g1/logo.png","symbol":"https://assets.tcgdex.net/univ/xy/g1/symbol.png"},{"id":"gym1","name":"Gym Heroes","series":"Gym","releaseDate":"2000/08/14","total":132,"printedTotal":132,"logo":"https://assets.tcgdex.net/en/gym/gym1/logo.png","symbol":"https://assets.tcgdex.net/univ/gym/gym1/symbol.png"},{"id":"gym2","name":"Gym Challenge","series":"Gym","releaseDate":"2000/10/16","total":132,"printedTotal":132,"logo":"https://assets.tcgdex.net/en/gym/gym2/logo.png","symbol":"https://assets.tcgdex.net/univ/gym/gym2/symbol.png"},{"id":"hgss1","name":"HeartGold SoulSilver","series":"HeartGold & SoulSilver","releaseDate":"2010/02/10","total":124,"printedTotal":123,"logo":"https://assets.tcgdex.net/en/hgss/hgss1/logo.png","symbol":"https://assets.tcgdex.net/univ/hgss/hgss1/symbol.png"},{"id":"hgss2","name":"Unleashed","series":"HeartGold & SoulSilver","releaseDate":"2010/05/12","total":96,"printedTotal":95,"logo":"https://assets.tcgdex.net/en/hgss/hgss2/logo.png","symbol":"https://assets.tcgdex.net/univ/hgss/hgss2/symbol.png"},{"id":"hgss3","name":"Undaunted","series":"HeartGold & SoulSilver","releaseDate":"2010/08/18","total":91,"printedTotal":90,"logo":"https://assets.tcgdex.net/en/hgss/hgss3/logo.png","symbol":"https://assets.tcgdex.net/univ/hgss/hgss3/symbol.png"},{"id":"hgss4","name":"Triumphant","series":"HeartGold & SoulSilver","releaseDate":"2010/11/03","total":103,"printedTotal":102,"logo":"https://assets.tcgdex.net/en/hgss/hgss4/logo.png","symbol":"https://assets.tcgdex.net/univ/hgss/hgss4/symbol.png"},{"id":"hgssp","name":"HGSS Black Star Promos","series":"HeartGold & SoulSilver","releaseDate":"2010/02/11","total":25,"printedTotal":25,"logo":"https://assets.tcgdex.net/en/hgss/hgssp/logo.png","symbol":"https://assets.tcgdex.net/univ/hgss/hgssp/symbol.png"},{"id":"jumbo","name":"Jumbo cards","series":"Miscellaneous","releaseDate":"2000/02/01","total":160,"printedTotal":160,"logo":"","symbol":""},{"id":"lc","name":"Legendary Collection","series":"Legendary Collection","releaseDate":"2002/05/24","total":110,"printedTotal":110,"logo":"https://assets.tcgdex.net/en/lc/lc/logo.png","symbol":"https://assets.tcgdex.net/univ/lc/lc/symbol.png"},{"id":"me01","name":"Mega Evolution","series":"Mega Evolution","releaseDate":"2025/09/26","total":188,"printedTotal":132,"logo":"https://assets.tcgdex.net/en/me/me01/logo.png","symbol":"https://assets.tcgdex.net/univ/me/me01/symbol.png"},{"id":"me02.5","name":"Ascended Heroes","series":"Mega Evolution","releaseDate":"2026/01/30","total":295,"printedTotal":217,"logo":"https://assets.tcgdex.net/en/me/me02.5/logo.png","symbol":"https://assets.tcgdex.net/univ/me/me02.5/symbol.png"},{"id":"me02","name":"Phantasmal Flames","series":"Mega Evolution","releaseDate":"2025/11/14","total":130,"printedTotal":94,"logo":"https://assets.tcgdex.net/en/me/me02/logo.png","symbol":""},{"id":"me03","name":"Perfect Order","series":"Mega Evolution","releaseDate":"2026/03/27","total":124,"printedTotal":88,"logo":"https://assets.tcgdex.net/en/me/me03/logo.png","symbol":"https://assets.tcgdex.net/univ/me/me03/symbol.png"},{"id":"me04","name":"Chaos Rising","series":"Mega Evolution","releaseDate":"2026/05/22","total":122,"printedTotal":86,"logo":"https://assets.tcgdex.net/en/me/me04/logo.png","symbol":"https://assets.tcgdex.net/univ/me/me04/symbol.png"},{"id":"me05","name":"Pitch Black","series":"Mega Evolution","releaseDate":"2026/07/17","total":120,"printedTotal":84,"logo":"https://assets.tcgdex.net/en/me/me05/logo.png","symbol":"https://assets.tcgdex.net/univ/me/me05/symbol.png"},{"id":"mee","name":"Mega Evolution Energy","series":"Mega Evolution","releaseDate":"2025/09/25","total":8,"printedTotal":8,"logo":"","symbol":""},{"id":"mep","name":"MEP Black Star Promos","series":"Mega Evolution","releaseDate":"2025/09/26","total":89,"printedTotal":89,"logo":"","symbol":""},{"id":"mfb","name":"My First Battle","series":"Scarlet & Violet","releaseDate":"2023/09/29","total":48,"printedTotal":48,"logo":"","symbol":""},{"id":"miscp","name":"Miscellaneous Promos","series":"Miscellaneous","releaseDate":"1996/01/01","total":1,"printedTotal":1,"logo":"","symbol":""},{"id":"neo1","name":"Neo Genesis","series":"Neo","releaseDate":"2000/12/16","total":111,"printedTotal":111,"logo":"https://assets.tcgdex.net/en/neo/neo1/logo.png","symbol":"https://assets.tcgdex.net/univ/neo/neo1/symbol.png"},{"id":"neo2","name":"Neo Discovery","series":"Neo","releaseDate":"2001/06/01","total":75,"printedTotal":75,"logo":"https://assets.tcgdex.net/en/neo/neo2/logo.png","symbol":"https://assets.tcgdex.net/univ/neo/neo2/symbol.png"},{"id":"neo3","name":"Neo Revelation","series":"Neo","releaseDate":"2001/09/21","total":66,"printedTotal":64,"logo":"https://assets.tcgdex.net/en/neo/neo3/logo.png","symbol":"https://assets.tcgdex.net/univ/neo/neo3/symbol.png"},{"id":"neo4","name":"Neo Destiny","series":"Neo","releaseDate":"2002/02/28","total":113,"printedTotal":105,"logo":"https://assets.tcgdex.net/en/neo/neo4/logo.png","symbol":"https://assets.tcgdex.net/univ/neo/neo4/symbol.png"},{"id":"np","name":"Nintendo Black Star Promos","series":"POP","releaseDate":"2003/10/01","total":40,"printedTotal":40,"logo":"https://assets.tcgdex.net/en/pop/np/logo.png","symbol":"https://assets.tcgdex.net/univ/pop/np/symbol.png"},{"id":"pl1","name":"Platinum","series":"Platinum","releaseDate":"2009/02/11","total":133,"printedTotal":127,"logo":"https://assets.tcgdex.net/en/pl/pl1/logo.png","symbol":"https://assets.tcgdex.net/univ/pl/pl1/symbol.png"},{"id":"pl2","name":"Rising Rivals","series":"Platinum","releaseDate":"2009/05/16","total":120,"printedTotal":111,"logo":"https://assets.tcgdex.net/en/pl/pl2/logo.png","symbol":"https://assets.tcgdex.net/univ/pl/pl2/symbol.png"},{"id":"pl3","name":"Supreme Victors","series":"Platinum","releaseDate":"2009/08/19","total":153,"printedTotal":147,"logo":"https://assets.tcgdex.net/en/pl/pl3/logo.png","symbol":"https://assets.tcgdex.net/univ/pl/pl3/symbol.png"},{"id":"pl4","name":"Arceus","series":"Platinum","releaseDate":"2009/11/04","total":111,"printedTotal":99,"logo":"https://assets.tcgdex.net/en/pl/pl4/logo.png","symbol":"https://assets.tcgdex.net/univ/pl/pl4/symbol.png"},{"id":"pop1","name":"POP Series 1","series":"POP","releaseDate":"2004/09/01","total":17,"printedTotal":17,"logo":"https://assets.tcgdex.net/en/pop/pop1/logo.png","symbol":"https://assets.tcgdex.net/univ/pop/pop1/symbol.png"},{"id":"pop2","name":"POP Series 2","series":"POP","releaseDate":"2005/08/01","total":17,"printedTotal":17,"logo":"https://assets.tcgdex.net/en/pop/pop2/logo.png","symbol":"https://assets.tcgdex.net/univ/pop/pop2/symbol.png"},{"id":"pop3","name":"POP Series 3","series":"POP","releaseDate":"2006/04/01","total":17,"printedTotal":17,"logo":"https://assets.tcgdex.net/en/pop/pop3/logo.png","symbol":"https://assets.tcgdex.net/univ/pop/pop3/symbol.png"},{"id":"pop4","name":"POP Series 4","series":"POP","releaseDate":"2006/08/01","total":17,"printedTotal":17,"logo":"https://assets.tcgdex.net/en/pop/pop4/logo.png","symbol":"https://assets.tcgdex.net/univ/pop/pop4/symbol.png"},{"id":"pop5","name":"POP Series 5","series":"POP","releaseDate":"2007/03/01","total":17,"printedTotal":17,"logo":"https://assets.tcgdex.net/en/pop/pop5/logo.png","symbol":"https://assets.tcgdex.net/univ/pop/pop5/symbol.png"},{"id":"pop6","name":"POP Series 6","series":"POP","releaseDate":"2007/09/01","total":17,"printedTotal":17,"logo":"https://assets.tcgdex.net/en/pop/pop6/logo.png","symbol":"https://assets.tcgdex.net/univ/pop/pop6/symbol.png"},{"id":"pop7","name":"POP Series 7","series":"POP","releaseDate":"2008/03/01","total":17,"printedTotal":17,"logo":"https://assets.tcgdex.net/en/pop/pop7/logo.png","symbol":"https://assets.tcgdex.net/univ/pop/pop7/symbol.png"},{"id":"pop8","name":"POP Series 8","series":"POP","releaseDate":"2008/09/01","total":17,"printedTotal":17,"logo":"https://assets.tcgdex.net/en/pop/pop8/logo.png","symbol":"https://assets.tcgdex.net/univ/pop/pop8/symbol.png"},{"id":"pop9","name":"POP Series 9","series":"POP","releaseDate":"2009/03/01","total":17,"printedTotal":17,"logo":"https://assets.tcgdex.net/en/pop/pop9/logo.png","symbol":"https://assets.tcgdex.net/univ/pop/pop9/symbol.png"},{"id":"rc","name":"Radiant Collection","series":"Black & White","releaseDate":"2013/11/06","total":25,"printedTotal":25,"logo":"","symbol":""},{"id":"ru1","name":"Pokémon Rumble","series":"Platinum","releaseDate":"2009/12/02","total":16,"printedTotal":16,"logo":"https://assets.tcgdex.net/en/pl/ru1/logo.png","symbol":"https://assets.tcgdex.net/univ/pl/ru1/symbol.png"},{"id":"si1","name":"Southern Islands","series":"Neo","releaseDate":"2001/07/31","total":18,"printedTotal":18,"logo":"https://assets.tcgdex.net/en/neo/si1/logo.png","symbol":"https://assets.tcgdex.net/univ/neo/si1/symbol.png"},{"id":"sm1","name":"Sun & Moon","series":"Sun & Moon","releaseDate":"2017/02/03","total":172,"printedTotal":149,"logo":"https://assets.tcgdex.net/en/sm/sm1/logo.png","symbol":"https://assets.tcgdex.net/univ/sm/sm1/symbol.png"},{"id":"sm10","name":"Unbroken Bonds","series":"Sun & Moon","releaseDate":"2019/05/03","total":234,"printedTotal":214,"logo":"https://assets.tcgdex.net/en/sm/sm10/logo.png","symbol":"https://assets.tcgdex.net/univ/sm/sm10/symbol.png"},{"id":"sm11","name":"Unified Minds","series":"Sun & Moon","releaseDate":"2019/08/02","total":258,"printedTotal":236,"logo":"https://assets.tcgdex.net/en/sm/sm11/logo.png","symbol":"https://assets.tcgdex.net/univ/sm/sm11/symbol.png"},{"id":"sm115","name":"Hidden Fates","series":"Sun & Moon","releaseDate":"2019/08/23","total":69,"printedTotal":68,"logo":"https://assets.tcgdex.net/en/sm/sm115/logo.png","symbol":"https://assets.tcgdex.net/univ/sm/sm115/symbol.png"},{"id":"sm12","name":"Cosmic Eclipse","series":"Sun & Moon","releaseDate":"2019/11/01","total":271,"printedTotal":236,"logo":"https://assets.tcgdex.net/en/sm/sm12/logo.png","symbol":"https://assets.tcgdex.net/univ/sm/sm12/symbol.png"},{"id":"sm2","name":"Guardians Rising","series":"Sun & Moon","releaseDate":"2017/05/05","total":169,"printedTotal":145,"logo":"https://assets.tcgdex.net/en/sm/sm2/logo.png","symbol":"https://assets.tcgdex.net/univ/sm/sm2/symbol.png"},{"id":"sm3.5","name":"Shining Legends","series":"Sun & Moon","releaseDate":"2017/10/06","total":78,"printedTotal":73,"logo":"","symbol":""},{"id":"sm3","name":"Burning Shadows","series":"Sun & Moon","releaseDate":"2017/08/04","total":169,"printedTotal":147,"logo":"https://assets.tcgdex.net/en/sm/sm3/logo.png","symbol":"https://assets.tcgdex.net/univ/sm/sm3/symbol.png"},{"id":"sm4","name":"Crimson Invasion","series":"Sun & Moon","releaseDate":"2017/11/03","total":125,"printedTotal":111,"logo":"https://assets.tcgdex.net/en/sm/sm4/logo.png","symbol":"https://assets.tcgdex.net/univ/sm/sm4/symbol.png"},{"id":"sm5","name":"Ultra Prism","series":"Sun & Moon","releaseDate":"2018/02/02","total":173,"printedTotal":156,"logo":"https://assets.tcgdex.net/en/sm/sm5/logo.png","symbol":"https://assets.tcgdex.net/univ/sm/sm5/symbol.png"},{"id":"sm6","name":"Forbidden Light","series":"Sun & Moon","releaseDate":"2018/05/04","total":146,"printedTotal":131,"logo":"https://assets.tcgdex.net/en/sm/sm6/logo.png","symbol":"https://assets.tcgdex.net/univ/sm/sm6/symbol.png"},{"id":"sm7.5","name":"Dragon Majesty","series":"Sun & Moon","releaseDate":"2018/09/07","total":78,"printedTotal":70,"logo":"","symbol":""},{"id":"sm7","name":"Celestial Storm","series":"Sun & Moon","releaseDate":"2018/08/03","total":183,"printedTotal":168,"logo":"https://assets.tcgdex.net/en/sm/sm7/logo.png","symbol":"https://assets.tcgdex.net/univ/sm/sm7/symbol.png"},{"id":"sm8","name":"Lost Thunder","series":"Sun & Moon","releaseDate":"2018/11/02","total":236,"printedTotal":214,"logo":"https://assets.tcgdex.net/en/sm/sm8/logo.png","symbol":"https://assets.tcgdex.net/univ/sm/sm8/symbol.png"},{"id":"sm9","name":"Team Up","series":"Sun & Moon","releaseDate":"2019/01/31","total":196,"printedTotal":181,"logo":"https://assets.tcgdex.net/en/sm/sm9/logo.png","symbol":"https://assets.tcgdex.net/univ/sm/sm9/symbol.png"},{"id":"sma","name":"Hidden Fates Shiny Vault","series":"Sun & Moon","releaseDate":"2019/08/23","total":94,"printedTotal":94,"logo":"","symbol":"https://assets.tcgdex.net/univ/sm/sma/symbol.png"},{"id":"smp","name":"SM Black Star Promos","series":"Sun & Moon","releaseDate":"2017/02/03","total":248,"printedTotal":248,"logo":"https://assets.tcgdex.net/en/sm/smp/logo.png","symbol":"https://assets.tcgdex.net/univ/sm/smp/symbol.png"},{"id":"sp","name":"Sample","series":"E-Card","releaseDate":"2002/08/01","total":10,"printedTotal":10,"logo":"","symbol":"https://assets.tcgdex.net/univ/ecard/sp/symbol.png"},{"id":"sv01","name":"Scarlet & Violet","series":"Scarlet & Violet","releaseDate":"2023/03/31","total":258,"printedTotal":198,"logo":"https://assets.tcgdex.net/en/sv/sv01/logo.png","symbol":"https://assets.tcgdex.net/univ/sv/sv01/symbol.png"},{"id":"sv02","name":"Paldea Evolved","series":"Scarlet & Violet","releaseDate":"2023/06/09","total":279,"printedTotal":193,"logo":"https://assets.tcgdex.net/en/sv/sv02/logo.png","symbol":"https://assets.tcgdex.net/univ/sv/sv02/symbol.png"},{"id":"sv03.5","name":"151","series":"Scarlet & Violet","releaseDate":"2023/09/22","total":207,"printedTotal":165,"logo":"https://assets.tcgdex.net/en/sv/sv03.5/logo.png","symbol":"https://assets.tcgdex.net/univ/sv/sv03.5/symbol.png"},{"id":"sv03","name":"Obsidian Flames","series":"Scarlet & Violet","releaseDate":"2023/08/11","total":230,"printedTotal":197,"logo":"https://assets.tcgdex.net/en/sv/sv03/logo.png","symbol":"https://assets.tcgdex.net/univ/sv/sv03/symbol.png"},{"id":"sv04.5","name":"Paldean Fates","series":"Scarlet & Violet","releaseDate":"2024/01/26","total":245,"printedTotal":91,"logo":"https://assets.tcgdex.net/en/sv/sv04.5/logo.png","symbol":"https://assets.tcgdex.net/univ/sv/sv04.5/symbol.png"},{"id":"sv04","name":"Paradox Rift","series":"Scarlet & Violet","releaseDate":"2023/11/03","total":266,"printedTotal":182,"logo":"https://assets.tcgdex.net/en/sv/sv04/logo.png","symbol":"https://assets.tcgdex.net/univ/sv/sv04/symbol.png"},{"id":"sv05","name":"Temporal Forces","series":"Scarlet & Violet","releaseDate":"2024/03/22","total":218,"printedTotal":162,"logo":"","symbol":"https://assets.tcgdex.net/univ/sv/sv05/symbol.png"},{"id":"sv06.5","name":"Shrouded Fable","series":"Scarlet & Violet","releaseDate":"2024/08/02","total":99,"printedTotal":64,"logo":"https://assets.tcgdex.net/en/sv/sv06.5/logo.png","symbol":"https://assets.tcgdex.net/univ/sv/sv06.5/symbol.png"},{"id":"sv06","name":"Twilight Masquerade","series":"Scarlet & Violet","releaseDate":"2024/05/24","total":226,"printedTotal":167,"logo":"https://assets.tcgdex.net/en/sv/sv06/logo.png","symbol":"https://assets.tcgdex.net/univ/sv/sv06/symbol.png"},{"id":"sv07","name":"Stellar Crown","series":"Scarlet & Violet","releaseDate":"2024/09/13","total":175,"printedTotal":142,"logo":"https://assets.tcgdex.net/en/sv/sv07/logo.png","symbol":""},{"id":"sv08.5","name":"Prismatic Evolutions","series":"Scarlet & Violet","releaseDate":"2025/01/17","total":180,"printedTotal":131,"logo":"https://assets.tcgdex.net/en/sv/sv08.5/logo.png","symbol":""},{"id":"sv08","name":"Surging Sparks","series":"Scarlet & Violet","releaseDate":"2024/11/08","total":252,"printedTotal":191,"logo":"https://assets.tcgdex.net/en/sv/sv08/logo.png","symbol":""},{"id":"sv09","name":"Journey Together","series":"Scarlet & Violet","releaseDate":"2025/03/28","total":190,"printedTotal":159,"logo":"https://assets.tcgdex.net/en/sv/sv09/logo.png","symbol":"https://assets.tcgdex.net/univ/sv/sv09/symbol.png"},{"id":"sv10.5b","name":"Black Bolt","series":"Scarlet & Violet","releaseDate":"2025/07/17","total":172,"printedTotal":86,"logo":"https://assets.tcgdex.net/en/sv/sv10.5b/logo.png","symbol":"https://assets.tcgdex.net/univ/sv/sv10.5b/symbol.png"},{"id":"sv10.5w","name":"White Flare","series":"Scarlet & Violet","releaseDate":"2025/07/17","total":173,"printedTotal":86,"logo":"https://assets.tcgdex.net/en/sv/sv10.5w/logo.png","symbol":"https://assets.tcgdex.net/univ/sv/sv10.5w/symbol.png"},{"id":"sv10","name":"Destined Rivals","series":"Scarlet & Violet","releaseDate":"2025/05/30","total":244,"printedTotal":182,"logo":"https://assets.tcgdex.net/en/sv/sv10/logo.png","symbol":"https://assets.tcgdex.net/univ/sv/sv10/symbol.png"},{"id":"sve","name":"Scarlet & Violet Energy","series":"Scarlet & Violet","releaseDate":"2023/03/31","total":24,"printedTotal":24,"logo":"","symbol":""},{"id":"svp","name":"SVP Black Star Promos","series":"Scarlet & Violet","releaseDate":"2023/03/31","total":226,"printedTotal":225,"logo":"","symbol":""},{"id":"swsh1","name":"Sword & Shield","series":"Sword & Shield","releaseDate":"2020/02/07","total":216,"printedTotal":202,"logo":"https://assets.tcgdex.net/en/swsh/swsh1/logo.png","symbol":"https://assets.tcgdex.net/univ/swsh/swsh1/symbol.png"},{"id":"swsh10.5","name":"Pokémon GO","series":"Sword & Shield","releaseDate":"2022/07/01","total":88,"printedTotal":78,"logo":"https://assets.tcgdex.net/en/swsh/swsh10.5/logo.png","symbol":"https://assets.tcgdex.net/univ/swsh/swsh10.5/symbol.png"},{"id":"swsh10","name":"Astral Radiance","series":"Sword & Shield","releaseDate":"2022/05/27","total":216,"printedTotal":189,"logo":"https://assets.tcgdex.net/en/swsh/swsh10/logo.png","symbol":"https://assets.tcgdex.net/univ/swsh/swsh10/symbol.png"},{"id":"swsh10tg","name":"Astral Radiance Trainer Gallery","series":"Sword & Shield","releaseDate":"2022/05/27","total":30,"printedTotal":30,"logo":"","symbol":""},{"id":"swsh11","name":"Lost Origin","series":"Sword & Shield","releaseDate":"2022/09/09","total":217,"printedTotal":196,"logo":"https://assets.tcgdex.net/en/swsh/swsh11/logo.png","symbol":"https://assets.tcgdex.net/univ/swsh/swsh11/symbol.png"},{"id":"swsh11tg","name":"Lost Origin Trainer Gallery","series":"Sword & Shield","releaseDate":"2022/09/09","total":30,"printedTotal":30,"logo":"","symbol":""},{"id":"swsh12.5","name":"Crown Zenith","series":"Sword & Shield","releaseDate":"2023/01/20","total":160,"printedTotal":159,"logo":"https://assets.tcgdex.net/en/swsh/swsh12.5/logo.png","symbol":"https://assets.tcgdex.net/univ/swsh/swsh12.5/symbol.png"},{"id":"swsh12.5gg","name":"Crown Zenith Galarian Gallery","series":"Sword & Shield","releaseDate":"2023/01/20","total":70,"printedTotal":70,"logo":"","symbol":""},{"id":"swsh12","name":"Silver Tempest","series":"Sword & Shield","releaseDate":"2022/11/11","total":215,"printedTotal":195,"logo":"https://assets.tcgdex.net/en/swsh/swsh12/logo.png","symbol":"https://assets.tcgdex.net/univ/swsh/swsh12/symbol.png"},{"id":"swsh12tg","name":"Silver Tempest Trainer Gallery","series":"Sword & Shield","releaseDate":"2022/11/11","total":30,"printedTotal":30,"logo":"","symbol":""},{"id":"swsh2","name":"Rebel Clash","series":"Sword & Shield","releaseDate":"2020/05/01","total":209,"printedTotal":192,"logo":"https://assets.tcgdex.net/en/swsh/swsh2/logo.png","symbol":"https://assets.tcgdex.net/univ/swsh/swsh2/symbol.png"},{"id":"swsh3.5","name":"Champion's Path","series":"Sword & Shield","releaseDate":"2020/09/25","total":80,"printedTotal":73,"logo":"https://assets.tcgdex.net/en/swsh/swsh3.5/logo.png","symbol":"https://assets.tcgdex.net/univ/swsh/swsh3.5/symbol.png"},{"id":"swsh3","name":"Darkness Ablaze","series":"Sword & Shield","releaseDate":"2020/08/14","total":201,"printedTotal":189,"logo":"https://assets.tcgdex.net/en/swsh/swsh3/logo.png","symbol":"https://assets.tcgdex.net/univ/swsh/swsh3/symbol.png"},{"id":"swsh4.5","name":"Shining Fates","series":"Sword & Shield","releaseDate":"2021/02/19","total":73,"printedTotal":72,"logo":"https://assets.tcgdex.net/en/swsh/swsh4.5/logo.png","symbol":"https://assets.tcgdex.net/univ/swsh/swsh4.5/symbol.png"},{"id":"swsh4.5sv","name":"Shining Fates Shiny Vault","series":"Sword & Shield","releaseDate":"2021/02/19","total":122,"printedTotal":122,"logo":"","symbol":""},{"id":"swsh4","name":"Vivid Voltage","series":"Sword & Shield","releaseDate":"2020/11/13","total":203,"printedTotal":185,"logo":"https://assets.tcgdex.net/en/swsh/swsh4/logo.png","symbol":"https://assets.tcgdex.net/univ/swsh/swsh4/symbol.png"},{"id":"swsh5","name":"Battle Styles","series":"Sword & Shield","releaseDate":"2021/03/19","total":183,"printedTotal":163,"logo":"https://assets.tcgdex.net/en/swsh/swsh5/logo.png","symbol":"https://assets.tcgdex.net/univ/swsh/swsh5/symbol.png"},{"id":"swsh6","name":"Chilling Reign","series":"Sword & Shield","releaseDate":"2021/06/18","total":233,"printedTotal":198,"logo":"https://assets.tcgdex.net/en/swsh/swsh6/logo.png","symbol":"https://assets.tcgdex.net/univ/swsh/swsh6/symbol.png"},{"id":"swsh7","name":"Evolving Skies","series":"Sword & Shield","releaseDate":"2021/08/27","total":237,"printedTotal":203,"logo":"https://assets.tcgdex.net/en/swsh/swsh7/logo.png","symbol":"https://assets.tcgdex.net/univ/swsh/swsh7/symbol.png"},{"id":"swsh8","name":"Fusion Strike","series":"Sword & Shield","releaseDate":"2021/11/12","total":284,"printedTotal":264,"logo":"https://assets.tcgdex.net/en/swsh/swsh8/logo.png","symbol":"https://assets.tcgdex.net/univ/swsh/swsh8/symbol.png"},{"id":"swsh9","name":"Brilliant Stars","series":"Sword & Shield","releaseDate":"2022/02/25","total":186,"printedTotal":172,"logo":"https://assets.tcgdex.net/en/swsh/swsh9/logo.png","symbol":"https://assets.tcgdex.net/univ/swsh/swsh9/symbol.png"},{"id":"swsh9tg","name":"Brilliant Stars Trainer Gallery","series":"Sword & Shield","releaseDate":"2022/02/25","total":30,"printedTotal":30,"logo":"","symbol":""},{"id":"swshp","name":"SWSH Black Star Promos","series":"Sword & Shield","releaseDate":"2019/11/15","total":307,"printedTotal":307,"logo":"https://assets.tcgdex.net/en/swsh/swshp/logo.png","symbol":"https://assets.tcgdex.net/univ/swsh/swshp/symbol.png"},{"id":"tk-bw-e","name":"BW trainer Kit (Excadrill)","series":"Trainer kits","releaseDate":"2011/09/01","total":30,"printedTotal":30,"logo":"","symbol":""},{"id":"tk-bw-z","name":"BW trainer Kit (Zoroark)","series":"Trainer kits","releaseDate":"2011/09/01","total":30,"printedTotal":30,"logo":"","symbol":""},{"id":"tk-dp-l","name":"DP trainer Kit (Lucario)","series":"Trainer kits","releaseDate":"2007/09/01","total":11,"printedTotal":11,"logo":"","symbol":"https://assets.tcgdex.net/univ/tk/tk-dp-l/symbol.png"},{"id":"tk-dp-m","name":"DP trainer Kit (Manaphy)","series":"Trainer kits","releaseDate":"2007/09/01","total":12,"printedTotal":12,"logo":"","symbol":"https://assets.tcgdex.net/univ/tk/tk-dp-m/symbol.png"},{"id":"tk-ex-latia","name":"EX trainer Kit (Latias)","series":"Trainer kits","releaseDate":"2004/07/01","total":10,"printedTotal":10,"logo":"","symbol":"https://assets.tcgdex.net/univ/tk/tk-ex-latia/symbol.png"},{"id":"tk-ex-latio","name":"EX trainer Kit (Latios)","series":"Trainer kits","releaseDate":"2004/07/01","total":10,"printedTotal":10,"logo":"","symbol":"https://assets.tcgdex.net/univ/tk/tk-ex-latio/symbol.png"},{"id":"tk-ex-m","name":"EX trainer Kit 2 (Minun)","series":"Trainer kits","releaseDate":"2006/03/01","total":12,"printedTotal":12,"logo":"","symbol":""},{"id":"tk-ex-p","name":"EX trainer Kit 2 (Plusle)","series":"Trainer kits","releaseDate":"2006/03/01","total":12,"printedTotal":12,"logo":"","symbol":"https://assets.tcgdex.net/univ/tk/tk-ex-p/symbol.png"},{"id":"tk-hs-g","name":"HS trainer Kit (Gyarados)","series":"Trainer kits","releaseDate":"2010/05/01","total":30,"printedTotal":30,"logo":"","symbol":"https://assets.tcgdex.net/univ/tk/tk-hs-g/symbol.png"},{"id":"tk-hs-r","name":"HS trainer Kit (Raichu)","series":"Trainer kits","releaseDate":"2010/05/01","total":30,"printedTotal":30,"logo":"","symbol":"https://assets.tcgdex.net/univ/tk/tk-hs-r/symbol.png"},{"id":"tk-sm-l","name":"SM trainer Kit (Lycanroc)","series":"Trainer kits","releaseDate":"2017/04/21","total":30,"printedTotal":30,"logo":"","symbol":"https://assets.tcgdex.net/univ/tk/tk-sm-l/symbol.png"},{"id":"tk-sm-r","name":"SM trainer Kit (Alolan Raichu)","series":"Trainer kits","releaseDate":"2017/04/21","total":30,"printedTotal":30,"logo":"","symbol":"https://assets.tcgdex.net/univ/tk/tk-sm-r/symbol.png"},{"id":"tk-xy-b","name":"XY trainer Kit (Bisharp)","series":"Trainer kits","releaseDate":"2014/11/01","total":30,"printedTotal":30,"logo":"","symbol":"https://assets.tcgdex.net/univ/tk/tk-xy-b/symbol.png"},{"id":"tk-xy-latia","name":"XY trainer Kit (Latias)","series":"Trainer kits","releaseDate":"2015/04/29","total":30,"printedTotal":30,"logo":"","symbol":"https://assets.tcgdex.net/univ/tk/tk-xy-latia/symbol.png"},{"id":"tk-xy-latio","name":"XY trainer Kit (Latios)","series":"Trainer kits","releaseDate":"2015/04/29","total":30,"printedTotal":30,"logo":"","symbol":"https://assets.tcgdex.net/univ/tk/tk-xy-latio/symbol.png"},{"id":"tk-xy-n","name":"XY trainer Kit (Noivern)","series":"Trainer kits","releaseDate":"2014/03/12","total":30,"printedTotal":30,"logo":"","symbol":"https://assets.tcgdex.net/univ/tk/tk-xy-n/symbol.png"},{"id":"tk-xy-p","name":"XY trainer Kit (Pikachu Libre)","series":"Trainer kits","releaseDate":"2016/04/27","total":30,"printedTotal":30,"logo":"","symbol":"https://assets.tcgdex.net/univ/tk/tk-xy-p/symbol.png"},{"id":"tk-xy-su","name":"XY trainer Kit (Suicune)","series":"Trainer kits","releaseDate":"2016/04/27","total":30,"printedTotal":30,"logo":"","symbol":"https://assets.tcgdex.net/univ/tk/tk-xy-su/symbol.png"},{"id":"tk-xy-sy","name":"XY trainer Kit (Sylveon)","series":"Trainer kits","releaseDate":"2014/03/12","total":30,"printedTotal":30,"logo":"","symbol":"https://assets.tcgdex.net/univ/tk/tk-xy-sy/symbol.png"},{"id":"tk-xy-w","name":"XY trainer Kit (Wigglytuff)","series":"Trainer kits","releaseDate":"2014/11/01","total":30,"printedTotal":30,"logo":"","symbol":"https://assets.tcgdex.net/univ/tk/tk-xy-w/symbol.png"},{"id":"wp","name":"W Promotional","series":"Base","releaseDate":"1999/09/01","total":7,"printedTotal":7,"logo":"","symbol":""},{"id":"xy0","name":"Kalos Starter Set","series":"XY","releaseDate":"2013/11/08","total":39,"printedTotal":39,"logo":"https://assets.tcgdex.net/en/xy/xy0/logo.png","symbol":"https://assets.tcgdex.net/univ/xy/xy0/symbol.png"},{"id":"xy1","name":"XY","series":"XY","releaseDate":"2014/02/05","total":146,"printedTotal":146,"logo":"https://assets.tcgdex.net/en/xy/xy1/logo.png","symbol":"https://assets.tcgdex.net/univ/xy/xy1/symbol.png"},{"id":"xy10","name":"Fates Collide","series":"XY","releaseDate":"2016/05/02","total":129,"printedTotal":124,"logo":"https://assets.tcgdex.net/en/xy/xy10/logo.png","symbol":"https://assets.tcgdex.net/univ/xy/xy10/symbol.png"},{"id":"xy11","name":"Steam Siege","series":"XY","releaseDate":"2016/08/03","total":116,"printedTotal":114,"logo":"https://assets.tcgdex.net/en/xy/xy11/logo.png","symbol":"https://assets.tcgdex.net/univ/xy/xy11/symbol.png"},{"id":"xy12","name":"Evolutions","series":"XY","releaseDate":"2016/11/02","total":113,"printedTotal":108,"logo":"https://assets.tcgdex.net/en/xy/xy12/logo.png","symbol":"https://assets.tcgdex.net/univ/xy/xy12/symbol.png"},{"id":"xy2","name":"Flashfire","series":"XY","releaseDate":"2014/05/07","total":110,"printedTotal":106,"logo":"https://assets.tcgdex.net/en/xy/xy2/logo.png","symbol":"https://assets.tcgdex.net/univ/xy/xy2/symbol.png"},{"id":"xy3","name":"Furious Fists","series":"XY","releaseDate":"2014/08/13","total":114,"printedTotal":111,"logo":"https://assets.tcgdex.net/en/xy/xy3/logo.png","symbol":"https://assets.tcgdex.net/univ/xy/xy3/symbol.png"},{"id":"xy4","name":"Phantom Forces","series":"XY","releaseDate":"2014/11/05","total":124,"printedTotal":119,"logo":"https://assets.tcgdex.net/en/xy/xy4/logo.png","symbol":"https://assets.tcgdex.net/univ/xy/xy4/symbol.png"},{"id":"xy5","name":"Primal Clash","series":"XY","releaseDate":"2015/02/04","total":164,"printedTotal":160,"logo":"https://assets.tcgdex.net/en/xy/xy5/logo.png","symbol":"https://assets.tcgdex.net/univ/xy/xy5/symbol.png"},{"id":"xy6","name":"Roaring Skies","series":"XY","releaseDate":"2015/05/06","total":112,"printedTotal":108,"logo":"https://assets.tcgdex.net/en/xy/xy6/logo.png","symbol":"https://assets.tcgdex.net/univ/xy/xy6/symbol.png"},{"id":"xy7","name":"Ancient Origins","series":"XY","releaseDate":"2015/08/12","total":101,"printedTotal":98,"logo":"https://assets.tcgdex.net/en/xy/xy7/logo.png","symbol":"https://assets.tcgdex.net/univ/xy/xy7/symbol.png"},{"id":"xy8","name":"BREAKthrough","series":"XY","releaseDate":"2015/11/04","total":165,"printedTotal":162,"logo":"https://assets.tcgdex.net/en/xy/xy8/logo.png","symbol":"https://assets.tcgdex.net/univ/xy/xy8/symbol.png"},{"id":"xy9","name":"BREAKpoint","series":"XY","releaseDate":"2016/02/03","total":126,"printedTotal":122,"logo":"https://assets.tcgdex.net/en/xy/xy9/logo.png","symbol":"https://assets.tcgdex.net/univ/xy/xy9/symbol.png"},{"id":"xya","name":"Yellow A Alternate","series":"XY","releaseDate":"2014/02/05","total":6,"printedTotal":6,"logo":"","symbol":""},{"id":"xyp","name":"XY Black Star Promos","series":"XY","releaseDate":"2013/10/12","total":216,"printedTotal":211,"logo":"https://assets.tcgdex.net/en/xy/xyp/logo.png","symbol":"https://assets.tcgdex.net/univ/xy/xyp/symbol.png"}];
+function getBundledTcgCatalogue() {
+  const names = new Map();
+  for (const [id,name] of Object.entries(KNOWN_SETS)) { const key = normalizeSetMatchName(name); if (!names.has(key)) names.set(key,id); }
+  const sets = BUNDLED_TCG_CATALOGUE_V115.map(set => {
+    const id = names.get(normalizeSetMatchName(set.name)) || set.id;
+    return { ...set, id, name: id === '30th-c' ? '30th Celebration: Classic Collection' : set.name };
+  }).filter(set => !isExcludedCollectorSet(set));
+  if (!sets.some(set => set.id === YELLOW_A_SET_ID)) sets.push({ ...YELLOW_A_VIRTUAL_SET });
+  return ensureMcDonaldsSets(repairVintageSetDetails(sets)).sort((a,b) => String(b.releaseDate).localeCompare(String(a.releaseDate)));
+}
+
+function formatPokemonCatalogueResults(results, cleanName, complete, cacheKey) {
+  const merged = new Map();
+  // Stable provider priority preserves ownership IDs. Price availability must
+  // never choose a different card ID for the same physical printing.
+  for (const card of [...results.flatMap(result => result.status === 'fulfilled' ? result.value : []),
+    ...getVintageCatalogueCards('wp')]) {
+    if (!card?.id || isExcludedCollectorCard(card) || !matchesExactPokemonName(card.name, cleanName)) continue;
+    const key = getPhysicalCardKey(card);
+    const existing = merged.get(key);
+    if (!existing) merged.set(key, card);
+    else merged.set(key, {
+      ...card, ...existing,
+      images: {
+        small: existing.images?.small || card.images?.small,
+        large: existing.images?.large || card.images?.large
+      },
+      pricing: existing.pricing || card.pricing,
+      cardmarket: existing.cardmarket || card.cardmarket,
+      tcgplayer: existing.tcgplayer || card.tcgplayer
+    });
+  }
+  const cards = [...merged.values()].map(card => {
+    const artwork = getCardArtworkSources(card);
+    return {
+      id: String(card.id), name: card.name || cleanName,
+      localId: card.localId || card.number,
+      artworkTcgDexSetId: card.artworkTcgDexSetId,
+      artworkPokemonSetId: card.artworkPokemonSetId,
+      _tcgDexDetailId: card._tcgDexDetailId,
+      _metadataCacheKey: complete ? cacheKey : `${cacheKey}_partial`,
+      smallImg: artwork.small[0] || TCG_CARD_ARTWORK_UNAVAILABLE,
+      smallImgFallbacks: artwork.small.slice(1),
+      largeImg: artwork.large[0] || TCG_CARD_ARTWORK_UNAVAILABLE,
+      largeImgFallbacks: artwork.large.slice(1),
+      setName: resolveSetName(card.set, card.id),
+      number: getPhysicalCardNumber(card),
+      rarity: card.rarity || 'Common', rarityScore: getRarityScore(card.rarity),
+      priceGBP: extractCardPriceGBP(card)
+    };
+  });
+
+  sortCardsList(cards);
+  return cards;
+}
+
 async function fetchJsonWithRetry(url, options = {}, retries = 2) {
   const { timeoutMs = 15000, deadline = Date.now() + 45000, signal, ...fetchOptions } = options;
   let lastError;
@@ -5994,6 +6269,7 @@ async function fetchWithRetry(url, options = {}, retries = 2) {
 }
 
 async function fetchPokemonTcgPages(url, options = {}, deadline = Date.now() + 45000) {
+  const { retries = 2, ...requestOptions } = options;
   const cards = new Map();
   let page = 1;
   let total = null;
@@ -6002,7 +6278,7 @@ async function fetchPokemonTcgPages(url, options = {}, deadline = Date.now() + 4
     pagedUrl.searchParams.set('page', String(page));
     pagedUrl.searchParams.set('pageSize', '250');
     pagedUrl.searchParams.set('orderBy', 'id');
-    const json = await fetchJsonWithRetry(pagedUrl.toString(), { ...options, deadline });
+    const json = await fetchJsonWithRetry(pagedUrl.toString(), { ...requestOptions, deadline }, retries);
     if (!Array.isArray(json?.data)) throw new Error('Invalid card catalogue response');
     if (Number.isFinite(json.totalCount)) total = json.totalCount;
     const previousSize = cards.size;
@@ -6023,11 +6299,12 @@ async function getTcgDexSets(forceRefresh = false) {
   tcgDexSetsRequest = (async () => {
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem('pokeroulette_tcgdex_sets_v1')); } catch (error) {}
-    if (!forceRefresh && saved?.data?.length && Date.now() - saved.savedAt < 86400000) {
+    if (!forceRefresh && saved?.data?.length && Date.now() - saved.savedAt < 30 * 86400000) {
+      if (Date.now() - saved.savedAt >= 86400000) setTimeout(() => getTcgDexSets(true).catch(() => {}), 0);
       return (window.tcgDexSetsCache = saved.data);
     }
     try {
-      const sets = await fetchJsonWithRetry('https://api.tcgdex.net/v2/en/sets');
+      const sets = await fetchJsonWithRetry('https://api.tcgdex.net/v2/en/sets', { timeoutMs: 6000, deadline: Date.now() + 8000 }, 1);
       if (!Array.isArray(sets) || !sets.length) throw new Error('Invalid TCGdex sets');
       window.tcgDexSetsCache = sets;
       try { localStorage.setItem('pokeroulette_tcgdex_sets_v1', JSON.stringify({ savedAt: Date.now(), data: sets })); } catch (error) {}
@@ -6050,6 +6327,11 @@ async function getTcgDexCardDetail(id, deadline, forceRefresh = false) {
 async function loadTcgDexCardDetail(id, deadline, forceRefresh = false) {
   const cached = tcgDetailCache.get(id);
   if (cached && Date.now() - cached.savedAt < (forceRefresh ? 60000 : 3600000)) return cached.data;
+  const saved = !forceRefresh && readFastData(`pokeroulette_fast_card_v115_${id}`, 86400000);
+  if (saved?.id === id && saved?.set?.id) {
+    setBoundedCache(tcgDetailCache, id, { savedAt: Date.now(), data: saved }, 1000);
+    return saved;
+  }
   try {
     const data = await fetchJsonWithRetry(
       `https://api.tcgdex.net/v2/en/cards/${encodeURIComponent(id)}`,
@@ -6057,6 +6339,7 @@ async function loadTcgDexCardDetail(id, deadline, forceRefresh = false) {
     );
     if (data?.id !== id || !data?.set?.id) throw new Error('Invalid card detail');
     setBoundedCache(tcgDetailCache, id, { savedAt: Date.now(), data }, 1000);
+    saveFastData(`pokeroulette_fast_card_v115_${id}`, data);
     return data;
   } catch (error) {
     if (cached) return cached.data;
@@ -6161,7 +6444,7 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
         cached &&
         Array.isArray(cached.data) &&
         cached.data.length &&
-        Date.now() - cached.savedAt < CACHE_TIME
+        Date.now() - cached.savedAt < 30 * CACHE_TIME
       ) {
         tcgSetsCache = ensureMcDonaldsSets(repairVintageSetDetails(cached.data));
 
@@ -6171,6 +6454,7 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
 
         // Repair older catalogue entries without extending their freshness.
         try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ...cached, data: tcgSetsCache })); } catch {}
+        if (Date.now() - cached.savedAt >= CACHE_TIME) setTimeout(() => fetchPhysicalTcgSets(true).catch(() => {}), 0);
         return tcgSetsCache;
       }
     } catch (error) {
@@ -6179,6 +6463,14 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
         error
       );
     }
+  }
+
+  // The bundled metadata is a startup fallback, not a substitute for live
+  // checklists. It lets a first visit display the catalogue before API calls.
+  if (!forceRefresh) {
+    tcgSetsCache = getBundledTcgCatalogue();
+    setTimeout(() => fetchPhysicalTcgSets(true).catch(() => {}), 0);
+    return tcgSetsCache;
   }
 
   // 3. Try the live API
@@ -6190,7 +6482,7 @@ async function loadPhysicalTcgSets(forceRefresh = false) {
     }
 
     const sources = await Promise.allSettled([
-      fetchPokemonTcgPages('https://api.pokemontcg.io/v2/sets', { headers }),
+      fetchPokemonTcgPages('https://api.pokemontcg.io/v2/sets', { headers, timeoutMs: 5000, retries: 0 }, Date.now() + 7000),
       fetchPhysicalPromoSets(forceRefresh)
     ]);
     const setsById = new Map();
@@ -7940,10 +8232,10 @@ function applyCachedVariantSupplements(cards) {
 }
 
 async function fetchSvpCatalogueCards(url, headers) {
-  const deadline = Date.now() + 15000;
+  const deadline = Date.now() + 12000;
   const results = await Promise.allSettled([
-    fetchPokemonTcgPages(url, { headers }, deadline),
-    fetchJsonWithRetry('https://api.tcgdex.net/v2/en/sets/svp', { deadline })
+    fetchPokemonTcgPages(url, { headers, timeoutMs: 5000, retries: 0 }, deadline),
+    fetchJsonWithRetry('https://api.tcgdex.net/v2/en/sets/svp', { deadline, timeoutMs: 6500 }, 1)
   ]);
   const ioCards = results[0].status === 'fulfilled' ? results[0].value : [];
   const dexSet = results[1].status === 'fulfilled' ? results[1].value : null;
@@ -8012,7 +8304,7 @@ async function loadCardsForSet(setId, forceRefresh = false) {
         cached &&
         Array.isArray(cached.data) &&
         cached.data.length &&
-        Date.now() - cached.savedAt < CACHE_TIME
+        Date.now() - cached.savedAt < 30 * CACHE_TIME
       ) {
         window.tcgSetCardsCache[setId] = cached.data;
 
@@ -8020,6 +8312,7 @@ async function loadCardsForSet(setId, forceRefresh = false) {
           `[SETS] ${setId} loaded from saved cache`
         );
 
+        if (Date.now() - cached.savedAt >= CACHE_TIME) setTimeout(() => fetchCardsForSet(setId, true).catch(() => {}), 0);
         return filterCollectorCards(cached.data);
       }
     } catch (error) {
@@ -8049,7 +8342,7 @@ async function loadCardsForSet(setId, forceRefresh = false) {
       ? await fetchSvpCatalogueCards(url, headers)
       : (isPhysicalPromoSetId(setId) || setId === 'si1' || getMcDonaldsSetInfo(setId))
         ? await fetchPromoCatalogueCards(setId, url, headers, forceRefresh)
-        : await fetchPokemonTcgPages(url, { headers });
+        : await fetchFastSetCards(setId, url, headers);
 
     if (!cards.length) {
       throw new Error(
@@ -8072,6 +8365,8 @@ async function loadCardsForSet(setId, forceRefresh = false) {
         localId: card.localId || card.number,
         artworkTcgDexSetId: card.artworkTcgDexSetId,
         artworkPokemonSetId: card.artworkPokemonSetId,
+        _tcgDexDetailId: card._tcgDexDetailId,
+        _metadataCacheKey: CACHE_KEY,
 
         name: card.name || 'Unknown',
 
@@ -8115,13 +8410,8 @@ baseFinish:
       );
     }
 
-    // Enrich each card with TCGdex's explicit physical variant flags
-    // and main/base-printing price before caching.
-    formatted = setId === 'wp' ? formatted : await enrichSetCardsWithTcgDex(
-      formatted,
-      setId,
-      formatted[0]?.setName || ''
-    );
+    // v115: the complete checklist is ready now. Price/finish enrichment
+    // runs for visible cards after their artwork loads, never before this grid.
 
     // Keep separate product/promotional printings out of numbered-set
     // variant menus where the release defines them as separate cards.
@@ -8712,6 +9002,7 @@ function renderCurrentSetCards() {
       document.createElement('div');
 
     item.className = 'tcg-set-card';
+    item.dataset.liveCardId = card.id;
     item.setAttribute('role', 'button');
     item.setAttribute('tabindex', '0');
 
@@ -10136,13 +10427,17 @@ async function openDexCardsModal(p, bypassCache = false) {
   }
   updateDexCardsBackTop();
   try {
-    const cardsList = await fetchTcgCardsData(p.name, p.species?.name, bypassCache);
+    const publish = cards => paintCatalogueWhenReady('dex', () => {
+      if (requestId !== dexCardsRequestId || activeDexModalPoke !== p || modal?.style.display !== 'flex') return;
+      const status = tcgCardListStatus.get(cards);
+      if (title) title.innerText = cleanName + ' Cards' + (status?.pending ? ' · loading' : status?.stale ? ' · saved' : status?.partial ? ' · partial' : '');
+      currentCardsList = cards; sortCardsList(cards); renderDexCardsGrid(cards);
+    });
+    const cardsList = await fetchTcgCardsData(p.name, p.species?.name, bypassCache, publish);
     if (requestId !== dexCardsRequestId || activeDexModalPoke !== p) return;
     const status = tcgCardListStatus.get(cardsList);
     if (title) title.innerText = `${cleanName} Cards${status?.stale ? ' · saved' : status?.partial ? ' · partial' : ''}`;
-    currentCardsList = cardsList;
-    sortCardsList(currentCardsList);
-    renderDexCardsGrid(currentCardsList);
+    publish(cardsList);
   } catch (e) {
     if (requestId !== dexCardsRequestId || activeDexModalPoke !== p) return;
     if (grid) grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">Failed to load cards. Tap ↻ to retry.</div>';
@@ -10569,7 +10864,24 @@ function updateArt() {
   }
   const pokeImg = document.getElementById('pokeImg');
   const shinyBtn = document.getElementById('shinyBtn');
-  if (pokeImg) pokeImg.src = isShiny ? shinyImg : defaultImg;
+  if (pokeImg) {
+    const urls = [isShiny ? shinyImg : defaultImg,
+      isShiny ? p.sprites.other?.['official-artwork']?.front_shiny : p.sprites.other?.['official-artwork']?.front_default,
+      isShiny ? p.sprites.front_shiny : p.sprites.front_default].filter((url,index,list) => url && list.indexOf(url) === index);
+    clearTimeout(pokeImg._artTimer);
+    const token = pokeImg._artToken = (pokeImg._artToken || 0) + 1;
+    let index = 0;
+    const arm = () => { pokeImg._artTimer = setTimeout(() => pokeImg.onerror?.(), 6000); };
+    pokeImg.onload = () => clearTimeout(pokeImg._artTimer);
+    pokeImg.onerror = () => {
+      if (pokeImg._artToken !== token) return;
+      clearTimeout(pokeImg._artTimer);
+      if (++index < urls.length) { pokeImg.src = urls[index]; arm(); }
+    };
+    pokeImg.decoding = 'async'; pokeImg.loading = 'eager'; pokeImg.fetchPriority = 'high';
+    if (urls.length) { pokeImg.src = urls[0]; arm(); }
+    else pokeImg.removeAttribute('src');
+  }
   if (shinyBtn) shinyBtn.classList.toggle('active', isShiny);
 }
 
@@ -10596,7 +10908,7 @@ const evolutionDataRequests = new Map();
 async function getEvolutionData(url) {
   if (evolutionDataCache.has(url)) return evolutionDataCache.get(url);
   if (evolutionDataRequests.has(url)) return evolutionDataRequests.get(url);
-  const request = fetchJsonWithRetry(url, { deadline: Date.now() + 15000 }, 1);
+  const request = getFastPokemonData('evolution', encodeURIComponent(url), url);
   evolutionDataRequests.set(url, request);
   try {
     const data = await request;
@@ -10832,10 +11144,21 @@ function extractCardPriceGBP(card) {
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {
   const name = getCleanNationalDexName(pokeName, speciesName);
   const key = name.toLowerCase();
-  if (tcgDataRequests.has(key)) return tcgDataRequests.get(key);
-  const request = loadTcgCardsData(pokeName, speciesName, bypassCache);
-  tcgDataRequests.set(key, request);
-  try { return await request; } finally { tcgDataRequests.delete(key); }
+  const onProgress = arguments[3];
+  if (onProgress) {
+    if (!tcgProgressListeners.has(key)) tcgProgressListeners.set(key, new Set());
+    tcgProgressListeners.get(key).add(onProgress);
+  }
+  let request = tcgDataRequests.get(key);
+  const ownsRequest = !request;
+  if (!request) { request = loadTcgCardsData(pokeName, speciesName, bypassCache); tcgDataRequests.set(key, request); }
+  try { return await request; } finally {
+    if (ownsRequest) tcgDataRequests.delete(key);
+    if (onProgress) {
+      tcgProgressListeners.get(key)?.delete(onProgress);
+      if (!tcgProgressListeners.get(key)?.size) tcgProgressListeners.delete(key);
+    }
+  }
 }
 
 function ensureVintagePokemonCards(cards, cleanName) {
@@ -10867,9 +11190,13 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
       if (stored?.complete === true && Array.isArray(stored.data)) saved = stored;
     } catch (error) {}
   }
-  if (!bypassCache && saved?.complete && Date.now() - saved.savedAt < TTL_MS) {
+  if (!bypassCache && saved?.complete && Date.now() - saved.savedAt < 30 * TTL_MS) {
     setBoundedCache(memoryTcgCache, cacheKey, saved, 128);
     const cards = ensureVintagePokemonCards(saved.data, cleanName);
+    if (Date.now() - saved.savedAt >= TTL_MS) {
+      tcgCardListStatus.set(cards, { stale: true });
+      setTimeout(() => fetchTcgCardsData(pokeName, speciesName, true).catch(() => {}), 0);
+    }
     sortCardsList(cards);
     return cards;
   }
@@ -10887,21 +11214,21 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
     } catch (error) {}
   }
 
-  const deadline = Date.now() + 45000;
+  const deadline = Date.now() + 12000;
   const headers = {};
   if (POKEMON_TCG_API_KEY) headers['X-Api-Key'] = POKEMON_TCG_API_KEY;
   const searchNames = getPokemonCardSearchNames(cleanName);
   const query = searchNames.map(name => `name:"${name.replace(/"/g, '').trim()}"`).join(' OR ');
 
   const fetchIo = async () => (await fetchPokemonTcgPages(
-    `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}`, { headers }, deadline
+    `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}`, { headers, timeoutMs: 5000, retries: 0 }, deadline
   )).map(card => ({ ...card, artworkPokemonSetId: card.set?.id }));
 
   const fetchDex = async () => {
     const [references, sets] = await Promise.all([
       (async () => {
         const lists = await Promise.all(searchNames.map(name =>
-          fetchJsonWithRetry(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(name)}`, { deadline })
+          fetchJsonWithRetry(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(name)}`, { deadline, timeoutMs: 6500 }, 1)
         ));
         if (lists.some(list => !Array.isArray(list))) throw new Error('Invalid TCGdex card list');
         return [...new Map(lists.flat().map(card => [card?.id, card])).values()];
@@ -10924,9 +11251,9 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
       };
     }).filter(card => !isExcludedCollectorCard(card) && matchesExactPokemonName(card.name, cleanName));
 
-    return mapTcgLimited(physical, async brief => {
-      let detail = brief;
-      try { detail = await getTcgDexCardDetail(brief.id, deadline, bypassCache); } catch (error) {}
+    return physical.map(brief => {
+      // CardBrief already supplies name, number and artwork. Details are optional.
+      const detail = tcgDetailCache.get(brief.id)?.data || brief;
       const image = detail.image || brief.image || '';
       return {
         ...detail,
@@ -10935,13 +11262,23 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
         set: detail.set?.id ? detail.set : brief.set,
         number: detail.localId || brief.localId,
         artworkTcgDexSetId: brief.set.id,
+        _tcgDexDetailId: brief.id,
         images: { small: image ? `${image}/low.webp` : '', large: image ? `${image}/high.webp` : '' },
         rarity: detail.rarity || 'Common'
       };
     });
   };
 
-  const results = await Promise.allSettled([fetchIo(), fetchDex()]);
+  const partialResults = [{ status: 'pending' }, { status: 'pending' }];
+  const requests = [fetchIo(), fetchDex()].map((request, index) => request.then(value => {
+    partialResults[index] = { status: 'fulfilled', value };
+    if (!saved?.complete) {
+      const cards = formatPokemonCatalogueResults(partialResults, cleanName, false, cacheKey);
+      if (cards.length) { tcgCardListStatus.set(cards, { pending: true }); publishTcgProgress(cleanName.toLowerCase(), cards); }
+    }
+    return value;
+  }));
+  const results = await Promise.allSettled(requests);
   const complete = results.every(result => result.status === 'fulfilled');
   const failures = results.filter(result => result.status === 'rejected');
   failures.forEach(result => console.warn('[TCG] Catalogue source unavailable:', result.reason));
@@ -10954,43 +11291,7 @@ async function loadTcgCardsData(pokeName, speciesName, bypassCache = false) {
   }
   if (failures.length === results.length) throw new Error('Card services are unavailable. Tap refresh to retry.');
 
-  const merged = new Map();
-  // Stable provider priority preserves ownership IDs. Price availability must
-  // never choose a different card ID for the same physical printing.
-  for (const card of [...results.flatMap(result => result.status === 'fulfilled' ? result.value : []),
-    ...getVintageCatalogueCards('wp')]) {
-    if (!card?.id || isExcludedCollectorCard(card) || !matchesExactPokemonName(card.name, cleanName)) continue;
-    const key = getPhysicalCardKey(card);
-    const existing = merged.get(key);
-    if (!existing) merged.set(key, card);
-    else merged.set(key, {
-      ...card, ...existing,
-      images: {
-        small: existing.images?.small || card.images?.small,
-        large: existing.images?.large || card.images?.large
-      },
-      pricing: existing.pricing || card.pricing,
-      cardmarket: existing.cardmarket || card.cardmarket,
-      tcgplayer: existing.tcgplayer || card.tcgplayer
-    });
-  }
-  const cards = [...merged.values()].map(card => {
-    const artwork = getCardArtworkSources(card);
-    return {
-      id: String(card.id), name: card.name || cleanName,
-      localId: card.localId || card.number,
-      artworkTcgDexSetId: card.artworkTcgDexSetId,
-      artworkPokemonSetId: card.artworkPokemonSetId,
-      smallImg: artwork.small[0] || TCG_CARD_ARTWORK_UNAVAILABLE,
-      smallImgFallbacks: artwork.small.slice(1),
-      largeImg: artwork.large[0] || TCG_CARD_ARTWORK_UNAVAILABLE,
-      largeImgFallbacks: artwork.large.slice(1),
-      setName: resolveSetName(card.set, card.id),
-      number: getPhysicalCardNumber(card),
-      rarity: card.rarity || 'Common', rarityScore: getRarityScore(card.rarity),
-      priceGBP: extractCardPriceGBP(card)
-    };
-  });
+  const cards = formatPokemonCatalogueResults(results, cleanName, complete, cacheKey);
   sortCardsList(cards);
   tcgCardListStatus.set(cards, { partial: !complete });
   // A successful empty result is valid, but a failed/partial result is never
@@ -11024,10 +11325,14 @@ async function fetchTcgCards(pokeName, speciesName, bypassCache = false) {
     }
   }
   try {
-    const cards = await fetchTcgCardsData(pokeName, speciesName, bypassCache);
+    const publish = cards => paintCatalogueWhenReady('main', () => {
+      if (!isSpinning && requestId === activeTcgRequestId && !activeTcgSet && document.getElementById('dexCardsModal')?.style.display !== 'flex') {
+        currentCardsList = cards; renderTcgCards(cards);
+      }
+    });
+    const cards = await fetchTcgCardsData(pokeName, speciesName, bypassCache, publish);
     if (!isSpinning && requestId === activeTcgRequestId) {
-      currentCardsList = cards;
-      renderTcgCards(cards);
+      publish(cards);
       if (curId) {
         const hasCard = currentCardsList.some(c => isCardCollected(c));
         if (hasCard) memCol.add(parseInt(curId, 10));
@@ -11063,6 +11368,7 @@ function renderTcgCards(cards) {
       const isOwnedCard = isCardCollected(card);
       const node = document.createElement('div');
       node.className = 'tcg-card-item';
+      node.dataset.liveCardId = card.id;
       node.innerHTML = `
         <div class="tcg-thumb-frame ${isOwnedCard ? 'card-owned' : ''}">
           <div class="card-check-circle ${isOwnedCard ? 'checked' : ''}" id="strip_chk_${card.id}">✓</div>
@@ -11075,7 +11381,9 @@ function renderTcgCards(cards) {
       `;
       const stripCardImg = node.querySelector('.tcg-card-thumb');
       setTcgImageFallbacks(stripCardImg, card);
-      stripCardImg.src = card.smallImg;
+      stripCardImg.loading = index < 3 ? 'eager' : 'lazy';
+      stripCardImg.fetchPriority = index < 3 ? 'high' : 'auto';
+      stripCardImg.src = card.resolvedSmallImg || card.smallImg;
       renderCardName(node.querySelector('.tcg-card-name'), card.name);
       node.querySelector('.tcg-card-name').title = card.name;
       node.setAttribute('aria-label', `${card.name}, ${card.setName}, number ${card.number}`);
@@ -11332,6 +11640,7 @@ function updateZoomModalContent() {
   if (!currentCardsList.length) return;
   const card = currentCardsList[currentZoomIndex];
   if (!card) return;
+  queueVisibleCardDetails(card);
   const tcgZoomImg = document.getElementById('tcgZoomImg');
   const tcgZoomTitle = document.getElementById('tcgZoomTitle');
   const tcgZoomMeta = document.getElementById('tcgZoomMeta');
@@ -11769,6 +12078,7 @@ function closeTcgZoom() {
   cancelZoomCarousel();
   const modal = document.getElementById('tcgZoomModal');
   if (modal) modal.style.display = 'none';
+    flushDeferredCataloguePaint();
   zoomViewArea?.querySelectorAll('img').forEach(img => {
     clearTimeout(img._tcgArtworkTimer);
     setTcgArtworkUnavailable(img, false);
@@ -12094,11 +12404,13 @@ hideActive();
     iv *= 1.1;
   }
   try {
-    const deadline = Date.now() + 20000;
-    const tData = await fetchJsonWithRetry(`https://pokeapi.co/api/v2/type/${TYPES[idx]}`, { deadline }, 1);
+    const tData = await getWheelTypeData(TYPES[idx]);
     const valid = tData.pokemon.filter(p => parseInt(p.pokemon.url.split('/').filter(Boolean).pop()) <= TOTAL);
     if (!valid.length) throw new Error('No eligible Pokémon for this type');
-    const pData = await fetchJsonWithRetry(valid[Math.floor(Math.random() * valid.length)].pokemon.url, { deadline }, 1);
+    const selected = valid[Math.floor(Math.random() * valid.length)].pokemon;
+    const selectedId = Number(selected.url.split('/').filter(Boolean).pop());
+    const pData = await getPokemonSwipeData(selectedId);
+    preloadEncounterArtwork(pData);
     const shiny = Math.floor(Math.random() * 100) === 0;
     
     setTimeout(() => {
@@ -12166,7 +12478,7 @@ const pokemonSwipe = { drag: null, delta: 0, step: 0, busy: false, frame: null, 
 async function getPokemonSwipeData(id) {
   if (pokemonSwipeDataCache.has(id)) return pokemonSwipeDataCache.get(id);
   if (pokemonSwipeDataRequests.has(id)) return pokemonSwipeDataRequests.get(id);
-  const request = fetchJsonWithRetry(`https://pokeapi.co/api/v2/pokemon/${id}`, { deadline: Date.now() + 15000 }, 1);
+  const request = getFastPokemonData('pokemon', id, `https://pokeapi.co/api/v2/pokemon/${id}`, compactPokemonData);
   pokemonSwipeDataRequests.set(id, request);
   try {
     const data = await request;
@@ -12371,23 +12683,24 @@ function repairNationalDexDirectory(entries) {
   });
 }
 
-async function loadPokemonDirectory() {
+async function loadPokemonDirectory(forceRefresh = false) {
   const now = Date.now();
   try {
     const cached = localStorage.getItem(DEX_CACHE_KEY);
     const cachedTime = parseInt(localStorage.getItem(DEX_CACHE_TIME_KEY) || '0', 10);
-    if (cached && cachedTime && (now - cachedTime) < DEX_CACHE_MAX_AGE) {
+    if (!forceRefresh && cached && cachedTime && (now - cachedTime) < 30 * DEX_CACHE_MAX_AGE) {
       const parsed = JSON.parse(cached);
       if (Array.isArray(parsed) && parsed.length === TOTAL) {
         dir = repairNationalDexDirectory(parsed);
         try { localStorage.setItem(DEX_CACHE_KEY, JSON.stringify(dir)); } catch (e) {}
+        if (now - cachedTime >= DEX_CACHE_MAX_AGE) setTimeout(() => loadPokemonDirectory(true).catch(() => {}), 0);
         return;
       }
     }
   } catch (e) {}
 
   try {
-    const data = await fetchJsonWithRetry(`https://pokeapi.co/api/v2/pokemon?limit=${TOTAL}`, { deadline: Date.now() + 15000 }, 1);
+    const data = await fetchJsonWithRetry(`https://pokeapi.co/api/v2/pokemon?limit=${TOTAL}`, { timeoutMs: 4500, deadline: Date.now() + 8000 }, 1);
     const freshDirectory = repairNationalDexDirectory(data.results.map((p, i) => ({
       id: i + 1,
       name: p.name

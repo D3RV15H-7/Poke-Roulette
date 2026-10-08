@@ -3230,7 +3230,7 @@ html.is-standalone body.has-active .hub-outer-wrap {
 }
 </style>
 </head>
-<body data-app-build="v118">
+<body data-app-build="v119">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -5208,15 +5208,14 @@ function canonicalTcgArtworkUrl(source) {
 function assignTcgArtworkSource(img, source, fresh = false) {
   const canonical = canonicalTcgArtworkUrl(source);
   img._tcgSource = canonical;
-  if (/^https:\/\/(?:assets\.tcgdex\.net|images\.pokemontcg\.io)\//i.test(canonical)) {
-    // Versioned requests escape stale image/back placeholders without clearing
-    // collection or catalogue caches. Retry rounds also get a fresh request.
+  // v119: ordinary image loads must use their original HTTP-cache key and
+  // native image mode. CORS/pixel inspection must not decide display success.
+  img.removeAttribute('crossorigin');
+  if (fresh && /^https?:/i.test(canonical)) {
     const url = new URL(canonical);
-    url.searchParams.set('pr_artwork', fresh ? '118-' + Date.now() : '118');
-    if (img._tcgCorsFallbacks?.has(canonical)) img.removeAttribute('crossorigin');
-    else img.crossOrigin = 'anonymous';
+    url.searchParams.set('artworkRetry', img._tcgRetryStamp || (img._tcgRetryStamp = String(Date.now())));
     img.src = url.href;
-  } else { img.removeAttribute('crossorigin'); img.src = canonical; }
+  } else img.src = canonical;
 }
 function isTcgCardBackImage(img) {
   // Perceptual hashes sampled from the supplied card-back screenshots. The
@@ -5689,7 +5688,9 @@ function getCardArtworkSources(card) {
       ((!card.artworkPokemonSetId || PROMO_ARTWORK_SERIES[setId]) && getTcgDexArtworkSeries(setId) ? setId : '')
     ).toLowerCase();
     const series = getTcgDexArtworkSeries(dexSet);
-    if (series) {
+    if (series && !audited.small.length) {
+      // An audited path already specifies the exact provider ID, padding and
+      // scan. Do not queue guessed IDs/padding after it: they can return backs.
       // Some TCGdex scans use the printed number, others a three-digit local ID.
       for (const id of new Set([localId, localId.padStart(3, '0')])) {
         const base = `https://assets.tcgdex.net/en/${series}/${dexSet}/${id}`;
@@ -5697,7 +5698,11 @@ function getCardArtworkSources(card) {
       }
     }
   }
+  // Recent Mega releases have exact audited TCGdex fronts. The legacy CDN
+  // can answer these still-unpublished paths with an HTTP-200 card back.
+  const auditedMega = audited.small.length && /^(?:me\d|30th)/.test(AUDITED_ARTWORK_SET_ALIASES[setId] || setId);
   const unique = urls => [...new Set(urls.filter(url =>
+    !(auditedMega && /^https:\/\/images\.pokemontcg\.io\//i.test(url)) &&
     url !== TCG_CARD_ARTWORK_UNAVAILABLE && isValidFrontCardImage(url)
   ))];
   // A back-of-card placeholder returns HTTP 200, so onerror cannot detect it.
@@ -5729,7 +5734,12 @@ function getCardArtworkSources(card) {
 function setTcgImageFallbacks(img, card, quality = 'small') {
   if (!img || !card) return;
   clearTimeout(img._tcgArtworkTimer);
-  if (img._tcgCard !== card) { img._tcgRetryAttempted = false; img._tcgCorsFallbacks = new Set(); delete img._tcgRejectedSource; }
+  cancelTcgZoomArtworkUpgrade(img);
+  if (img._tcgCard !== card) {
+    img._tcgRetryAttempted = false;
+    img._tcgFreshRound = false;
+    delete img._tcgRetryStamp;
+  }
   img._tcgCard = card;
   img._tcgQuality = quality;
   img._tcgArtworkDeadline = Date.now() + 30000;
@@ -5756,7 +5766,16 @@ function setTcgImageFallbacks(img, card, quality = 'small') {
   card.largeImg = artwork.large[0] || TCG_CARD_ARTWORK_UNAVAILABLE;
   card.smallImgFallbacks = artwork.small.slice(1);
   card.largeImgFallbacks = artwork.large.slice(1);
-  if (card.resolvedSmallImg && !artwork.small.includes(card.resolvedSmallImg)) delete card.resolvedSmallImg;
+  if (card.resolvedSmallImg) card.resolvedSmallImg = canonicalTcgArtworkUrl(card.resolvedSmallImg);
+  // v118 may have remembered a fallback card back after abandoning the exact
+  // front. Retain old successes only at the primary, verified scan/encoding.
+  if (card.resolvedSmallImg && (!artwork.small.includes(card.resolvedSmallImg) ||
+      (card._tcgResolvedArtworkBuild !== 'v119' && !artwork.small.slice(0, 2).includes(card.resolvedSmallImg))))
+    delete card.resolvedSmallImg;
+  if (quality === 'small' && card.resolvedSmallImg) {
+    card.smallImg = card.resolvedSmallImg;
+    card.smallImgFallbacks = artwork.small.filter(url => url !== card.smallImg);
+  }
   img._tcgArtworkFallbacks = [
     ...(quality === 'large' && card.resolvedSmallImg ? [card.resolvedSmallImg] : []),
     ...((quality === 'large' ? card.largeImgFallbacks : card.smallImgFallbacks) || [])
@@ -5766,14 +5785,14 @@ function setTcgImageFallbacks(img, card, quality = 'small') {
   img.onload = () => {
     clearTimeout(img._tcgArtworkTimer);
     if (img.src !== TCG_CARD_ARTWORK_UNAVAILABLE && img.naturalWidth > 0 &&
-        (img.naturalWidth < 10 || img.naturalHeight < 10 || isTcgCardBackImage(img))) {
-      img._tcgRejectedSource = canonicalTcgArtworkUrl(img.currentSrc || img.src);
+        (img.naturalWidth < 10 || img.naturalHeight < 10)) {
       handleTcgImageError(img);
       return;
     }
     setTcgArtworkUnavailable(img, img.src === TCG_CARD_ARTWORK_UNAVAILABLE);
     if (quality === 'small' && img.src !== TCG_CARD_ARTWORK_UNAVAILABLE) {
       card.resolvedSmallImg = canonicalTcgArtworkUrl(img.currentSrc || img.src);
+      card._tcgResolvedArtworkBuild = 'v119';
       queueVisibleCardDetails(card);
     }
   };
@@ -5835,21 +5854,16 @@ function retryTcgArtwork(img) {
     setTcgArtworkUnavailable(img, true);
     return;
   }
-  // Force fresh image requests, including each fallback, without changing
-  // the card identity, ownership, price, or saved collection data.
-  const stamp = String(Date.now());
-  const fresh = sources.map(source => {
-    const url = new URL(source, window.location.href);
-    url.searchParams.set('artworkRetry', stamp);
-    return url.href;
-  });
-  img._tcgArtworkFallbacks = fresh.slice(1);
+  // Only a real retry bypasses the HTTP cache, with one key for the round.
+  img._tcgFreshRound = true;
+  img._tcgRetryStamp = String(Date.now());
+  img._tcgArtworkFallbacks = sources.slice(1);
   if (img._tcgRetryButton) {
     img._tcgRetryButton.hidden = false;
     img._tcgRetryButton.disabled = true;
     img._tcgRetryButton.setAttribute('aria-busy', 'true');
   }
-  assignTcgArtworkSource(img, fresh[0], true);
+  assignTcgArtworkSource(img, sources[0], true);
   armTcgPreviewArtworkTimeout(img);
 }
 
@@ -5857,17 +5871,6 @@ function handleTcgImageError(img) {
   clearTimeout(img._tcgArtworkTimer);
   if (img.src === TCG_CARD_ARTWORK_UNAVAILABLE) {
     setTcgArtworkUnavailable(img, true);
-    return;
-  }
-  // Some older scan hosts omit CORS headers. Permit one native-image retry
-  // rather than lose a legitimate front because pixel inspection is blocked.
-  // A confirmed card back never takes this bypass.
-  const source = canonicalTcgArtworkUrl(img.currentSrc || img.src);
-  if (img.crossOrigin === 'anonymous' && /^https:\/\/images\.pokemontcg\.io\//i.test(source) &&
-      source !== img._tcgRejectedSource && !img._tcgCorsFallbacks?.has(source)) {
-    (img._tcgCorsFallbacks ||= new Set()).add(source);
-    assignTcgArtworkSource(img, source, !!img._tcgFreshRound);
-    armTcgPreviewArtworkTimeout(img);
     return;
   }
   if (img.closest('.tcg-carousel-card') && Date.now() >= img._tcgArtworkDeadline) {
@@ -9131,6 +9134,7 @@ function createSetThumbnailLoader(root) {
     const version = ++record.version;
     let timeouts = 0;
     img._tcgFreshRound = record.retries > 0;
+    if (img._tcgFreshRound) img._tcgRetryStamp = String(Date.now());
     const current = () => !disposed && record.version === version && img.isConnected;
     setTcgImageFallbacks(img, record.card);
     const sources = getCardArtworkSources(record.card).small;
@@ -9161,7 +9165,9 @@ function createSetThumbnailLoader(root) {
         // A request that never fires load/error must not block the entire queue.
         if (++timeouts >= 3) img._tcgArtworkFallbacks = [];
         img.onerror();
-      }, 6000);
+      // v118's six-second cutoff abandoned valid cold-cache requests. Keep
+      // their original allowance; cached native image loads are immediate.
+      }, 15000);
     }
     img.onload = () => {
       if (!current()) return;
@@ -11980,6 +11986,55 @@ function getCardEbaySearchUrl(card) {
   return url.href;
 }
 
+// A painted thumbnail remains visible while an HD scan downloads/decodes.
+// Detached upgrade failures never replace the visible front with a broken img.
+function cancelTcgZoomArtworkUpgrade(img) {
+  const pending = img._tcgZoomUpgrade;
+  if (!pending) return;
+  clearTimeout(pending.timer);
+  pending.image.onload = pending.image.onerror = null;
+  pending.image.removeAttribute('src');
+  img._tcgZoomUpgrade = null;
+}
+function showTcgZoomArtwork(img, card) {
+  const painted = img._tcgCard === card && img.complete && img.naturalWidth >= 10 &&
+    img.src !== TCG_CARD_ARTWORK_UNAVAILABLE ? canonicalTcgArtworkUrl(img.currentSrc || img.src) : '';
+  setTcgImageFallbacks(img, card, 'large');
+  const artwork = getCardArtworkSources(card);
+  const thumbnail = card.resolvedSmallImg || painted;
+  const large = card.largeImg || card.smallImg;
+  if (!thumbnail || ![...artwork.small, ...artwork.large].includes(thumbnail)) {
+    assignTcgArtworkSource(img, large);
+    return;
+  }
+  if (canonicalTcgArtworkUrl(img.src) !== thumbnail) assignTcgArtworkSource(img, thumbnail);
+  else setTcgArtworkUnavailable(img, false);
+  // The current front is usable; a slow HD download is not an artwork failure.
+  clearTimeout(img._tcgArtworkTimer);
+  if (large === thumbnail || large === TCG_CARD_ARTWORK_UNAVAILABLE) return;
+  const image = new Image();
+  const pending = { image, timer: null };
+  img._tcgZoomUpgrade = pending;
+  const current = () => img._tcgZoomUpgrade === pending && img._tcgCard === card && img.isConnected;
+  const finish = () => {
+    clearTimeout(pending.timer);
+    image.onload = image.onerror = null;
+    if (img._tcgZoomUpgrade === pending) img._tcgZoomUpgrade = null;
+  };
+  image.onload = async () => {
+    if (!current() || image.naturalWidth < 10 || image.naturalHeight < 10) { finish(); return; }
+    try { if (image.decode) await image.decode(); } catch (_) { finish(); return; }
+    if (current()) assignTcgArtworkSource(img, large);
+    finish();
+  };
+  image.onerror = finish;
+  image.decoding = 'async';
+  pending.timer = setTimeout(() => {
+    if (img._tcgZoomUpgrade === pending) cancelTcgZoomArtworkUpgrade(img);
+  }, 20000);
+  assignTcgArtworkSource(image, large);
+}
+
 function updateZoomModalContent() {
   if (!currentCardsList.length) return;
   const card = currentCardsList[currentZoomIndex];
@@ -11990,8 +12045,7 @@ function updateZoomModalContent() {
   const tcgZoomMeta = document.getElementById('tcgZoomMeta');
   const tcgZoomCounter = document.getElementById('tcgZoomCounter');
   if (tcgZoomImg) {
-    setTcgImageFallbacks(tcgZoomImg, card, 'large');
-    assignTcgArtworkSource(tcgZoomImg, card.largeImg || card.smallImg);
+    showTcgZoomArtwork(tcgZoomImg, card);
   }
   prepareZoomCardShare(card);
   renderCardName(tcgZoomTitle, card.name);
@@ -12420,6 +12474,7 @@ function closeTcgZoom() {
   const openSetButton = document.getElementById('zoomOpenSetBtn');
   if (openSetButton) { openSetButton.disabled = false; openSetButton.removeAttribute('aria-busy'); }
   cancelZoomCarousel();
+  document.querySelectorAll('#zoomViewArea img').forEach(cancelTcgZoomArtworkUpgrade);
   const modal = document.getElementById('tcgZoomModal');
   if (modal) modal.style.display = 'none';
     flushDeferredCataloguePaint();

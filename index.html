@@ -3165,19 +3165,21 @@ html.is-browser body.main-search-focused .viewport {
 @media (prefers-reduced-motion: reduce) {
   .center-hub { animation: none; }
 }
-/* v113: every installed-app screen uses ONE bounded frame. Content owns the
-   first row and navigation owns the last row; neither depends on encounter
-   content, body scroll height, innerHeight or a fixed-position footer offset.
-   Use vh for the installed app's full layout viewport (not short dvh/svh). */
+/* v117: the installed app retains one grid frame, with content in the first
+   row and navigation in the last. Size it to the independently measured
+   visible viewport; a 100vh frame can extend below the physical screen. */
 html.is-standalone {
-  height: 100vh;
+  height: var(--app-visible-height, 100dvh);
   min-height: 0;
   overflow: hidden;
 }
 html.is-standalone body {
   position: fixed;
-  inset: 0;
-  height: 100vh;
+  top: var(--app-viewport-top, 0px);
+  bottom: auto;
+  left: 0;
+  right: 0;
+  height: var(--app-visible-height, 100dvh);
   min-height: 0;
   width: 100%;
   margin: 0;
@@ -3228,7 +3230,7 @@ html.is-standalone body.has-active .hub-outer-wrap {
 }
 </style>
 </head>
-<body data-app-build="v116">
+<body data-app-build="v117">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -6049,7 +6051,12 @@ function rememberEncounterMedia(key, record) {
   encounterMedia.set(key, record);
   while (encounterMedia.size > 24) {
     const [oldKey, old] = encounterMedia.entries().next().value;
+    // Keep BOTH variants of the current encounter alive, even while neighbour
+    // and earlier requests finish. Otherwise an unused shiny blob can be revoked.
+    const protectedArt = curPoke && [...encounterArtworkSources(curPoke, false), ...encounterArtworkSources(curPoke, true)]
+      .some(url => oldKey === 'art:' + url);
     encounterMedia.delete(oldKey);
+    if (protectedArt) { encounterMedia.set(oldKey, old); continue; }
     // Do not revoke an image still mounted in the page or an active audio file.
     if (old.src && !Array.from(document.querySelectorAll('img')).some(img => img.src === old.src) && activeCryAudio !== old.audio) {
       URL.revokeObjectURL?.(old.src);
@@ -6156,6 +6163,7 @@ function preloadEncounterId(id) {
   // these files alongside the Pokémon JSON request, not after it finishes.
   const base = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/';
   fetchEncounterMedia(`${base}other/home/${id}.png`, 'art').catch(() => {});
+  fetchEncounterMedia(`${base}other/home/shiny/${id}.png`, 'art').catch(() => {});
   fetchEncounterMedia(`https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/${id}.ogg`, 'cry').catch(() => {});
 }
 function stopEncounterCry() {
@@ -6180,8 +6188,45 @@ function startPreparedCry(record, token, pokemonId) {
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) stopEncounterCry(); });
 
+// v117: retain a decoded pair per Pokémon object; no new download when the
+// star toggles between normal and shiny (including a shiny encounter).
+const encounterArtworkPairs = new WeakMap();
+const pairedEncounterNeighbours = new WeakSet();
+function getEncounterArtworkPair(p) {
+  if (!encounterArtworkPairs.has(p)) encounterArtworkPairs.set(p, {});
+  return encounterArtworkPairs.get(p);
+}
+function getPreparedEncounterVariant(p, shiny) {
+  const pair = getEncounterArtworkPair(p), key = shiny ? 'shiny' : 'normal';
+  // A revisited Pokémon object can outlive the bounded media cache. Only use
+  // a pair entry while its blob is still retained; otherwise load it again.
+  if (pair[key] && Array.from(encounterMedia.values()).includes(pair[key])) return pair[key];
+  delete pair[key];
+  const source = encounterArtworkSources(p, shiny)[0];
+  const ready = encounterMedia.get('art:' + source);
+  if (ready) pair[key] = ready;
+  return ready;
+}
+async function prepareEncounterVariant(p, shiny) {
+  const pair = getEncounterArtworkPair(p), key = shiny ? 'shiny' : 'normal', taskKey = key + 'Task';
+  const ready = getPreparedEncounterVariant(p, shiny);
+  if (ready) return ready;
+  if (pair[taskKey]) return pair[taskKey];
+  const task = prepareEncounterArtwork(p, shiny).then(record => (pair[key] = record));
+  pair[taskKey] = task;
+  try { return await task; } finally { delete pair[taskKey]; }
+}
+function warmEncounterNeighboursAfterPair(p) {
+  if (pairedEncounterNeighbours.has(p)) return;
+  pairedEncounterNeighbours.add(p);
+  Promise.allSettled([prepareEncounterVariant(p, false), prepareEncounterVariant(p, true)]).then(() => {
+    if (curPoke === p && !isSpinning) warmPokemonSwipeNeighbours(p);
+  });
+}
+
 function preloadEncounterArtwork(data, shiny = false) {
-  prepareEncounterArtwork(data, shiny).catch(() => {});
+  prepareEncounterVariant(data, shiny).catch(() => {});
+  prepareEncounterVariant(data, !shiny).catch(() => {});
   prepareEncounterCry(data).catch(() => {});
 }
 
@@ -11046,33 +11091,35 @@ function updateArt() {
   if (!curPoke) return;
   const p = curPoke, shiny = isShiny;
   const img = document.getElementById('pokeImg');
-  document.getElementById('shinyBtn')?.classList.toggle('active', shiny);
+  const button = document.getElementById('shinyBtn');
+  button?.classList.toggle('active', shiny);
   if (!img) return;
   clearTimeout(img._artTimer);
   img.onload = img.onerror = null;
   const token = img._artToken = (img._artToken || 0) + 1;
-  const key = String(p.id) + ':' + shiny;
-  if (img.dataset.encounterArt !== key) {
-    img.dataset.encounterArt = key;
+  const pokemonId = String(p.id), key = pokemonId + ':' + shiny;
+  // A different species must not inherit the last encounter. Switching colour
+  // for the SAME species keeps its complete image mounted until the swap is ready.
+  if (img.dataset.displayedPokemonId !== pokemonId) {
     img.style.visibility = 'hidden'; img.removeAttribute('src');
   }
+  img.dataset.encounterArt = key;
   img.alt = getCleanNationalDexName(p.name, p.species?.name);
   img.decoding = 'async'; img.loading = 'eager'; img.fetchPriority = 'high';
   img.setAttribute('aria-busy', 'true');
+  button?.setAttribute('aria-busy', 'true');
   const paint = record => {
     if (img._artToken !== token || curPoke !== p || isShiny !== shiny || isSpinning) return;
-    // Detached artwork has already downloaded and decoded in full. The blob
-    // URL cannot display a half-downloaded remote PNG on the main page.
-    img.onload = () => { if (img._artToken === token) img.style.visibility = ''; };
     img.src = record.src;
-    img.style.visibility = ''; img.removeAttribute('aria-busy');
-    warmPokemonSwipeNeighbours(p);
+    img.dataset.displayedPokemonId = pokemonId;
+    img.style.visibility = '';
+    img.removeAttribute('aria-busy'); button?.removeAttribute('aria-busy');
+    warmEncounterNeighboursAfterPair(p);
   };
-  const url = encounterArtworkSources(p, shiny)[0];
-  const ready = encounterMedia.get('art:' + url);
+  const ready = getPreparedEncounterVariant(p, shiny);
   if (ready) paint(ready);
-  else prepareEncounterArtwork(p, shiny).then(paint).catch(() => {
-    if (img._artToken === token) img.removeAttribute('aria-busy');
+  else prepareEncounterVariant(p, shiny).then(paint).catch(() => {
+    if (img._artToken === token) { img.removeAttribute('aria-busy'); button?.removeAttribute('aria-busy'); }
   });
 }
 
@@ -13010,11 +13057,13 @@ function syncAppViewportLayout() {
   root.classList.toggle('is-standalone', standalone);
   root.classList.toggle('is-browser', !standalone);
 
-  const viewportTop = standalone ? 0 : (vv ? vv.offsetTop : 0);
-  // The installed app owns a full-height grid frame. Measure that frame for
-  // overlays; never resize it to innerHeight/visualViewport or encounter data.
-  const frameHeight = standalone ? document.body.getBoundingClientRect().height : 0;
-  const viewportHeight = Math.max(0, Math.round(standalone ? (frameHeight || window.innerHeight) : (vv ? vv.height : window.innerHeight)));
+  // v117: read an independent, visible screen boundary. A 100vh body can be
+  // taller than the Home Screen app's usable viewport; measuring that body
+  // simply preserves the error and pushes the dock off-screen.
+  const visualHeight = Number(vv?.height);
+  const hasVisualViewport = Number.isFinite(visualHeight) && visualHeight > 0;
+  const viewportTop = Math.max(0, Math.floor(hasVisualViewport ? Number(vv.offsetTop) || 0 : 0));
+  const viewportHeight = Math.max(0, Math.floor(hasVisualViewport ? visualHeight : (window.innerHeight || root.clientHeight)));
   root.style.setProperty('--dock-screen-height', `${viewportHeight}px`);
   root.style.setProperty('--dock-viewport-bottom', `${viewportTop + viewportHeight}px`);
 

@@ -3227,24 +3227,8 @@ html.is-standalone body.has-active .hub-outer-wrap {
   -webkit-transform: none;
 }
 </style>
-<style>
-/* Update notice occupies space only when a release is ready, above the wheel. */
-.app-update-row { flex: 0 0 auto; width: 100%; display: flex; justify-content: center; padding-top: 0.25rem; }
-.app-update-row[hidden], body.has-active .app-update-row { display: none; }
-.app-update-button {
-  display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
-  padding: 0.48rem 0.85rem; border-radius: 12px; border: 1px solid var(--green);
-  background: #0d3332; color: #6ee7b7; font-size: 0.72rem; font-weight: 800;
-  cursor: pointer; box-shadow: 0 0 14px rgba(16,185,129,0.16);
-}
-.app-update-button svg { width: 18px; height: 18px; flex: 0 0 18px; }
-.app-update-button:focus-visible { outline: 2px solid #6ee7b7; outline-offset: 3px; }
-.app-update-button:disabled { opacity: 0.6; cursor: default; }
-.app-update-button[aria-busy="true"] svg { animation: profileStatLoadingSpin 1.1s linear infinite; }
-@media (prefers-reduced-motion: reduce) { .app-update-button[aria-busy="true"] svg { animation: none; } }
-</style>
 </head>
-<body data-app-build="v114">
+<body data-app-build="v113">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3287,15 +3271,6 @@ html.is-standalone body.has-active .hub-outer-wrap {
   </div>
 
 </div>
-
-  <div class="app-update-row" id="appUpdateRow" hidden>
-    <button class="app-update-button" id="appUpdateButton" type="button" onclick="applyAppUpdate()" aria-busy="false">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3A7 7 0 0 0 17.9 17" />
-      </svg>
-      <span id="appUpdateLabel" role="status" aria-live="polite">Update App</span>
-    </button>
-  </div>
 
   <div class="wheel-wrap" id="wheelWrap" role="button" tabindex="0" aria-label="Spin the Pokémon type wheel"
     onclick="handleSpinButtonClick()"
@@ -3668,7 +3643,7 @@ html.is-standalone body.has-active .hub-outer-wrap {
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(observeAppUpdateWorker).catch(() => {});
+    navigator.serviceWorker.register('./sw.js').catch(err => {});
   });
 }
 
@@ -12762,206 +12737,6 @@ if (typeof MutationObserver !== 'undefined') {
   new MutationObserver(scheduleAppViewportLayout).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 }
 document.fonts?.ready.then(scheduleAppViewportLayout);
-
-</script>
-<script id="appUpdateScript">
-/* PokéRoulette update checks. This source is embedded in index.html for delivery. */
-const appUpdateState = {
-  build: document.body.dataset.appBuild,
-  checking: false, updating: false, available: false,
-  registration: null, lastCheck: 0, pageValidator: null,
-  latestBuild: null, assetSnapshot: null
-};
-const appUpdateRoot = new URL('./', window.location.href);
-const appUpdateStorageKey = 'p_app_update_assets_' + appUpdateRoot.href + '_' + appUpdateState.build;
-
-function appBuildNumber(build) {
-  return /^v\d+$/.test(build || '') ? Number(build.slice(1)) : null;
-}
-function appUpdateAssetURLs(doc = document) {
-  return [...doc.querySelectorAll('head link[rel="manifest"], head link[rel="apple-touch-icon"], head link[rel~="icon"]')]
-    .map(link => new URL(link.getAttribute('href'), appUpdateRoot).href)
-    .filter(url => new URL(url).origin === appUpdateRoot.origin)
-    .filter((url, index, list) => list.indexOf(url) === index);
-}
-function parseAppUpdateRelease(html) {
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  const build = doc.body?.dataset.appBuild;
-  if (appBuildNumber(build) === null) throw new Error('The server has not returned an app version.');
-  return { build, assets: appUpdateAssetURLs(doc) };
-}
-function appResponseValidator(response) {
-  return response.headers.get('etag') || (response.headers.get('last-modified') ?
-    response.headers.get('last-modified') + ':' + (response.headers.get('content-length') || '') : null);
-}
-async function fetchAppUpdateFile(url, method = 'GET') {
-  const probe = new URL(url);
-  probe.searchParams.delete('__pr_app_update');
-  probe.searchParams.set('__pr_update_check', String(Date.now()));
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10000);
-  try {
-    const response = await fetch(probe.href, { method, cache: 'no-store', credentials: 'same-origin', signal: controller.signal });
-    if (!response.ok) throw new Error('The update is not available yet.');
-    // Read the document under the same timeout as its headers.
-    return { response, html: method === 'GET' ? await response.text() : null };
-  } finally { clearTimeout(timer); }
-}
-function showAppUpdateAvailable(build = appUpdateState.build) {
-  appUpdateState.available = true;
-  if (appBuildNumber(build) >= appBuildNumber(appUpdateState.latestBuild || appUpdateState.build)) appUpdateState.latestBuild = build;
-  document.getElementById('appUpdateRow').hidden = false;
-  scheduleAppViewportLayout();
-}
-function observeAppUpdateWorker(registration) {
-  appUpdateState.registration = registration;
-  const inspect = () => {
-    if (registration.waiting && navigator.serviceWorker.controller) showAppUpdateAvailable();
-  };
-  const followInstalling = () => {
-    const worker = registration.installing;
-    worker?.addEventListener('statechange', inspect);
-    inspect();
-  };
-  registration.addEventListener('updatefound', followInstalling);
-  followInstalling();
-}
-async function checkAppUpdateAssets() {
-  const urls = appUpdateAssetURLs();
-  const results = await Promise.allSettled(urls.map(async url => {
-    const { response } = await fetchAppUpdateFile(url, 'HEAD');
-    return [url, appResponseValidator(response)];
-  }));
-  let baseline = {};
-  try { baseline = JSON.parse(localStorage.getItem(appUpdateStorageKey) || '{}') || {}; } catch (_) {}
-  const snapshot = { ...baseline };
-  let changed = false;
-  for (const result of results) {
-    if (result.status !== 'fulfilled') continue;
-    const [url, validator] = result.value;
-    if (!validator) continue;
-    if (baseline[url] && baseline[url] !== validator) changed = true;
-    snapshot[url] = validator;
-  }
-  appUpdateState.assetSnapshot = snapshot;
-  if (changed) showAppUpdateAvailable();
-  else if (!appUpdateState.available) {
-    try { localStorage.setItem(appUpdateStorageKey, JSON.stringify(snapshot)); } catch (_) {}
-  }
-}
-async function checkForAppUpdate(force = false) {
-  if (appUpdateState.checking || appUpdateState.updating || navigator.onLine === false ||
-      document.visibilityState === 'hidden' || (!force && Date.now() - appUpdateState.lastCheck < 60000)) return;
-  appUpdateState.checking = true;
-  appUpdateState.lastCheck = Date.now();
-  try {
-    let needDocument = true;
-    if (appUpdateState.pageValidator) {
-      try {
-        const { response } = await fetchAppUpdateFile(window.location.href, 'HEAD');
-        needDocument = appResponseValidator(response) !== appUpdateState.pageValidator;
-      } catch (_) { /* A server without HEAD support can still provide the document. */ }
-    }
-    if (needDocument) {
-      const { response, html } = await fetchAppUpdateFile(window.location.href);
-      const release = parseAppUpdateRelease(html);
-      const current = appBuildNumber(appUpdateState.build), latest = appBuildNumber(release.build);
-      const validator = appResponseValidator(response);
-      const documentChanged = appUpdateState.pageValidator && validator && appUpdateState.pageValidator !== validator;
-      if (latest > current) showAppUpdateAvailable(release.build);
-      else if (latest === current && (documentChanged || JSON.stringify(release.assets) !== JSON.stringify(appUpdateAssetURLs()))) showAppUpdateAvailable();
-      if (latest >= current) appUpdateState.pageValidator = validator;
-    }
-    await checkAppUpdateAssets();
-    if (appUpdateState.registration) {
-      appUpdateState.registration.update().catch(() => {});
-      if (appUpdateState.registration.waiting && navigator.serviceWorker.controller) showAppUpdateAvailable();
-    }
-  } catch (_) { /* Keep the working app quiet when offline or during deployment. */ }
-  finally { appUpdateState.checking = false; }
-}
-async function activateAppUpdateWorker(registration) {
-  if (!registration || registration.scope !== appUpdateRoot.href) return;
-  // Unregister on timeout only for this app's scope: older workers may not
-  // understand our activation message. The next navigation registers the new one.
-  let updateTimer;
-  await Promise.race([
-    registration.update().catch(() => {}),
-    new Promise(resolve => { updateTimer = setTimeout(resolve, 5000); })
-  ]);
-  clearTimeout(updateTimer);
-  const worker = registration.waiting;
-  if (worker) {
-    let activated = false;
-    await new Promise(resolve => {
-      const finish = success => {
-        activated = success;
-        clearTimeout(timer);
-        navigator.serviceWorker.removeEventListener('controllerchange', changed);
-        resolve();
-      };
-      const changed = () => { if (navigator.serviceWorker.controller === worker) finish(true); };
-      const timer = setTimeout(() => finish(false), 6000);
-      navigator.serviceWorker.addEventListener('controllerchange', changed);
-      try { worker.postMessage({ type: 'POKEROULETTE_SKIP_WAITING' }); }
-      catch (_) { finish(false); }
-    });
-    if (!activated) await registration.unregister();
-  } else {
-    // Also bypass unknown existing workers when HTML/artwork changed without sw.js.
-    await registration.unregister();
-  }
-}
-function navigateToUpdatedApp(url) { window.location.replace(url); }
-async function applyAppUpdate() {
-  if (!appUpdateState.available || appUpdateState.updating) return;
-  if (navigator.onLine === false) { showToast('Connect to the internet to update.', 'warning'); return; }
-  if (isSpinning) return;
-  appUpdateState.updating = true;
-  const button = document.getElementById('appUpdateButton'), label = document.getElementById('appUpdateLabel');
-  button.disabled = true;
-  button.setAttribute('aria-busy', 'true');
-  label.textContent = 'Updating…';
-  try {
-    const { html } = await fetchAppUpdateFile(window.location.href);
-    const release = parseAppUpdateRelease(html);
-    const expected = appBuildNumber(appUpdateState.latestBuild || appUpdateState.build);
-    if (appBuildNumber(release.build) < expected) throw new Error('The new version is still being published.');
-    saveTcgSeriesViewState();
-    let registration = appUpdateState.registration;
-    if (!registration && navigator.serviceWorker?.getRegistration) {
-      registration = await navigator.serviceWorker.getRegistration(appUpdateRoot.href).catch(() => null);
-    }
-    await activateAppUpdateWorker(registration);
-    // Preserve collection, sign-in, card caches and other apps' data.
-    if (appUpdateState.assetSnapshot) {
-      try { localStorage.setItem(appUpdateStorageKey, JSON.stringify(appUpdateState.assetSnapshot)); } catch (_) {}
-    }
-    const url = new URL(window.location.href);
-    url.searchParams.delete('__pr_update_check');
-    url.searchParams.set('__pr_app_update', release.build + '-' + Date.now());
-    navigateToUpdatedApp(url.href);
-  } catch (_) {
-    appUpdateState.updating = false;
-    button.disabled = false;
-    button.setAttribute('aria-busy', 'false');
-    label.textContent = 'Update App';
-    showToast('Unable to update yet. Please try again shortly.', 'warning');
-  }
-}
-// Keep the reload token out of shared/bookmarked URLs after it has done its job.
-if (new URL(window.location.href).searchParams.has('__pr_app_update')) {
-  const cleanURL = new URL(window.location.href);
-  cleanURL.searchParams.delete('__pr_app_update');
-  history.replaceState(history.state, '', cleanURL.href);
-}
-window.addEventListener('load', () => { setTimeout(() => checkForAppUpdate(true), 2000); });
-window.addEventListener('online', () => checkForAppUpdate(true));
-window.addEventListener('pageshow', () => checkForAppUpdate());
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') checkForAppUpdate();
-});
-setInterval(() => checkForAppUpdate(), 120000);
 
 </script>
 </body>

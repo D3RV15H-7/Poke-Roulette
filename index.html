@@ -3238,7 +3238,7 @@ html.is-standalone body.has-active .hub-outer-wrap {
 }
 </style>
 </head>
-<body data-app-build="v122">
+<body data-app-build="v123">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -11867,12 +11867,13 @@ function updateZoomShareButton() {
   const label = document.getElementById('zoomShareLabel');
   if (!button || !label) return;
   const state = zoomShareState;
-  label.textContent = state.mode === 'save' ? 'Save Image' : state.mode === 'open' ? 'Open Image' : 'Share';
+  label.textContent = 'Share';
   button.disabled = state.loading || state.busy || (!state.file && !state.url);
   button.setAttribute('aria-busy', String(state.loading || state.busy));
+  // Keep one action throughout the preview. A restricted image host can
+  // still be shared as its direct image URL using the native share sheet.
   const description = state.loading ? 'Preparing card image for sharing' :
-    state.mode === 'save' ? 'Save card image to share from your device' :
-    state.mode === 'open' ? 'Open card image to save or share' : 'Share card image';
+    state.mode === 'link' ? 'Share card image link' : 'Share card image';
   button.title = description;
   button.setAttribute('aria-label', description);
 }
@@ -11940,7 +11941,7 @@ async function prepareZoomCardShare(card) {
       const file = new File([png], `${safeName}${safeNumber ? '-' + safeNumber : ''}.png`, { type: 'image/png' });
       let canShareFiles = false;
       try { canShareFiles = !!navigator.share && !!navigator.canShare?.({ files: [file] }); } catch {}
-      Object.assign(zoomShareState, { file, url: source, loading: false, mode: canShareFiles ? 'share' : 'save' });
+      Object.assign(zoomShareState, { file, url: source, loading: false, mode: canShareFiles ? 'share' : navigator.share ? 'link' : 'save' });
       updateZoomShareButton();
       return;
     } catch {
@@ -11951,7 +11952,7 @@ async function prepareZoomCardShare(card) {
     }
   }
   if (isCurrent()) {
-    Object.assign(zoomShareState, { loading: false, mode: 'open' });
+    Object.assign(zoomShareState, { loading: false, mode: 'link' });
     updateZoomShareButton();
   }
 }
@@ -11963,36 +11964,56 @@ async function shareZoomCard(event) {
   const card = currentCardsList[currentZoomIndex];
   if (!card || document.getElementById('tcgZoomModal')?.style.display !== 'flex' || state.loading || state.busy) return;
   if (zoomCarousel.animating || zoomCarousel.pointer) return;
-  if (state.mode === 'open' && state.url) {
-    window.open(state.url, '_blank', 'noopener,noreferrer');
-    showToast('Touch and hold the card image to save or share it.', 'warning');
-    return;
-  }
-  if (!state.file) return;
-  if (state.mode === 'save') {
-    const url = URL.createObjectURL(state.file);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = state.file.name;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
-    showToast('Image downloaded. Share it from your device.');
-    return;
-  }
+  if (!state.file && !state.url) return;
   const controller = state.controller;
+  if (typeof navigator.share !== 'function') {
+    // Desktop browsers without native sharing retain the image download.
+    // For restricted hosts, copy the direct link instead of opening a tab.
+    if (state.file) {
+      const url = URL.createObjectURL(state.file);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = state.file.name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      showToast('Image downloaded. Share it from your device.');
+    } else if (state.url && navigator.clipboard?.writeText) {
+      state.busy = true;
+      updateZoomShareButton();
+      try {
+        await navigator.clipboard.writeText(state.url);
+        if (state.controller === controller) showToast('Image link copied. Paste it to share.');
+      } catch {
+        if (state.controller === controller) showToast('Unable to copy the image link. Please try again.', 'warning');
+      } finally {
+        if (state.controller === controller) { state.busy = false; updateZoomShareButton(); }
+      }
+    } else showToast('Sharing is unavailable in this browser.', 'warning');
+    return;
+  }
+  const shareFile = state.mode === 'share' && Boolean(state.file);
+  if (!shareFile && !state.url) return;
+  const data = {
+    title: card.name,
+    text: card.name + ' · ' + (card.setName || card.set?.name || 'Pokémon TCG') + ' · #' + card.number,
+    ...(shareFile ? { files: [state.file] } : { url: state.url })
+  };
   state.busy = true;
   updateZoomShareButton();
   try {
-    // Invoke immediately, without awaiting a network or conversion step.
-    await navigator.share({ files: [state.file], title: card.name,
-      text: `${card.name} · ${card.setName || card.set?.name || 'Pokémon TCG'} · #${card.number}` });
+    // Invoke immediately on the tap, without awaiting network/conversion.
+    // This preserves iOS user activation for both file and URL sharing.
+    await navigator.share(data);
   } catch (error) {
-    // Cancelling the phone's share menu is a normal action.
     if (state.controller === controller && error?.name !== 'AbortError') {
-      state.mode = 'save';
-      showToast('Sharing unavailable here. Tap Save Image to share from your device.', 'warning');
+      if (shareFile && state.url) {
+        state.mode = 'link';
+        // A failed share consumes activation. The next tap starts the link
+        // share, instead of attempting another native action immediately.
+        showToast('Image sharing unavailable. Tap Share again to share the image link.', 'warning');
+      } else showToast('Unable to share right now. Please try again.', 'warning');
     }
   } finally {
     if (state.controller === controller) { state.busy = false; updateZoomShareButton(); }

@@ -3238,7 +3238,7 @@ html.is-standalone body.has-active .hub-outer-wrap {
 }
 </style>
 </head>
-<body data-app-build="v123">
+<body data-app-build="v124">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3504,6 +3504,22 @@ html.is-standalone body.has-active .hub-outer-wrap {
     </div>
     <div class="list-view grid" id="dexGrid"></div>
   </div>
+    <button type="button" id="dexBackTop" class="tcg-set-back-top" hidden
+      aria-label="Back to top" title="Back to top"
+      onclick="event.stopPropagation(); scrollDexToEdge(false)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 19V5M5 12l7-7 7 7" />
+      </svg>
+    </button>
+    <button type="button" id="dexToBottom" class="tcg-set-back-top" hidden
+      aria-label="Jump to bottom" title="Jump to bottom"
+      onclick="event.stopPropagation(); scrollDexToEdge(true)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 5v14M5 12l7 7 7-7" />
+      </svg>
+    </button>
 </div>
 
 <div class="modal" id="recentModal" onclick="closeModal(event, 'recentModal')">
@@ -10659,6 +10675,82 @@ function closeModal(e, id) {
       activeTcgSet = null;
     }
   }
+}
+
+// Match the Sets shortcuts while supporting both Dex scroll containers.
+let dexScrollFrame = null;
+function cancelDexScroll() {
+  if (dexScrollFrame !== null) cancelAnimationFrame(dexScrollFrame);
+  dexScrollFrame = null;
+}
+function getDexScrollPositions() {
+  return [...document.querySelectorAll('#dexModal .modal-body, #dexGrid')].map(element => ({
+    element, top: element.scrollTop,
+    distance: Math.max(0, element.scrollHeight - element.clientHeight)
+  }));
+}
+function updateDexScrollArrows() {
+  const modal = document.getElementById('dexModal');
+  const up = document.getElementById('dexBackTop');
+  const down = document.getElementById('dexToBottom');
+  if (!up || !down) return;
+  const positions = getDexScrollPositions();
+  const distance = positions.reduce((sum, p) => sum + p.distance, 0);
+  const top = positions.reduce((sum, p) => sum + Math.min(p.distance, Math.max(0, p.top)), 0);
+  const canScroll = modal?.style.display === 'flex' && distance > 0;
+  const pastFirstEighth = top > distance / 8;
+  up.hidden = !(canScroll && pastFirstEighth);
+  down.hidden = !(canScroll && !pastFirstEighth);
+}
+function scrollDexToEdge(toBottom) {
+  cancelDexScroll();
+  if (document.getElementById('dexModal')?.style.display !== 'flex') return;
+  const positions = getDexScrollPositions();
+  const finish = () => {
+    for (const p of positions) p.element.scrollTop = toBottom ? p.distance : 0;
+    updateDexScrollArrows();
+  };
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ||
+      positions.every(p => p.top === (toBottom ? p.distance : 0))) {
+    finish();
+    return;
+  }
+  const startedAt = performance.now();
+  const animate = now => {
+    if (document.getElementById('dexModal')?.style.display !== 'flex') {
+      cancelDexScroll();
+      return;
+    }
+    const progress = Math.min(1, Math.max(0, (now - startedAt) / 320));
+    for (const p of positions) {
+      const target = toBottom ? p.distance : 0;
+      p.element.scrollTop = target + (p.top - target) * Math.pow(1 - progress, 3);
+    }
+    updateDexScrollArrows();
+    dexScrollFrame = progress < 1 ? requestAnimationFrame(animate) : null;
+  };
+  dexScrollFrame = requestAnimationFrame(animate);
+}
+{
+  const modal = document.getElementById('dexModal');
+  const grid = document.getElementById('dexGrid');
+  const refresh = () => { cancelDexScroll(); updateDexScrollArrows(); };
+  for (const { element } of getDexScrollPositions()) {
+    element.addEventListener('scroll', updateDexScrollArrows, { passive: true });
+    for (const event of ['pointerdown', 'touchstart', 'wheel', 'keydown'])
+      element.addEventListener(event, cancelDexScroll, { passive: true });
+  }
+  window.addEventListener('resize', refresh, { passive: true });
+  if (typeof ResizeObserver === 'function') {
+    const observer = new ResizeObserver(refresh);
+    for (const { element } of getDexScrollPositions()) observer.observe(element);
+  }
+  if (typeof MutationObserver === 'function') {
+    const observer = new MutationObserver(refresh);
+    if (modal) observer.observe(modal, { attributes: true, attributeFilter: ['style'] });
+    if (grid) observer.observe(grid, { childList: true });
+  }
+  updateDexScrollArrows();
 }
 
 function setDexTab(t) {

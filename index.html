@@ -3228,9 +3228,17 @@ html.is-standalone body.has-active .hub-outer-wrap {
   transform: none;
   -webkit-transform: none;
 }
+/* v121: retain full colour on the selected dock tab. */
+.hub .dock-artwork-icon { transition: opacity 160ms ease; }
+.hub.has-active-tab .hub-item-wrap:not(.is-active-tab) .dock-artwork-icon { opacity: 0.6; }
+.hub.has-active-tab .hub-item-wrap:not(.is-active-tab) .hub-item-label { color: var(--sub) !important; }
+.hub.has-active-tab .is-active-tab .hub-item-label { color: var(--green) !important; }
+@media (prefers-reduced-motion: reduce) {
+  .hub .dock-artwork-icon { transition: none; }
+}
 </style>
 </head>
-<body data-app-build="v120">
+<body data-app-build="v121">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3379,14 +3387,14 @@ html.is-standalone body.has-active .hub-outer-wrap {
   <div class="hub">
 
     <div class="hub-item-wrap">
-      <button class="btn-hub" onclick="navigateHub('accountModal')" title="Account" id="btnAccount">
+      <button class="btn-hub" data-hub-modal="accountModal" onclick="navigateHub('accountModal')" title="Account" id="btnAccount">
 <span class="dock-artwork-icon nav-artwork nav-artwork-account" aria-hidden="true"></span>
       </button>
       <span class="hub-item-label" id="accountLabel">Profile</span>
     </div>
 
     <div class="hub-item-wrap">
-      <button class="btn-hub" onclick="navigateHub('dexModal')" title="Collection">
+      <button class="btn-hub" data-hub-modal="dexModal" onclick="navigateHub('dexModal')" title="Collection">
 <span class="dock-artwork-icon nav-artwork nav-artwork-dex" aria-hidden="true"></span>
         <div class="hub-badge" id="bagBadge">0</div>
       </button>
@@ -3395,14 +3403,14 @@ html.is-standalone body.has-active .hub-outer-wrap {
 
     <!-- NEW SETS BUTTON -->
     <div class="hub-item-wrap">
-      <button class="btn-hub" onclick="navigateHub('setsModal')" title="Card Sets">
+      <button class="btn-hub" data-hub-modal="setsModal" onclick="navigateHub('setsModal')" title="Card Sets">
 <span class="dock-artwork-icon nav-artwork nav-artwork-sets" aria-hidden="true"></span>
       </button>
       <span class="hub-item-label">Sets</span>
     </div>
 
     <div class="hub-item-wrap">
-      <button class="btn-hub info-button" onclick="navigateHub('infoModal')" title="App Info & Legal" aria-label="Info">
+      <button class="btn-hub info-button" data-hub-modal="infoModal" onclick="navigateHub('infoModal')" title="App Info & Legal" aria-label="Info">
 <span class="dock-artwork-icon nav-artwork nav-artwork-info" aria-hidden="true"></span>
       </button>
       <span class="hub-item-label">Info</span>
@@ -3567,6 +3575,14 @@ html.is-standalone body.has-active .hub-outer-wrap {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M12 19V5M5 12l7-7 7 7" />
+    </svg>
+  </button>
+  <button type="button" id="setCardsToBottom" class="tcg-set-back-top" hidden
+    aria-label="Jump to bottom" title="Jump to bottom"
+    onclick="event.stopPropagation(); scrollSetCardsToBottom()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 5v14M5 12l7 7 7-7" />
     </svg>
   </button>
 </div>
@@ -9084,10 +9100,13 @@ function updateSetCardsBackTop() {
   const modal = document.getElementById('setsModal');
   const body = modal?.querySelector('.modal-body');
   const button = document.getElementById('setCardsBackTop');
-  if (!button || !body) return;
+  const downButton = document.getElementById('setCardsToBottom');
+  if (!button || !downButton || !body) return;
   const scrollableDistance = Math.max(0, body.scrollHeight - body.clientHeight);
-  button.hidden = !(modal.style.display === 'flex' && scrollableDistance > 0 &&
-    body.scrollTop > scrollableDistance / 8);
+  const canScroll = modal.style.display === 'flex' && scrollableDistance > 0;
+  const pastFirstEighth = body.scrollTop > scrollableDistance / 8;
+  button.hidden = !(canScroll && pastFirstEighth);
+  downButton.hidden = !(canScroll && !pastFirstEighth);
 }
 
 // Install once; content/filter changes can alter the threshold without a scroll.
@@ -9108,14 +9127,18 @@ function updateSetCardsBackTop() {
   }
 }
 
-function scrollSetCardsToTop() {
+function scrollSetCardsToTop() { scrollSetCardsToEdge(false); }
+function scrollSetCardsToBottom() { scrollSetCardsToEdge(true); }
+
+function scrollSetCardsToEdge(toBottom) {
   const body = document.querySelector('#setsModal .modal-body');
   if (!body) return;
   if (setCardsTopScrollFrame !== null) cancelAnimationFrame(setCardsTopScrollFrame);
   setCardsTopScrollFrame = null;
   const startTop = body.scrollTop;
-  if (!startTop || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-    body.scrollTop = 0;
+  const targetTop = toBottom ? Math.max(0, body.scrollHeight - body.clientHeight) : 0;
+  if (startTop === targetTop || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    body.scrollTop = targetTop;
     updateSetCardsBackTop();
     return;
   }
@@ -9126,7 +9149,7 @@ function scrollSetCardsToTop() {
       return;
     }
     const progress = Math.min(1, Math.max(0, (now - startedAt) / 320));
-    body.scrollTop = startTop * Math.pow(1 - progress, 3);
+    body.scrollTop = targetTop + (startTop - targetTop) * Math.pow(1 - progress, 3);
     updateSetCardsBackTop();
     setCardsTopScrollFrame = progress < 1 ? requestAnimationFrame(animate) : null;
   };
@@ -9623,6 +9646,9 @@ function groupTcgSetsBySeries(sets) {
       heartGoldIndex !== -1 ? heartGoldIndex : olderIndex !== -1 ? olderIndex : ordered.length;
     ordered.splice(insertionIndex, 0, mcdonalds);
   }
+  // Keep Other Series after every named series, regardless of release dates.
+  const otherIndex = ordered.findIndex(group => group.key === 'other');
+  if (otherIndex !== -1) ordered.push(...ordered.splice(otherIndex, 1));
   return ordered;
 }
 
@@ -10366,6 +10392,31 @@ function resetDexScrollToTop() {
     scroller.scrollLeft = 0;
     scroller.scrollTo?.({ top: 0, left: 0, behavior: 'auto' });
   }
+}
+
+// v121: follow visible views, including card previews and non-dock shortcuts.
+function updateHubActiveTab() {
+  const visible = id => document.getElementById(id)?.style.display === 'flex';
+  const activeId = visible('tcgZoomModal') && openedFromDexModal ? 'dexModal' :
+    visible('dexCardsModal') ? 'dexModal' :
+    ['setsModal', 'dexModal', 'accountModal', 'infoModal'].find(visible) || null;
+  const hub = document.querySelector('.hub');
+  hub?.classList.toggle('has-active-tab', Boolean(activeId));
+  hub?.querySelectorAll('[data-hub-modal]').forEach(button => {
+    const active = button.dataset.hubModal === activeId;
+    button.closest('.hub-item-wrap')?.classList.toggle('is-active-tab', active);
+    if (active) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  });
+  updateSetCardsBackTop();
+}
+{
+  const observer = new MutationObserver(updateHubActiveTab);
+  for (const id of ['accountModal', 'dexModal', 'setsModal', 'infoModal', 'dexCardsModal', 'tcgZoomModal']) {
+    const modal = document.getElementById(id);
+    if (modal) observer.observe(modal, { attributes: true, attributeFilter: ['style'] });
+  }
+  updateHubActiveTab();
 }
 
 // Dock destinations are accessible even while a nested card window is open.

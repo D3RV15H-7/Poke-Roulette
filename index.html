@@ -3039,6 +3039,7 @@ body {
   display: block;
   width: 100%;
   max-width: 420px;
+  transition: max-width 380ms cubic-bezier(0.22, 1, 0.36, 1);
   font-size: 0;
   line-height: 0;
   letter-spacing: 0;
@@ -3052,6 +3053,7 @@ body {
   width: 100%;
   height: auto;
   max-height: clamp(68px, 16dvh, 138px);
+  transition: max-height 380ms cubic-bezier(0.22, 1, 0.36, 1);
   object-fit: contain;
   pointer-events: none;
   user-select: none;
@@ -3065,6 +3067,10 @@ body {
 }
 body.has-active #appRefreshHandle h1.app-title-refresh { max-width: 210px; }
 body.has-active .app-title-logo { max-height: clamp(54px, 8dvh, 70px); }
+@media (prefers-reduced-motion: reduce) {
+  #appRefreshHandle h1.app-title-refresh,
+  #appRefreshHandle .app-title-logo { transition: none; }
+}
 .wheel-wrap {
   --wheel-size: min(clamp(240px, 46dvh, 340px), calc(100vw - 3rem));
   width: var(--wheel-size);
@@ -3238,7 +3244,7 @@ html.is-standalone body.has-active .hub-outer-wrap {
 }
 </style>
 </head>
-<body data-app-build="v124">
+<body data-app-build="v125">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -13617,6 +13623,15 @@ function scheduleAppViewportLayout() {
     syncAppViewportLayout();
   });
 }
+
+// Refitting after the title settles avoids retaining a temporary browser
+// card size calculated while the header was still at its larger height.
+document.getElementById('appRefreshHandle')?.addEventListener('transitionend', event => {
+  if ((event.target.matches('h1.app-title-refresh') && event.propertyName === 'max-width') ||
+      (event.target.matches('.app-title-logo') && event.propertyName === 'max-height')) {
+    scheduleAppViewportLayout();
+  }
+});
 
 window.addEventListener('load', syncAppViewportLayout);
 // Home Screen restoration and back/forward cache need a fresh screen edge too.

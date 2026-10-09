@@ -3286,9 +3286,20 @@ body.has-active #wheelWrap .center-hub { animation: none; }
   #wheelWrap .center-hub { animation: none; }
 }
 
+
+/* v127: slightly smaller encounter artwork, freeing vertical room too. */
+body.has-active #pokeCard .img-box,
+html.is-standalone body.has-active #pokeCard .img-box {
+  width: clamp(123px, 33vw, 153px);
+  height: clamp(123px, 33vw, 153px);
+}
+html.is-browser body.has-active #pokeCard .img-box {
+  width: var(--fitted-pokemon-size, clamp(90px, min(31vw, 19dvh), 123px));
+  height: var(--fitted-pokemon-size, clamp(90px, min(31vw, 19dvh), 123px));
+}
 </style>
 </head>
-<body data-app-build="v126">
+<body data-app-build="v127">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1

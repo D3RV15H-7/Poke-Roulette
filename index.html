@@ -3299,7 +3299,7 @@ html.is-browser body.has-active #pokeCard .img-box {
 }
 </style>
 </head>
-<body data-app-build="v127">
+<body data-app-build="v128">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -7899,11 +7899,14 @@ const CARD_VARIANT_SUPPLEMENTS = Object.freeze({
   })
 });
 
-// v120: authoritative 30C base finish, independent of generic/generated
-// API flags and stale browser caches. All ordinary 30C booster cards are foil:
-// https://www.pokemon.com/uk/news/pokemon-tcg-30th-celebration-product-showcase
-// Eevee 116 also has the Cosmos Holo Knock Out / 2-pack release. The separately
-// numbered MEP product promos and Classic Collection are NOT expansion variants.
+// v128: 30C is Holo-only unless a separately documented printing exists.
+// Provider "normal" records (including cached records without a generated ID)
+// and the shared anniversary stamp must not manufacture an Other Variant.
+// Verified exceptions: Mewtwo 063 retail What's Your Favorite? stamp, and
+// Eevee 116 Cosmos Holo from the Knock Out / Two Pack Blister products.
+// https://bulbapedia.bulbagarden.net/wiki/30th_Celebration_(TCG)
+// https://bulbapedia.bulbagarden.net/wiki/Pok%C3%A9mon_30th_Anniversary
+// Separately numbered MEP promos and the Classic Collection are excluded.
 function getThirtyCelebrationVariantSupplement(card) {
   if (!card) return null;
   const id = String(card.id || '').trim().toLowerCase();
@@ -7912,26 +7915,12 @@ function getThirtyCelebrationVariantSupplement(card) {
   if (['30th-c', 'me55c'].includes(setId) || /^(?:30th-c|me55c)-/.test(id) || /classic collection/.test(name)) return null;
   if (!['30th', 'me6', 'me55'].includes(setId) && !/^(?:30th|me6|me55)-/.test(id) && name !== '30th celebration') return null;
   const number = String(card.number || card.localId || id.replace(/^(?:30th|me6|me55)-/, '')).split('/')[0].replace(/^0+(?=\d)/, '').trim();
-  const eeveeCosmos = number === '116' && (!card.name || /^eevee$/i.test(String(card.name).trim()));
-  const detailed = card.variants_detailed || card.variantsDetailed || card._thirtiethPrintings || [];
-  // Generated defaults are not observations of another physical printing.
-  // Only explicit standard-size records may add a future extra finish. The
-  // universal anniversary stamp and illustration metadata are not extras.
-  const printings = Array.isArray(detailed) ? detailed.filter(v =>
-    v && String(v.variantId || '').toLowerCase() !== 'generated' &&
-    (!v.size || String(v.size).toLowerCase() === 'standard')
-  ) : [];
-  const other = eeveeCosmos || printings.some(v => {
-    const type = String(v.type || '').toLowerCase();
-    const stamps = Array.isArray(v.stamp) ? v.stamp : [];
-    const extraStamp = stamps.some(stamp => !/^(?:player-rewards-program|(?:30th[- ]?)?anniversary(?:[- ]stamp)?|30th[- ]celebration|30th)$/i.test(String(stamp)));
-    const extraFoil = /cosmos|galaxy|cracked[- ]ice|confetti|pixel|non[- ]holo/.test(String(v.subtype || '').toLowerCase());
-    return type === 'normal' || (type && !['holo', 'reverse'].includes(type)) || extraStamp || extraFoil;
-  });
+  const cardName = String(card.name || '').trim().toLowerCase();
+  const other = (number === '63' && (!cardName || cardName === 'mewtwo')) ||
+    (number === '116' && (!cardName || cardName === 'eevee'));
   return {
-    standard: true, baseFinish: 'holo',
-    reverseHolo: printings.some(v => String(v.type || '').toLowerCase() === 'reverse'),
-    other, source: 'v120-30th-verified-printings'
+    standard: true, baseFinish: 'holo', reverseHolo: false,
+    other, source: 'v128-30th-verified-printings'
   };
 }
 

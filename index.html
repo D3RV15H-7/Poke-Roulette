@@ -3305,9 +3305,14 @@ body:not(.has-active) #wheelWrap #wheel { touch-action: none; cursor: grab; user
 #wheelWrap #centerHub { appearance: none; -webkit-appearance: none; margin: 0; font: inherit; pointer-events: auto; cursor: pointer; touch-action: manipulation; }
 #centerHub:focus-visible { outline: 2px solid var(--green); outline-offset: 6px; }
 #wheelWrap[aria-disabled="true"] #centerHub { pointer-events: none; cursor: wait; }
+/* v130: Dex totals and the shared Refresh Cards button. */
+.dex-cards-header { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; border-bottom: 1px solid #334155; padding-bottom: 0.5rem; flex-shrink: 0; }
+.dex-cards-header #dexCardsTitle { min-width: 0; overflow-wrap: anywhere; }
+.dex-cards-header-actions { display: flex; gap: 0.45rem; align-items: center; flex-shrink: 0; }
+.dex-cards-title-count { display: inline-block; margin-left: 0.3rem; color: var(--gold); font-size: 0.72rem; font-weight: 800; white-space: nowrap; vertical-align: baseline; }
 </style>
 </head>
-<body data-app-build="v129">
+<body data-app-build="v130">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3535,10 +3540,10 @@ body:not(.has-active) #wheelWrap #wheel { touch-action: none; cursor: grab; user
 
 <div class="dex-cards-modal" id="dexCardsModal" onclick="closeDexCardsModal()">
   <div class="dex-cards-content" onclick="event.stopPropagation()">
-    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155;padding-bottom:0.5rem;">
+    <div class="dex-cards-header">
       <h3 id="dexCardsTitle" style="font-size:1.05rem;font-weight:800;text-transform:capitalize;">Card Variations</h3>
-      <div style="display:flex;gap:0.45rem;align-items:center;">
-        <button class="btn-header-action" title="Refresh Cards" onclick="refreshCurrentCardSearch()">↻</button>
+      <div class="dex-cards-header-actions">
+        <button type="button" class="sets-refresh-btn" title="Refresh Cards" onclick="refreshCurrentCardSearch()">Refresh Cards</button>
         <button class="btn-header-action" onclick="closeDexCardsModal()">✕</button>
       </div>
     </div>
@@ -10992,15 +10997,29 @@ function scrollDexCardsToTop() {
   }
 }
 
+function updateDexCardsTitle(cleanName, cards = null, status = null) {
+  const title = document.getElementById('dexCardsTitle');
+  if (!title) return;
+  title.replaceChildren(document.createTextNode(`${cleanName} Cards`));
+  if (Array.isArray(cards)) {
+    const count = document.createElement('span');
+    count.className = 'dex-cards-title-count';
+    count.textContent = String(cards.length);
+    count.setAttribute('aria-label', `${cards.length} ${cards.length === 1 ? 'card' : 'cards'}`);
+    title.appendChild(count);
+  }
+  const suffix = status?.pending ? ' · loading' : status?.stale ? ' · saved' : status?.partial ? ' · partial' : '';
+  if (suffix) title.appendChild(document.createTextNode(suffix));
+}
+
 async function openDexCardsModal(p, bypassCache = false) {
   cancelDexCardsTopScroll();
   const requestId = ++dexCardsRequestId;
   activeDexModalPoke = p;
   const modal = document.getElementById('dexCardsModal');
   const grid = document.getElementById('dexCardsGrid');
-  const title = document.getElementById('dexCardsTitle');
   const cleanName = getCleanNationalDexName(p.name, p.species?.name);
-  if (title) title.innerText = `${cleanName} Cards`;
+  updateDexCardsTitle(cleanName);
   if (grid) {
     grid.scrollTop = 0;
     grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:2rem 0;font-size:0.8rem;">Loading cards...</div>';
@@ -11014,17 +11033,17 @@ async function openDexCardsModal(p, bypassCache = false) {
     const publish = cards => paintCatalogueWhenReady('dex', () => {
       if (requestId !== dexCardsRequestId || activeDexModalPoke !== p || modal?.style.display !== 'flex') return;
       const status = tcgCardListStatus.get(cards);
-      if (title) title.innerText = cleanName + ' Cards' + (status?.pending ? ' · loading' : status?.stale ? ' · saved' : status?.partial ? ' · partial' : '');
+      updateDexCardsTitle(cleanName, cards, status);
       currentCardsList = cards; sortCardsList(cards); renderDexCardsGrid(cards);
     });
     const cardsList = await fetchTcgCardsData(p.name, p.species?.name, bypassCache, publish);
     if (requestId !== dexCardsRequestId || activeDexModalPoke !== p) return;
     const status = tcgCardListStatus.get(cardsList);
-    if (title) title.innerText = `${cleanName} Cards${status?.stale ? ' · saved' : status?.partial ? ' · partial' : ''}`;
+    updateDexCardsTitle(cleanName, cardsList, status);
     publish(cardsList);
   } catch (e) {
     if (requestId !== dexCardsRequestId || activeDexModalPoke !== p) return;
-    if (grid) grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">Failed to load cards. Tap ↻ to retry.</div>';
+    if (grid) grid.innerHTML = '<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">Failed to load cards. Tap Refresh Cards to retry.</div>';
   }
 }
 
@@ -11067,7 +11086,7 @@ function renderDexCardsGrid(cardsList) {
   if (!grid) return;
   if (!cardsList.length) {
     const message = tcgCardListStatus.get(cardsList)?.partial
-      ? 'Search incomplete. Tap ↻ to retry.' : 'No physical cards found';
+      ? 'Search incomplete. Tap Refresh Cards to retry.' : 'No physical cards found';
     grid.innerHTML = `<div style="grid-column:span 3;text-align:center;color:var(--sub);padding:1.5rem 0;font-size:0.8rem;">${message}</div>`;
     updateDexCardsBackTop();
     return;

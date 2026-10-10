@@ -3297,9 +3297,17 @@ html.is-browser body.has-active #pokeCard .img-box {
   width: var(--fitted-pokemon-size, clamp(90px, min(31vw, 19dvh), 123px));
   height: var(--fitted-pokemon-size, clamp(90px, min(31vw, 19dvh), 123px));
 }
+
+/* v129: only the centre is a button; the visible outer wheel is draggable. */
+#wheelWrap { cursor: default; }
+body:not(.has-active) #wheelWrap #wheel { touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+#wheelWrap.is-wheel-dragging #wheel { cursor: grabbing; }
+#wheelWrap #centerHub { appearance: none; -webkit-appearance: none; margin: 0; font: inherit; pointer-events: auto; cursor: pointer; touch-action: manipulation; }
+#centerHub:focus-visible { outline: 2px solid var(--green); outline-offset: 6px; }
+#wheelWrap[aria-disabled="true"] #centerHub { pointer-events: none; cursor: wait; }
 </style>
 </head>
-<body data-app-build="v128">
+<body data-app-build="v129">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3343,9 +3351,7 @@ html.is-browser body.has-active #pokeCard .img-box {
 
 </div>
 
-  <div class="wheel-wrap" id="wheelWrap" role="button" tabindex="0" aria-label="Spin the Pokémon type wheel"
-    onclick="handleSpinButtonClick()"
-    onkeydown="if(event.key === 'Enter' || event.key === ' '){ event.preventDefault(); handleSpinButtonClick(); }">
+  <div class="wheel-wrap" id="wheelWrap" role="group" aria-label="Pokémon type wheel: drag the segments to spin">
     <svg class="pointer" viewBox="0 0 42 52" aria-hidden="true" focusable="false">
       <defs><linearGradient id="pointerShine" x1="0" y1="0" x2="1" y2="1">
         <stop stop-color="#ffffff"/><stop offset="1" stop-color="#a2e7f4"/>
@@ -3384,9 +3390,9 @@ html.is-browser body.has-active #pokeCard .img-box {
         <path class="focus-glass-reflection" d="M 0 40 Q 28 42 50 49 L 50 50 Q 26 47 0 53 Z" />
       </g>
     </svg>
-    <div class="center-hub" id="centerHub">
-      <div class="center-hub-text" id="hubText">TAP<br>TO<br>SPIN</div>
-    </div>
+    <button type="button" class="center-hub" id="centerHub" aria-label="Spin the Pokémon type wheel" onclick="handleHubSpinClick(event)">
+      <span class="center-hub-text" id="hubText">TAP<br>TO<br>SPIN</span>
+    </button>
   </div>
 
   <div class="encounter-result-slot" id="encounterResultSlot">
@@ -12807,7 +12813,7 @@ function animateEncounterChange(snapshot, entering) {
     text.classList.remove('is-finding');
     text.textContent = entering ? 'SPIN\nAGAIN' : 'TAP\nTO\nSPIN';
   }
-  wheel?.setAttribute('aria-label', entering ? 'Spin again' : 'Spin the Pokémon type wheel');
+  document.getElementById('centerHub')?.setAttribute('aria-label', entering ? 'Spin again' : 'Spin the Pokémon type wheel');
   if (!snapshot || !wheel || snapshot.rect.width <= 0 ||
       window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
     scheduleAppViewportLayout();
@@ -12928,10 +12934,152 @@ function hideActive() {
   return animateEncounterChange(motionSnapshot, false);
 }
 
-function handleSpinButtonClick() {
+function handleSpinButtonClick(direction = 1) {
   if (isSpinning) return;
-  spinAndPick();
+  spinAndPick(direction);
 }
+
+// Centre taps and deliberate rim drags are separate controls.
+const wheelDragSpin = { drag: null, suppressClickUntil: 0 };
+function handleHubSpinClick(event) {
+  event?.stopPropagation();
+  const hub = document.getElementById('centerHub');
+  if (isSpinning || wheelDragSpin.drag || Date.now() < wheelDragSpin.suppressClickUntil ||
+      document.getElementById('wheelWrap')?.classList.contains('is-morphing')) return;
+  // The circular Poké Ball is the tap target, not the corners of its box.
+  if (event?.detail > 0 && hub) {
+    const rect = hub.getBoundingClientRect();
+    if (Math.hypot(event.clientX - rect.left - rect.width / 2,
+        event.clientY - rect.top - rect.height / 2) > rect.width / 2) return;
+  }
+  handleSpinButtonClick();
+}
+function cancelWheelDragSpin() {
+  const drag = wheelDragSpin.drag;
+  if (!drag) return;
+  finishWheelDragSpin(drag.id, true);
+}
+function finishWheelDragSpin(id, cancelled = false) {
+  const drag = wheelDragSpin.drag;
+  if (!drag || drag.id !== id) return;
+  wheelDragSpin.drag = null;
+  const wrap = document.getElementById('wheelWrap');
+  wrap?.classList.remove('is-wheel-dragging');
+  try { if (wrap?.hasPointerCapture?.(id)) wrap.releasePointerCapture(id); } catch (_) {}
+  if (drag.moved) wheelDragSpin.suppressClickUntil = Date.now() + 500;
+  if (cancelled || !drag.moved || isSpinning || document.body.classList.contains('has-active')) {
+    rot = drag.startRotation;
+    const wheel = document.getElementById('wheel');
+    if (wheel) { wheel.style.transition = 'none'; wheel.style.transform = `rotate(${rot}deg)`; }
+    updateWheelMagnifier(rot);
+    return;
+  }
+  // Continue from the dragged angle, in the direction of the release.
+  handleSpinButtonClick(drag.direction);
+}
+function installWheelDragSpin() {
+  const wrap = document.getElementById('wheelWrap');
+  const wheel = document.getElementById('wheel');
+  const hub = document.getElementById('centerHub');
+  if (!wrap || !wheel || !hub) return;
+  const begin = (id, x, y, target) => {
+    if (wheelDragSpin.drag || isSpinning || encounterMotion ||
+        document.body.classList.contains('has-active') || wrap.classList.contains('is-morphing') ||
+        target.closest?.('#centerHub')) return;
+    const rect = wheel.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+    const radius = Math.hypot(x - cx, y - cy);
+    const innerRadius = hub.getBoundingClientRect().width / 2;
+    if (!rect.width || radius <= innerRadius || radius > rect.width / 2) return;
+    // Freeze any residual CSS motion before taking control of the rim.
+    if (typeof DOMMatrixReadOnly === 'function') {
+      const transform = getComputedStyle(wheel).transform;
+      if (transform && transform !== 'none') {
+        const matrix = new DOMMatrixReadOnly(transform);
+        const visual = Math.atan2(matrix.b, matrix.a) * 180 / Math.PI;
+        rot += ((visual - rot) % 360 + 540) % 360 - 180;
+      }
+    }
+    if (wheelMagnifierFrame !== null) cancelAnimationFrame(wheelMagnifierFrame);
+    wheelMagnifierFrame = null;
+    wheel.style.transition = 'none';
+    wheel.style.transform = `rotate(${rot}deg)`;
+    wheelDragSpin.drag = { id, cx, cy, innerRadius, radius, startRotation: rot,
+      lastAngle: Math.atan2(y - cy, x - cx) * 180 / Math.PI,
+      delta: 0, travel: 0, moved: false, direction: 1 };
+    wrap.classList.add('is-wheel-dragging');
+    updateWheelMagnifier(rot);
+  };
+  const move = (id, x, y, event) => {
+    const drag = wheelDragSpin.drag;
+    if (!drag || drag.id !== id) return;
+    if (event.cancelable) event.preventDefault();
+    if (isSpinning || document.body.classList.contains('has-active')) { cancelWheelDragSpin(); return; }
+    const radius = Math.hypot(x - drag.cx, y - drag.cy);
+    // Crossing the hub must not cause an artificial half-turn.
+    if (radius <= drag.innerRadius) { drag.lastAngle = null; return; }
+    const angle = Math.atan2(y - drag.cy, x - drag.cx) * 180 / Math.PI;
+    if (drag.lastAngle !== null) {
+      const delta = ((angle - drag.lastAngle + 540) % 360) - 180;
+      drag.delta += delta;
+      drag.travel += Math.abs(delta) * Math.PI / 180 * Math.min(radius, drag.radius);
+      if (Math.abs(delta) > 0.2) drag.direction = delta < 0 ? -1 : 1;
+      if (drag.travel >= 14 && Math.abs(drag.delta) >= 5) drag.moved = true;
+      rot = drag.startRotation + drag.delta;
+      wheel.style.transform = `rotate(${rot}deg)`;
+      updateWheelMagnifier(rot);
+    }
+    drag.lastAngle = angle;
+  };
+  if (window.PointerEvent) {
+    // Capture lets the wheel keep following a finger released off its edge.
+    window.addEventListener('pointerdown', event => {
+      if (event.pointerType === 'touch' && wheelDragSpin.drag && event.pointerId !== wheelDragSpin.drag.id)
+        cancelWheelDragSpin();
+    }, true);
+    wrap.addEventListener('pointerdown', event => {
+      if (!event.isPrimary || event.button !== 0) return;
+      begin(event.pointerId, event.clientX, event.clientY, event.target);
+      if (wheelDragSpin.drag?.id === event.pointerId) {
+        try { wrap.setPointerCapture(event.pointerId); } catch (_) {}
+        if (event.pointerType === 'mouse') event.preventDefault();
+      }
+    });
+    window.addEventListener('pointermove', event => move(event.pointerId, event.clientX, event.clientY, event), { passive: false });
+    window.addEventListener('pointerup', event => {
+      move(event.pointerId, event.clientX, event.clientY, event);
+      finishWheelDragSpin(event.pointerId);
+    });
+    window.addEventListener('pointercancel', event => finishWheelDragSpin(event.pointerId, true));
+    wrap.addEventListener('lostpointercapture', event => finishWheelDragSpin(event.pointerId, true));
+  } else {
+    // Older touch engines: one touch, tracked through release on the window.
+    wrap.addEventListener('touchstart', event => {
+      if (event.touches.length !== 1) { cancelWheelDragSpin(); return; }
+      const touch = event.touches[0];
+      begin(`touch:${touch.identifier}`, touch.clientX, touch.clientY, event.target);
+      if (wheelDragSpin.drag && event.cancelable) event.preventDefault();
+    }, { passive: false });
+    window.addEventListener('touchmove', event => {
+      if (!wheelDragSpin.drag) return;
+      if (event.touches.length !== 1) { cancelWheelDragSpin(); return; }
+      const touch = Array.from(event.touches).find(t => `touch:${t.identifier}` === wheelDragSpin.drag.id);
+      if (touch) move(`touch:${touch.identifier}`, touch.clientX, touch.clientY, event);
+    }, { passive: false });
+    window.addEventListener('touchend', event => {
+      const touch = Array.from(event.changedTouches).find(t => `touch:${t.identifier}` === wheelDragSpin.drag?.id);
+      if (touch) { move(`touch:${touch.identifier}`, touch.clientX, touch.clientY, event); finishWheelDragSpin(`touch:${touch.identifier}`); }
+    });
+    window.addEventListener('touchcancel', cancelWheelDragSpin);
+    window.addEventListener('touchstart', event => { if (event.touches.length > 1) cancelWheelDragSpin(); }, { passive: true });
+  }
+  window.addEventListener('blur', cancelWheelDragSpin);
+  window.addEventListener('resize', cancelWheelDragSpin);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) cancelWheelDragSpin(); });
+  wrap.addEventListener('dragstart', event => event.preventDefault());
+}
+installWheelDragSpin();
+
 
 
 function syncMainSearchViewportHeight() {
@@ -13138,6 +13286,7 @@ function submitSearch() {
 let pokemonLoadRequestId = 0;
 async function loadPoke(id, log = false, swipeDirection = 0) {
   if (isSpinning || (swipeDirection && pokemonSwipe.busy)) return;
+  cancelWheelDragSpin();
   if (!swipeDirection) resetPokemonSwipe();
   initAudio();
   stopEncounterCry();
@@ -13179,8 +13328,10 @@ function navigateDex(d) {
   return loadPoke(adjacentPokemonId(curId, d), false, d);
 }
 
-async function spinAndPick() {
+async function spinAndPick(direction = 1) {
   if (isSpinning) return;
+  cancelWheelDragSpin();
+  direction = direction < 0 ? -1 : 1;
   ++pokemonLoadRequestId;
   let spinStartedAt;
   initAudio();
@@ -13192,6 +13343,7 @@ async function spinAndPick() {
   const centerHub = document.getElementById('centerHub');
 
   spinControl?.setAttribute('aria-disabled', 'true');
+  if (centerHub) centerHub.disabled = true;
  isSpinning = true;
   centerHub?.classList.add('is-spinning');
   recordWheelSpin();
@@ -13222,7 +13374,11 @@ await hideActive();
   const targetDeg = (270 - (idx * 20 + 10) + 360) % 360;
   if (w) {
     w.style.transition = 'transform 3.2s cubic-bezier(0.12, 0.9, 0.18, 1)';
-    rot += (Math.floor(Math.random() * 3) + 4) * 360 + ((targetDeg - (rot % 360) + 360) % 360);
+    const angle = ((rot % 360) + 360) % 360;
+    const landingOffset = direction < 0
+      ? -((angle - targetDeg + 360) % 360)
+      : ((targetDeg - angle + 360) % 360);
+    rot += direction * (Math.floor(Math.random() * 3) + 4) * 360 + landingOffset;
     w.style.transform = `rotate(${rot}deg)`;
     animateWheelMagnifier(3200);
   }
@@ -13255,6 +13411,7 @@ await hideActive();
       playCry(true);
       if (shiny) triggerSparkle();
       spinControl?.setAttribute('aria-disabled', 'false');
+      if (centerHub) centerHub.disabled = false;
     // Keep the enlarged winning label visible for half a second after landing.
     }, Math.max(0, 3700 - (performance.now() - spinStartedAt)));
   } catch (e) {
@@ -13265,11 +13422,13 @@ await hideActive();
       hubText.textContent = "TAP\nTO\nSPIN";
     }
     spinControl?.setAttribute('aria-disabled', 'false');
+      if (centerHub) centerHub.disabled = false;
     showToast("Spin error: Check connection.", "error");
   }
 }
 
 function renderCard(p, shiny = false) {
+  cancelWheelDragSpin();
   const motionSnapshot = document.body.classList.contains('has-active') ? null : captureEncounterMotion();
   resetPokemonSwipe();
   curId = p.id;

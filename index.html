@@ -3310,9 +3310,13 @@ body:not(.has-active) #wheelWrap #wheel { touch-action: none; cursor: grab; user
 .dex-cards-header #dexCardsTitle { min-width: 0; overflow-wrap: anywhere; }
 .dex-cards-header-actions { display: flex; gap: 0.45rem; align-items: center; flex-shrink: 0; }
 .dex-cards-title-count { display: inline-block; margin-left: 0.3rem; color: var(--gold); font-size: 0.72rem; font-weight: 800; white-space: nowrap; vertical-align: baseline; }
+/* v131: complete/saved counts are green; incomplete counts stay yellow. */
+.tcg-count-text, .dex-cards-title-count { color: var(--green); }
+.tcg-count-text.is-incomplete, .dex-cards-title-count.is-incomplete { color: var(--gold); }
+.dex-cards-title-status { display: block; margin-top: 0.15rem; color: var(--gold); font-size: 0.6rem; font-weight: 700; line-height: 1.3; text-transform: none; }
 </style>
 </head>
-<body data-app-build="v130">
+<body data-app-build="v131">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -6004,11 +6008,22 @@ function handleTcgImageError(img) {
   setTcgArtworkUnavailable(img, true);
 }
 
+function isTcgCardListIncomplete(cards, status = tcgCardListStatus.get(cards)) {
+  return !!(status?.partial || status?.pending);
+}
+
 function getTcgCardCountLabel(cards) {
   cards = cards || [];
   const status = tcgCardListStatus.get(cards);
-  const suffix = status?.pending ? ' · loading' : status?.stale ? ' · saved' : status?.partial ? ' · partial' : '';
+  const suffix = status?.pending ? ' · loading' : status?.partial ? ' · partial' : '';
   return `${cards.length} Card${cards.length === 1 ? '' : 's'}${suffix}`;
+}
+
+function updateTcgCardCount(cards) {
+  const count = document.getElementById('tcgCountText');
+  if (!count) return;
+  count.textContent = getTcgCardCountLabel(cards);
+  count.classList.toggle('is-incomplete', isTcgCardListIncomplete(cards));
 }
 
 // The Classic Collection uses the numbers printed on its original cards.
@@ -11004,12 +11019,18 @@ function updateDexCardsTitle(cleanName, cards = null, status = null) {
   if (Array.isArray(cards)) {
     const count = document.createElement('span');
     count.className = 'dex-cards-title-count';
+    count.classList.toggle('is-incomplete', isTcgCardListIncomplete(cards, status));
     count.textContent = String(cards.length);
     count.setAttribute('aria-label', `${cards.length} ${cards.length === 1 ? 'card' : 'cards'}`);
     title.appendChild(count);
   }
-  const suffix = status?.pending ? ' · loading' : status?.stale ? ' · saved' : status?.partial ? ' · partial' : '';
-  if (suffix) title.appendChild(document.createTextNode(suffix));
+  const label = status?.pending ? 'Loading…' : status?.partial ? 'Partial' : '';
+  if (label) {
+    const detail = document.createElement('span');
+    detail.className = 'dex-cards-title-status';
+    detail.textContent = label;
+    title.appendChild(detail);
+  }
 }
 
 async function openDexCardsModal(p, bypassCache = false) {
@@ -11926,7 +11947,10 @@ async function fetchTcgCards(pokeName, speciesName, bypassCache = false) {
   const strip = document.getElementById('tcgStrip');
   const countText = document.getElementById('tcgCountText');
   if (!isSpinning) {
-    if (countText) countText.innerText = "Loading cards...";
+    if (countText) {
+      countText.innerText = 'Loading cards...';
+      countText.classList.add('is-incomplete');
+    }
     if (strip) {
       strip.innerHTML = `
         <div class="tcg-skeleton-card"></div>
@@ -11953,7 +11977,10 @@ async function fetchTcgCards(pokeName, speciesName, bypassCache = false) {
   } catch (err) {
     if (!isSpinning && requestId === activeTcgRequestId) {
       currentCardsList = [];
-      if (countText) countText.innerText = 'Unavailable';
+      if (countText) {
+        countText.innerText = 'Unavailable';
+        countText.classList.add('is-incomplete');
+      }
       if (strip) strip.innerHTML = '<div class="tcg-empty-msg">Unable to load cards. Tap ↻ to retry.</div>';
     }
   }
@@ -11967,14 +11994,14 @@ function renderTcgCards(cards) {
   const frag = document.createDocumentFragment();
 
   if (!cards || !cards.length) {
-    if (countText) countText.innerText = getTcgCardCountLabel(cards);
+    updateTcgCardCount(cards);
     const emptyMsg = document.createElement('div');
     emptyMsg.className = 'tcg-empty-msg';
     emptyMsg.innerText = tcgCardListStatus.get(cards)?.partial
       ? 'Search incomplete. Tap ↻ to retry.' : 'No physical cards found';
     frag.appendChild(emptyMsg);
   } else {
-    if (countText) countText.innerText = getTcgCardCountLabel(cards);
+    updateTcgCardCount(cards);
     cards.forEach((card, index) => {
       const isOwnedCard = isCardCollected(card);
       const node = document.createElement('div');

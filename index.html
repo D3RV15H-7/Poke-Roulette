@@ -3358,9 +3358,24 @@ body:not(.has-active) #wheelWrap #wheel { touch-action: none; cursor: grab; user
 .set-bulk-confirm-btn.is-confirm { border-color: var(--green); background: var(--green); }
 .set-bulk-confirm-btn.is-confirm.is-remove { border-color: var(--red); background: var(--red); }
 .set-bulk-confirm-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+/* v136: search reveals horizontally from its magnifying-glass button. */
+.tcg-expanding-search { position: relative; flex: 1 1 0; min-width: 0; height: 36px; }
+#setsModal .tcg-expanding-search > .tcg-set-search-wrap.tcg-set-search-panel { display: block; position: absolute; inset: 0; width: 100%; max-width: none; margin: 0; min-width: 0; opacity: 0; visibility: hidden; pointer-events: none; clip-path: inset(0 0 0 calc(100% - 36px) round 12px); transition: clip-path 300ms cubic-bezier(0.22,1,0.36,1), opacity 180ms ease, visibility 0s linear 300ms; }
+#setsModal .tcg-expanding-search.opens-right > .tcg-set-search-panel { clip-path: inset(0 calc(100% - 36px) 0 0 round 12px); }
+#setsModal .tcg-expanding-search.is-expanded > .tcg-set-search-panel { opacity: 1; visibility: visible; pointer-events: auto; clip-path: inset(0 0 0 0 round 12px); transition-delay: 0s; }
+#setsModal .tcg-expanding-search .tcg-set-search-input { height: 36px; margin: 0; padding: 7px 42px 7px 12px; border-radius: 12px; font-size: 16px; opacity: 0; transform: translateX(12px); transition: opacity 180ms ease, transform 300ms cubic-bezier(0.22,1,0.36,1); }
+#setsModal .tcg-expanding-search.opens-right .tcg-set-search-input { padding: 7px 12px 7px 42px; transform: translateX(-12px); }
+#setsModal .tcg-expanding-search.is-expanded .tcg-set-search-input { opacity: 1; transform: translateX(0); }
+.tcg-expanding-search > .tcg-set-search-toggle { position: absolute; top: 0; right: 0; z-index: 1; }
+.tcg-expanding-search.opens-right > .tcg-set-search-toggle { right: auto; left: 0; }
+.tcg-set-catalogue-controls { justify-content: space-between; }
+@media (prefers-reduced-motion: reduce) {
+  #setsModal .tcg-expanding-search > .tcg-set-search-wrap.tcg-set-search-panel,
+  #setsModal .tcg-expanding-search .tcg-set-search-input { transition: none; transform: none; }
+}
 </style>
 </head>
-<body data-app-build="v135">
+<body data-app-build="v136">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3688,11 +3703,18 @@ body:not(.has-active) #wheelWrap #wheel { touch-action: none; cursor: grab; user
     </div>
 
     <div class="tcg-set-catalogue-controls">
-    <div class="tcg-set-search-wrap">
-      <span class="tcg-set-search-icon" aria-hidden="true">⌕</span>
+    <div class="tcg-expanding-search opens-right">
+    <div id="tcgSetSearchPanel" class="tcg-set-search-wrap tcg-set-search-panel" aria-hidden="true" inert>
       <input id="tcgSetSearchInput" class="tcg-set-search-input" type="search"
         placeholder="Search sets…" autocomplete="off" spellcheck="false"
-        aria-label="Search Pokémon TCG sets or series">
+        aria-label="Search Pokémon TCG sets or series" aria-controls="setsGrid" disabled>
+    </div>
+    <button type="button" id="tcgSetSearchToggle" class="tcg-set-search-toggle"
+      aria-label="Show sets search" title="Show sets search" aria-expanded="false"
+      aria-controls="tcgSetSearchPanel" onclick="toggleTcgCatalogueSearch()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+    </button>
     </div>
 
     <div class="tcg-series-toggle-wrap">
@@ -6926,6 +6948,7 @@ let activeTcgSet = null;
   let activeTcgSetFilter = 'all';
 let activeTcgSetSearch = '';
 let activeTcgSetSearchExpanded = false;
+let activeTcgCatalogueSearchExpanded = false;
 let pendingSetCardBulkAction = null;
   
 async function fetchPhysicalTcgSets(forceRefresh = false) {
@@ -9086,6 +9109,8 @@ async function openTcgSet(set, preserveFilters = false) {
   document.getElementById('setsModal')?.classList.add('viewing-set');
   resetSetsScrollToTop();
   activeTcgSet = set;
+  document.getElementById('tcgSetSearchInput')?.blur();
+  updateTcgCatalogueSearchControls();
   updateSetsRefreshButton();
   if (!preserveFilters) {
     activeTcgSetFilter = 'all';
@@ -9163,6 +9188,12 @@ const percentage = totalCount > 0
         ← Back to Sets
       </button>
 
+      <div class="tcg-expanding-search opens-left">
+      <div id="tcgSetCardSearchPanel" class="tcg-set-search-wrap tcg-set-card-search-wrap tcg-set-search-panel" aria-hidden="true" inert>
+        <input id="tcgSetCardSearchInput" class="tcg-set-search-input" type="search"
+          placeholder="Search cards…" autocomplete="off" spellcheck="false"
+          aria-label="Search cards or Pokémon in this set" aria-controls="tcgSetCards" disabled>
+      </div>
       <button type="button" id="tcgSetCardSearchToggle" class="tcg-set-search-toggle"
         aria-label="Show card search" title="Show card search" aria-expanded="false"
         aria-controls="tcgSetCardSearchPanel" onclick="toggleCurrentSetSearch()">
@@ -9170,12 +9201,6 @@ const percentage = totalCount > 0
           stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
       </button>
       </div>
-
-      <div id="tcgSetCardSearchPanel" class="tcg-set-search-wrap tcg-set-card-search-wrap" hidden>
-        <span class="tcg-set-search-icon" aria-hidden="true">⌕</span>
-        <input id="tcgSetCardSearchInput" class="tcg-set-search-input" type="search"
-          placeholder="Search cards…" autocomplete="off" spellcheck="false"
-          aria-label="Search cards or Pokémon in this set" aria-controls="tcgSetCards">
       </div>
 
       <img class="tcg-set-detail-logo" alt="">
@@ -9569,16 +9594,41 @@ function getVisibleCurrentSetCards() {
     });
 }
 
-function updateCurrentSetSearchControls() {
-  const panel = document.getElementById('tcgSetCardSearchPanel');
-  const button = document.getElementById('tcgSetCardSearchToggle');
-  if (!panel || !button) return;
-  panel.hidden = !activeTcgSetSearchExpanded;
-  button.setAttribute('aria-expanded', String(activeTcgSetSearchExpanded));
-  button.classList.toggle('has-query', Boolean(activeTcgSetSearch.trim()));
-  const label = activeTcgSetSearchExpanded ? 'Hide card search' : 'Show card search';
+function updateSlidingSetSearch(panelId, buttonId, inputId, expanded, query, name) {
+  const panel = document.getElementById(panelId);
+  const button = document.getElementById(buttonId);
+  const input = document.getElementById(inputId);
+  if (!panel || !button || !input) return;
+  panel.closest('.tcg-expanding-search').classList.toggle('is-expanded', expanded);
+  panel.inert = !expanded;
+  panel.setAttribute('aria-hidden', String(!expanded));
+  input.disabled = !expanded;
+  button.setAttribute('aria-expanded', String(expanded));
+  button.classList.toggle('has-query', Boolean(query.trim()));
+  const label = `${expanded ? 'Hide' : 'Show'} ${name} search`;
   button.title = label;
   button.setAttribute('aria-label', label);
+}
+
+function updateCurrentSetSearchControls() {
+  updateSlidingSetSearch('tcgSetCardSearchPanel', 'tcgSetCardSearchToggle', 'tcgSetCardSearchInput',
+    activeTcgSetSearchExpanded, activeTcgSetSearch, 'card');
+}
+
+function updateTcgCatalogueSearchControls() {
+  updateSlidingSetSearch('tcgSetSearchPanel', 'tcgSetSearchToggle', 'tcgSetSearchInput',
+    activeTcgCatalogueSearchExpanded && !activeTcgSet,
+    document.getElementById('tcgSetSearchInput')?.value || '', 'sets');
+}
+
+function toggleTcgCatalogueSearch(expanded) {
+  const input = document.getElementById('tcgSetSearchInput');
+  const button = document.getElementById('tcgSetSearchToggle');
+  if (activeTcgSet || !input || !button) return;
+  activeTcgCatalogueSearchExpanded = typeof expanded === 'boolean' ? expanded : !activeTcgCatalogueSearchExpanded;
+  updateTcgCatalogueSearchControls();
+  if (activeTcgCatalogueSearchExpanded) input.focus({ preventScroll: true });
+  else { input.blur(); button.focus({ preventScroll: true }); }
 }
 
 function toggleCurrentSetSearch(expanded) {
@@ -10055,6 +10105,7 @@ async function renderTcgSets(forceRefresh = false) {
   activeTcgSet = null;
   activeTcgSetSearch = '';
   activeTcgSetSearchExpanded = false;
+  updateTcgCatalogueSearchControls();
   updateSetsRefreshButton();
   
   const loading = document.getElementById('setsLoading');
@@ -14044,8 +14095,18 @@ function filterTcgSetsBySearch() {
 }
 
 document.addEventListener('input', event => {
-  if (event.target?.id === 'tcgSetSearchInput') filterTcgSetsBySearch();
+  if (event.target?.id === 'tcgSetSearchInput') {
+    updateTcgCatalogueSearchControls();
+    filterTcgSetsBySearch();
+  }
 });
+document.addEventListener('keydown', event => {
+  if (event.target?.id === 'tcgSetSearchInput' && event.key === 'Escape') {
+    event.preventDefault();
+    toggleTcgCatalogueSearch(false);
+  }
+});
+updateTcgCatalogueSearchControls();
 
 
 // v18.24: measure the real dock instead of guessing a device/browser height.

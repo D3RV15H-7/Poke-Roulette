@@ -3340,9 +3340,27 @@ body:not(.has-active) #wheelWrap #wheel { touch-action: none; cursor: grab; user
 #setsModal.viewing-set .tcg-set-detail-tools .tcg-set-card-search-wrap { flex: 0 1 190px; width: 60%; max-width: 190px; min-width: 0; margin: 0; }
 .tcg-set-detail-tools .tcg-set-search-input { height: 36px; min-width: 0; padding: 7px 8px 7px 30px; border-radius: 10px; font-size: 16px; }
 .tcg-set-detail-tools .tcg-set-search-icon { left: 10px; font-size: 18px; }
+/* v135: expandable in-set search and app-themed collection confirmations. */
+.tcg-set-search-toggle { display: grid; place-items: center; flex: 0 0 36px; width: 36px; height: 36px; padding: 0; border: 1px solid #475569; border-radius: 50%; background: #1e293b; color: var(--sub); cursor: pointer; touch-action: manipulation; }
+.tcg-set-search-toggle svg { width: 18px; height: 18px; pointer-events: none; }
+.tcg-set-search-toggle[aria-expanded="true"], .tcg-set-search-toggle.has-query { color: var(--green); border-color: var(--green); background: rgba(16,185,129,0.1); }
+.tcg-set-search-toggle:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+#setsModal.viewing-set .tcg-set-card-search-wrap[hidden] { display: none; }
+#setsModal.viewing-set .tcg-set-card-search-wrap { width: 100%; margin: 0 0 0.6rem; }
+.tcg-set-card-search-wrap .tcg-set-search-input { height: 40px; padding: 9px 12px 9px 36px; border-radius: 12px; font-size: 16px; }
+.tcg-set-card-search-wrap .tcg-set-search-icon { left: 12px; font-size: 20px; }
+.set-bulk-confirm { box-sizing: border-box; position: fixed; inset: 0; width: min(360px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); margin: auto; padding: 22px; overflow: auto; border: 1px solid #475569; border-radius: 22px; background: var(--card); color: #f8fafc; font-family: inherit; box-shadow: 0 18px 65px rgba(0,0,0,0.6); }
+.set-bulk-confirm::backdrop { background: rgba(3,7,18,0.72); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+.set-bulk-confirm h3 { margin: 0 0 12px; font-size: 1rem; font-weight: 800; }
+.set-bulk-confirm p { margin: 0; color: #cbd5e1; font-size: 0.8rem; line-height: 1.5; }
+.set-bulk-confirm-actions { display: flex; gap: 10px; margin-top: 22px; }
+.set-bulk-confirm-btn { flex: 1; min-height: 44px; padding: 10px 12px; border: 1px solid #475569; border-radius: 999px; background: #1e293b; color: #f8fafc; font: inherit; font-size: 0.75rem; font-weight: 800; cursor: pointer; touch-action: manipulation; }
+.set-bulk-confirm-btn.is-confirm { border-color: var(--green); background: var(--green); }
+.set-bulk-confirm-btn.is-confirm.is-remove { border-color: var(--red); background: var(--red); }
+.set-bulk-confirm-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 </style>
 </head>
-<body data-app-build="v134">
+<body data-app-build="v135">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3776,6 +3794,19 @@ body:not(.has-active) #wheelWrap #wheel { touch-action: none; cursor: grab; user
 
 <!-- In-App Toast Banner -->
 <div id="appToast" class="app-toast"></div>
+
+<dialog id="setBulkConfirmDialog" class="set-bulk-confirm"
+  aria-labelledby="setBulkConfirmTitle" aria-describedby="setBulkConfirmMessage"
+  oncancel="event.preventDefault(); closeSetCardBulkConfirmation()"
+  onclick="dismissSetCardBulkBackdrop(event)">
+  <h3 id="setBulkConfirmTitle">Add all cards?</h3>
+  <p id="setBulkConfirmMessage"></p>
+  <div class="set-bulk-confirm-actions">
+    <button type="button" class="set-bulk-confirm-btn" autofocus onclick="closeSetCardBulkConfirmation()">Cancel</button>
+    <button type="button" id="setBulkConfirmAccept" class="set-bulk-confirm-btn is-confirm"
+      onclick="applyConfirmedSetCardBulkAction()">Add All</button>
+  </div>
+</dialog>
 
 <script>
 if ('serviceWorker' in navigator) {
@@ -6894,6 +6925,8 @@ let tcgSetsCache = null;
 let activeTcgSet = null;
   let activeTcgSetFilter = 'all';
 let activeTcgSetSearch = '';
+let activeTcgSetSearchExpanded = false;
+let pendingSetCardBulkAction = null;
   
 async function fetchPhysicalTcgSets(forceRefresh = false) {
   if (tcgSetsRequest) return tcgSetsRequest;
@@ -9043,6 +9076,7 @@ function updateSetsRefreshButton() {
 }
 
 async function openTcgSet(set, preserveFilters = false) {
+  closeSetCardBulkConfirmation();
   disposeSetThumbnails();
   if (!activeTcgSet) {
     tcgSetsListScrollTop = document.querySelector('#setsModal .modal-body')?.scrollTop || 0;
@@ -9056,6 +9090,7 @@ async function openTcgSet(set, preserveFilters = false) {
   if (!preserveFilters) {
     activeTcgSetFilter = 'all';
     activeTcgSetSearch = '';
+    activeTcgSetSearchExpanded = false;
   }
   
   const grid = document.getElementById('setsGrid');
@@ -9128,12 +9163,19 @@ const percentage = totalCount > 0
         ← Back to Sets
       </button>
 
-      <div class="tcg-set-search-wrap tcg-set-card-search-wrap">
+      <button type="button" id="tcgSetCardSearchToggle" class="tcg-set-search-toggle"
+        aria-label="Show card search" title="Show card search" aria-expanded="false"
+        aria-controls="tcgSetCardSearchPanel" onclick="toggleCurrentSetSearch()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+      </button>
+      </div>
+
+      <div id="tcgSetCardSearchPanel" class="tcg-set-search-wrap tcg-set-card-search-wrap" hidden>
         <span class="tcg-set-search-icon" aria-hidden="true">⌕</span>
         <input id="tcgSetCardSearchInput" class="tcg-set-search-input" type="search"
           placeholder="Search cards…" autocomplete="off" spellcheck="false"
           aria-label="Search cards or Pokémon in this set" aria-controls="tcgSetCards">
-      </div>
       </div>
 
       <img class="tcg-set-detail-logo" alt="">
@@ -9207,8 +9249,16 @@ const percentage = totalCount > 0
   searchInput.value = activeTcgSetSearch;
   searchInput.addEventListener('input', () => {
     activeTcgSetSearch = searchInput.value;
+    updateCurrentSetSearchControls();
     renderCurrentSetCards();
   });
+  searchInput.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      toggleCurrentSetSearch(false);
+    }
+  });
+  updateCurrentSetSearchControls();
   renderCurrentSetCards();
 }
 
@@ -9519,15 +9569,69 @@ function getVisibleCurrentSetCards() {
     });
 }
 
+function updateCurrentSetSearchControls() {
+  const panel = document.getElementById('tcgSetCardSearchPanel');
+  const button = document.getElementById('tcgSetCardSearchToggle');
+  if (!panel || !button) return;
+  panel.hidden = !activeTcgSetSearchExpanded;
+  button.setAttribute('aria-expanded', String(activeTcgSetSearchExpanded));
+  button.classList.toggle('has-query', Boolean(activeTcgSetSearch.trim()));
+  const label = activeTcgSetSearchExpanded ? 'Hide card search' : 'Show card search';
+  button.title = label;
+  button.setAttribute('aria-label', label);
+}
+
+function toggleCurrentSetSearch(expanded) {
+  const input = document.getElementById('tcgSetCardSearchInput');
+  const button = document.getElementById('tcgSetCardSearchToggle');
+  if (!activeTcgSet || !input || !button) return;
+  activeTcgSetSearchExpanded = typeof expanded === 'boolean' ? expanded : !activeTcgSetSearchExpanded;
+  updateCurrentSetSearchControls();
+  if (activeTcgSetSearchExpanded) input.focus({ preventScroll: true });
+  else { input.blur(); button.focus({ preventScroll: true }); }
+}
+
+function closeSetCardBulkConfirmation() {
+  pendingSetCardBulkAction = null;
+  const dialog = document.getElementById('setBulkConfirmDialog');
+  if (dialog?.open) dialog.close();
+}
+
+function dismissSetCardBulkBackdrop(event) {
+  const dialog = document.getElementById('setBulkConfirmDialog');
+  if (event.target !== dialog) return;
+  const rect = dialog.getBoundingClientRect();
+  if (event.clientX < rect.left || event.clientX > rect.right ||
+      event.clientY < rect.top || event.clientY > rect.bottom) closeSetCardBulkConfirmation();
+}
+
 function confirmSetCardBulkAction(action) {
   if (!['add', 'remove'].includes(action) || !activeTcgSet ||
       !document.getElementById('tcgSetCards') || !currentCardsList.length) return;
 
-  const set = activeTcgSet;
-  const cards = currentCardsList.slice();
-  const uid = activeUid;
-  if (!window.confirm(`Are you sure you want to ${action} all cards on this set?`)) return;
-  if (activeTcgSet !== set || activeUid !== uid) return;
+  const dialog = document.getElementById('setBulkConfirmDialog');
+  if (!dialog) return;
+  closeSetCardBulkConfirmation();
+  pendingSetCardBulkAction = {
+    action, set: activeTcgSet, cards: currentCardsList.slice(), uid: activeUid,
+    userUid: currentUser?.uid || null, requestId: setsViewRequestId
+  };
+  document.getElementById('setBulkConfirmTitle').textContent = action === 'add' ? 'Add all cards?' : 'Remove all cards?';
+  document.getElementById('setBulkConfirmMessage').textContent =
+    `Are you sure you want to ${action} all cards for this set?`;
+  const accept = document.getElementById('setBulkConfirmAccept');
+  accept.textContent = action === 'add' ? 'Add All' : 'Remove All';
+  accept.classList.toggle('is-remove', action === 'remove');
+  dialog.showModal();
+}
+
+function applyConfirmedSetCardBulkAction() {
+  const pending = pendingSetCardBulkAction;
+  closeSetCardBulkConfirmation();
+  if (!pending || pending.set !== activeTcgSet || pending.uid !== activeUid ||
+      pending.userUid !== (currentUser?.uid || null) || pending.requestId !== setsViewRequestId ||
+      !document.getElementById('tcgSetCards')) return;
+  const { action, cards } = pending;
 
   // Always use the full set, regardless of the current search/filter.
   let changed = false;
@@ -9940,6 +10044,7 @@ function updateTcgSeriesOwnedCounts() {
 }
 
 async function renderTcgSets(forceRefresh = false) {
+  closeSetCardBulkConfirmation();
   disposeSetThumbnails();
   const requestId = ++setsViewRequestId;
   if (!activeTcgSet) {
@@ -9949,6 +10054,7 @@ async function renderTcgSets(forceRefresh = false) {
   resetSetsScrollToTop();
   activeTcgSet = null;
   activeTcgSetSearch = '';
+  activeTcgSetSearchExpanded = false;
   updateSetsRefreshButton();
   
   const loading = document.getElementById('setsLoading');
@@ -10656,6 +10762,7 @@ function openModal(id, forceOpen = false) {
       if (modal.id === 'dexModal') resetDexScrollToTop();
 
       if (modal.id === 'setsModal') {
+        closeSetCardBulkConfirmation();
         disposeSetThumbnails();
         ++setsViewRequestId;
         tcgSetsListScrollTop = 0;
@@ -10852,6 +10959,7 @@ function closeModal(e, id) {
     if (id === 'dexModal') resetDexScrollToTop();
 
     if (id === 'setsModal') {
+      closeSetCardBulkConfirmation();
       disposeSetThumbnails();
       ++setsViewRequestId;
       tcgSetsListScrollTop = 0;
@@ -10979,6 +11087,7 @@ function renderDex() {
 }
 
 async function refreshSetsView() {
+  closeSetCardBulkConfirmation();
   const loading = document.getElementById('setsLoading');
   const grid = document.getElementById('setsGrid');
 

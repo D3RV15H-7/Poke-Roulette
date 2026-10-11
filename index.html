@@ -3358,24 +3358,31 @@ body:not(.has-active) #wheelWrap #wheel { touch-action: none; cursor: grab; user
 .set-bulk-confirm-btn.is-confirm { border-color: var(--green); background: var(--green); }
 .set-bulk-confirm-btn.is-confirm.is-remove { border-color: var(--red); background: var(--red); }
 .set-bulk-confirm-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
-/* v136: search reveals horizontally from its magnifying-glass button. */
+/* v137: one shared surface morphs from the search circle into a bar and back. */
 .tcg-expanding-search { position: relative; flex: 1 1 0; min-width: 0; height: 36px; }
-#setsModal .tcg-expanding-search > .tcg-set-search-wrap.tcg-set-search-panel { display: block; position: absolute; inset: 0; width: 100%; max-width: none; margin: 0; min-width: 0; opacity: 0; visibility: hidden; pointer-events: none; clip-path: inset(0 0 0 calc(100% - 36px) round 12px); transition: clip-path 300ms cubic-bezier(0.22,1,0.36,1), opacity 180ms ease, visibility 0s linear 300ms; }
-#setsModal .tcg-expanding-search.opens-right > .tcg-set-search-panel { clip-path: inset(0 calc(100% - 36px) 0 0 round 12px); }
-#setsModal .tcg-expanding-search.is-expanded > .tcg-set-search-panel { opacity: 1; visibility: visible; pointer-events: auto; clip-path: inset(0 0 0 0 round 12px); transition-delay: 0s; }
-#setsModal .tcg-expanding-search .tcg-set-search-input { height: 36px; margin: 0; padding: 7px 42px 7px 12px; border-radius: 12px; font-size: 16px; opacity: 0; transform: translateX(12px); transition: opacity 180ms ease, transform 300ms cubic-bezier(0.22,1,0.36,1); }
-#setsModal .tcg-expanding-search.opens-right .tcg-set-search-input { padding: 7px 12px 7px 42px; transform: translateX(-12px); }
-#setsModal .tcg-expanding-search.is-expanded .tcg-set-search-input { opacity: 1; transform: translateX(0); }
-.tcg-expanding-search > .tcg-set-search-toggle { position: absolute; top: 0; right: 0; z-index: 1; }
-.tcg-expanding-search.opens-right > .tcg-set-search-toggle { right: auto; left: 0; }
+.tcg-expanding-search::before { content: ""; position: absolute; top: 0; right: 0; box-sizing: border-box; width: 36px; height: 36px; border: 1px solid #475569; border-radius: 18px; background: #1e293b; pointer-events: none; transition: width 440ms cubic-bezier(0.4,0,0.2,1), background-color 240ms ease, border-color 240ms ease, box-shadow 240ms ease; }
+.tcg-expanding-search.opens-right::before { right: auto; left: 0; }
+.tcg-expanding-search.has-query::before { border-color: var(--green); background: rgba(16,185,129,0.1); }
+.tcg-expanding-search.is-expanded::before { width: 100%; border-color: var(--green); background: #0d1729; }
+.tcg-expanding-search.is-expanded:focus-within::before { box-shadow: 0 0 0 2px rgba(32,201,151,0.14); }
+#setsModal .tcg-expanding-search > .tcg-set-search-wrap.tcg-set-search-panel { display: block; position: absolute; inset: 0; width: 100%; max-width: none; margin: 0; min-width: 0; visibility: hidden; pointer-events: none; clip-path: inset(0 0 0 calc(100% - 36px) round 18px); transition: clip-path 440ms cubic-bezier(0.4,0,0.2,1), visibility 0s linear 440ms; }
+#setsModal .tcg-expanding-search.opens-right > .tcg-set-search-panel { clip-path: inset(0 calc(100% - 36px) 0 0 round 18px); }
+#setsModal .tcg-expanding-search.is-expanded > .tcg-set-search-panel { visibility: visible; pointer-events: auto; clip-path: inset(0 0 0 0 round 18px); transition-delay: 0s; }
+#setsModal .tcg-expanding-search .tcg-set-search-input { height: 36px; margin: 0; padding: 7px 42px 7px 12px; border: 0; border-radius: 18px; background: transparent; box-shadow: none; outline: none; font-size: 16px; opacity: 0; transition: opacity 240ms ease; }
+#setsModal .tcg-expanding-search.opens-right .tcg-set-search-input { padding: 7px 12px 7px 42px; }
+#setsModal .tcg-expanding-search.is-expanded .tcg-set-search-input { opacity: 1; }
+#setsModal .tcg-expanding-search > .tcg-set-search-toggle { position: absolute; top: 0; right: 0; z-index: 1; border: 0; background: transparent; transition: color 240ms ease; }
+#setsModal .tcg-expanding-search.opens-right > .tcg-set-search-toggle { right: auto; left: 0; }
 .tcg-set-catalogue-controls { justify-content: space-between; }
 @media (prefers-reduced-motion: reduce) {
+  .tcg-expanding-search::before,
   #setsModal .tcg-expanding-search > .tcg-set-search-wrap.tcg-set-search-panel,
-  #setsModal .tcg-expanding-search .tcg-set-search-input { transition: none; transform: none; }
+  #setsModal .tcg-expanding-search .tcg-set-search-input,
+  #setsModal .tcg-expanding-search > .tcg-set-search-toggle { transition: none; }
 }
 </style>
 </head>
-<body data-app-build="v136">
+<body data-app-build="v137">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -9599,7 +9606,9 @@ function updateSlidingSetSearch(panelId, buttonId, inputId, expanded, query, nam
   const button = document.getElementById(buttonId);
   const input = document.getElementById(inputId);
   if (!panel || !button || !input) return;
-  panel.closest('.tcg-expanding-search').classList.toggle('is-expanded', expanded);
+  const search = panel.closest('.tcg-expanding-search');
+  search.classList.toggle('is-expanded', expanded);
+  search.classList.toggle('has-query', Boolean(query.trim()));
   panel.inert = !expanded;
   panel.setAttribute('aria-hidden', String(!expanded));
   input.disabled = !expanded;

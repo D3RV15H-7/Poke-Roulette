@@ -3326,9 +3326,17 @@ body:not(.has-active) #wheelWrap #wheel { touch-action: none; cursor: grab; user
 .tcg-set-bulk-btn:active { transform: scale(0.95); }
 .tcg-set-bulk-btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .tcg-set-cards .tcg-set-search-empty { grid-column: 1 / -1; }
+/* v133: keep catalogue search and the series toggle on one compact row. */
+.tcg-set-catalogue-controls { display: flex; align-items: center; gap: 8px; margin: 10px 0 12px; }
+.tcg-set-catalogue-controls .tcg-set-search-wrap { flex: 1 1 0; min-width: 0; margin: 0; }
+.tcg-set-catalogue-controls .tcg-set-search-input { height: 36px; min-width: 0; padding: 7px 8px 7px 30px; border-radius: 10px; font-size: 16px; }
+.tcg-set-catalogue-controls .tcg-set-search-icon { left: 10px; font-size: 18px; }
+.tcg-set-catalogue-controls .tcg-series-toggle-wrap { flex: 0 0 auto; margin: 0; }
+.tcg-set-catalogue-controls .tcg-series-toggle-all { width: auto; min-height: 36px; padding: 0.35rem 0.55rem; border-radius: 10px; }
+#setsModal.viewing-set .tcg-set-catalogue-controls { display: none; }
 </style>
 </head>
-<body data-app-build="v132">
+<body data-app-build="v133">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3655,10 +3663,11 @@ body:not(.has-active) #wheelWrap #wheel { touch-action: none; cursor: grab; user
       Loading card sets...
     </div>
 
+    <div class="tcg-set-catalogue-controls">
     <div class="tcg-set-search-wrap">
-      <span class="tcg-set-search-icon">⌕</span>
+      <span class="tcg-set-search-icon" aria-hidden="true">⌕</span>
       <input id="tcgSetSearchInput" class="tcg-set-search-input" type="search"
-        placeholder="Search sets or series..." autocomplete="off" spellcheck="false"
+        placeholder="Search sets…" autocomplete="off" spellcheck="false"
         aria-label="Search Pokémon TCG sets or series">
     </div>
 
@@ -3668,6 +3677,7 @@ body:not(.has-active) #wheelWrap #wheel { touch-action: none; cursor: grab; user
         <span id="tcgSeriesToggleLabel">Expand all</span>
         <svg class="tcg-series-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 17 6-5 6 5m-12-5 6-5 6 5"/></svg>
       </button>
+    </div>
     </div>
     <div id="setsGrid"></div>
 

@@ -3314,9 +3314,21 @@ body:not(.has-active) #wheelWrap #wheel { touch-action: none; cursor: grab; user
 .tcg-count-text, .dex-cards-title-count { color: var(--green); }
 .tcg-count-text.is-incomplete, .dex-cards-title-count.is-incomplete { color: var(--gold); }
 .dex-cards-title-status { display: block; margin-top: 0.15rem; color: var(--gold); font-size: 0.6rem; font-weight: 700; line-height: 1.3; text-transform: none; }
+/* v132: search inside a set, with bulk actions beside the ownership filters. */
+#setsModal.viewing-set .tcg-set-card-search-wrap { display: block; margin: 0.2rem 0 0.55rem; }
+.tcg-set-card-search-wrap .tcg-set-search-input { padding: 10px 12px 10px 38px; }
+#setsModal.viewing-set .tcg-set-filter { display: grid; grid-template-columns: 44px repeat(3, minmax(0, 1fr)) 44px; gap: 4px; align-items: stretch; }
+#setsModal.viewing-set .tcg-set-filter-btn { min-width: 0; min-height: 44px; padding: 0.35rem 0.2rem; }
+.tcg-set-bulk-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 44px; padding: 3px 0; border: 1px solid rgba(16,185,129,0.45); border-radius: 12px; background: rgba(16,185,129,0.1); color: var(--green); font: inherit; font-weight: 800; cursor: pointer; touch-action: manipulation; }
+.tcg-set-bulk-btn.is-remove { color: #f87171; border-color: rgba(248,113,113,0.45); background: rgba(248,113,113,0.1); }
+.tcg-set-bulk-icon { font-size: 1rem; line-height: 1; }
+.tcg-set-bulk-label { font-size: 0.43rem; line-height: 1.2; white-space: nowrap; }
+.tcg-set-bulk-btn:active { transform: scale(0.95); }
+.tcg-set-bulk-btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.tcg-set-cards .tcg-set-search-empty { grid-column: 1 / -1; }
 </style>
 </head>
-<body data-app-build="v131">
+<body data-app-build="v132">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -6865,6 +6877,7 @@ function getDisplayedSetCardTotal(set, cards = null) {
 let tcgSetsCache = null;
 let activeTcgSet = null;
   let activeTcgSetFilter = 'all';
+let activeTcgSetSearch = '';
   
 async function fetchPhysicalTcgSets(forceRefresh = false) {
   if (tcgSetsRequest) return tcgSetsRequest;
@@ -9013,7 +9026,7 @@ function updateSetsRefreshButton() {
   button.setAttribute('aria-label', label);
 }
 
-async function openTcgSet(set) {
+async function openTcgSet(set, preserveFilters = false) {
   disposeSetThumbnails();
   if (!activeTcgSet) {
     tcgSetsListScrollTop = document.querySelector('#setsModal .modal-body')?.scrollTop || 0;
@@ -9024,7 +9037,10 @@ async function openTcgSet(set) {
   resetSetsScrollToTop();
   activeTcgSet = set;
   updateSetsRefreshButton();
-  activeTcgSetFilter = 'all';
+  if (!preserveFilters) {
+    activeTcgSetFilter = 'all';
+    activeTcgSetSearch = '';
+  }
   
   const grid = document.getElementById('setsGrid');
   const loading = document.getElementById('setsLoading');
@@ -9095,6 +9111,13 @@ const percentage = totalCount > 0
         ← Back to Sets
       </button>
 
+      <div class="tcg-set-search-wrap tcg-set-card-search-wrap">
+        <span class="tcg-set-search-icon" aria-hidden="true">⌕</span>
+        <input id="tcgSetCardSearchInput" class="tcg-set-search-input" type="search"
+          placeholder="Search cards or Pokémon in this set…" autocomplete="off" spellcheck="false"
+          aria-label="Search cards or Pokémon in this set" aria-controls="tcgSetCards">
+      </div>
+
       <img class="tcg-set-detail-logo" alt="">
 
       <div class="tcg-set-detail-title">
@@ -9124,6 +9147,11 @@ const percentage = totalCount > 0
 </div>
 
 <div class="tcg-set-filter">
+  <button type="button" class="tcg-set-bulk-btn" onclick="confirmSetCardBulkAction('add')"
+    aria-label="Add all cards in this set" title="Add all cards in this set">
+    <span class="tcg-set-bulk-icon" aria-hidden="true">+</span>
+    <span class="tcg-set-bulk-label">Add All</span>
+  </button>
   <button
     type="button"
     class="tcg-set-filter-btn active"
@@ -9144,6 +9172,11 @@ const percentage = totalCount > 0
     data-filter="not-owned">
     Not Owned
   </button>
+  <button type="button" class="tcg-set-bulk-btn is-remove" onclick="confirmSetCardBulkAction('remove')"
+    aria-label="Remove all cards from this set" title="Remove all cards from this set">
+    <span class="tcg-set-bulk-icon" aria-hidden="true">−</span>
+    <span class="tcg-set-bulk-label">Remove All</span>
+  </button>
 </div>
 
 </div>
@@ -9152,6 +9185,12 @@ const percentage = totalCount > 0
 `;
 
   attachSetLogo(grid.querySelector('.tcg-set-detail-logo'), set, true);
+  const searchInput = document.getElementById('tcgSetCardSearchInput');
+  searchInput.value = activeTcgSetSearch;
+  searchInput.addEventListener('input', () => {
+    activeTcgSetSearch = searchInput.value;
+    renderCurrentSetCards();
+  });
   renderCurrentSetCards();
 }
 
@@ -9444,6 +9483,66 @@ document.addEventListener('wheel', event => {
   if (!openSetCardVariantSelector?.contains(event.target)) closeSetCardVariantSelector();
 }, { capture: true, passive: true });
 
+function normalizeSetCardSearch(value) {
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/♀/g, ' female ').replace(/♂/g, ' male ')
+    .replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function getVisibleCurrentSetCards() {
+  const words = normalizeSetCardSearch(activeTcgSetSearch).split(/\s+/).filter(Boolean);
+  return currentCardsList.map((card, originalIndex) => ({ card, originalIndex }))
+    .filter(({ card }) => {
+      const searchText = normalizeSetCardSearch(`${card.name || ''} ${card.number || card.localId || ''}`);
+      if (!words.every(word => searchText.includes(word))) return false;
+      const owned = isSetCardCollected(card);
+      return activeTcgSetFilter === 'owned' ? owned
+        : activeTcgSetFilter === 'not-owned' ? !owned : true;
+    });
+}
+
+function confirmSetCardBulkAction(action) {
+  if (!['add', 'remove'].includes(action) || !activeTcgSet ||
+      !document.getElementById('tcgSetCards') || !currentCardsList.length) return;
+
+  const set = activeTcgSet;
+  const cards = currentCardsList.slice();
+  const uid = activeUid;
+  if (!window.confirm(`Are you sure you want to ${action} all cards on this set?`)) return;
+  if (activeTcgSet !== set || activeUid !== uid) return;
+
+  // Always use the full set, regardless of the current search/filter.
+  let changed = false;
+  for (const card of cards) {
+    if (action === 'add') {
+      const variants = getAvailableSetCardVariants(card);
+      // The existing base slot is labelled Standard or Holo as appropriate.
+      const base = variants.find(variant => variant.key === 'standard') ||
+        variants.find(variant => variant.key === 'holo') || variants[0];
+      const key = getSetCardVariantKey(card, base?.key);
+      if (key && !memSetCardVariants.has(key)) {
+        memSetCardVariants.add(key);
+        changed = true;
+      }
+    } else {
+      for (const variant of ['standard', 'holo', 'reverseHolo', 'other']) {
+        if (memSetCardVariants.delete(getSetCardVariantKey(card, variant))) changed = true;
+      }
+      // Clear old Sets ticks too, so removed cards cannot reappear as owned.
+      for (const key of [String(card.id || ''), String(card.id || '').toLowerCase().trim(), getCardFingerprint(card)]) {
+        if (key && memSetCardCol.delete(key)) changed = true;
+      }
+    }
+  }
+  if (changed) {
+    saveLocalState();
+    writeFullCollectionToCloud();
+  }
+  renderCurrentSetCards();
+  showToast(action === 'add' ? 'All cards added to this set' : 'All cards removed from this set',
+    action === 'add' ? 'success' : 'removed');
+}
+
 function renderCurrentSetCards() {
   const cardGrid =
     document.getElementById('tcgSetCards');
@@ -9478,24 +9577,15 @@ function renderCurrentSetCards() {
   });
 
   // Work out which cards should currently be shown
-  const visibleCards = currentCardsList
-    .map((card, originalIndex) => ({
-      card,
-      originalIndex
-    }))
-    .filter(({ card }) => {
-      const owned = isSetCardCollected(card);
-
-      if (activeTcgSetFilter === 'owned') {
-        return owned;
-      }
-
-      if (activeTcgSetFilter === 'not-owned') {
-        return !owned;
-      }
-
-      return true;
-    });
+  const visibleCards = getVisibleCurrentSetCards();
+  if (!visibleCards.length) {
+    const empty = document.createElement('div');
+    empty.className = 'tcg-set-search-empty';
+    empty.setAttribute('role', 'status');
+    empty.textContent = activeTcgSetSearch.trim()
+      ? 'No cards match your search and selected filter.' : 'No cards match this filter.';
+    cardGrid.appendChild(empty);
+  }
 
   visibleCards.forEach(({ card, originalIndex }) => {
     const item =
@@ -9840,6 +9930,7 @@ async function renderTcgSets(forceRefresh = false) {
   document.getElementById('setsModal')?.classList.remove('viewing-set');
   resetSetsScrollToTop();
   activeTcgSet = null;
+  activeTcgSetSearch = '';
   updateSetsRefreshButton();
   
   const loading = document.getElementById('setsLoading');
@@ -10937,7 +11028,7 @@ async function refreshSetsView() {
     }
 
     // Re-open the set using the freshly cached cards
-    await openTcgSet(set);
+    await openTcgSet(set, true);
 
     return;
   }

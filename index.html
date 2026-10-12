@@ -3382,7 +3382,7 @@ body:not(.has-active) #wheelWrap #wheel { touch-action: none; cursor: grab; user
 }
 </style>
 </head>
-<body data-app-build="v138">
+<body data-app-build="v139">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3796,58 +3796,25 @@ body:not(.has-active) #wheelWrap #wheel { touch-action: none; cursor: grab; user
 <h3 class="page-title-with-icon" style="font-size:1.15rem;font-weight:800;"><span class="page-title-icon nav-artwork nav-artwork-info" aria-hidden="true"></span><span>About PokéRoulette</span></h3>
       <button style="background:#334155;color:#fff;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;" onclick="closeModal(null, 'infoModal')">✕</button>
     </div>
-    <div class="info-content" style="font-size:0.76rem; color:#cbd5e1; line-height:1.5; display:flex; flex-direction:column; gap:0.75rem; padding:0.5rem 0.2rem;">
-      <p><strong style="color:#fff;">PokéRoulette</strong> lets you discover Pokémon, explore their trading cards and keep track of your collection.</p>
+    <div class="info-content" style="font-size:0.76rem; color:#cbd5e1; line-height:1.4; display:flex; flex-direction:column; gap:0.5rem; padding:0.35rem 0.2rem;">
+      <p>Tap the centre Poké Ball or swipe the wheel to spin. Search by name or Pokédex number, explore evolutions, toggle shiny artwork, and tap cards to preview or share.</p>
 
-      <div style="background:#090d16; border:1px solid #334155; border-radius:10px; padding:0.65rem 0.8rem;">
-        <h4 style="color:var(--green); font-weight:800; font-size:0.72rem; text-transform:uppercase; margin:0 0 0.3rem;">Spin & Explore</h4>
-        <ul style="list-style:disc; padding-left:1.1rem; display:flex; flex-direction:column; gap:0.25rem;">
-          <li>Tap the centre Poké Ball to spin, or drag a wheel segment and release. Tapping a segment alone does not start a spin.</li>
-          <li>Search by Pokémon name or Pokédex number. Use the small evolution images to explore related Pokémon, the star to switch between normal and shiny artwork, and the speaker to play its cry.</li>
-          <li>Tap a trading card to open its preview and use Share. Tap the small <strong>Spin Again</strong> Poké Ball for another spin.</li>
-        </ul>
+      <div style="background:#090d16; border:1px solid #334155; border-radius:10px; padding:0.5rem 0.65rem;">
+        <h4 style="color:var(--green); font-weight:800; font-size:0.72rem; text-transform:uppercase; margin:0 0 0.25rem;">Collection & Sets</h4>
+        <p>Collect Pokémon and cards in Dex, and finishes in Sets. <strong>Add All</strong> uses Standard or the base Holo; <strong>Remove All</strong> clears the set. Both ask for confirmation.</p>
+        <p style="margin-top:0.3rem;">Tap the magnifying glass to search sets or cards. Retracting search keeps the filter; clear the text to reset.</p>
+        <p style="margin-top:0.3rem;">Progress counts cards, not every finish. Your collection is saved locally; sign in through Profile to sync across devices.</p>
       </div>
 
-      <div style="background:#090d16; border:1px solid #334155; border-radius:10px; padding:0.65rem 0.8rem;">
-        <h4 style="color:var(--green); font-weight:800; font-size:0.72rem; text-transform:uppercase; margin:0 0 0.3rem;">Your Collection</h4>
-        <p>Mark Pokémon and cards as collected in the Dex. In Sets, tick the finishes you own, such as Standard, Holo, Reverse or Other Variant. Available finishes vary by card.</p>
-        <p style="margin-top:0.4rem;">Set progress counts each card once when you own at least one finish; 100% does not mean you own every variant.</p>
-        <p style="margin-top:0.4rem;">Your collection is saved on this device. Sign in through Profile to sync it across devices when an internet connection is available.</p>
+      <div style="background:#090d16; border:1px solid #334155; border-radius:10px; padding:0.5rem 0.65rem;">
+        <h4 style="color:var(--gold); font-weight:800; font-size:0.72rem; text-transform:uppercase; margin:0 0 0.25rem;">Cards & Sources</h4>
+        <p><strong style="color:var(--green);">Green counts:</strong> loaded, including saved lists. <strong style="color:var(--gold);">Yellow:</strong> partial or loading. Use <strong>Refresh Cards / Sets</strong> to retry.</p>
+        <p style="margin-top:0.3rem;">Data: PokéAPI, Pokémon TCG API and TCGdex, with supplementary artwork and references. GBP values are approximate market estimates; <strong>Market N/A</strong> means unavailable.</p>
       </div>
 
-      <div style="background:#090d16; border:1px solid #334155; border-radius:10px; padding:0.65rem 0.8rem;">
-        <h4 style="color:var(--green); font-weight:800; font-size:0.72rem; text-transform:uppercase; margin:0 0 0.3rem;">Browse & Manage Sets</h4>
-        <ul style="list-style:disc; padding-left:1.1rem; display:flex; flex-direction:column; gap:0.25rem;">
-          <li>Browse sets grouped by series. Expand or collapse a series, or use the button to expand or collapse them all.</li>
-          <li>Tap the magnifying glass to expand a search bar; tap it again to retract it. Search sets or series in the main Sets view, or card names and numbers inside a set. Retracting the bar keeps your search active; clear the text to see all results.</li>
-          <li>Use <strong>All</strong>, <strong>Owned</strong> and <strong>Not Owned</strong> to filter cards. The arrow buttons let you jump through longer lists.</li>
-          <li><strong>Add All</strong> marks each card's base finish as owned: Standard, or Holo where that is the base finish. <strong>Remove All</strong> clears all owned finishes for that set. Both ask for confirmation and apply to the whole set, even while a search or filter is active.</li>
-        </ul>
-      </div>
-
-      <div style="background:#090d16; border:1px solid #334155; border-radius:10px; padding:0.65rem 0.8rem;">
-        <h4 style="color:var(--gold); font-weight:800; font-size:0.72rem; text-transform:uppercase; margin:0 0 0.3rem;">Card Loading & Values</h4>
-        <ul style="list-style:disc; padding-left:1.1rem; display:flex; flex-direction:column; gap:0.25rem;">
-          <li>A <strong style="color:var(--green);">green Pokémon card count</strong> means the available card list has loaded, including complete saved results. A <strong style="color:var(--gold);">yellow count</strong> with <strong>Partial</strong> means some results could not be retrieved; <strong>Loading</strong> means the search is still running.</li>
-          <li>Use <strong>Refresh Cards</strong> or <strong>Refresh Sets</strong> to request updated data or retry. Card images load separately, so an unavailable image does not necessarily mean the card list is incomplete.</li>
-          <li>Counts and finishes reflect the available catalogue data, which may be incomplete or change as providers update it.</li>
-          <li>Values are estimates from provider market data, converted to GBP using approximate rates. They may differ by finish, condition and sale price. <strong>Market N/A</strong> means no estimate is available. The eBay link opens a search for the card.</li>
-        </ul>
-      </div>
-      
-      <div style="background:#090d16; border:1px solid #334155; border-radius:10px; padding:0.65rem 0.8rem;">
-        <h4 style="color:var(--gold); font-weight:800; font-size:0.72rem; text-transform:uppercase; margin:0 0 0.3rem;">Data & Media Sources</h4>
-        <ul style="list-style:disc; padding-left:1.1rem; color:var(--sub); display:flex; flex-direction:column; gap:0.25rem;">
-          <li>Pokémon information, artwork and cries: <strong style="color:#fff;">PokéAPI</strong> and its media assets.</li>
-          <li>Main card catalogues, set details and finishes: <strong style="color:#fff;">Pokémon TCG API</strong> and <strong style="color:#fff;">TCGdex</strong>.</li>
-          <li>Supplementary references: <strong style="color:#fff;">Serebii</strong> and <strong style="color:#fff;">Bulbapedia</strong>. Additional artwork and logos use Serebii, TCG Collector, Scrydex, BinderDex, Pokémon Card List, CardTrader, Pikawiz and Pokémonkaart.</li>
-          <li>Market estimates: <strong style="color:#fff;">TCGplayer</strong> and <strong style="color:#fff;">Cardmarket</strong> data supplied through the card providers.</li>
-        </ul>
-      </div>
-
-      <div style="background:#090d16; border:1px solid #334155; border-radius:10px; padding:0.65rem 0.8rem;">
-        <h4 style="color:var(--red); font-weight:800; font-size:0.72rem; text-transform:uppercase; margin:0 0 0.3rem;">Legal Disclaimer</h4>
-        <p style="color:var(--sub); font-size:0.7rem; line-height:1.4;">Pokémon and Pokémon character names are trademarks of Nintendo. Pokémon content: © Nintendo / Creatures Inc. / GAME FREAK inc. Other content belongs to its respective rights holders. PokéRoulette is not affiliated with, endorsed, sponsored or approved by Nintendo or The Pokémon Company.</p>
+      <div style="background:#090d16; border:1px solid #334155; border-radius:10px; padding:0.5rem 0.65rem;">
+        <h4 style="color:var(--red); font-weight:800; font-size:0.72rem; text-transform:uppercase; margin:0 0 0.25rem;">Legal Disclaimer</h4>
+        <p style="color:var(--sub); font-size:0.7rem; line-height:1.35;">Pokémon names are trademarks of Nintendo. Pokémon content: © Nintendo / Creatures Inc. / GAME FREAK inc. Other content belongs to its rights holders. PokéRoulette is not affiliated with Nintendo or The Pokémon Company.</p>
       </div>
     </div>
   </div>

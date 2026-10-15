@@ -3396,8 +3396,8 @@ body:not(.has-active) #wheelWrap #wheel { touch-action: none; cursor: grab; user
 /* v142: physical printing categories; mixed ownership retains the green tick. */
 .tcg-variant-option[data-variant-kind],
 .tcg-zoom-variant-option[data-variant-kind],
-.tcg-set-owned-check[data-variant-kind] { --variant-colour: var(--green); --variant-check-ink: #fff; }
-[data-variant-kind="reverse"] { --variant-colour: var(--gold) !important; --variant-check-ink: #101827 !important; }
+.tcg-set-owned-check[data-variant-kind] { --variant-colour: var(--green); --variant-check-ink: #000; }
+[data-variant-kind="reverse"] { --variant-colour: var(--gold) !important; }
 [data-variant-kind="alternative"] { --variant-colour: #38bdf8 !important; }
 .tcg-variant-option[data-variant-kind],
 .tcg-zoom-variant-option[data-variant-kind] { color: var(--variant-colour); }
@@ -3408,9 +3408,15 @@ body:not(.has-active) #wheelWrap #wheel { touch-action: none; cursor: grab; user
 .tcg-set-owned-check.checked[data-variant-kind] {
   background: var(--variant-colour); border-color: var(--variant-colour); color: var(--variant-check-ink);
 }
+/* Match the glyph colour in all card collection checkboxes. */
+.card-check-circle.checked,
+.tcg-set-owned-check.checked,
+.tcg-variant-circle.checked,
+.tcg-zoom-variant-circle.checked,
+.zoom-check-circle.checked .zoom-check-box { color: #000; }
 </style>
 </head>
-<body data-app-build="v142">
+<body data-app-build="v143">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -4164,8 +4170,10 @@ function normaliseNamedPrinting(value) {
   if (Array.isArray(value.languages) && value.languages.length && !value.languages.some(v => /^en(?:-|$)/i.test(v))) return null;
   const stamps = value.stamp || value.stamps || [];
   const subtype = normaliseVariantToken(value.subtype);
-  return { type: value.type, foil: normaliseVariantToken(value.foil) || (subtype === 'cosmos' ? 'cosmos' : ''),
-    subtype: ['unlimited', 'cosmos'].includes(subtype) ? '' : subtype,
+  const isCosmos = token => /^(?:cosmos|cosmo)(?:-?holo(?:foil)?)?$/.test(token);
+  const foil = normaliseVariantToken(value.foil);
+  return { type: value.type, foil: isCosmos(foil) || (!foil && isCosmos(subtype)) ? 'cosmos' : foil,
+    subtype: subtype === 'unlimited' || isCosmos(subtype) ? '' : subtype,
     size: normaliseVariantToken(value.size || 'standard'),
     stamp: [...new Set((Array.isArray(stamps) ? stamps : [stamps]).map(normaliseVariantToken).filter(Boolean))].sort() };
 }
@@ -4236,13 +4244,331 @@ function captureNamedCardVariantData(card, detail) {
   card._namedVariantFlags = !Array.isArray(detail?.variants) ? { ...detail?.variants } : {};
   if (card._namedVariantDetails.length) card._namedBaseFinish = getTcgDexFinishEvidence(detail).baseFinish;
   card._namedVariantSourceId = detail?.id || '';
-  card._namedVariantsVersion = 142;
+  card._namedVariantsVersion = 143;
   return card;
+}
+// v143: English Cosmos alternatives from TCGdex cards-database (2026-10-15).
+// https://github.com/tcgdex/cards-database — match set, number and Pokémon/card name.
+// Cosmos-only base printings are excluded: they are not an extra booster finish.
+const COSMOS_VARIANT_SUPPLEMENTS = Object.freeze([
+  ["dp1","Diamond & Pearl","76","Chimchar",[{"type":"holo","foil":"cosmos"}]],
+  ["dp1","Diamond & Pearl","93","Piplup",[{"type":"holo","foil":"cosmos"}]],
+  ["dp1","Diamond & Pearl","103","Turtwig",[{"type":"holo","foil":"cosmos"}]],
+  ["dp1","Diamond & Pearl","112","Professor Rowan",[{"type":"holo","foil":"cosmos"}]],
+  ["dp2","Mysterious Treasures","21","Bastiodon",[{"type":"holo","foil":"cosmos"}]],
+  ["dp2","Mysterious Treasures","33","Rampardos",[{"type":"holo","foil":"cosmos"}]],
+  ["dp2","Mysterious Treasures","109","Bebe's Search",[{"type":"holo","foil":"cosmos"}]],
+  ["dp3","Secret Wonders","25","Electivire",[{"type":"holo","foil":"cosmos"}]],
+  ["dp3","Secret Wonders","31","Magmortar",[{"type":"holo","foil":"cosmos"}]],
+  ["dp4","Great Encounters","16","Dialga",[{"type":"holo","foil":"cosmos"}]],
+  ["dp4","Great Encounters","26","Palkia",[{"type":"holo","foil":"cosmos"}]],
+  ["dp5","Majestic Dawn","20","Glaceon",[{"type":"holo","foil":"cosmos"}]],
+  ["dp5","Majestic Dawn","24","Leafeon",[{"type":"holo","foil":"cosmos"}]],
+  ["dp6","Legends Awakened","30","Heatran",[{"type":"holo","foil":"cosmos"}]],
+  ["dp6","Legends Awakened","37","Regigigas",[{"type":"holo","foil":"cosmos"}]],
+  ["dp6","Legends Awakened","131","Cynthia's Feelings",[{"type":"holo","foil":"cosmos"}]],
+  ["dp7","Stormfront","19","Gyarados",[{"type":"holo","foil":"cosmos"}]],
+  ["dp7","Stormfront","30","Tyranitar",[{"type":"holo","foil":"cosmos"}]],
+  ["dpp","DP Black Star Promos","DP24","Darkrai",[{"type":"holo","foil":"cosmos"}]],
+  ["dpp","DP Black Star Promos","DP40","Regigigas",[{"type":"holo","foil":"cosmos"}]],
+  ["ex1","Ruby & Sapphire","93","Darkness Energy",[{"type":"holo","foil":"cosmos"},{"type":"holo","foil":"cosmos","stamp":["winner"]}]],
+  ["ex1","Ruby & Sapphire","94","Metal Energy",[{"type":"holo","foil":"cosmos"}]],
+  ["ex2","Sandstorm","93","Multi Energy",[{"type":"holo","foil":"cosmos"},{"type":"holo","foil":"cosmos","stamp":["winner"]}]],
+  ["ex3","Dragon","15","Flygon",[{"type":"holo","foil":"cosmos"},{"type":"holo","foil":"cosmos","stamp":["winner"]}]],
+  ["ex3","Dragon","19","Salamence",[{"type":"holo","foil":"cosmos"},{"type":"holo","foil":"cosmos","stamp":["winner"]}]],
+  ["ex7","Team Rocket Returns","15","Dark Dragonite",[{"type":"holo","foil":"cosmos"}]],
+  ["ex7","Team Rocket Returns","20","Dark Tyranitar",[{"type":"holo","foil":"cosmos"}]],
+  ["ex8","Deoxys","16","Deoxys",[{"type":"holo","foil":"cosmos"}]],
+  ["ex8","Deoxys","22","Rayquaza",[{"type":"holo","foil":"cosmos"}]],
+  ["ex10","Unseen Forces","27","Ho-Oh",[{"type":"holo","foil":"cosmos"}]],
+  ["ex10","Unseen Forces","29","Lugia",[{"type":"holo","foil":"cosmos"}]],
+  ["ex14","Crystal Guardians","14","Blastoise",[{"type":"holo","foil":"cosmos"}]],
+  ["ex14","Crystal Guardians","27","Swampert",[{"type":"holo","foil":"cosmos"}]],
+  ["ex14","Crystal Guardians","28","Venusaur",[{"type":"holo","foil":"cosmos"}]],
+  ["ex16","Power Keepers","14","Dusclops",[{"type":"holo","foil":"cosmos"}]],
+  ["ex16","Power Keepers","18","Mightyena",[{"type":"holo","foil":"cosmos"}]],
+  ["hgss1","HeartGold SoulSilver","20","Feraligatr",[{"type":"holo","foil":"cosmos"}]],
+  ["hgss1","HeartGold SoulSilver","26","Meganium",[{"type":"holo","foil":"cosmos"}]],
+  ["hgss1","HeartGold SoulSilver","32","Typhlosion",[{"type":"holo","foil":"cosmos"}]],
+  ["hgss2","Unleashed","26","Tyranitar",[{"type":"holo","foil":"cosmos"}]],
+  ["me01","Mega Evolution","028","Cinderace",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["me01","Mega Evolution","034","Kyogre",[{"type":"holo","foil":"cosmos"}]],
+  ["me01","Mega Evolution","048","Raikou",[{"type":"holo","foil":"cosmos"}]],
+  ["me01","Mega Evolution","058","Ralts",[{"type":"holo","foil":"cosmos"}]],
+  ["me01","Mega Evolution","059","Kirlia",[{"type":"holo","foil":"cosmos"}]],
+  ["me01","Mega Evolution","074","Lunatone",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["me01","Mega Evolution","075","Solrock",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["me01","Mega Evolution","076","Riolu",[{"type":"holo","foil":"cosmos"}]],
+  ["me01","Mega Evolution","101","Latios",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["me01","Mega Evolution","116","Fighting Gong",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["me01","Mega Evolution","117","Forest of Vitality",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["me01","Mega Evolution","118","Iron Defender",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["me01","Mega Evolution","119","Lillie's Determination",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["me01","Mega Evolution","121","Mega Signal",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["me01","Mega Evolution","122","Mystery Garden",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["me01","Mega Evolution","124","Premium Power Pro",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["me01","Mega Evolution","132","Wally's Compassion",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]},{"type":"holo","foil":"cosmos","stamp":["ultra-ball-league"]}]],
+  ["me02","Phantasmal Flames","001","Oddish",[{"type":"holo","foil":"cosmos"}]],
+  ["me02","Phantasmal Flames","002","Gloom",[{"type":"holo","foil":"cosmos"}]],
+  ["me02","Phantasmal Flames","003","Vileplume",[{"type":"holo","foil":"cosmos"}]],
+  ["me02","Phantasmal Flames","008","Genesect",[{"type":"holo","foil":"cosmos","stamp":["set-logo"]}]],
+  ["me02","Phantasmal Flames","017","Reshiram",[{"type":"holo","foil":"cosmos"}]],
+  ["me02","Phantasmal Flames","026","Suicune",[{"type":"holo","foil":"cosmos"},{"type":"holo","foil":"cosmos","stamp":["gamestop"]}]],
+  ["me02","Phantasmal Flames","034","Pawmot",[{"type":"holo","foil":"cosmos"}]],
+  ["me02","Phantasmal Flames","045","Zacian",[{"type":"holo","foil":"cosmos"}]],
+  ["me02","Phantasmal Flames","053","Flygon",[{"type":"holo","foil":"cosmos"}]],
+  ["me02.5","Ascended Heroes","007","Erika's Tangela",[{"type":"holo","foil":"cosmos"}]],
+  ["me02.5","Ascended Heroes","008","Chikorita",[{"type":"holo","foil":"cosmos"}]],
+  ["me02.5","Ascended Heroes","020","Charmander",[{"type":"holo","foil":"cosmos"}]],
+  ["me02.5","Ascended Heroes","029","Tepig",[{"type":"holo","foil":"cosmos"}]],
+  ["me02.5","Ascended Heroes","039","Psyduck",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["me02.5","Ascended Heroes","041","Totodile",[{"type":"holo","foil":"cosmos"}]],
+  ["me02.5","Ascended Heroes","123","Gastly",[{"type":"holo","foil":"cosmos"}]],
+  ["me02.5","Ascended Heroes","155","N's Zekrom",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["me02.5","Ascended Heroes","175","Larry's Komala",[{"type":"holo","foil":"cosmos"}]],
+  ["me02.5","Ascended Heroes","183","Boss's Orders",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["me02.5","Ascended Heroes","185","Canari",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["me03","Perfect Order","024","Aurorus",[{"type":"holo","foil":"cosmos"}]],
+  ["me03","Perfect Order","028","Luxray",[{"type":"holo","foil":"cosmos"}]],
+  ["me03","Perfect Order","045","Tyrantrum",[{"type":"holo","foil":"cosmos"}]],
+  ["me03","Perfect Order","050","Gengar",[{"type":"holo","foil":"cosmos"},{"type":"holo","foil":"cosmos","stamp":["gamestop"]},{"type":"holo","foil":"cosmos","stamp":["eb-games"]}]],
+  ["me03","Perfect Order","086","Growing Grass Energy",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["me03","Perfect Order","087","Rocky Fighting Energy",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["me03","Perfect Order","088","Telepathic Psychic Energy",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["me05","Pitch Black","056","Zarude",[{"type":"holo","foil":"cosmos"}]],
+  ["np","Nintendo Black Star Promos","1","Kyogre ex",[{"type":"holo","foil":"cosmos"}]],
+  ["np","Nintendo Black Star Promos","2","Groudon ex",[{"type":"holo","foil":"cosmos"}]],
+  ["np","Nintendo Black Star Promos","16","Treecko",[{"type":"holo","foil":"cosmos"}]],
+  ["np","Nintendo Black Star Promos","17","Torchic",[{"type":"holo","foil":"cosmos"}]],
+  ["np","Nintendo Black Star Promos","18","Mudkip",[{"type":"holo","foil":"cosmos"}]],
+  ["np","Nintendo Black Star Promos","19","Whismur",[{"type":"holo","foil":"cosmos"}]],
+  ["pl1","Platinum","28","Giratina",[{"type":"holo","foil":"cosmos"}]],
+  ["pl2","Rising Rivals","20","Gallade E4",[{"type":"holo","foil":"cosmos"}]],
+  ["pl3","Supreme Victors","15","Arcanine G",[{"type":"holo","foil":"cosmos"}]],
+  ["pl3","Supreme Victors","35","Milotic C",[{"type":"holo","foil":"cosmos"}]],
+  ["pop7","POP Series 7","3","Latias",[{"type":"holo","foil":"cosmos"}]],
+  ["pop7","POP Series 7","4","Latios",[{"type":"holo","foil":"cosmos"}]],
+  ["pop7","POP Series 7","5","Mothim",[{"type":"holo","foil":"cosmos"}]],
+  ["pop7","POP Series 7","9","Stantler",[{"type":"holo","foil":"cosmos"}]],
+  ["pop8","POP Series 8","1","Heatran",[{"type":"holo","foil":"cosmos"}]],
+  ["pop8","POP Series 8","2","Lucario",[{"type":"holo","foil":"cosmos"}]],
+  ["pop8","POP Series 8","3","Luxray",[{"type":"holo","foil":"cosmos"}]],
+  ["pop8","POP Series 8","4","Probopass",[{"type":"holo","foil":"cosmos"}]],
+  ["pop8","POP Series 8","5","Yanmega",[{"type":"holo","foil":"cosmos"}]],
+  ["pop8","POP Series 8","14","Happiny",[{"type":"holo","foil":"cosmos"}]],
+  ["sv02","Paldea Evolved","043","Gyarados",[{"type":"holo","foil":"cosmos"}]],
+  ["sv02","Paldea Evolved","053","Cetoddle",[{"type":"holo","foil":"cosmos","stamp":["snowflake"]}]],
+  ["sv02","Paldea Evolved","058","Frigibax",[{"type":"holo","foil":"cosmos","stamp":["snowflake"]}]],
+  ["sv02","Paldea Evolved","060","Baxcalibur",[{"type":"holo","foil":"cosmos"}]],
+  ["sv02","Paldea Evolved","071","Luxray",[{"type":"holo","foil":"cosmos"}]],
+  ["sv02","Paldea Evolved","105","Tinkaton",[{"type":"holo","foil":"cosmos"}]],
+  ["sv02","Paldea Evolved","110","Larvitar",[{"type":"holo","foil":"cosmos"}]],
+  ["sv02","Paldea Evolved","111","Pupitar",[{"type":"holo","foil":"cosmos"}]],
+  ["sv02","Paldea Evolved","123","Garganacl",[{"type":"holo","foil":"cosmos"}]],
+  ["sv02","Paldea Evolved","126","Glimmora",[{"type":"holo","foil":"cosmos"}]],
+  ["sv02","Paldea Evolved","135","Tyranitar",[{"type":"holo","foil":"cosmos"}]],
+  ["sv02","Paldea Evolved","136","Sableye",[{"type":"holo","foil":"cosmos"}]],
+  ["sv02","Paldea Evolved","140","Hydreigon",[{"type":"holo","foil":"cosmos"}]],
+  ["sv02","Paldea Evolved","151","Orthworm",[{"type":"holo","foil":"cosmos"}]],
+  ["sv02","Paldea Evolved","160","Slakoth",[{"type":"holo","foil":"cosmos"}]],
+  ["sv02","Paldea Evolved","161","Vigoroth",[{"type":"holo","foil":"cosmos"}]],
+  ["sv02","Paldea Evolved","162","Slaking",[{"type":"holo","foil":"cosmos"}]],
+  ["sv03","Obsidian Flames","013","Rowlet",[{"type":"holo","foil":"cosmos"}]],
+  ["sv03","Obsidian Flames","014","Dartrix",[{"type":"holo","foil":"cosmos"}]],
+  ["sv03","Obsidian Flames","016","Bounsweet",[{"type":"holo","foil":"cosmos"}]],
+  ["sv03","Obsidian Flames","017","Steenee",[{"type":"holo","foil":"cosmos"}]],
+  ["sv03","Obsidian Flames","025","Scovillain",[{"type":"holo","foil":"cosmos"}]],
+  ["sv03","Obsidian Flames","056","Froakie",[{"type":"holo","foil":"cosmos"}]],
+  ["sv03","Obsidian Flames","057","Frogadier",[{"type":"holo","foil":"cosmos"}]],
+  ["sv03","Obsidian Flames","062","Palafin",[{"type":"holo","foil":"cosmos"}]],
+  ["sv03","Obsidian Flames","085","Togekiss",[{"type":"holo","foil":"cosmos"}]],
+  ["sv03","Obsidian Flames","100","Greavard",[{"type":"holo","foil":"cosmos"}]],
+  ["sv03","Obsidian Flames","105","Larvitar",[{"type":"holo","foil":"cosmos"}]],
+  ["sv03","Obsidian Flames","106","Pupitar",[{"type":"holo","foil":"cosmos"}]],
+  ["sv03","Obsidian Flames","148","Pawniard",[{"type":"normal","foil":"cosmos"}]],
+  ["sv03","Obsidian Flames","149","Bisharp",[{"type":"holo","foil":"cosmos"}]],
+  ["sv03.5","151","001","Bulbasaur",[{"type":"reverse","foil":"cosmos"}]],
+  ["sv03.5","151","004","Charmander",[{"type":"holo","foil":"cosmos"},{"type":"reverse","foil":"cosmos"}]],
+  ["sv03.5","151","005","Charmeleon",[{"type":"holo","foil":"cosmos"}]],
+  ["sv03.5","151","007","Squirtle",[{"type":"reverse","foil":"cosmos"}]],
+  ["sv03.5","151","025","Pikachu",[{"type":"reverse","foil":"cosmos"}]],
+  ["sv03.5","151","026","Raichu",[{"type":"holo","foil":"cosmos"}]],
+  ["sv03.5","151","068","Machamp",[{"type":"holo","foil":"cosmos"}]],
+  ["sv03.5","151","149","Dragonite",[{"type":"holo","foil":"cosmos"}]],
+  ["sv04","Paradox Rift","032","Kingdra",[{"type":"holo","foil":"cosmos"}]],
+  ["sv04","Paradox Rift","037","Snorunt",[{"type":"holo","foil":"cosmos","stamp":["snowflake"]}]],
+  ["sv04","Paradox Rift","045","Vanilluxe",[{"type":"holo","foil":"cosmos","stamp":["snowflake"]}]],
+  ["sv04","Paradox Rift","057","Chien-Pao",[{"type":"holo","foil":"cosmos"}]],
+  ["sv04","Paradox Rift","066","Zekrom",[{"type":"holo","foil":"cosmos"}]],
+  ["sv04","Paradox Rift","073","Latios",[{"type":"holo","foil":"cosmos"}]],
+  ["sv04","Paradox Rift","081","Espathra",[{"type":"holo","foil":"cosmos"}]],
+  ["sv04","Paradox Rift","122","Lokix",[{"type":"holo","foil":"cosmos"}]],
+  ["sv04","Paradox Rift","125","Steelix",[{"type":"holo","foil":"cosmos"}]],
+  ["sv04","Paradox Rift","131","Honedge",[{"type":"holo","foil":"cosmos"}]],
+  ["sv04","Paradox Rift","132","Doublade",[{"type":"holo","foil":"cosmos"}]],
+  ["sv04","Paradox Rift","144","Porygon-Z",[{"type":"holo","foil":"cosmos"}]],
+  ["sv04.5","Paldean Fates","007","Charmander",[{"type":"holo","foil":"cosmos"}]],
+  ["sv04.5","Paldean Fates","008","Charmeleon",[{"type":"holo","foil":"cosmos"}]],
+  ["sv04.5","Paldean Fates","018","Pikachu",[{"type":"reverse","foil":"cosmos"}]],
+  ["sv04.5","Paldean Fates","038","Fidough",[{"type":"reverse","foil":"cosmos"}]],
+  ["sv04.5","Paldean Fates","042","Greavard",[{"type":"reverse","foil":"cosmos"}]],
+  ["sv04.5","Paldean Fates","062","Maschiff",[{"type":"reverse","foil":"cosmos"}]],
+  ["sv05","Temporal Forces","024","Rabsca",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv05","Temporal Forces","051","Pikachu",[{"type":"holo","foil":"cosmos"}]],
+  ["sv05","Temporal Forces","062","Iron Thorns",[{"type":"holo","foil":"cosmos"}]],
+  ["sv05","Temporal Forces","077","Scream Tail",[{"type":"holo","foil":"cosmos"}]],
+  ["sv05","Temporal Forces","078","Flutter Mane",[{"type":"holo","foil":"cosmos"}]],
+  ["sv05","Temporal Forces","079","Iron Valiant",[{"type":"holo","foil":"cosmos"}]],
+  ["sv05","Temporal Forces","109","Roaring Moon",[{"type":"holo","foil":"cosmos"}]],
+  ["sv05","Temporal Forces","119","Koraidon",[{"type":"holo","foil":"cosmos"}]],
+  ["sv05","Temporal Forces","121","Miraidon",[{"type":"holo","foil":"cosmos"}]],
+  ["sv05","Temporal Forces","126","Hoothoot",[{"type":"holo","foil":"cosmos"}]],
+  ["sv05","Temporal Forces","127","Noctowl",[{"type":"holo","foil":"cosmos"}]],
+  ["sv05","Temporal Forces","142","Bianca's Devotion",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv05","Temporal Forces","144","Buddy-Buddy Poffin",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv05","Temporal Forces","145","Ciphermaniac's Codebreaking",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv05","Temporal Forces","147","Explorer's Guidance",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv05","Temporal Forces","148","Full Metal Lab",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv05","Temporal Forces","156","Perilous Jungle",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv05","Temporal Forces","159","Rescue Board",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv05","Temporal Forces","161","Mist Energy",[{"type":"reverse","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv06","Twilight Masquerade","018","Dipplin",[{"type":"holo","foil":"cosmos"}]],
+  ["sv06","Twilight Masquerade","022","Sinistcha",[{"type":"holo","foil":"cosmos"}]],
+  ["sv06","Twilight Masquerade","024","Teal Mask Ogerpon",[{"type":"holo","foil":"cosmos","stamp":["set-logo"]},{"type":"holo","foil":"cosmos"}]],
+  ["sv06","Twilight Masquerade","038","Chandelure",[{"type":"holo","foil":"cosmos"}]],
+  ["sv06","Twilight Masquerade","062","Iron Bundle",[{"type":"holo","foil":"cosmos","stamp":["snowflake"]}]],
+  ["sv06","Twilight Masquerade","082","Alakazam",[{"type":"holo","foil":"cosmos"}]],
+  ["sv06","Twilight Masquerade","100","Hisuian Arcanine",[{"type":"holo","foil":"cosmos"}]],
+  ["sv06","Twilight Masquerade","159","Ogre's Mask",[{"type":"holo","foil":"cosmos"}]],
+  ["sv06.5","Shrouded Fable","010","Horsea",[{"type":"holo","foil":"cosmos"}]],
+  ["sv06.5","Shrouded Fable","011","Seadra",[{"type":"holo","foil":"cosmos"}]],
+  ["sv07","Stellar Crown","076","Rhyperior",[{"type":"holo","foil":"cosmos"}]],
+  ["sv07","Stellar Crown","101","Klinklang",[{"type":"holo","foil":"cosmos"}]],
+  ["sv07","Stellar Crown","104","Melmetal",[{"type":"holo","foil":"cosmos"}]],
+  ["sv07","Stellar Crown","107","Archaludon",[{"type":"holo","foil":"cosmos"}]],
+  ["sv08","Surging Sparks","014","Rabsca",[{"type":"holo","foil":"cosmos"}]],
+  ["sv08","Surging Sparks","031","Skeledirge",[{"type":"holo","foil":"cosmos"}]],
+  ["sv08","Surging Sparks","072","Togekiss",[{"type":"holo","foil":"cosmos"}]],
+  ["sv08","Surging Sparks","092","Tapu Lele",[{"type":"holo","foil":"cosmos"}]],
+  ["sv08","Surging Sparks","107","Gastrodon",[{"type":"holo","foil":"cosmos"}]],
+  ["sv08.5","Prismatic Evolutions","005","Leafeon",[{"type":"holo","foil":"cosmos"}]],
+  ["sv08.5","Prismatic Evolutions","013","Flareon",[{"type":"holo","foil":"cosmos"}]],
+  ["sv08.5","Prismatic Evolutions","022","Vaporeon",[{"type":"holo","foil":"cosmos"}]],
+  ["sv08.5","Prismatic Evolutions","025","Glaceon",[{"type":"holo","foil":"cosmos"}]],
+  ["sv08.5","Prismatic Evolutions","029","Jolteon",[{"type":"holo","foil":"cosmos"}]],
+  ["sv08.5","Prismatic Evolutions","033","Espeon",[{"type":"holo","foil":"cosmos"}]],
+  ["sv08.5","Prismatic Evolutions","040","Sylveon",[{"type":"holo","foil":"cosmos"}]],
+  ["sv08.5","Prismatic Evolutions","059","Umbreon",[{"type":"holo","foil":"cosmos"}]],
+  ["sv08.5","Prismatic Evolutions","074","Eevee",[{"type":"reverse","foil":"cosmos"}]],
+  ["sv09","Journey Together","018","Meowscarada",[{"type":"holo","foil":"cosmos"}]],
+  ["sv09","Journey Together","027","N's Darmanitan",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv09","Journey Together","041","Wailord",[{"type":"holo","foil":"cosmos"}]],
+  ["sv09","Journey Together","047","Iono's Voltorb",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv09","Journey Together","052","Iono's Tadbulb",[{"type":"holo","foil":"cosmos"}]],
+  ["sv09","Journey Together","067","Lillie's Ribombee",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv09","Journey Together","085","Lycanroc",[{"type":"holo","foil":"cosmos"}]],
+  ["sv09","Journey Together","095","Tyranitar",[{"type":"holo","foil":"cosmos"}]],
+  ["sv09","Journey Together","116","N's Reshiram",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv09","Journey Together","117","Hop's Snorlax",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv09","Journey Together","135","Hop's Wooloo",[{"type":"holo","foil":"cosmos"}]],
+  ["sv09","Journey Together","136","Hop's Dubwool",[{"type":"holo","foil":"cosmos"}]],
+  ["sv09","Journey Together","148","Hop's Choice Band",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv09","Journey Together","150","Levincia",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv09","Journey Together","151","Lillie's Pearl",[{"type":"holo","foil":"cosmos"},{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv09","Journey Together","153","N's PP Up",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv09","Journey Together","154","Postwick",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv10","Destined Rivals","018","Hydrapple",[{"type":"holo","foil":"cosmos"}]],
+  ["sv10","Destined Rivals","024","Rellor",[{"type":"holo","foil":"cosmos"}]],
+  ["sv10","Destined Rivals","042","Blaziken",[{"type":"holo","foil":"cosmos"}]],
+  ["sv10","Destined Rivals","051","Team Rocket's Articuno",[{"type":"holo","foil":"cosmos"}]],
+  ["sv10","Destined Rivals","070","Team Rocket's Zapdos",[{"type":"holo","foil":"cosmos","stamp":["eb-games"]},{"type":"holo","foil":"cosmos"}]],
+  ["sv10","Destined Rivals","096","Team Rocket's Tyranitar",[{"type":"holo","foil":"cosmos"}]],
+  ["sv10","Destined Rivals","159","Arven's Greedent",[{"type":"holo","foil":"cosmos"}]],
+  ["sv10.5b","Black Bolt","012","Victini",[{"type":"holo","foil":"cosmos","stamp":["set-logo"]}]],
+  ["sv10.5b","Black Bolt","030","Tynamo",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv10.5b","Black Bolt","031","Eelektrik",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]}]],
+  ["sv10.5b","Black Bolt","079","Air Balloon",[{"type":"holo","foil":"cosmos","stamp":["player-rewards-program"]},{"type":"holo","foil":"cosmos","stamp":["great-ball-league"]}]],
+  ["sve","Scarlet & Violet Energy","001","Grass Energy",[{"type":"reverse","foil":"cosmos"},{"type":"reverse","foil":"cosmos","stamp":["player-rewards-program"]},{"type":"reverse","foil":"cosmos","stamp":["professor-program"]}]],
+  ["sve","Scarlet & Violet Energy","002","Fire Energy",[{"type":"reverse","foil":"cosmos"},{"type":"reverse","foil":"cosmos","stamp":["player-rewards-program"]},{"type":"reverse","foil":"cosmos","stamp":["professor-program"]}]],
+  ["sve","Scarlet & Violet Energy","003","Water Energy",[{"type":"reverse","foil":"cosmos"},{"type":"reverse","foil":"cosmos","stamp":["player-rewards-program"]},{"type":"reverse","foil":"cosmos","stamp":["professor-program"]}]],
+  ["sve","Scarlet & Violet Energy","004","Lightning Energy",[{"type":"reverse","foil":"cosmos"},{"type":"reverse","foil":"cosmos","stamp":["player-rewards-program"]},{"type":"reverse","foil":"cosmos","stamp":["professor-program"]}]],
+  ["sve","Scarlet & Violet Energy","005","Psychic Energy",[{"type":"reverse","foil":"cosmos"},{"type":"reverse","foil":"cosmos","stamp":["player-rewards-program"]},{"type":"reverse","foil":"cosmos","stamp":["professor-program"]}]],
+  ["sve","Scarlet & Violet Energy","006","Fighting Energy",[{"type":"reverse","foil":"cosmos"},{"type":"reverse","foil":"cosmos","stamp":["player-rewards-program"]},{"type":"reverse","foil":"cosmos","stamp":["professor-program"]}]],
+  ["sve","Scarlet & Violet Energy","007","Darkness Energy",[{"type":"reverse","foil":"cosmos"},{"type":"reverse","foil":"cosmos","stamp":["player-rewards-program"]},{"type":"reverse","foil":"cosmos","stamp":["professor-program"]}]],
+  ["sve","Scarlet & Violet Energy","008","Metal Energy",[{"type":"reverse","foil":"cosmos"},{"type":"reverse","foil":"cosmos","stamp":["player-rewards-program"]},{"type":"reverse","foil":"cosmos","stamp":["professor-program"]}]],
+  ["sve","Scarlet & Violet Energy","009","Grass Energy",[{"type":"reverse","foil":"cosmos","stamp":["player-rewards-program"]},{"type":"reverse","foil":"cosmos","stamp":["professor-program"]}]],
+  ["sve","Scarlet & Violet Energy","010","Fire Energy",[{"type":"reverse","foil":"cosmos","stamp":["player-rewards-program"]},{"type":"reverse","foil":"cosmos","stamp":["professor-program"]}]],
+  ["sve","Scarlet & Violet Energy","011","Water Energy",[{"type":"reverse","foil":"cosmos","stamp":["player-rewards-program"]},{"type":"reverse","foil":"cosmos","stamp":["professor-program"]}]],
+  ["sve","Scarlet & Violet Energy","012","Lightning Energy",[{"type":"reverse","foil":"cosmos","stamp":["player-rewards-program"]},{"type":"reverse","foil":"cosmos","stamp":["professor-program"]}]],
+  ["sve","Scarlet & Violet Energy","013","Psychic Energy",[{"type":"reverse","foil":"cosmos","stamp":["player-rewards-program"]},{"type":"reverse","foil":"cosmos","stamp":["professor-program"]}]],
+  ["sve","Scarlet & Violet Energy","014","Fighting Energy",[{"type":"reverse","foil":"cosmos","stamp":["player-rewards-program"]},{"type":"reverse","foil":"cosmos","stamp":["professor-program"]}]],
+  ["sve","Scarlet & Violet Energy","015","Darkness Energy",[{"type":"reverse","foil":"cosmos","stamp":["player-rewards-program"]},{"type":"reverse","foil":"cosmos","stamp":["professor-program"]}]],
+  ["sve","Scarlet & Violet Energy","016","Metal Energy",[{"type":"reverse","foil":"cosmos","stamp":["player-rewards-program"]},{"type":"reverse","foil":"cosmos","stamp":["professor-program"]}]],
+  ["svp","SVP Black Star Promos","012","Dondozo",[{"type":"holo","foil":"cosmos"}]],
+  ["svp","SVP Black Star Promos","040","Pawmi",[{"type":"holo","foil":"cosmos"}]],
+  ["svp","SVP Black Star Promos","063","Cetitan",[{"type":"holo","foil":"cosmos"}]],
+  ["svp","SVP Black Star Promos","064","Arctibax",[{"type":"holo","foil":"cosmos"}]],
+  ["svp","SVP Black Star Promos","121","Revavroom",[{"type":"holo","foil":"cosmos"}]],
+  ["swsh2","Rebel Clash","54","Eiscue",[{"type":"holo","foil":"cosmos"}]],
+  ["swsh2","Rebel Clash","95","Galarian Sirfetch'd",[{"type":"holo","foil":"cosmos"}]],
+  ["swsh4","Vivid Voltage","48","Zapdos",[{"type":"holo","foil":"cosmos"}]],
+  ["swsh4","Vivid Voltage","129","Duraludon",[{"type":"holo","foil":"cosmos"}]],
+  ["swsh4.5","Shining Fates","60","Professor's Research (Professor Juniper)",[{"type":"holo","foil":"cosmos"}]],
+  ["swsh5","Battle Styles","23","Tepig",[{"type":"holo","foil":"cosmos"}]],
+  ["swsh5","Battle Styles","46","Shinx",[{"type":"holo","foil":"cosmos"}]],
+  ["swsh5","Battle Styles","82","Sandaconda",[{"type":"holo","foil":"cosmos"}]],
+  ["swsh6","Chilling Reign","98","Galarian Slowking",[{"type":"holo","foil":"cosmos"}]],
+  ["swsh6","Chilling Reign","145","Klara",[{"type":"holo","foil":"cosmos"}]],
+  ["swsh8","Fusion Strike","130","Dragapult",[{"type":"holo","foil":"cosmos"}]],
+  ["swsh8","Fusion Strike","161","Galarian Obstagoon",[{"type":"holo","foil":"cosmos"}]],
+  ["swsh8","Fusion Strike","222","Wooloo",[{"type":"holo","foil":"cosmos"}]],
+  ["swsh9","Brilliant Stars","021","Moltres",[{"type":"holo","foil":"cosmos"}]],
+  ["swsh9","Brilliant Stars","037","Empoleon",[{"type":"holo","foil":"cosmos"}]],
+  ["swsh9","Brilliant Stars","132","Boss's Orders",[{"type":"holo","foil":"cosmos"}]],
+  ["swsh10.5","Pokémon GO","027","Pikachu",[{"type":"holo","foil":"cosmos"}]],
+  ["swsh10.5","Pokémon GO","052","Blissey",[{"type":"holo","foil":"cosmos"}]],
+  ["swsh12","Silver Tempest","036","Articuno",[{"type":"holo","foil":"cosmos"}]],
+  ["swshp","SWSH Black Star Promos","SWSH010","Gossifleur",[{"type":"holo","foil":"cosmos"}]],
+  ["swshp","SWSH Black Star Promos","SWSH011","Wooloo",[{"type":"holo","foil":"cosmos"}]],
+  ["swshp","SWSH Black Star Promos","SWSH012","Morpeko",[{"type":"holo","foil":"cosmos"}]],
+  ["swshp","SWSH Black Star Promos","SWSH013","Galarian Ponyta",[{"type":"holo","foil":"cosmos"}]],
+  ["swshp","SWSH Black Star Promos","SWSH029","Rayquaza",[{"type":"holo","foil":"cosmos"}]],
+  ["swshp","SWSH Black Star Promos","SWSH040","Hatenna",[{"type":"holo","foil":"cosmos"}]],
+  ["swshp","SWSH Black Star Promos","SWSH129","Umbreon",[{"type":"holo","foil":"cosmos"}]],
+  ["swshp","SWSH Black Star Promos","SWSH220","Rowlet",[{"type":"holo","foil":"cosmos"}]],
+  ["swshp","SWSH Black Star Promos","SWSH221","Cyndaquil",[{"type":"holo","foil":"cosmos"}]],
+  ["swshp","SWSH Black Star Promos","SWSH222","Oshawott",[{"type":"holo","foil":"cosmos"}]]
+]);
+let cosmosVariantSupplementIndex = null;
+function getCosmosVariantSupplement(card) {
+  const numberKey = value => String(value || '').split('/')[0].trim().toLowerCase().replace(/^0+(?=\d)/, '');
+  const setKey = value => String(value || '').toLowerCase().replace(/^me(\d)(?=\.|$)/, 'me0$1').replace(/^sv(\d)(?=\.|$)/, 'sv0$1');
+  if (!cosmosVariantSupplementIndex) {
+    const byId = new Map(), byName = new Map();
+    for (const [id, setName, number, name, printings] of COSMOS_VARIANT_SUPPLEMENTS) {
+      const entry = {name: normaliseVariantToken(name), printings};
+      byId.set(setKey(id) + '__' + numberKey(number), entry);
+      byName.set(normaliseVariantToken(setName) + '__' + numberKey(number), entry);
+    }
+    cosmosVariantSupplementIndex = {byId, byName};
+  }
+  const number = numberKey(card?.number || card?.localId || card?.id?.split('-').pop());
+  const cardName = normaliseVariantToken(card?.name);
+  if (!number || !cardName) return [];
+  const sourceIds = [card?._namedVariantSourceId, card?._tcgDexDetailId, card?.id];
+  const setIds = [card?.setId, card?.set?.id, ...sourceIds.filter(Boolean).map(id => String(id).replace(/-[^-]+$/, ''))];
+  for (const id of setIds.filter(Boolean)) {
+    const entry = cosmosVariantSupplementIndex.byId.get(setKey(id) + '__' + number);
+    if (entry?.name === cardName) return entry.printings;
+  }
+  const entry = cosmosVariantSupplementIndex.byName.get(normaliseVariantToken(card?.setName || card?.set?.name) + '__' + number);
+  return entry?.name === cardName ? entry.printings : [];
 }
 function getNamedCardVariantDefinitions(card) {
   if (!card) return [];
   const correction = getCardVariantSupplement(card);
   const anniversary = getThirtyCelebrationVariantSupplement(card);
+  const cosmosPrintings = getCosmosVariantSupplement(card);
   const promoReverse = getSupplementalPromoCard(card)?.finish === 'reverse';
   const baseType = promoReverse ? 'reverse' : (correction?.baseFinish || card.baseFinish || card._namedBaseFinish) === 'holo' ? 'holo' : 'normal';
   const raw = card._namedVariantDetails || card._thirtiethPrintings || card.variants_detailed || card.variantsDetailed || [];
@@ -4256,7 +4582,8 @@ function getNamedCardVariantDefinitions(card) {
   detailed = detailed.map(v => ({ ...v, stamp: v.stamp.filter(s => !isIntrinsicSetStamp(card, s)) }));
   const simple = v => !v.foil && !v.subtype && !v.stamp.length && v.size === 'standard';
   const basePrinting = detailed.find(v => v.type === baseType && simple(v)) ||
-    detailed.find(v => v.type === baseType && !v.stamp.length && !v.subtype && v.size === 'standard');
+    detailed.find(v => v.type === baseType && !v.stamp.length && !v.subtype && v.size === 'standard' &&
+      !(v.foil === 'cosmos' && cosmosPrintings.length));
   const definitions = [{ key: 'standard', label: basePrinting ? namedPrintingLabel(basePrinting, baseType)
     : baseType === 'holo' ? 'Holo' : baseType === 'reverse' ? 'Reverse' : 'Standard' }];
   const seen = new Set([namedVariantKey(basePrinting || normaliseNamedPrinting({type:baseType}))]);
@@ -4288,6 +4615,7 @@ function getNamedCardVariantDefinitions(card) {
   }
   const reverse = correction?.reverseHolo ?? card.variants?.reverseHolo;
   if (!anniversary && baseType !== 'reverse' && reverse && !detailed.some(v => v.type === 'reverse')) add({type:'reverse'});
+  cosmosPrintings.forEach(add);
   getVerifiedAdditionalCardPrintings(card).forEach(p => {
     if (!detailed.some(v => p.stamp.every(stamp => v.stamp.includes(stamp)))) add(p);
   });
@@ -6842,7 +7170,7 @@ const visibleCardDetailBusy = new WeakSet();
 let visibleCardDetailActive = 0;
 function queueVisibleCardDetails(card) {
   if (!card || !currentCardsList.includes(card) || visibleCardDetailDone.has(card) || visibleCardDetailBusy.has(card)) return;
-  if (card._namedVariantsVersion === 142 && card._detailsAt && Date.now() - card._detailsAt < 86400000) return;
+  if (card._namedVariantsVersion === 143 && card._detailsAt && Date.now() - card._detailsAt < 86400000) return;
   visibleCardDetailQueue.set(card, card);
   pumpVisibleCardDetails();
 }
@@ -7112,11 +7440,14 @@ async function getTcgDexCardDetail(id, deadline, forceRefresh = false) {
 async function loadTcgDexCardDetail(id, deadline, forceRefresh = false) {
   const cached = tcgDetailCache.get(id);
   if (cached && Date.now() - cached.savedAt < (forceRefresh ? 60000 : 3600000)) return cached.data;
-  const saved = !forceRefresh && readFastData(`pokeroulette_fast_card_v115_${id}`, 86400000);
+  const saved = !forceRefresh && readFastData(`pokeroulette_fast_card_v143_${id}`, 86400000);
   if (saved?.id === id && saved?.set?.id) {
     setBoundedCache(tcgDetailCache, id, { savedAt: Date.now(), data: saved }, 1000);
     return saved;
   }
+  // Old details remain an offline fallback, but cannot suppress the first
+  // refresh of named finish metadata in this build.
+  const previous = !forceRefresh && readFastData(`pokeroulette_fast_card_v115_${id}`, 86400000);
   try {
     const data = await fetchJsonWithRetry(
       `https://api.tcgdex.net/v2/en/cards/${encodeURIComponent(id)}`,
@@ -7124,10 +7455,11 @@ async function loadTcgDexCardDetail(id, deadline, forceRefresh = false) {
     );
     if (data?.id !== id || !data?.set?.id) throw new Error('Invalid card detail');
     setBoundedCache(tcgDetailCache, id, { savedAt: Date.now(), data }, 1000);
-    saveFastData(`pokeroulette_fast_card_v115_${id}`, data);
+    saveFastData(`pokeroulette_fast_card_v143_${id}`, data);
     return data;
   } catch (error) {
     if (cached) return cached.data;
+    if (previous?.id === id && previous?.set?.id) return previous;
     throw error;
   }
 }

@@ -3380,9 +3380,22 @@ body:not(.has-active) #wheelWrap #wheel { touch-action: none; cursor: grab; user
   #setsModal .tcg-expanding-search .tcg-set-search-input,
   #setsModal .tcg-expanding-search > .tcg-set-search-toggle { transition: none; }
 }
+/* v141: three rows per column; extra named printings scroll inside the box. */
+.tcg-zoom-variants { display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-rows: calc(3 * var(--tcg-zoom-variant-row-height)); align-items: stretch; justify-content: normal; gap: 8px; width: min(100%, 320px); box-sizing: border-box; overflow-y: auto; overscroll-behavior: contain; }
+.tcg-zoom-variants.has-many-variants { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tcg-zoom-variant-column { display: flex; flex-direction: column; justify-content: center; min-width: 0; height: calc(3 * var(--tcg-zoom-variant-row-height)); }
+.tcg-zoom-variant-option, .tcg-variant-option { width: 100%; min-width: 0; box-sizing: border-box; background: transparent; color: var(--sub); border: 0; font-family: inherit; font-weight: 800; text-align: left; cursor: pointer; }
+.tcg-zoom-variant-option { gap: 5px; line-height: 1.1; padding: 1px 0.1rem; }
+.tcg-zoom-variants.has-many-variants .tcg-zoom-variant-option { font-size: 0.62rem; }
+.tcg-zoom-variant-option > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.tcg-zoom-variant-circle { flex-shrink: 0; }
+.tcg-zoom-variant-column .tcg-zoom-variant-option + .tcg-zoom-variant-option { border-top: 1px solid rgba(148,163,184,0.2); }
+.tcg-variant-selector { max-height: 80%; overflow-y: auto; overscroll-behavior: contain; }
+.tcg-variant-option > span:first-child { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.tcg-zoom-variant-option:focus-visible, .tcg-variant-option:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; border-radius: 4px; }
 </style>
 </head>
-<body data-app-build="v140">
+<body data-app-build="v141">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -4101,17 +4114,211 @@ function isSetCardVariantOwned(card, variant) {
   );
 }
 
+// v141: keep physical printing identities, rather than grouping them as Other.
+let setVariantOwnershipIndex = null;
+function invalidateSetVariantOwnershipIndex() { setVariantOwnershipIndex = null; }
+function isStoredSetVariantName(value) {
+  return ['standard', 'holo', 'reverseHolo', 'other'].includes(value) || Boolean(decodeNamedVariantKey(value));
+}
 function getOwnedSetCardVariants(card) {
-  const variants = [
-    'standard',
-    'holo',
-    'reverseHolo',
-    'other'
-  ];
-
-  return variants.filter(variant =>
-    isSetCardVariantOwned(card, variant)
-  );
+  const fingerprint = getCardFingerprint(card);
+  if (!fingerprint) return [];
+  if (!setVariantOwnershipIndex || setVariantOwnershipIndex.ref !== memSetCardVariants ||
+      setVariantOwnershipIndex.size !== memSetCardVariants.size) {
+    const byCard = new Map();
+    for (const stored of memSetCardVariants) {
+      if (typeof stored !== 'string') continue;
+      const split = stored.lastIndexOf('__');
+      if (split < 0) continue;
+      const key = stored.slice(split + 2);
+      if (!isStoredSetVariantName(key)) continue;
+      const fp = stored.slice(0, split);
+      if (!byCard.has(fp)) byCard.set(fp, []);
+      byCard.get(fp).push(key);
+    }
+    setVariantOwnershipIndex = { ref: memSetCardVariants, size: memSetCardVariants.size, byCard };
+  }
+  return [...(setVariantOwnershipIndex.byCard.get(fingerprint) || [])];
+}
+function normaliseVariantToken(value) {
+  const token = String(value || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 90);
+  return token === 'whats-your-favorite' ? 'whats-your-favourite' : token;
+}
+function normaliseNamedPrinting(value) {
+  if (!value || !['normal', 'holo', 'reverse', 'metal', 'lenticular'].includes(value.type)) return null;
+  if (Array.isArray(value.languages) && value.languages.length && !value.languages.some(v => /^en(?:-|$)/i.test(v))) return null;
+  const stamps = value.stamp || value.stamps || [];
+  const subtype = normaliseVariantToken(value.subtype);
+  return { type: value.type, foil: normaliseVariantToken(value.foil) || (subtype === 'cosmos' ? 'cosmos' : ''),
+    subtype: ['unlimited', 'cosmos'].includes(subtype) ? '' : subtype,
+    size: normaliseVariantToken(value.size || 'standard'),
+    stamp: [...new Set((Array.isArray(stamps) ? stamps : [stamps]).map(normaliseVariantToken).filter(Boolean))].sort() };
+}
+function namedVariantKey(printing) {
+  return 'v141:' + encodeURIComponent(JSON.stringify([printing.type, printing.foil, printing.subtype, printing.size, printing.stamp]));
+}
+function decodeNamedVariantKey(key) {
+  if (typeof key !== 'string' || !key.startsWith('v141:')) return null;
+  try {
+    const parts = JSON.parse(decodeURIComponent(key.slice(5)));
+    if (!Array.isArray(parts) || parts.length !== 5 || !Array.isArray(parts[4])) return null;
+    return normaliseNamedPrinting({ type: parts[0], foil: parts[1], subtype: parts[2], size: parts[3], stamp: parts[4] });
+  } catch (_) { return null; }
+}
+function variantDisplayName(value) {
+  const names = { '1st-edition': '1st Edition', 'w-promo': 'W Promo', 'pre-release': 'Prerelease',
+    'pokemon-center': 'Pokémon Center', 'set-logo': 'Set Logo', 'staff': 'Staff',
+    'player-rewards-program': 'Play! Pokémon', 'build-a-bear': 'Build-A-Bear',
+    'whats-your-favourite': "What's Your Favourite?", 'whats-your-favorite': "What's Your Favourite?",
+    'cosmos': 'Cosmos', 'cracked-ice': 'Cracked Ice', 'pokeball': 'Poké Ball',
+    'masterball': 'Master Ball', 'greatball': 'Great Ball', 'ultraball': 'Ultra Ball',
+    'gamestop': 'GameStop', 'eb-games': 'EB Games', '30th-anniversary': '30th Anniversary',
+    '30th-pokeday': '30th PokéDay', 'wotc': 'WotC', 'non-holo': 'Non Holo' };
+  return names[value] || String(value || '').split('-').map(word => word ? word[0].toUpperCase() + word.slice(1) : '').join(' ');
+}
+function namedPrintingLabel(printing, baseType) {
+  const type = printing.type === 'normal' ? (baseType === 'holo' ? 'Non Holo' : 'Standard')
+    : printing.type === 'reverse' ? 'Reverse' : variantDisplayName(printing.type);
+  const foil = printing.foil ? variantDisplayName(printing.foil) : '';
+  const finish = foil ? `${foil} ${type}` : type;
+  const decorations = [printing.subtype && variantDisplayName(printing.subtype),
+    ...printing.stamp.map(stamp => `${variantDisplayName(stamp)} Stamp`),
+    printing.size !== 'standard' && variantDisplayName(printing.size)].filter(Boolean);
+  if (printing.type === 'normal' && baseType === 'normal' && !foil && !printing.subtype && printing.size === 'standard' && printing.stamp.length) return decorations.join(' · ');
+  return [finish, ...decorations].join(' · ');
+}
+function captureNamedCardVariantData(card, detail) {
+  // Keep raw provider metadata small enough for the existing browser cache.
+  const raw = detail?.variants_detailed || detail?.variantsDetailed || (Array.isArray(detail?.variants) ? detail.variants : []);
+  card._namedVariantDetails = (Array.isArray(raw) ? raw : []).filter(v =>
+    String(v?.variantId || '').toLowerCase() !== 'generated').map(normaliseNamedPrinting).filter(Boolean);
+  card._namedVariantFlags = !Array.isArray(detail?.variants) ? { ...detail?.variants } : {};
+  if (card._namedVariantDetails.length) card._namedBaseFinish = getTcgDexFinishEvidence(detail).baseFinish;
+  card._namedVariantSourceId = detail?.id || '';
+  card._namedVariantsVersion = 141;
+  return card;
+}
+function getNamedCardVariantDefinitions(card) {
+  if (!card) return [];
+  const correction = getCardVariantSupplement(card);
+  const anniversary = getThirtyCelebrationVariantSupplement(card);
+  const promoReverse = getSupplementalPromoCard(card)?.finish === 'reverse';
+  const baseType = promoReverse ? 'reverse' : (correction?.baseFinish || card.baseFinish || card._namedBaseFinish) === 'holo' ? 'holo' : 'normal';
+  const raw = card._namedVariantDetails || card._thirtiethPrintings || card.variants_detailed || card.variantsDetailed || [];
+  let detailed = (Array.isArray(raw) ? raw : []).filter(v => String(v?.variantId || '').toLowerCase() !== 'generated')
+    .map(normaliseNamedPrinting).filter(Boolean);
+  // The original 30C Normal/Reverse placeholders were incorrect. Keep the
+  // verified Holo base and separately documented physical exceptions.
+  if (anniversary) detailed = detailed.filter(v => v.type === 'holo');
+  const intrinsicStamps = detailed.length ? detailed[0].stamp.filter(stamp =>
+    detailed.every(v => v.stamp.includes(stamp))) : [];
+  detailed = detailed.map(v => ({ ...v, stamp: v.stamp.filter(s => !intrinsicStamps.includes(s)) }));
+  const simple = v => !v.foil && !v.subtype && !v.stamp.length && v.size === 'standard';
+  const basePrinting = detailed.find(v => v.type === baseType && simple(v)) ||
+    detailed.find(v => v.type === baseType && v.size === 'standard');
+  const definitions = [{ key: 'standard', label: basePrinting ? namedPrintingLabel(basePrinting, baseType)
+    : baseType === 'holo' ? 'Holo' : baseType === 'reverse' ? 'Reverse' : 'Standard' }];
+  const seen = new Set([namedVariantKey(basePrinting || normaliseNamedPrinting({type:baseType}))]);
+  const add = printing => {
+    const p = normaliseNamedPrinting(printing);
+    if (!p) return;
+    const identity = namedVariantKey(p);
+    if (seen.has(identity)) return;
+    seen.add(identity);
+    const key = p.type === 'reverse' && simple(p) && baseType !== 'reverse' ? 'reverseHolo' : identity;
+    if (!definitions.some(v => v.key === key)) definitions.push({ key, label: namedPrintingLabel(p, baseType) });
+  };
+  detailed.forEach(add);
+  const legacy = card._namedVariantFlags || {};
+  const prices = card.variants?._priceVariantNames || [];
+  if (!detailed.length && !anniversary) {
+    const otherType = baseType === 'holo' ? 'normal' : 'holo';
+    if (legacy[otherType] === true || (otherType === 'holo' ? card.variants?.hasHolo : card.variants?.hasNormal)) add({type:otherType});
+    if (legacy.firstEdition || prices.some(v => /^1stEdition/.test(v))) {
+      const types = prices.includes('1stEditionNormal') && prices.includes('1stEditionHolofoil') ? ['normal','holo']
+        : prices.includes('1stEditionNormal') ? ['normal'] : [baseType];
+      types.forEach(type => add({type,stamp:['1st-edition']}));
+    }
+    if (legacy.preRelease) add({type:baseType,stamp:['pre-release']});
+    if (legacy.wPromo) add({type:baseType,stamp:['w-promo']});
+  }
+  const reverse = correction?.reverseHolo ?? card.variants?.reverseHolo;
+  if (!anniversary && baseType !== 'reverse' && reverse && !detailed.some(v => v.type === 'reverse')) add({type:'reverse'});
+  const auxiliary = getCardAuxiliaryPrintings(card);
+  for (const printing of auxiliary) {
+    if (printing === 'non-holo-theme-deck') add({type:'normal'});
+    else if (printing === 'cosmos-holo-blister') add({type:'holo',foil:'cosmos'});
+    else if (printing === 'cracked-ice-holo') add({type:'holo',foil:'cracked-ice'});
+    else if (printing === 'build-a-bear-stamp') add({type:baseType,stamp:['build-a-bear']});
+  }
+  if (anniversary?.other) {
+    const number = String(card.number || card.localId || card.id?.split('-').pop() || '').replace(/^0+(?=\d)/,'');
+    if (number === '63') add({type:'holo',stamp:['whats-your-favourite']});
+    if (number === '116') add({type:'holo',foil:'cosmos'});
+  }
+  // If a card's one printing has an intrinsic stamp, the plain fallback
+  // must not create a second copy of the same base printing.
+  return definitions;
+}
+function getAvailableSetCardVariants(card) {
+  const definitions = getNamedCardVariantDefinitions(card);
+  for (const key of getOwnedSetCardVariants(card)) {
+    if (definitions.some(v => v.key === key)) continue;
+    const printing = decodeNamedVariantKey(key);
+    definitions.push({ key, label: printing ? namedPrintingLabel(printing, card.baseFinish === 'holo' ? 'holo' : 'normal')
+      : key === 'other' ? 'Previously saved variant' : key === 'reverseHolo' ? 'Reverse (saved)' : 'Holo (saved)' });
+  }
+  return definitions;
+}
+function migrateNamedSetCardVariants(card) {
+  const definitions = getNamedCardVariantDefinitions(card);
+  const extras = definitions.filter(v => v.key !== 'standard' && v.key !== 'reverseHolo');
+  let changed = false;
+  const move = (old, next) => {
+    const oldKey = getSetCardVariantKey(card, old), nextKey = getSetCardVariantKey(card, next);
+    if (!oldKey || !nextKey || !memSetCardVariants.has(oldKey)) return;
+    memSetCardVariants.delete(oldKey); memSetCardVariants.add(nextKey);
+    changed = true; invalidateSetVariantOwnershipIndex();
+  };
+  // A generic historic tick cannot tell us which of several finishes was
+  // owned. Resolve it only when there is exactly one documented alternative.
+  if (extras.length === 1 && (card._namedVariantsVersion === 141 || getCardAuxiliaryPrintings(card).length || getThirtyCelebrationVariantSupplement(card)?.other)) move('other',extras[0].key);
+  const holo = definitions.find(v => v.label === 'Holo');
+  if (holo && holo.key !== 'holo') move('holo',holo.key);
+  return changed;
+}
+function escapeSetVariantHtml(value) {
+  return String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function getSetVariantOptionsMarkup(card, zoom = false) {
+  const options = getAvailableSetCardVariants(card);
+  const optionClass = zoom ? 'tcg-zoom-variant-option' : 'tcg-variant-option';
+  const circleClass = zoom ? 'tcg-zoom-variant-circle' : 'tcg-variant-circle';
+  const buttons = options.map(({key,label}) => {
+    const checked = isSetCardVariantOwned(card,key);
+    return `<button type="button" class="${optionClass}" data-variant="${escapeSetVariantHtml(key)}" aria-pressed="${checked}" title="${escapeSetVariantHtml(label)}"><span>${escapeSetVariantHtml(label)}</span><span class="${circleClass} ${checked ? 'checked' : ''}" aria-hidden="true">✓</span></button>`;
+  });
+  if (!zoom) return buttons.join('');
+  const columns = [];
+  for (let i=0; i<buttons.length; i+=3) columns.push(`<div class="tcg-zoom-variant-column">${buttons.slice(i,i+3).join('')}</div>`);
+  return columns.join('');
+}
+function renderZoomSetVariants(container, card) {
+  const focusedKey = container.contains(document.activeElement) ? document.activeElement.dataset.variant : null;
+  const scrollTop = container.scrollTop;
+  container.classList.toggle('has-many-variants',getAvailableSetCardVariants(card).length>3);
+  container.style.display='grid';
+  container.innerHTML=getSetVariantOptionsMarkup(card,true);
+  container.scrollTop = scrollTop;
+  if (focusedKey) [...container.querySelectorAll('button')].find(button => button.dataset.variant === focusedKey)?.focus({preventScroll:true});
+  container.querySelectorAll('.tcg-zoom-variant-option').forEach(option => {
+    option.onclick=event=>{
+      event.preventDefault();event.stopPropagation();
+      toggleSetCardVariant(card,option.dataset.variant);
+      paintVisibleCardDetails(card); updateCurrentSetProgress();
+      if (activeTcgSetFilter !== 'all') renderCurrentSetCards();
+    };
+  });
 }
 
 function hasAnySetCardVariant(card) {
@@ -4121,35 +4328,6 @@ function hasAnySetCardVariant(card) {
 // Returns only the variants that are known to exist for this card.
 // An already-owned variant is always kept visible, and Standard is used
 // as a safe fallback if the API provides no variant information at all.
-function getAvailableSetCardVariants(card) {
-  const verified30C = getThirtyCelebrationVariantSupplement(card);
-  if (verified30C) card = { ...card, baseFinish: verified30C.baseFinish, variants: verified30C };
-  const baseLabel =
-    getSupplementalPromoCard(card)?.finish === 'reverse'
-      ? 'Reverse'
-      : card?.baseFinish === 'holo'
-      ? 'Holo'
-      : 'Standard';
-
-  const definitions = [
-    { key: 'standard', label: baseLabel },
-    { key: 'reverseHolo', label: 'Reverse' },
-    { key: 'other', label: 'Other Variant' }
-  ];
-
-  const available = definitions.filter(({ key }) =>
-    Boolean(card?.variants?.[key]) ||
-    (!verified30C && isSetCardVariantOwned(card, key))
-  );
-
-  if (available.length) {
-    return available;
-  }
-
-  return [
-    { key: 'standard', label: 'Standard' }
-  ];
-}
 
 // One-time bridge from the original Sets ownership system to variants.
 // Any previously-owned numbered card becomes Standard, then its old Sets
@@ -4158,6 +4336,7 @@ function migrateLegacySetCardOwnership(cards) {
   if (!Array.isArray(cards) || !cards.length) return false;
 
   let changed = migrateReprintSetCardVariants(cards);
+  for (const card of cards) if (card && migrateNamedSetCardVariants(card)) changed = true;
 
   cards.forEach(card => {
     if (!card) return;
@@ -4369,6 +4548,7 @@ function toggleCardCollection(cardId, pokemonId = null) {
   } else {
     memSetCardVariants.add(key);
   }
+  invalidateSetVariantOwnershipIndex();
 
   saveLocalState();
   showToast(wasOwned
@@ -6589,7 +6769,7 @@ const visibleCardDetailBusy = new WeakSet();
 let visibleCardDetailActive = 0;
 function queueVisibleCardDetails(card) {
   if (!card || !currentCardsList.includes(card) || visibleCardDetailDone.has(card) || visibleCardDetailBusy.has(card)) return;
-  if (card._detailsAt && Date.now() - card._detailsAt < 86400000) return;
+  if (card._namedVariantsVersion === 141 && card._detailsAt && Date.now() - card._detailsAt < 86400000) return;
   visibleCardDetailQueue.set(card, card);
   pumpVisibleCardDetails();
 }
@@ -6610,6 +6790,7 @@ function pumpVisibleCardDetails() {
           const evidence = applyCardVariantSupplement(card, applyCardAuxiliaryPrintingEvidence(detail, fused), detail);
           card.variants = { standard: evidence.standard, reverseHolo: evidence.reverseHolo, other: evidence.other };
           card.baseFinish = evidence.baseFinish;
+          captureNamedCardVariantData(card, detail);
           card.priceGBP = getTcgDexBasePriceGBP(detail, evidence) ?? card.priceGBP;
         } else {
           const id = String(card.artworkPokemonSetId || card.id?.split('-').slice(0, -1).join('-') || '');
@@ -6622,7 +6803,10 @@ function pumpVisibleCardDetails() {
         card._detailsAt = Date.now();
         visibleCardDetailDone.add(card);
         saveEnrichedCard(card);
-        if (currentCardsList.includes(card)) paintVisibleCardDetails(card);
+        if (currentCardsList.includes(card)) {
+          if (migrateNamedSetCardVariants(card)) { saveLocalState(); writeFullCollectionToCloud(); }
+          paintVisibleCardDetails(card);
+        }
       } catch (_) { /* Keep artwork/checklist and permit retry on next display. */ }
       finally {
         visibleCardDetailBusy.delete(card);
@@ -6676,14 +6860,7 @@ function paintVisibleCardDetails(card) {
     if (price) price.innerText = card.priceGBP ? `£${Number(card.priceGBP).toFixed(2)}` : 'Market N/A';
     const variants = document.getElementById('tcgZoomVariants');
     if (activeTcgSet && variants) {
-      variants.innerHTML = getAvailableSetCardVariants(card).map(({ key, label }) =>
-        `<div class="tcg-zoom-variant-option" data-variant="${key}"><span>${label}</span><span class="tcg-zoom-variant-circle ${isSetCardVariantOwned(card, key) ? 'checked' : ''}">✓</span></div>`).join('');
-      variants.querySelectorAll('.tcg-zoom-variant-option').forEach(option => {
-        option.onclick = event => {
-          event.preventDefault(); event.stopPropagation(); toggleSetCardVariant(card, option.dataset.variant);
-          paintVisibleCardDetails(card); updateCurrentSetProgress();
-        };
-      });
+      renderZoomSetVariants(variants, card);
     }
   }
 }
@@ -7212,6 +7389,7 @@ function inferSetCardVariantsFromPokemonTcg(card) {
   );
 
   return {
+    _priceVariantNames: Object.keys(tcgPrices),
     // PokéRoulette's `standard` key means the card's main/base printing slot.
     // The visible label is decided by baseFinish (Standard or Holo).
     standard: hasNormal || hasHolo,
@@ -8137,9 +8315,9 @@ function getTcgDexFinishEvidence(card) {
   const verified30C = getThirtyCelebrationVariantSupplement(card);
   if (verified30C) return verified30C;
   const variants = card?.variants || {};
-  const detailed = Array.isArray(card?.variants_detailed)
-    ? card.variants_detailed
-    : [];
+  const rawDetailed = card?.variants_detailed || card?.variantsDetailed || (Array.isArray(card?.variants) ? card.variants : []);
+  const detailed = (Array.isArray(rawDetailed) ? rawDetailed : []).filter(v =>
+    !Array.isArray(v?.languages) || !v.languages.length || v.languages.some(language => /^en(?:-|$)/i.test(language)));
 
   if (detailed.length) {
     const normalPrintings = detailed.filter(v =>
@@ -8551,14 +8729,12 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
             finishEvidence
           );
 
-        return {
+        return captureNamedCardVariantData({
           ...card,
           variants,
           baseFinish: finishEvidence.baseFinish,
-          priceGBP:
-            basePriceGBP ??
-            card.priceGBP
-        };
+          priceGBP: basePriceGBP ?? card.priceGBP
+        }, dexCard);
 
       } catch (error) {
         console.warn(
@@ -8701,7 +8877,7 @@ async function fetchYellowAAlternateCards(forceRefresh = false) {
           dexCard
         );
 
-        return {
+        return captureNamedCardVariantData({
           ...card,
           variants: {
             standard: fused.standard !== false,
@@ -8709,10 +8885,8 @@ async function fetchYellowAAlternateCards(forceRefresh = false) {
             other: false
           },
           baseFinish: fused.baseFinish,
-          priceGBP:
-            getTcgDexBasePriceGBP(dexCard, fused) ??
-            card.priceGBP
-        };
+          priceGBP: getTcgDexBasePriceGBP(dexCard, fused) ?? card.priceGBP
+        }, dexCard);
       } catch (error) {
         return card;
       }
@@ -9704,7 +9878,7 @@ function applyConfirmedSetCardBulkAction() {
         changed = true;
       }
     } else {
-      for (const variant of ['standard', 'holo', 'reverseHolo', 'other']) {
+      for (const variant of getOwnedSetCardVariants(card)) {
         if (memSetCardVariants.delete(getSetCardVariantKey(card, variant))) changed = true;
       }
       // Clear old Sets ticks too, so removed cards cannot reappear as owned.
@@ -9717,6 +9891,7 @@ function applyConfirmedSetCardBulkAction() {
     saveLocalState();
     writeFullCollectionToCloud();
   }
+  invalidateSetVariantOwnershipIndex();
   renderCurrentSetCards();
   showToast(action === 'add' ? 'All cards added to this set' : 'All cards removed from this set',
     action === 'add' ? 'success' : 'removed');
@@ -9798,20 +9973,7 @@ function renderCurrentSetCards() {
           class="tcg-variant-selector"
           style="display:none;"
         >
-          ${getAvailableSetCardVariants(card).map(({ key, label }) => `
-            <div
-              class="tcg-variant-option"
-              data-variant="${key}"
-            >
-              <span>${label}</span>
-
-              <span class="tcg-variant-circle ${
-                isSetCardVariantOwned(card, key)
-                  ? 'checked'
-                  : ''
-              }">✓</span>
-            </div>
-          `).join('')}
+          ${getSetVariantOptionsMarkup(card)}
 
         </div>
 
@@ -9877,6 +10039,7 @@ variantOptions.forEach(option => {
     }
 
     const cardOwned = hasAnySetCardVariant(card);
+    option.setAttribute('aria-pressed', String(isSetCardVariantOwned(card, variant)));
     item.classList.toggle('card-owned', cardOwned);
 
     if (checkCircle) {
@@ -10543,7 +10706,7 @@ function calculateProfileStats(sets) {
     for (const card of cards) {
       const fp = getCardFingerprint(card);
       const finishes = getOwnedSetCardVariants(card);
-      for (const finish of ['standard', 'holo', 'reverseHolo', 'other']) consumedVariants.add(fp + '__' + finish);
+      for (const finish of finishes) consumedVariants.add(fp + '__' + finish);
       for (const key of getCardOwnershipKeys(card)) consumedLegacy.add(key);
       // Superseded shared-number reprint keys must not add phantom cards.
       if (get30thClassicCollectionKey(card) && memSetCardVariants.has('migrated_v75:' + fp)) {
@@ -10557,7 +10720,8 @@ function calculateProfileStats(sets) {
   }
   for (const key of memSetCardVariants) {
     if (typeof key !== 'string' || consumedVariants.has(key) || supersededReprint(key)) continue;
-    const match = /^(fp_.+)__(standard|holo|reverseHolo|other)$/.exec(key);
+    const match = /^(fp_.+)__(.+)$/.exec(key);
+    if (match && !isStoredSetVariantName(match[2])) continue;
     if (match) add(match[1], setForFingerprint(match[1]), [match[2]]);
   }
   for (const key of memSetCardCol) {
@@ -12672,30 +12836,7 @@ function updateZoomModalContent() {
 
   if (zoomVariants) {
     if (activeTcgSet) {
-      zoomVariants.style.display = 'flex';
-      zoomVariants.innerHTML = getAvailableSetCardVariants(card)
-        .map(({ key, label }) => `
-          <div class="tcg-zoom-variant-option" data-variant="${key}">
-            <span>${label}</span>
-            <span class="tcg-zoom-variant-circle ${
-              isSetCardVariantOwned(card, key) ? 'checked' : ''
-            }">✓</span>
-          </div>
-        `)
-        .join('');
-
-      zoomVariants
-        .querySelectorAll('.tcg-zoom-variant-option')
-        .forEach(option => {
-          option.onclick = (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-
-            toggleSetCardVariant(card, option.dataset.variant);
-            updateZoomModalContent();
-            renderCurrentSetCards();
-          };
-        });
+      renderZoomSetVariants(zoomVariants, card);
     } else {
       zoomVariants.style.display = 'none';
       zoomVariants.innerHTML = '';
@@ -12747,7 +12888,7 @@ function toggleZoomCardOwned(e) {
       document.getElementById('tcgZoomVariants');
 
     if (zoomVariants) {
-      zoomVariants.style.display = 'flex';
+      zoomVariants.style.display = 'grid';
       const firstOption =
         zoomVariants.querySelector('.tcg-zoom-variant-option');
       if (firstOption) firstOption.focus?.();

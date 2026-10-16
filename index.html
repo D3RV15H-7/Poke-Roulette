@@ -3107,9 +3107,17 @@ body:not(.has-active) #wheelWrap #wheel {
 .zoom-check-circle.checked .zoom-check-box {
   color: #000;
 }
+/* Keep the Play! Pokémon stamp name together; finish suffixes may sit below. */
+.tcg-play-stamp-label { display: inline-block; white-space: nowrap; overflow-wrap: normal; }
+.tcg-variant-selector:has(.tcg-play-stamp-label) {
+  width: max(calc(100% - 14px), 165px);
+  max-width: min(220px, calc(100vw - 32px));
+}
+.tcg-set-card:nth-child(3n + 1) .tcg-variant-selector:has(.tcg-play-stamp-label) { left: 0; transform: translateY(-50%); }
+.tcg-set-card:nth-child(3n) .tcg-variant-selector:has(.tcg-play-stamp-label) { left: auto; right: 0; transform: translateY(-50%); }
 </style>
 </head>
-<body data-app-build="v148">
+<body data-app-build="v149">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3841,7 +3849,28 @@ function normaliseVariantToken(value) {
   const token = String(value || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 90);
   return /^(?:whats|what-s)-your-favou?rite(?:-stamp)?$/.test(token) ? 'whats-your-favourite' : token;
 }
+function isExcludedCardPrinting(value) {
+  if (!value || typeof value !== 'object') return false;
+  const stamps = value.stamp || value.stamps || [];
+  const tokens = [value.type, value.subtype, value.foil, value.edition, value.variantId,
+    ...(Array.isArray(stamps) ? stamps : [stamps])].map(normaliseVariantToken).filter(Boolean);
+  // Championship event stamps and the signed World Championship deck reprints.
+  // Staff by itself, Prize Pack and ordinary league stamps remain collectible.
+  const signatures = new Set([
+    'chris-fulop','tsuguyoshi-yamato','reed-weichler','kevin-nguyen','takashi-yoneda',
+    'michael-gonzalez','curran-hill','jeremy-maron','jimmy-ballard','miska-saari',
+    'hiroki-yano','jason-klaczynski','liao-fu-guan','jeremy-scharff-kim','akira-miyazaki',
+    'tom-roos','jun-hasebe','dylan-lefavour','tristan-robinson','paul-atanassov',
+    'david-cohen','tsubasa-nakamura','michael-pramawat','mychael-bryan','stephen-silvestro',
+    'yuka-furusawa','jason-martinez','yuta-komatsuda','ross-cawthorn','gustavo-wada',
+    'christopher-kan','igor-costa','zachary-bokhari','shuto-itagaki','chase-moloney',
+    'jesse-parker','gabriel-fernandez','sakuya-ota','shao-tong-yen','jose-cruz-galindo-resendiz'
+  ]);
+  return tokens.some(token => /(?:^|-)(?:championships?|worlds)(?:-|$)/.test(token) ||
+    /^(?:champion|finalist|quarter-finalist|semi-finalist|top-eight|top-sixteen|top-thirty-two)$/.test(token) || signatures.has(token));
+}
 function normaliseNamedPrinting(value) {
+  if (isExcludedCardPrinting(value)) return null;
   if (!value || !['normal', 'holo', 'reverse', 'metal', 'lenticular'].includes(value.type)) return null;
   if (Array.isArray(value.languages) && value.languages.length && !value.languages.some(v => /^en(?:-|$)/i.test(v))) return null;
   const stamps = value.stamp || value.stamps || [];
@@ -3876,6 +3905,7 @@ function variantDisplayName(value) {
   return names[value] || String(value || '').split('-').map(word => word ? word[0].toUpperCase() + word.slice(1) : '').join(' ');
 }
 function namedPrintingLabel(printing, baseType) {
+  if (printing.size === 'jumbo') return 'Jumbo';
   const type = printing.type === 'normal' ? (baseType === 'holo' ? 'Non Holo' : 'Standard')
     : printing.type === 'reverse' ? 'Reverse' : variantDisplayName(printing.type);
   const finish = printing.foil ? variantDisplayName(printing.foil) + ' ' + type : type;
@@ -3894,7 +3924,7 @@ function sortSetCardVariantDefinitions(card, definitions) {
     const p = decodeNamedVariantKey(option.key);
     if (p?.stamp.length && !isRegularExpansionReverse(card, p)) return 6;
     if (option.key === 'holo' || (p?.type === 'holo' && !p.foil && !p.subtype && p.size === 'standard')) return 1;
-    if (option.key === 'reverseHolo' || (p?.type === 'reverse' && (!p.foil && !p.subtype || isRegularExpansionReverse(card, p)))) return 2;
+    if (option.key === 'reverseHolo' || p?.type === 'reverse') return 2;
     if (p?.type === 'holo' && p.foil === 'cosmos') return 3;
     if (p?.type === 'normal' && !p.foil && !p.subtype && p.size === 'standard') return 4;
     return option.key === 'other' ? 7 : 5;
@@ -3925,6 +3955,16 @@ function getVerifiedAdditionalCardPrintings(card) {
   const expected = {12:'armarouge',20:'primarina',56:'zarude'};
   if (pitchBlack && expected[number] === normaliseVariantToken(card.name)) {
     return [{type:'holo',stamp:['whats-your-favourite']}];
+  }
+  // October 2026 Enhanced 2-Pack Blister: the provider still omits these
+  // Cosmos records. Product reference: Pokémon's October release overview;
+  // exact finishes/card numbers: Mega Evolution merchandise / Pitch Black lists.
+  // https://www.pokemon.com/uk/news/check-out-every-pokemon-tcg-product-release-in-october-2026
+  // https://bulbapedia.bulbagarden.net/wiki/Mega_Evolution_TCG_Series_merchandise
+  const ascended = ['me02.5','me2.5','me25'].includes(setId) || ['ascended-heroes','mega-evolution-ascended-heroes'].includes(setName);
+  if ((pitchBlack && number === 40 && normaliseVariantToken(card.name) === 'marshadow') ||
+      (ascended && number === 97 && normaliseVariantToken(card.name) === 'team-rocket-s-mimikyu')) {
+    return [{type:'holo',foil:'cosmos'}];
   }
   return [];
 }
@@ -4255,7 +4295,7 @@ function getNamedCardVariantDefinitions(card) {
   const correction = getCardVariantSupplement(card);
   const anniversary = getThirtyCelebrationVariantSupplement(card);
   const expansionEvidence = getExpansionCardPrintingEvidence(card);
-  const printingEvidence = [...(getCosmosCardPrintingEvidence(card)?.printings || []), ...(expansionEvidence?.printings || [])];
+  const printingEvidence = [...(getCosmosCardPrintingEvidence(card)?.printings || []), ...(expansionEvidence?.printings || [])].filter(v => !isExcludedCardPrinting(v));
   const evidenceTypes = printingEvidence.filter(p => !p.size || p.size === 'standard').map(p => p.type);
   const hasNormal = evidenceTypes.includes('normal'), hasHolo = evidenceTypes.includes('holo');
   const evidenceBase = hasHolo && !hasNormal ? 'holo' : hasNormal && !hasHolo ? 'normal' :
@@ -4309,7 +4349,9 @@ function getNamedCardVariantDefinitions(card) {
   const reverse = correction?.reverseHolo ?? card.variants?.reverseHolo;
   if (!anniversary && baseType !== 'reverse' && reverse && !detailed.some(v => v.type === 'reverse')) add({type:'reverse'});
   getVerifiedAdditionalCardPrintings(card).forEach(p => {
-    if (!detailed.some(v => p.stamp.every(stamp => v.stamp.includes(stamp)))) add(p);
+    const present = p.stamp?.length ? detailed.some(v => p.stamp.every(stamp => v.stamp.includes(stamp)))
+      : detailed.some(v => namedVariantKey(v) === namedVariantKey(normaliseNamedPrinting(p)));
+    if (!present) add(p);
   });
   const auxiliary = getCardAuxiliaryPrintings(card);
   for (const printing of auxiliary) {
@@ -4339,7 +4381,7 @@ function getAvailableSetCardVariants(card) {
   definitions.forEach(v => counts.set(v.label, (counts.get(v.label) || 0) + 1));
   for (const option of definitions) {
     const p = option.printing || decodeNamedVariantKey(option.key);
-    if (p?.stamp.length && counts.get(option.label) > 1) {
+    if (p?.stamp.length && p.size !== 'jumbo' && counts.get(option.label) > 1) {
       const type = p.type === 'normal' ? 'Non Holo' : p.type === 'reverse' ? 'Reverse' : variantDisplayName(p.type);
       option.label += ' · ' + [p.foil && variantDisplayName(p.foil), type].filter(Boolean).join(' ');
     }
@@ -4407,7 +4449,7 @@ function getSetVariantOptionsMarkup(card, zoom = false) {
   const circleClass = zoom ? 'tcg-zoom-variant-circle' : 'tcg-variant-circle';
   const buttons = options.map(({key,label}) => {
     const checked = isSetCardVariantOwned(card,key);
-    return `<button type="button" class="${optionClass}" data-variant="${escapeSetVariantHtml(key)}" data-variant-kind="${getSetVariantCategory(card,key,label)}" aria-pressed="${checked}" title="${escapeSetVariantHtml(label)}"><span>${escapeSetVariantHtml(label)}</span><span class="${circleClass} ${checked ? 'checked' : ''}" aria-hidden="true">✓</span></button>`;
+    return `<button type="button" class="${optionClass}" data-variant="${escapeSetVariantHtml(key)}" data-variant-kind="${getSetVariantCategory(card,key,label)}" aria-pressed="${checked}" title="${escapeSetVariantHtml(label)}"><span>${escapeSetVariantHtml(label).replace('Stamp (Play! Pokémon)', '<span class="tcg-play-stamp-label">Stamp (Play! Pokémon)</span>')}</span><span class="${circleClass} ${checked ? 'checked' : ''}" aria-hidden="true">✓</span></button>`;
   });
   if (!zoom) return buttons.join('');
   const columns = [];
@@ -4419,12 +4461,25 @@ function getSetVariantOptionsMarkup(card, zoom = false) {
   }
   return columns.join('');
 }
+function fitSetVariantLabels(container) {
+  if (!container) return;
+  container.querySelectorAll('.tcg-play-stamp-label').forEach(label => {
+    label.style.fontSize = '';
+    const available = label.parentElement.clientWidth;
+    const natural = label.scrollWidth;
+    if (available > 0 && natural > available) {
+      label.style.fontSize = Math.floor(parseFloat(getComputedStyle(label).fontSize) * available / natural * 100) / 100 + 'px';
+    }
+  });
+}
 function renderZoomSetVariants(container, card) {
   const focusedKey = container.contains(document.activeElement) ? document.activeElement.dataset.variant : null;
   const scrollTop = container.scrollTop;
   container.classList.toggle('has-many-variants',getAvailableSetCardVariants(card).length>3);
   container.style.display='grid';
   container.innerHTML=getSetVariantOptionsMarkup(card,true);
+  fitSetVariantLabels(container);
+  requestAnimationFrame(() => fitSetVariantLabels(container));
   container.scrollTop = scrollTop;
   if (focusedKey) [...container.querySelectorAll('button')].find(button => button.dataset.variant === focusedKey)?.focus({preventScroll:true});
   container.querySelectorAll('.tcg-zoom-variant-option').forEach(option => {
@@ -6869,6 +6924,7 @@ function paintVisibleCardDetails(card) {
     const selector = node.querySelector('.tcg-variant-selector');
     if (selector) {
       selector.innerHTML = getSetVariantOptionsMarkup(card);
+      fitSetVariantLabels(selector);
       selector.querySelectorAll('.tcg-variant-option').forEach(option => {
         option.onclick = event => {
           event.preventDefault(); event.stopPropagation();
@@ -7688,7 +7744,7 @@ function getTcgDexFinishEvidence(card) {
   if (verified30C) return verified30C;
   const variants = card?.variants || {};
   const rawDetailed = card?.variants_detailed || card?.variantsDetailed || (Array.isArray(card?.variants) ? card.variants : []);
-  const detailed = (Array.isArray(rawDetailed) ? rawDetailed : []).filter(v =>
+  const detailed = (Array.isArray(rawDetailed) ? rawDetailed : []).filter(v => !isExcludedCardPrinting(v)).filter(v =>
     !Array.isArray(v?.languages) || !v.languages.length || v.languages.some(language => /^en(?:-|$)/i.test(language)));
   if (detailed.length) {
     const normalPrintings = detailed.filter(v =>
@@ -9121,6 +9177,7 @@ function renderCurrentSetCards() {
         selector.style.display =
           isOpen ? 'none' : 'flex';
         openSetCardVariantSelector = isOpen ? null : selector;
+        if (!isOpen) fitSetVariantLabels(selector);
       };
     }
     // Tapping empty space inside the panel must not open the full card view.

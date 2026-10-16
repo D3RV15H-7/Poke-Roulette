@@ -3115,9 +3115,25 @@ body:not(.has-active) #wheelWrap #wheel {
 }
 .tcg-set-card:nth-child(3n + 1) .tcg-variant-selector:has(.tcg-play-stamp-label) { left: 0; transform: translateY(-50%); }
 .tcg-set-card:nth-child(3n) .tcg-variant-selector:has(.tcg-play-stamp-label) { left: auto; right: 0; transform: translateY(-50%); }
+/* Account inputs stay inside the actual keyboard-visible viewport. */
+#accountModal .auth-input { font-size: 16px; scroll-margin-block: 16px; }
+#accountModal.signed-out-account .profile-stats { order: 2; }
+#accountModal.signed-out-account .account-sync-description { display: none; }
+#accountModal.signed-out-account #authLoggedOutView { border-top: 0; margin-top: 0; padding-top: 0; }
+.auth-reset-button { align-self: flex-end; padding: 6px 0; border: 0; background: transparent; color: var(--gold); font: inherit; font-size: 0.75rem; font-weight: 800; cursor: pointer; }
+.auth-reset-button:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; border-radius: 3px; }
+#authLoggedOutView button:disabled { opacity: 0.55; cursor: wait; }
+#authErrorMsg { line-height: 1.45; overflow-wrap: anywhere; }
+body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: none; }
+#accountModal.auth-editing { top: var(--auth-viewport-top, 0px); bottom: auto; height: var(--auth-viewport-height, 100dvh); padding: 8px 0; box-sizing: border-box; align-items: stretch; z-index: 350; }
+#accountModal.auth-editing .modal-body { height: 100%; max-height: 100%; min-height: 0; flex: 0 1 500px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; border-radius: 24px; border-bottom: 1px solid #334155; box-sizing: border-box; scroll-padding-block: 70px 20px; }
+#accountModal.auth-editing .modal-head { position: sticky; top: -1px; z-index: 2; background: var(--card); flex-shrink: 0; }
+#accountModal.auth-editing .profile-stats, #accountModal.auth-editing .account-sync-description { display: none; }
+#accountModal.auth-editing #authLoggedOutView { border-top: 0; margin-top: 0; padding-top: 0; }
+#collectionSignInDialog p { text-align: left; }
 </style>
 </head>
-<body data-app-build="v150">
+<body data-app-build="v151">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3488,7 +3504,7 @@ body:not(.has-active) #wheelWrap #wheel {
   </button>
 </div>
 
-<div class="modal" id="accountModal" onclick="closeModal(event, 'accountModal')">
+<div class="modal signed-out-account" id="accountModal" onclick="closeModal(event, 'accountModal')">
   <div class="modal-body" onclick="event.stopPropagation()">
     <div class="modal-head">
 <h3 class="page-title-with-icon" style="font-size:1.15rem;font-weight:800;"><span class="page-title-icon nav-artwork nav-artwork-account" aria-hidden="true"></span><span>Account</span></h3>
@@ -3512,16 +3528,16 @@ body:not(.has-active) #wheelWrap #wheel {
       <button class="btn-auth-primary" onclick="handleSignOut()">Sign Out</button>
     </div>
     <div id="authLoggedOutView" class="auth-form-wrap">
-      <div class="auth-promo-msg">Create an account or log in to sync your Pokédex across devices!</div>
-      <input type="email" id="authEmail" class="auth-input" placeholder="Email Address" />
-      <input type="password" id="authPassword" class="auth-input" placeholder="Password" />
+      <div class="auth-promo-msg">Create an account or sign in to add cards to your collection and sync across devices!</div>
+      <input type="email" id="authEmail" class="auth-input" placeholder="Email Address" aria-label="Email address" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" enterkeyhint="next" />
+      <input type="password" id="authPassword" class="auth-input" placeholder="Password" aria-label="Password" autocomplete="current-password" enterkeyhint="go" />
+      <button type="button" id="authResetButton" class="auth-reset-button" onclick="handlePasswordReset()">Forgot password?</button>
       <div style="display:flex;gap:0.5rem;">
-        <button class="btn-auth-primary" style="flex:1;" onclick="handleEmailAuth(false)">Log In</button>
-        <button class="btn-auth-primary" style="flex:1;background:#334155;" onclick="handleEmailAuth(true)">Sign Up</button>
+        <button id="authSignInButton" type="button" class="btn-auth-primary" style="flex:1;" onclick="handleEmailAuth(false)">Sign In</button>
+        <button id="authSignUpButton" type="button" class="btn-auth-primary" style="flex:1;background:#334155;" onclick="handleEmailAuth(true)">Sign Up</button>
       </div>
-      <div id="authErrorMsg" style="color:var(--red);font-size:0.75rem;text-align:center;display:none;"></div>
+      <div id="authErrorMsg" role="alert" aria-live="assertive" aria-atomic="true" style="color:var(--red);font-size:0.75rem;text-align:center;display:none;"></div>
     </div>
-    <p class="account-stats-footer" id="profileStatsNote">Wheel spin tracking began with Account stats update</p>
   </div>
 </div>
 
@@ -3557,6 +3573,14 @@ body:not(.has-active) #wheelWrap #wheel {
 <!-- In-App Toast Banner -->
 <div id="appToast" class="app-toast"></div>
 
+<dialog id="collectionSignInDialog" class="set-bulk-confirm" aria-labelledby="collectionSignInTitle" aria-describedby="collectionSignInMessage">
+  <h3 id="collectionSignInTitle">Save your collection</h3>
+  <p id="collectionSignInMessage">You are not logged in - cards will not be saved. Please sign up or sign in to save your collection!</p>
+  <div class="set-bulk-confirm-actions">
+    <button type="button" class="set-bulk-confirm-btn" onclick="closeCollectionSignInPrompt()">Not now</button>
+    <button type="button" class="set-bulk-confirm-btn is-confirm" onclick="openCollectionSignIn()">Sign up / Sign in</button>
+  </div>
+</dialog>
 <dialog id="setBulkConfirmDialog" class="set-bulk-confirm"
   aria-labelledby="setBulkConfirmTitle" aria-describedby="setBulkConfirmMessage"
   oncancel="event.preventDefault(); closeSetCardBulkConfirmation()"
@@ -4638,6 +4662,7 @@ function toggleCardCollection(cardId, pokemonId = null) {
   const zoomCardId = document.getElementById('tcgZoomModal')?.style.display === 'flex' ? currentCardsList[currentZoomIndex]?.id : null;
   let wasAdded = false;
   const isCurrentlyOwned = ownershipKeys.some(key => memCardCol.has(key));
+  if (!isCurrentlyOwned && !requireCollectionSignIn()) return;
   if (isCurrentlyOwned) {
     ownershipKeys.forEach(key => memCardCol.delete(key));
     wasAdded = false;
@@ -4679,6 +4704,7 @@ function toggleSetCardVariant(card, variant) {
   const key = getSetCardVariantKey(card, variant);
   if (!key) return;
   const wasOwned = memSetCardVariants.has(key);
+  if (!wasOwned && !requireCollectionSignIn()) return;
   if (wasOwned) {
     memSetCardVariants.delete(key);
   } else {
@@ -9095,6 +9121,7 @@ function dismissSetCardBulkBackdrop(event) {
 function confirmSetCardBulkAction(action) {
   if (!['add', 'remove'].includes(action) || !activeTcgSet ||
       !document.getElementById('tcgSetCards') || !currentCardsList.length) return;
+  if (action === 'add' && !requireCollectionSignIn()) return;
   const dialog = document.getElementById('setBulkConfirmDialog');
   if (!dialog) return;
   closeSetCardBulkConfirmation();
@@ -9118,6 +9145,7 @@ function applyConfirmedSetCardBulkAction() {
       pending.userUid !== (currentUser?.uid || null) || pending.requestId !== setsViewRequestId ||
       !document.getElementById('tcgSetCards')) return;
   const { action, cards } = pending;
+  if (action === 'add' && !requireCollectionSignIn()) return;
   // Always use the full set, regardless of the current search/filter.
   let changed = false;
   for (const card of cards) {
@@ -9996,11 +10024,15 @@ function setupAuthListener() {
     const previousUid = activeUid;
     if (firestoreUnsubscribe) { firestoreUnsubscribe(); firestoreUnsubscribe = null; }
     currentUser = user;
+    document.getElementById('accountModal')?.classList.toggle('signed-out-account', !user);
     const loggedInView = document.getElementById('authLoggedInView');
     const loggedOutView = document.getElementById('authLoggedOutView');
     const emailSpan = document.getElementById('authUserEmail');
     const accountLabel = document.getElementById('accountLabel');
     if (user) {
+      resetAccountAuthViewport();
+      setAuthStatus();
+      document.getElementById('authPassword').value = '';
       activeUid = user.uid;
       reloadWheelSpinState();
       if (previousUid && previousUid !== user.uid) reloadMemoryFromLocal();
@@ -10061,18 +10093,190 @@ saveLocalState();
   });
 }
 
-function handleEmailAuth(isSignUp) {
+// Account actions stay in the themed sheet; credentials are never written to storage.
+let authRequestInFlight = false;
+let accountAuthViewportBaseline = 0;
+
+function setAuthStatus(message = '', success = false) {
+  const element = document.getElementById('authErrorMsg');
+  if (!element) return;
+  element.textContent = message;
+  element.style.display = message ? 'block' : 'none';
+  element.style.color = success ? 'var(--green)' : 'var(--red)';
+  element.setAttribute('role', success ? 'status' : 'alert');
+  element.setAttribute('aria-live', success ? 'polite' : 'assertive');
+  requestAnimationFrame(keepAccountAuthInputVisible);
+}
+
+function setAuthBusy(busy) {
+  authRequestInFlight = busy;
+  document.getElementById('authLoggedOutView')?.setAttribute('aria-busy', String(busy));
+  for (const id of ['authSignInButton', 'authSignUpButton', 'authResetButton']) {
+    const button = document.getElementById(id);
+    if (button) button.disabled = busy;
+  }
+}
+
+function friendlyAuthError(error, isSignUp = false) {
+  const code = String(error?.code || '');
+  if (!isSignUp && ['auth/invalid-credential', 'auth/invalid-login-credentials', 'auth/wrong-password', 'auth/invalid-password', 'auth/user-not-found'].includes(code)) {
+    return 'Incorrect email and password combination';
+  }
+  const messages = {
+    'auth/invalid-email': 'Please enter a valid email address.',
+    'auth/missing-email': 'Please enter your email address.',
+    'auth/weak-password': 'Please choose a stronger password.',
+    'auth/password-does-not-meet-requirements': 'Please choose a stronger password.',
+    'auth/email-already-in-use': 'An account already uses this email address. Please sign in or reset your password.',
+    'auth/too-many-requests': 'Too many attempts. Please wait and try again.',
+    'auth/network-request-failed': 'Unable to connect. Check your connection and try again.',
+    'auth/user-disabled': 'This account is unavailable. Please contact support.'
+  };
+  return messages[code] || 'Unable to complete this request. Please try again.';
+}
+
+async function handlePasswordReset() {
+  if (authRequestInFlight) return;
+  const input = document.getElementById('authEmail');
+  const email = (input?.value || '').trim();
+  if (!email || !input.checkValidity()) {
+    showAuthError(email ? 'Please enter a valid email address.' : 'Please enter your email address first.');
+    input?.focus({preventScroll:true});
+    return;
+  }
   initFirebaseIfReady();
-  if (!auth) return showToast("Firebase Auth unavailable", "error");
-  const email = (document.getElementById('authEmail')?.value || '').trim();
-  const pass = document.getElementById('authPassword')?.value || '';
-  if (!email || !pass) return showAuthError("Please fill out all fields.");
-  
-  const authPromise = isSignUp ? auth.createUserWithEmailAndPassword(email, pass) : auth.signInWithEmailAndPassword(email, pass);
-  authPromise.then((cred) => {
-    showToast(`Signed in as ${cred.user?.email || "User"}`, "success");
+  if (!auth) return showAuthError('Password reset is temporarily unavailable. Please try again.');
+  setAuthBusy(true);
+  setAuthStatus();
+  const sent = 'If an account exists for this email address, a password reset link has been sent. Check your inbox and spam folder.';
+  try {
+    auth.useDeviceLanguage?.();
+    await auth.sendPasswordResetEmail(email);
+    setAuthStatus(sent, true);
+  } catch (error) {
+    if (error?.code === 'auth/user-not-found') setAuthStatus(sent, true);
+    else showAuthError(friendlyAuthError(error));
+  } finally {
+    setAuthBusy(false);
+  }
+}
+
+function keepAccountAuthInputVisible() {
+  const modal = document.getElementById('accountModal');
+  const input = document.activeElement;
+  if (!modal?.classList.contains('auth-editing') || !input?.matches('#authEmail, #authPassword')) return;
+  const scroller = modal.querySelector('.modal-body');
+  const viewport = window.visualViewport;
+  const top = Number(viewport?.offsetTop) || 0;
+  const height = Number(viewport?.height) || window.innerHeight;
+  const header = modal.querySelector('.modal-head');
+  const upper = Math.max(top + 12, (header?.getBoundingClientRect().bottom || top) + 12);
+  const lower = top + height - 20;
+  const rect = input.getBoundingClientRect();
+  if (rect.bottom > lower) scroller.scrollTop += rect.bottom - lower;
+  else if (rect.top < upper) scroller.scrollTop -= upper - rect.top;
+}
+
+function resetAccountAuthViewport() {
+  const modal = document.getElementById('accountModal');
+  if (modal?.contains(document.activeElement)) document.activeElement.blur();
+  modal?.classList.remove('auth-editing');
+  document.body.classList.remove('account-auth-focused');
+  document.documentElement.style.removeProperty('--auth-viewport-height');
+  document.documentElement.style.removeProperty('--auth-viewport-top');
+  accountAuthViewportBaseline = 0;
+}
+
+function syncAccountAuthViewport() {
+  const modal = document.getElementById('accountModal');
+  const activeInput = document.activeElement?.matches('#authEmail, #authPassword');
+  if (modal?.style.display !== 'flex' || currentUser) {
+    if (modal?.classList.contains('auth-editing')) resetAccountAuthViewport();
+    return;
+  }
+  const viewport = window.visualViewport;
+  const height = Math.max(1, Number(viewport?.height) || window.innerHeight);
+  const top = Math.max(0, Number(viewport?.offsetTop) || 0);
+  if (activeInput && !accountAuthViewportBaseline) accountAuthViewportBaseline = Math.max(window.innerHeight, height);
+  const keyboardOpen = accountAuthViewportBaseline - height > 100;
+  const editing = activeInput || (modal.classList.contains('auth-editing') && keyboardOpen);
+  if (!editing) {
+    if (modal.classList.contains('auth-editing')) resetAccountAuthViewport();
+    return;
+  }
+  document.documentElement.style.setProperty('--auth-viewport-height', height + 'px');
+  document.documentElement.style.setProperty('--auth-viewport-top', top + 'px');
+  const opening = !modal.classList.contains('auth-editing');
+  modal.classList.add('auth-editing');
+  document.body.classList.add('account-auth-focused');
+  if (opening) {
+    resetHubModalPull(modal);
+    modal.querySelector('.modal-body').scrollTop = 0;
+  }
+  requestAnimationFrame(keepAccountAuthInputVisible);
+}
+
+function requireCollectionSignIn() {
+  if (currentUser?.uid && !currentUser.isAnonymous) return true;
+  closeSetCardBulkConfirmation();
+  const dialog = document.getElementById('collectionSignInDialog');
+  if (dialog && !dialog.open) dialog.showModal();
+  return false;
+}
+
+function closeCollectionSignInPrompt() {
+  document.getElementById('collectionSignInDialog')?.close();
+}
+
+function openCollectionSignIn() {
+  closeCollectionSignInPrompt();
+  if (document.getElementById('accountModal')?.style.display !== 'flex') navigateHub('accountModal');
+  document.getElementById('authEmail')?.focus({preventScroll:true});
+  syncAccountAuthViewport();
+}
+
+document.getElementById('authLoggedOutView')?.addEventListener('focusin', event => {
+  if (!event.target.matches('#authEmail, #authPassword')) return;
+  syncAccountAuthViewport();
+  setTimeout(syncAccountAuthViewport, 200);
+  setTimeout(syncAccountAuthViewport, 450);
+});
+document.getElementById('authLoggedOutView')?.addEventListener('focusout', () => setTimeout(syncAccountAuthViewport, 120));
+for (const id of ['authEmail', 'authPassword']) {
+  const input = document.getElementById(id);
+  input?.addEventListener('input', () => setAuthStatus());
+  input?.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || event.isComposing) return;
+    event.preventDefault();
+    if (id === 'authEmail') document.getElementById('authPassword')?.focus({preventScroll:true});
+    else handleEmailAuth(false);
+  });
+}
+window.visualViewport?.addEventListener('resize', syncAccountAuthViewport);
+window.visualViewport?.addEventListener('scroll', syncAccountAuthViewport);
+window.addEventListener('resize', syncAccountAuthViewport);
+
+async function handleEmailAuth(isSignUp) {
+  if (authRequestInFlight) return;
+  const input = document.getElementById('authEmail');
+  const email = (input?.value || '').trim();
+  const password = document.getElementById('authPassword')?.value || '';
+  if (!email || !password) return showAuthError('Please fill out all fields.');
+  if (!input.checkValidity()) return showAuthError('Please enter a valid email address.');
+  initFirebaseIfReady();
+  if (!auth) return showAuthError('Sign in is temporarily unavailable. Please try again.');
+  setAuthBusy(true);
+  setAuthStatus();
+  try {
+    const credential = await (isSignUp ? auth.createUserWithEmailAndPassword(email, password) : auth.signInWithEmailAndPassword(email, password));
+    document.getElementById('authPassword').value = '';
+    showToast('Signed in as ' + (credential.user?.email || 'User'), 'success');
     closeModal(null, 'accountModal');
-  }).catch(err => { showToast(err.message, "error"); showAuthError(err.message); });
+  } catch (error) {
+    showAuthError(friendlyAuthError(error, isSignUp));
+  } finally {
+    setAuthBusy(false);
+  }
 }
 
 function handleSignOut() {
@@ -10084,10 +10288,7 @@ function handleSignOut() {
   }
 }
 
-function showAuthError(msg) {
-  const el = document.getElementById('authErrorMsg');
-  if (el) { el.innerText = msg; el.style.display = 'block'; }
-}
+function showAuthError(message) { setAuthStatus(message); }
 
 function resetDexScrollToTop() {
   // Both the window and the grid can scroll, depending on viewport height.
@@ -10153,6 +10354,7 @@ function openModal(id, forceOpen = false) {
     if (modal.id !== id && modal.style.display !== 'none') {
       resetHubModalPull(modal);
       modal.style.display = 'none';
+      if (modal.id === 'accountModal') resetAccountAuthViewport();
       if (modal.id === 'dexModal') resetDexScrollToTop();
       if (modal.id === 'setsModal') {
         closeSetCardBulkConfirmation();
@@ -10237,6 +10439,7 @@ function installHubPullToClose() {
     body?.classList.add('pull-dismiss-panel');
     modal.addEventListener('touchstart', event => {
       if (event.touches.length !== 1 || modal.dataset.pullClosing === '1') return;
+      if (id === 'accountModal' && (modal.classList.contains('auth-editing') || event.target.closest('#authLoggedOutView'))) { tracking = false; return; }
       const scroller = getHubModalScroller(modal);
       if (!scroller || scroller.scrollTop > 1) {
         tracking = false;
@@ -10316,6 +10519,7 @@ function closeModal(e, id) {
     if (el) {
       resetHubModalPull(el);
       el.style.display = 'none';
+      if (id === 'accountModal') resetAccountAuthViewport();
     }
     if (id === 'dexModal') resetDexScrollToTop();
     if (id === 'setsModal') {

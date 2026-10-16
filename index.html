@@ -3117,7 +3117,7 @@ body:not(.has-active) #wheelWrap #wheel {
 .tcg-set-card:nth-child(3n) .tcg-variant-selector:has(.tcg-play-stamp-label) { left: auto; right: 0; transform: translateY(-50%); }
 </style>
 </head>
-<body data-app-build="v149">
+<body data-app-build="v150">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -6104,6 +6104,8 @@ const CARD_ARTWORK_RECOVERY_SOURCES = Object.freeze({
 function getCardArtworkSources(card) {
   const standalone = getSupplementalPromoCard(card);
   if (standalone) return getSupplementalPromoArtwork(standalone);
+  const classic = getClassicCollectionArtwork(card);
+  if (classic) return classic;
   const setId = String(card.set?.id || String(card.id || '').split('-').slice(0, -1).join('-')).trim().toLowerCase();
   const localId = String(card.localId || card.number || '').trim();
   const mcdonalds = getMcDonaldsSetInfo(setId);
@@ -6403,6 +6405,63 @@ const CLASSIC_COLLECTION_CARDS = [
   ['tapulelegx', '60']
 ].map(([key, number], index) => ({ key, number, ordinal: index + 1 }));
 const CLASSIC_COLLECTION_BY_NAME = new Map(CLASSIC_COLLECTION_CARDS.map(card => [card.key, card]));
+// v150: exact 2021 Classic Collection scans. Source filenames come from
+// https://github.com/PokemonTCG/pokemon-tcg-data/blob/master/cards/en/cel25c.json
+// TCGplayer IDs checked against the actual reprint scans (2026-10-16).
+// Reshiram/Zekrom are 250337/250338; the provider's 250301/250308 are main-set art.
+const CLASSIC_COLLECTION_ARTWORK = [
+  [1,"2_A",250319,["blastoise"]],
+  [2,"4_A",250320,["charizard"]],
+  [3,"15_A",250321,["venusaur"]],
+  [4,"73_A",250322,["imposterprofessoroak"]],
+  [5,"8_A",250294,["darkgyarados"]],
+  [6,"15_B",250323,["herecomesteamrocket"]],
+  [7,"15_C",250324,["rocketszapdos"]],
+  [8,"24_A",250325,["spikachu"]],
+  [9,"20_A",250326,["cleffa"]],
+  [10,"66_A",250327,["shiningmagikarp"]],
+  [11,"9_A",250328,["teammagmasgroudon"]],
+  [12,"86_A",250329,["rocketsadmin"]],
+  [13,"88_A",250330,["mewex"]],
+  [14,"93_A",250331,["gardevoirex"]],
+  [15,"17_A",250332,["umbreon"]],
+  [16,"15_D",250333,["claydol"]],
+  [17,"109_A",250334,["luxraygllvx"]],
+  [18,"145_A",250335,["garchompclvx"]],
+  [19,"107_A",250336,["donphan"]],
+  [20,"113_A",250337,["reshiram"]],
+  [21,"114_A",250338,["zekrom"]],
+  [22,"54_A",250339,["mewtwoex"]],
+  [23,"97_A",250340,["xerneasex"]],
+  [24,"76_A",250341,["mrayquazaex"]],
+  [25,"60_A",250342,["tapulelegx"]]
+].map(([ordinal, scan, product, aliases]) => ({
+  ...CLASSIC_COLLECTION_CARDS[ordinal - 1], scan, product,
+  aliases: [...new Set([CLASSIC_COLLECTION_CARDS[ordinal - 1].key, ...aliases])]
+}));
+function getClassicCollectionArtwork(card) {
+  if (!card) return null;
+  const clean = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const setId = String(card.set?.id || card.setId || String(card.id || '').replace(/-[^-]+$/, '')).toLowerCase();
+  const setName = clean(card.setName || card.set?.name);
+  // This is the 2021 reprint collection, never the separate 30th Celebration set.
+  if (/^(?:30th|me0?6)/.test(setId) || setName.includes('30th')) return null;
+  if (!['cel25c','cel25cc'].includes(setId) && setName !== 'celebrationsclassiccollection') return null;
+  const name = clean(card.name);
+  const number = String(card.number || card.localId || String(card.id || '').split('-').pop() || '').split('/')[0].trim();
+  const position = /^CC0*(\d+)$/i.exec(number);
+  const printed = number.replace(/_[a-z0-9]+$/i, '').replace(/^0+(?=\d)/, '');
+  const entry = CLASSIC_COLLECTION_ARTWORK.find(row => row.aliases.includes(name) &&
+    (position ? row.ordinal === Number(position[1]) : row.number === printed));
+  if (!entry) return null;
+  const cdn = 'https://tcgplayer-cdn.tcgplayer.com/product/' + entry.product;
+  const original = 'https://images.pokemontcg.io/cel25c/' + entry.scan;
+  return {
+    small: [cdn + '_200w.jpg', original + '.png', cdn + '_in_1000x1000.jpg', original + '_hires.png'],
+    large: [cdn + '_in_1000x1000.jpg', original + '_hires.png', cdn + '_200w.jpg', original + '.png']
+  };
+}
+
 function getClassicCollectionIdentity(card) {
   if (!card) return null;
   const setId = String(card.set?.id || '').toLowerCase();

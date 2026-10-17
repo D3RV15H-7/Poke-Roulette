@@ -3140,6 +3140,8 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
 .has-printing-stack > .tcg-zoom-img { position: relative; z-index: 3; box-shadow: 0 5px 12px rgba(0,0,0,.35); }
 .zoom-printing-scan { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; border-radius: 14px; pointer-events: none; box-shadow: 0 4px 10px #0004; }
 .zoom-printing-front { z-index: 3; }
+.tcg-carousel-card.showing-printing-scan .zoom-printing-scan { visibility: visible; }
+.tcg-carousel-card.showing-printing-scan .tcg-carousel-artwork-message { display: none; }
 .zoom-printing-back { z-index: 1; opacity: .65; transform: translateY(14px) scale(.97); }
 .zoom-printing-back[data-direction="-1"] { transform: translateY(-14px) scale(.97); }
 .zoom-printing-controls { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 26px; font-size: .6rem; color: var(--sub); }
@@ -3149,10 +3151,13 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
 .zoom-printing-controls button:disabled { opacity: .3; cursor: default; }
 .zoom-printing-controls button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 .zoom-printing-controls small { font-size: .5rem; }
+.zoom-printing-status { text-align: center; color: var(--sub); font-size: .6rem; min-height: 18px; padding: 2px 8px; }
+.zoom-printing-status[hidden], #zoomPrintingRetry[hidden] { display: none; }
+#zoomPrintingRetry { border: 0; background: transparent; color: var(--gold); font: inherit; text-decoration: underline; cursor: pointer; margin-left: 6px; padding: 4px; }
 @media (prefers-reduced-motion: reduce) { .zoom-printing-scan { transition: none !important; } }
 </style>
 </head>
-<body data-app-build="v152">
+<body data-app-build="v153">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3363,6 +3368,10 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
       <span id="zoomPrintingLabel" role="status" aria-live="polite"></span>
       <button type="button" id="zoomPrintingNext" aria-label="Next version artwork" onclick="navigateZoomPrinting(1)">↓</button>
       <small title="Swipe up or down on the card. Only versions with a separate source scan appear; collection options are unchanged.">Swipe ↑↓</small>
+    </div>
+    <div id="zoomPrintingStatus" class="zoom-printing-status" role="status" aria-live="polite" hidden>
+      <span id="zoomPrintingStatusText"></span>
+      <button type="button" id="zoomPrintingRetry" onclick="retryZoomPrintingArtwork()" hidden>Retry</button>
     </div>
     <div class="tcg-zoom-title" id="tcgZoomTitle">Card Title</div>
     <div class="tcg-zoom-set-link-row">
@@ -4325,9 +4334,9 @@ function retainNamedCardVariantMetadata(target, source) {
     target._namedVariantsVersion = source._namedVariantsVersion || 141;
     target._namedBaseFinish = source._namedBaseFinish || target._namedBaseFinish;
   }
-  if (source?._printingArtworkVersion === 152) {
+  if (source?._printingArtworkVersion === 153) {
     target._printingArtwork = source._printingArtwork;
-    target._printingArtworkVersion = 152;
+    target._printingArtworkVersion = 153;
   } else {
     // Legacy cached descriptors have no product IDs. Fetch raw details when
     // their preview opens rather than treating stripped metadata as complete.
@@ -11967,102 +11976,187 @@ async function openZoomCardSet(event) {
   }
 }
 
-// Printing scans use exact per-variant product IDs, never a guessed card number.
-// TCGdex's normal/reverse entries often share ONE product/scan: omit those
-// ambiguous alternatives rather than claim the generic image shows that finish.
+// v153: exact scan supplements fill gaps where the card feed knows a finish
+// but omits its image/product ID. Each is matched by set, number AND name.
+// Verified against the product scans on 2026-10-17:
+// https://www.tcgplayer.com/product/155086 (Pikachu, Build-A-Bear)
+// https://www.tcgplayer.com/product/155085 (Meowth, Build-A-Bear)
+// https://www.tcgplayer.com/product/179683 (Dragonite, Cosmos)
+// https://www.tcgplayer.com/product/227648 (Charizard, Cracked Ice)
+const PRINTING_ARTWORK_SUPPLEMENTS = Object.freeze([
+  ['xy6', 'Roaring Skies', '20', 'Pikachu', [{type:'normal',stamp:['build-a-bear'],product:'155086'}]],
+  ['xy6', 'Roaring Skies', '67', 'Meowth', [{type:'normal',stamp:['build-a-bear'],product:'155085'}]],
+  ['xy6', 'Roaring Skies', '52', 'Dragonite', [{type:'holo',foil:'cosmos',product:'179683'}]],
+  ['swsh4', 'Vivid Voltage', '25', 'Charizard', [{type:'holo',foil:'cracked-ice',product:'227648'}]]
+]);
+function getVerifiedPrintingArtwork(card) {
+  return (findCardPrintingEvidence(card, PRINTING_ARTWORK_SUPPLEMENTS)?.printings || [])
+    .map(row => ({printing:normaliseNamedPrinting(row), product:row.product, verified:true}));
+}
+function printingProductId(value) {
+  const id = String(value && typeof value === 'object' ? value.productId ?? value.id ?? '' : value ?? '');
+  return /^[1-9]\d{0,9}$/.test(id) ? id : '';
+}
 function capturePrintingArtwork(card, detail) {
   const raw = detail?.variants_detailed || detail?.variantsDetailed || (Array.isArray(detail?.variants) ? detail.variants : []);
   card._printingArtwork = (Array.isArray(raw) ? raw : []).flatMap(value => {
     const printing = normaliseNamedPrinting(value);
-    const product = String(value?.thirdParty?.tcgplayer || '');
-    return printing && /^[1-9]\d{0,9}$/.test(product) ? [{ printing, product }] : [];
+    if (!printing) return [];
+    const direct = printingProductId(value?.thirdParty?.tcgplayer);
+    const priced = [...new Set(Object.values(value?.pricing?.tcgplayer || {})
+      .map(bucket => printingProductId(bucket?.productId)).filter(Boolean))];
+    const product = direct || (priced.length === 1 ? priced[0] : '');
+    return product ? [{ printing, product }] : [];
   });
-  card._printingArtworkVersion = 152;
+  card._printingArtworkVersion = 153;
 }
 const printingScanCache = new Map();
-const printingArtworkRequests = new WeakSet();
-const zoomPrinting = { card: null, key: 'original', entries: [], animation: null, serial: 0, drag: 0 };
+const printingArtworkRequests = new WeakMap();
+const printingArtworkStatus = new WeakMap();
+const zoomPrinting = { card: null, key: 'original', entries: [], animation: null, serial: 0, drag: 0, pendingCard: null };
 function getPrintingArtworkCandidates(card) {
   const options = getNamedCardVariantDefinitions(card);
   const canonical = value => {
     const p = normaliseNamedPrinting(value);
     return p && namedVariantKey({ ...p, stamp: p.stamp.filter(s => !isIntrinsicSetStamp(card, s)) });
   };
-  const rows = card._printingArtwork || [];
+  const rows = [...(card._printingArtwork || []), ...getVerifiedPrintingArtwork(card)];
   const products = new Map();
   rows.forEach(row => {
-    if (!normaliseNamedPrinting(row.printing) || !/^[1-9]\d{0,9}$/.test(row.product)) return;
+    if (!normaliseNamedPrinting(row.printing) || !printingProductId(row.product)) return;
     if (!products.has(row.product)) products.set(row.product, new Set());
     products.get(row.product).add(canonical(row.printing));
   });
-  const used = new Set();
-  return options.filter(o => o.key !== 'standard').flatMap(option => {
-    const p = decodeNamedVariantKey(option.key) || (option.key === 'reverseHolo' ? {type:'reverse'} : null);
-    if (!p) return [];
-    const row = rows.find(r => canonical(r.printing) === canonical(p) && products.get(r.product)?.size === 1);
-    if (!row || used.has(row.product)) return [];
-    // A base scan may already be a marketplace image. Do not stack it twice.
+  const base = options.find(o => o.key === 'standard')?.printing;
+  const baseKey = canonical(base || {type:card.baseFinish === 'holo' ? 'holo' : 'normal'});
+  const usedProducts = new Set(), usedKeys = new Set();
+  return rows.flatMap(row => {
+    const identity = canonical(row.printing);
+    // A shared product ID cannot distinguish normal/reverse or editions.
+    if (!identity || identity === baseKey || products.get(row.product)?.size !== 1) return [];
+    const option = options.find(o => o.key !== 'standard' && canonical(o.printing ||
+      decodeNamedVariantKey(o.key) || (o.key === 'reverseHolo' ? {type:'reverse'} : null)) === identity);
+    if (!option && !row.verified) return [];
+    const key = option?.key || identity;
+    if (usedProducts.has(row.product) || usedKeys.has(key)) return [];
     if ([card.smallImg, card.largeImg].some(url => String(url || '').includes('/product/' + row.product + '_'))) return [];
-    used.add(row.product);
-    return [{ key: option.key, label: option.label, product: row.product }];
+    usedProducts.add(row.product); usedKeys.add(key);
+    return [{ key, label:option?.label || namedPrintingLabel(row.printing, card.baseFinish), product:row.product }];
   });
 }
 function loadPrintingScan(product) {
   if (printingScanCache.has(product)) return printingScanCache.get(product);
   const request = new Promise(resolve => {
     const urls = [`https://tcgplayer-cdn.tcgplayer.com/product/${product}_in_1000x1000.jpg`, `https://tcgplayer-cdn.tcgplayer.com/product/${product}_200w.jpg`];
-    const img = new Image(); let timer, finished = false;
-    const finish = url => { if (finished) return; finished = true; clearTimeout(timer); img.onload = img.onerror = null; resolve(url); };
+    let finished = false;
+    const finish = url => { if (finished) return; finished = true; resolve(url); };
     const next = () => {
-      clearTimeout(timer);
+      if (finished) return;
       if (!urls.length) return finish('');
-      const url = urls.shift();
-      img.onload = async () => {
-        if (img.naturalWidth < 60 || img.naturalHeight <= img.naturalWidth) return next();
-        try { if (img.decode) await img.decode(); } catch (_) { return next(); }
-        finish(url);
+      const url = urls.shift(), img = new Image();
+      let settled = false;
+      const done = success => {
+        if (settled || finished) return;
+        settled = true; clearTimeout(timer); img.onload = img.onerror = null;
+        if (success) finish(url); else next();
       };
-      img.onerror = next;
-      timer = setTimeout(next, 9000);
+      const timer = setTimeout(() => done(false), 7000);
+      img.onload = async () => {
+        // Some CDNs place a portrait scan on a square canvas. Reject tiny or
+        // landscape placeholders, but keep those valid square images.
+        if (img.naturalWidth < 100 || img.naturalHeight < 130 || img.naturalHeight < img.naturalWidth * .95) return done(false);
+        try { if (img.decode) await img.decode(); } catch (_) { return done(false); }
+        done(true);
+      };
+      img.onerror = () => done(false);
       img.src = url;
     };
     next();
   });
   printingScanCache.set(product, request);
-  request.then(url => { if (!url) printingScanCache.delete(product); });
-  // Bounded in-memory cache; no image data is written into collection storage.
+  request.then(url => { if (!url && printingScanCache.get(product) === request) printingScanCache.delete(product); });
   if (printingScanCache.size > 180) printingScanCache.delete(printingScanCache.keys().next().value);
   return request;
 }
-async function loadZoomPrintingArtwork(card) {
-  if (printingArtworkRequests.has(card)) return;
-  printingArtworkRequests.add(card);
-  try {
-    if (card._printingArtworkVersion !== 152) {
-      const id = card._tcgDexDetailId || card._namedVariantSourceId;
-      if (!id) { printingArtworkRequests.delete(card); return; }
-      capturePrintingArtwork(card, await getTcgDexCardDetail(id, Date.now() + 7000));
-    }
-    const candidates = getPrintingArtworkCandidates(card);
-    const loaded = [];
-    // Two scan downloads at a time, and only for the opened card.
-    let cursor = 0;
-    await Promise.all([0, 1].map(async () => {
-      while (cursor < candidates.length) {
-        const entry = candidates[cursor++];
-        const url = await loadPrintingScan(entry.product);
-        if (url) {
-          loaded.push({ ...entry, url });
-          card._loadedPrintingScans = candidates.map(e => loaded.find(v => v.key === e.key)).filter(Boolean);
-          if (zoomPrinting.card === card && document.getElementById('tcgZoomModal')?.style.display === 'flex') renderZoomPrintings(card);
-        }
-      }
-    }));
-    card._loadedPrintingScans = candidates.map(e => loaded.find(v => v.key === e.key)).filter(Boolean);
-    if (zoomPrinting.card === card && document.getElementById('tcgZoomModal')?.style.display === 'flex') renderZoomPrintings(card);
-  } catch (_) {
-    printingArtworkRequests.delete(card); // Offline is retryable on next opening.
+async function resolvePrintingArtworkDetail(card) {
+  const deadline = Date.now() + 16000;
+  const number = String(card.number || card.localId || '').split('/')[0].trim();
+  const numberKey = n => normalizeCardNumber(String(n || '').split('/')[0]);
+  const matches = detail => detail?.id && normaliseVariantToken(detail.name) === normaliseVariantToken(card.name) &&
+    (!number || numberKey(detail.localId || detail.id.split('-').pop()) === numberKey(number));
+  const known = [...new Set([card._tcgDexDetailId, card._namedVariantSourceId].filter(Boolean))];
+  for (const id of known) {
+    try { const detail = await getTcgDexCardDetail(id, deadline); if (matches(detail)) return detail; } catch (_) {}
   }
+  // PokemonTCG/cached cards may never have received a TCGdex source ID.
+  const setId = String(card.artworkTcgDexSetId || card.set?.id || card.setId || card.id?.replace(/-[^-]+$/, '') || '');
+  const set = await findTcgDexSetForPokemonTcgSet(setId, card.setName || card.set?.name);
+  if (!set?.id || !number) throw new Error('Card version source unavailable');
+  const localIds = [...new Set([number, numberKey(number), number.padStart(3, '0')])];
+  for (const localId of localIds) {
+    if (Date.now() >= deadline) break;
+    const id = `${set.id}-${localId}`;
+    if (known.includes(id)) continue;
+    try {
+      const detail = await getTcgDexCardDetail(id, deadline);
+      if (matches(detail)) { card._tcgDexDetailId = id; return detail; }
+    } catch (_) {}
+  }
+  throw new Error('Card version source unavailable');
+}
+function loadZoomPrintingArtwork(card, retry = false) {
+  if (printingArtworkRequests.has(card)) return printingArtworkRequests.get(card);
+  if (!retry && ['ready','unavailable','partial','error'].includes(printingArtworkStatus.get(card))) return Promise.resolve();
+  if (retry) printingArtworkStatus.delete(card);
+  printingArtworkStatus.set(card, 'loading');
+  const repaint = () => {
+    if (zoomPrinting.card === card && document.getElementById('tcgZoomModal')?.style.display === 'flex') renderZoomPrintings(card);
+  };
+  // Defer execution until the request is registered: render can re-enter here.
+  const request = Promise.resolve().then(async () => {
+    const loaded = new Map((card._loadedPrintingScans || []).map(entry => [entry.product, entry]));
+    const attempted = new Set();
+    let scanFailed = false, detailFailed = false;
+    const loadCandidates = async () => {
+      const candidates = getPrintingArtworkCandidates(card).filter(entry => !attempted.has(entry.product));
+      let cursor = 0;
+      await Promise.all([0, 1].map(async () => {
+        while (cursor < candidates.length) {
+          const entry = candidates[cursor++]; attempted.add(entry.product);
+          const url = loaded.get(entry.product)?.url || await loadPrintingScan(entry.product);
+          if (url) loaded.set(entry.product, { ...entry, url }); else scanFailed = true;
+          card._loadedPrintingScans = getPrintingArtworkCandidates(card)
+            .map(e => loaded.get(e.product)).filter(Boolean);
+          repaint();
+        }
+      }));
+    };
+    // Verified supplements work immediately, including offline cached cards;
+    // detail discovery proceeds alongside them and can add more exact scans.
+    const details = (async () => {
+      if (card._printingArtworkVersion === 153) return;
+      try { captureNamedCardVariantData(card, await resolvePrintingArtworkDetail(card)); }
+      catch (_) { detailFailed = true; }
+    })();
+    await loadCandidates();
+    await details;
+    await loadCandidates();
+    const hasScans = (card._loadedPrintingScans || []).length > 0;
+    printingArtworkStatus.set(card, scanFailed || detailFailed ? (hasScans ? 'partial' : 'error') : hasScans ? 'ready' : 'unavailable');
+  }).catch(() => {
+    printingArtworkStatus.set(card, (card._loadedPrintingScans || []).length ? 'partial' : 'error');
+  }).finally(() => {
+    if (printingArtworkRequests.get(card) === request) printingArtworkRequests.delete(card);
+    repaint();
+  });
+  printingArtworkRequests.set(card, request);
+  return request;
+}
+function retryZoomPrintingArtwork() {
+  const card = zoomPrinting.card;
+  if (!card) return;
+  loadZoomPrintingArtwork(card, true);
+  renderZoomPrintings(card);
 }
 function cancelZoomPrintingMotion() {
   zoomPrinting.serial++;
@@ -12072,7 +12166,8 @@ function cancelZoomPrintingMotion() {
 }
 function renderZoomPrintings(card) {
   if (!card || !zoomViewArea) return;
-  if (zoomCarousel.pointer || zoomCarousel.animating || zoomPrinting.animation) return;
+  if (zoomCarousel.pointer || zoomCarousel.animating || zoomPrinting.animation) { zoomPrinting.pendingCard = card; return; }
+  zoomPrinting.pendingCard = null;
   if (zoomPrinting.card !== card) {
     cancelZoomPrintingMotion(); zoomPrinting.card = card; zoomPrinting.key = 'original';
   }
@@ -12080,7 +12175,7 @@ function renderZoomPrintings(card) {
   zoomPrinting.entries = [{key:'original', label:baseLabel}, ...(card._loadedPrintingScans || [])];
   if (!zoomPrinting.entries.some(v => v.key === zoomPrinting.key)) zoomPrinting.key = 'original';
   zoomViewArea.querySelectorAll('.zoom-printing-scan').forEach(n => n.remove());
-  zoomViewArea.querySelectorAll('.tcg-carousel-card').forEach(slot => slot.classList.remove('has-printing-stack'));
+  zoomViewArea.querySelectorAll('.tcg-carousel-card').forEach(slot => slot.classList.remove('has-printing-stack', 'showing-printing-scan'));
   const slot = zoomViewArea.querySelector('[data-offset="0"]');
   const main = document.getElementById('tcgZoomImg');
   main.style.visibility = ''; main.style.transform = ''; main.style.opacity = ''; main.style.transition = '';
@@ -12101,6 +12196,7 @@ function renderZoomPrintings(card) {
     if (index > 0) addScan(zoomPrinting.entries[index - 1], 'zoom-printing-back', -1);
     if (index < count - 1) addScan(zoomPrinting.entries[index + 1], 'zoom-printing-back', 1);
   }
+  slot.classList.toggle('showing-printing-scan', Boolean(entry.url));
   if (entry.url) { addScan(entry, 'zoom-printing-front'); main.style.visibility = 'hidden'; }
   const controls = document.getElementById('zoomPrintingControls');
   controls.hidden = count < 2;
@@ -12109,6 +12205,17 @@ function renderZoomPrintings(card) {
   document.getElementById('zoomPrintingNext').disabled = index === count - 1;
   zoomViewArea.classList.toggle('has-printing-artwork', count > 1);
   loadZoomPrintingArtwork(card);
+  const status = printingArtworkStatus.get(card);
+  const statusNode = document.getElementById('zoomPrintingStatus');
+  const retry = document.getElementById('zoomPrintingRetry');
+  const hasAlternatives = getNamedCardVariantDefinitions(card).length > 1;
+  const failed = status === 'error' || status === 'partial';
+  statusNode.hidden = count > 1 && !failed;
+  document.getElementById('zoomPrintingStatusText').textContent = status === 'loading'
+    ? 'Checking version artwork…' : failed ? (count > 1 ? 'Some version artwork could not load.' : 'Version artwork could not be checked.')
+    : hasAlternatives ? 'No separate version scans available yet.' : '';
+  if (!failed && status !== 'loading' && !hasAlternatives) statusNode.hidden = true;
+  retry.hidden = !failed;
 }
 function paintZoomPrintingDrag(drag) {
   zoomPrinting.drag = drag;
@@ -12143,7 +12250,8 @@ function openTcgZoom(index, fromModal = false) {
   cancelZoomCarousel();
   // Reopening is a retry opportunity for unavailable scans; successful images
   // are reused from the bounded cache without another network download.
-  if (currentCardsList[index]) printingArtworkRequests.delete(currentCardsList[index]);
+  if (currentCardsList[index] && ['error','partial'].includes(printingArtworkStatus.get(currentCardsList[index])))
+    printingArtworkStatus.delete(currentCardsList[index]);
   openedFromDexModal = fromModal;
   currentZoomIndex = index;
   const modal = document.getElementById('tcgZoomModal');
@@ -12379,7 +12487,7 @@ function renderZoomCarousel() {
     const card = currentCardsList[currentZoomIndex + offset];
     const img = slot.querySelector('img');
     slot.querySelectorAll('.zoom-printing-scan').forEach(n => n.remove());
-    slot.classList.remove('has-printing-stack');
+    slot.classList.remove('has-printing-stack', 'showing-printing-scan');
     img.style.visibility = ''; img.style.transform = ''; img.style.opacity = ''; img.style.transition = '';
     slot.hidden = !card;
     if (!card) {
@@ -12529,7 +12637,10 @@ function endZoomSwipe(cancelled = false) {
     navigateZoomPrinting(direction);
     return;
   }
-  if (!pointer?.horizontal) return;
+  if (!pointer?.horizontal) {
+    if (zoomPrinting.pendingCard) renderZoomPrintings(currentCardsList[currentZoomIndex]);
+    return;
+  }
   zoomCarousel.ignoreClickUntil = performance.now() + 350;
   const { step } = getZoomCarouselMetrics();
   const velocity = Math.abs(pointer.dx) / Math.max(1, performance.now() - pointer.startedAt);

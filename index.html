@@ -3107,8 +3107,10 @@ body:not(.has-active) #wheelWrap #wheel {
 .zoom-check-circle.checked .zoom-check-box {
   color: #000;
 }
-/* Keep the Play! Pokémon stamp name together; finish suffixes may sit below. */
-.tcg-play-stamp-label { display: inline-block; white-space: nowrap; overflow-wrap: normal; }
+/* Explicit label lines keep stamp names and finish names together. */
+.tcg-variant-label { display: block; min-width: 0; }
+.tcg-variant-label-line { display: block; white-space: nowrap; overflow-wrap: normal; }
+.tcg-play-stamp-label { display: block; white-space: nowrap; overflow-wrap: normal; }
 .tcg-variant-selector:has(.tcg-play-stamp-label) {
   width: max(calc(100% - 14px), 165px);
   max-width: min(220px, calc(100vw - 32px));
@@ -3152,7 +3154,7 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
 @media (prefers-reduced-motion: reduce) { .zoom-printing-scan { transition: none !important; } }
 </style>
 </head>
-<body data-app-build="v152">
+<body data-app-build="v157">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3901,10 +3903,11 @@ function normaliseVariantToken(value) {
 function isExcludedCardPrinting(value) {
   if (!value || typeof value !== 'object') return false;
   const stamps = value.stamp || value.stamps || [];
-  const tokens = [value.type, value.subtype, value.foil, value.edition, value.variantId,
+  const tokens = [value.type, value.subtype, value.foil, value.edition, value.variantId, value.name, value.label, value.finish,
     ...(Array.isArray(stamps) ? stamps : [stamps])].map(normaliseVariantToken).filter(Boolean);
-  // Championship event stamps and the signed World Championship deck reprints.
-  // Staff by itself, Prize Pack and ordinary league stamps remain collectible.
+  // Staff versions are excluded, including combined expansion/staff stamps.
+  // Prize Pack and ordinary league stamps remain collectible.
+  if (value.staff === true || value.isStaff === true || tokens.some(token => /(?:^|-)staff(?:-|$)/.test(token))) return true;
   const signatures = new Set([
     'chris-fulop','tsuguyoshi-yamato','reed-weichler','kevin-nguyen','takashi-yoneda',
     'michael-gonzalez','curran-hill','jeremy-maron','jimmy-ballard','miska-saari',
@@ -4508,7 +4511,7 @@ function getSetVariantOptionsMarkup(card, zoom = false) {
   const circleClass = zoom ? 'tcg-zoom-variant-circle' : 'tcg-variant-circle';
   const buttons = options.map(({key,label}) => {
     const checked = isSetCardVariantOwned(card,key);
-    return `<button type="button" class="${optionClass}" data-variant="${escapeSetVariantHtml(key)}" data-variant-kind="${getSetVariantCategory(card,key,label)}" aria-pressed="${checked}" title="${escapeSetVariantHtml(label)}"><span>${escapeSetVariantHtml(label).replace('Stamp (Play! Pokémon)', '<span class="tcg-play-stamp-label">Stamp (Play! Pokémon)</span>')}</span><span class="${circleClass} ${checked ? 'checked' : ''}" aria-hidden="true">✓</span></button>`;
+    return `<button type="button" class="${optionClass}" data-variant="${escapeSetVariantHtml(key)}" data-variant-kind="${getSetVariantCategory(card,key,label)}" aria-pressed="${checked}" title="${escapeSetVariantHtml(label)}"><span class="tcg-variant-label">${getSetVariantLabelMarkup(label)}</span><span class="${circleClass} ${checked ? 'checked' : ''}" aria-hidden="true">✓</span></button>`;
   });
   if (!zoom) return buttons.join('');
   const columns = [];
@@ -4520,9 +4523,16 @@ function getSetVariantOptionsMarkup(card, zoom = false) {
   }
   return columns.join('');
 }
+function getSetVariantLabelMarkup(label) {
+  const stamp = /^(?:(.+?) · )?Stamp (\([^)]+\))(?: · (.+))?$/.exec(label);
+  if (!stamp) return escapeSetVariantHtml(label);
+  const prefix = stamp[1] ? stamp[1] + ' · ' : '';
+  const lines = stamp[3] ? [prefix + 'Stamp ' + stamp[2], stamp[3]] : [prefix + 'Stamp', stamp[2]];
+  return lines.map((line, index) => `<span class="tcg-variant-label-line${stamp[3] && index === 0 && stamp[2] === '(Play! Pokémon)' ? ' tcg-play-stamp-label' : ''}">${escapeSetVariantHtml(line)}</span>`).join('');
+}
 function fitSetVariantLabels(container) {
   if (!container) return;
-  container.querySelectorAll('.tcg-play-stamp-label').forEach(label => {
+  container.querySelectorAll('.tcg-variant-label-line').forEach(label => {
     label.style.fontSize = '';
     const available = label.parentElement.clientWidth;
     const natural = label.scrollWidth;

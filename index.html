@@ -3133,9 +3133,21 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
 #accountModal.auth-editing .profile-stats, #accountModal.auth-editing .account-sync-description { display: none; }
 #accountModal.auth-editing #authLoggedOutView { border-top: 0; margin-top: 0; padding-top: 0; }
 #collectionSignInDialog p { text-align: left; }
+/* Hold the current card to lift it into a focused image/share preview. */
+.card-share-preview { position: fixed; inset: 0; z-index: 300; display: flex; align-items: center; justify-content: center; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); background: rgba(9,13,22,.78); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+.card-share-preview[hidden] { display: none; }
+.card-share-preview-panel { width: min(100%, 520px); height: 100%; max-height: 980px; min-height: 0; display: grid; grid-template-rows: minmax(0,1fr) auto; gap: 16px; }
+.card-share-preview-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.card-share-preview-image { width: 100%; height: 100%; min-height: 0; object-fit: contain; filter: drop-shadow(0 18px 30px rgba(0,0,0,.55)); -webkit-touch-callout: default; }
+.card-share-preview-actions { display: flex; flex-direction: column; gap: 1px; width: min(100%,340px); justify-self: center; overflow: hidden; border-radius: 18px; border: 1px solid #64748b; background: #1e293b; box-shadow: 0 10px 30px #0006; }
+.card-share-preview-actions button { min-height: 48px; padding: 12px 18px; border: 0; background: transparent; color: #f8fafc; font: inherit; font-weight: 700; text-align: left; cursor: pointer; }
+.card-share-preview-actions button + button { border-top: 1px solid #475569; }
+.card-share-preview-actions button:disabled { color: #94a3b8; cursor: wait; }
+.card-share-preview-actions button:focus-visible { outline: 2px solid var(--green); outline-offset: -4px; }
+#zoomViewArea img { -webkit-touch-callout: none; }
 </style>
 </head>
-<body data-app-build="v162">
+<body data-app-build="v163">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3316,7 +3328,7 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
   <div class="tcg-zoom-content" id="zoomContainer" onclick="event.stopPropagation()">
     <div class="tcg-zoom-toolbar">
       <div class="zoom-left-actions">
-        <button type="button" class="zoom-share-button" id="zoomShareBtn" onclick="shareZoomCard(event)" aria-label="Share card image" title="Share card image">
+        <button type="button" class="zoom-share-button" id="zoomShareBtn" onclick="openCardSharePreview(event)" aria-label="Preview and share card image" title="Preview and share card image">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V3m-4 4 4-4 4 4M6 11H4v10h16V11h-2"/></svg>
           <span id="zoomShareLabel">Share</span>
         </button>
@@ -3361,6 +3373,16 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
   </div>
 </div>
 
+<div id="cardSharePreview" class="card-share-preview" hidden role="dialog" aria-modal="true" aria-labelledby="cardSharePreviewTitle" onclick="if(event.target===this) closeCardSharePreview()">
+  <div class="card-share-preview-panel">
+    <h2 id="cardSharePreviewTitle" class="card-share-preview-title">Share card image</h2>
+    <img id="cardSharePreviewImage" class="card-share-preview-image" alt="" draggable="false" />
+    <div class="card-share-preview-actions">
+      <button type="button" id="cardSharePreviewAction" onclick="shareZoomCard(event)">Share…</button>
+      <button type="button" id="cardSharePreviewClose" onclick="closeCardSharePreview()">Close</button>
+    </div>
+  </div>
+</div>
 <div class="dex-cards-modal" id="dexCardsModal" onclick="closeDexCardsModal()">
   <div class="dex-cards-content" onclick="event.stopPropagation()">
     <div class="dex-cards-header">
@@ -11833,8 +11855,119 @@ function renderTcgCards(cards) {
 }
 // Prepare only the visible card before the tap: native file sharing requires
 // user activation, which can expire if we fetch artwork inside the click handler.
+const cardSharePreviewState = { card: null, source: '', file: null, objectUrl: '', focus: null };
+const zoomCardHold = { timer: null, id: null, x: 0, y: 0 };
+function cancelZoomCardHold() {
+  clearTimeout(zoomCardHold.timer);
+  zoomCardHold.timer = null;
+  zoomCardHold.id = null;
+}
+function beginZoomCardHold(x, y, id, target) {
+  cancelZoomCardHold();
+  const slot = target?.closest?.('.tcg-carousel-card');
+  if (!slot || Number(slot.dataset.offset) !== 0 || target.closest('button,a,input') || zoomCarousel.animating) return;
+  const card = currentCardsList[currentZoomIndex];
+  Object.assign(zoomCardHold, { x, y, id });
+  zoomCardHold.timer = setTimeout(() => {
+    cancelZoomCardHold();
+    if (currentCardsList[currentZoomIndex] === card && !zoomCarousel.animating) openCardSharePreview();
+  }, 500);
+}
+function moveZoomCardHold(x, y) {
+  if (Math.hypot(x - zoomCardHold.x, y - zoomCardHold.y) > 6) cancelZoomCardHold();
+}
+function openCardSharePreview(event) {
+  event?.preventDefault(); event?.stopPropagation();
+  const card = currentCardsList[currentZoomIndex];
+  const modal = document.getElementById('tcgZoomModal');
+  const overlay = document.getElementById('cardSharePreview');
+  const main = document.getElementById('tcgZoomImg');
+  const source = main?.currentSrc || main?.getAttribute('src') || zoomShareState.url;
+  if (!card || !overlay || modal?.style.display !== 'flex' || zoomCarousel.animating ||
+      !source || source === TCG_CARD_ARTWORK_UNAVAILABLE || main?.closest('.artwork-unavailable')) return;
+  if (!overlay.hidden) return;
+  cancelZoomCarousel(); paintZoomCarousel();
+  zoomCarousel.ignoreClickUntil = performance.now() + 500;
+  Object.assign(cardSharePreviewState, { card, source, focus: document.activeElement });
+  const image = document.getElementById('cardSharePreviewImage');
+  image.alt = card.name + ' · ' + card.setName + ' · #' + card.number;
+  image.src = source;
+  document.getElementById('cardSharePreviewTitle').textContent = 'Share ' + card.name;
+  overlay.hidden = false;
+  modal.inert = true;
+  updateCardSharePreview();
+  const action = document.getElementById('cardSharePreviewAction');
+  (action.disabled ? document.getElementById('cardSharePreviewClose') : action).focus({preventScroll:true});
+}
+function updateCardSharePreview() {
+  const overlay = document.getElementById('cardSharePreview');
+  if (!overlay || overlay.hidden) return;
+  const preview = cardSharePreviewState, state = zoomShareState;
+  if (preview.card !== currentCardsList[currentZoomIndex]) return closeCardSharePreview(false);
+  const action = document.getElementById('cardSharePreviewAction');
+  action.disabled = state.loading || state.busy || (!state.file && !state.url);
+  action.textContent = state.loading ? 'Preparing image…' : state.busy ? 'Sharing…' : state.mode === 'save' ? 'Save image…' : state.mode === 'link' ? 'Share image link…' : 'Share…';
+  action.setAttribute('aria-busy', String(state.loading || state.busy));
+  if (state.file && preview.file !== state.file) {
+    if (preview.objectUrl) URL.revokeObjectURL(preview.objectUrl);
+    preview.file = state.file;
+    preview.objectUrl = URL.createObjectURL(state.file);
+    document.getElementById('cardSharePreviewImage').src = preview.objectUrl;
+  }
+}
+function closeCardSharePreview(restoreFocus = true) {
+  const overlay = document.getElementById('cardSharePreview');
+  if (!overlay || overlay.hidden) return;
+  overlay.hidden = true;
+  document.getElementById('cardSharePreviewImage').removeAttribute('src');
+  const previous = cardSharePreviewState.focus;
+  if (cardSharePreviewState.objectUrl) URL.revokeObjectURL(cardSharePreviewState.objectUrl);
+  Object.assign(cardSharePreviewState, {card:null,source:'',file:null,objectUrl:'',focus:null});
+  const modal = document.getElementById('tcgZoomModal');
+  if (modal) modal.inert = false;
+  if (restoreFocus && previous?.isConnected && modal?.style.display === 'flex') previous.focus({preventScroll:true});
+}
+function installCardShareHold() {
+  if (!zoomViewArea) return;
+  zoomViewArea.addEventListener('pointerdown', event => {
+    if (event.pointerType !== 'touch' && event.isPrimary && event.button === 0)
+      beginZoomCardHold(event.clientX,event.clientY,event.pointerId,event.target);
+  });
+  window.addEventListener('pointermove', event => {
+    if (zoomCardHold.id === event.pointerId) moveZoomCardHold(event.clientX,event.clientY);
+  }, {passive:true});
+  for (const type of ['pointerup','pointercancel']) window.addEventListener(type, event => {
+    if (zoomCardHold.id === event.pointerId) cancelZoomCardHold();
+  });
+  zoomViewArea.addEventListener('touchstart', event => {
+    if (event.touches.length !== 1) return cancelZoomCardHold();
+    const t=event.touches[0]; beginZoomCardHold(t.clientX,t.clientY,'touch:'+t.identifier,event.target);
+  }, {passive:true});
+  window.addEventListener('touchmove', event => {
+    if (!String(zoomCardHold.id).startsWith('touch:')) return;
+    if (event.touches.length !== 1) return cancelZoomCardHold();
+    const t=event.touches[0]; moveZoomCardHold(t.clientX,t.clientY);
+  }, {passive:true,capture:true});
+  for (const type of ['touchend','touchcancel']) window.addEventListener(type, cancelZoomCardHold, {passive:true});
+  window.addEventListener('blur',cancelZoomCardHold);
+  document.addEventListener('visibilitychange',cancelZoomCardHold);
+  zoomViewArea.addEventListener('contextmenu', event => {
+    if (Number(event.target.closest?.('.tcg-carousel-card')?.dataset.offset) === 0) openCardSharePreview(event);
+  });
+  document.addEventListener('keydown', event => {
+    const overlay=document.getElementById('cardSharePreview');
+    if (!overlay || overlay.hidden) return;
+    if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); closeCardSharePreview(); }
+    if (event.key === 'Tab') {
+      const buttons=[...overlay.querySelectorAll('button:not(:disabled)')];
+      const index=buttons.indexOf(document.activeElement);
+      event.preventDefault(); buttons[(index+(event.shiftKey?-1:1)+buttons.length)%buttons.length]?.focus();
+    }
+  },true);
+}
 const zoomShareState = { key: '', controller: null, file: null, url: '', loading: false, busy: false, mode: 'share' };
-function resetZoomShare() {
+function resetZoomShare(preservePreview = false) {
+  if (!preservePreview) closeCardSharePreview(false);
   zoomShareState.controller?.abort();
   Object.assign(zoomShareState, { key: '', controller: null, file: null, url: '', loading: false, busy: false, mode: 'share' });
 }
@@ -11845,13 +11978,14 @@ function updateZoomShareButton() {
   if (!button || !label) return;
   const state = zoomShareState;
   label.textContent = 'Share';
-  button.disabled = state.loading || state.busy || (!state.file && !state.url);
+  button.disabled = state.busy || (!state.file && !state.url);
   button.setAttribute('aria-busy', String(state.loading || state.busy));
   // Keep one action throughout the preview. A restricted image host can
   // still be shared as its direct image URL using the native share sheet.
-  const description = state.loading ? 'Preparing card image for sharing' : state.mode === 'link' ? 'Share card image link' : 'Share card image';
+  const description = 'Preview and share card image';
   button.title = description;
   button.setAttribute('aria-label', description);
+  updateCardSharePreview();
 }
 
 async function makeShareableCardImage(blob, signal) {
@@ -11895,7 +12029,7 @@ async function prepareZoomCardShare(card) {
     .filter(url => url && url !== TCG_CARD_ARTWORK_UNAVAILABLE && isValidFrontCardImage(url)).slice(0, 3);
   const key = JSON.stringify([card.id, getCardFingerprint(card), sources]);
   if (zoomShareState.key === key) { updateZoomShareButton(); return; }
-  resetZoomShare();
+  resetZoomShare(cardSharePreviewState.card === card);
   const controller = new AbortController();
   Object.assign(zoomShareState, { key, controller, url: sources[0] || '', loading: sources.length > 0 });
   updateZoomShareButton();
@@ -12127,6 +12261,7 @@ function updateZoomModalContent() {
   if (!currentCardsList.length) return;
   const card = currentCardsList[currentZoomIndex];
   if (!card) return;
+  if (cardSharePreviewState.card && cardSharePreviewState.card !== card) closeCardSharePreview(false);
   queueVisibleCardDetails(card);
   const tcgZoomImg = document.getElementById('tcgZoomImg');
   const tcgZoomTitle = document.getElementById('tcgZoomTitle');
@@ -12253,6 +12388,7 @@ function navigateZoomCard(d) {
 const zoomCarousel = { frame: null, animating: false, drag: 0, pointer: null, ignoreClickUntil: 0, generation: 0 };
 const zoomViewArea = document.getElementById('zoomViewArea');
 function cancelZoomCarousel() {
+  cancelZoomCardHold();
   zoomCarousel.generation++;
   if (zoomCarousel.frame !== null) cancelAnimationFrame(zoomCarousel.frame);
   zoomCarousel.frame = null;
@@ -12506,6 +12642,7 @@ if (zoomViewArea) {
   else window.addEventListener('resize', resizeCarousel);
 }
 
+installCardShareHold();
 function closeTcgZoom() {
   resetZoomShare();
   ++zoomSetNavigation.requestId;

@@ -3135,21 +3135,24 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
 #collectionSignInDialog p { text-align: left; }
 .zoom-versions-button { grid-column: 3; grid-row: 1; justify-self: end; }
 .tcg-zoom-view-area .tcg-zoom-title { position: absolute; top: calc(50% - var(--zoom-card-height, 0px) / 2 - 28px); left: 0; right: 0; line-height: 24px; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; z-index: 5; }
+.tcg-zoom-view-area .tcg-zoom-set-link-row { position: absolute; top: calc(50% + var(--zoom-card-height, 0px) / 2 + 6px); left: 0; right: 0; height: 28px; z-index: 5; }
+.tcg-zoom-view-area .tcg-zoom-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tcg-zoom-toolbar .tcg-artwork-retry { width: 30px; height: 30px; font-size: 20px; }
 .zoom-dex-action-row { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 34px; }
 .zoom-dex-action-row .zoom-check-circle { justify-self: center; }
-.zoom-versions-popup { position: absolute; top: 56px; right: 12px; z-index: 20; width: min(235px, calc(100% - 24px)); max-height: min(50dvh, 340px); overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px; border: 1px solid #64748b; border-radius: 14px; background: rgba(15,23,42,.98); box-shadow: 0 12px 32px #0009; }
+.zoom-versions-popup { position: absolute; top: 56px; right: 12px; z-index: 20; width: max-content; max-width: min(235px, calc(100% - 24px)); max-height: min(50dvh, 340px); overflow-y: auto; overscroll-behavior: contain; padding: 8px 10px; border: 1px solid #64748b; border-radius: 14px; background: rgba(15,23,42,.98); box-shadow: 0 12px 32px #0009; }
 .zoom-versions-popup[hidden] { display: none; }
 .zoom-versions-popup-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
 .zoom-versions-popup-header h2 { font-size: .8rem; margin: 0; }
 .zoom-versions-popup-header button { width: 28px; height: 28px; border: 0; border-radius: 50%; background: #334155; color: #e2e8f0; cursor: pointer; font-size: 18px; }
 .zoom-versions-list { list-style: none; padding: 0; margin: 0; }
-.zoom-version-option { --variant-colour: var(--green); color: var(--variant-colour); padding: 9px 2px; font-size: .73rem; font-weight: 800; line-height: 1.3; }
+.zoom-version-option { --variant-colour: var(--green); color: var(--variant-colour); padding: 6px 2px; font-size: .73rem; font-weight: 800; line-height: 1.3; }
+.zoom-versions-popup .tcg-variant-label-line, .zoom-versions-popup .tcg-play-stamp-label { white-space: normal; overflow-wrap: anywhere; }
 .zoom-version-option + .zoom-version-option { border-top: 1px solid #334155; }
 .zoom-versions-popup button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 </style>
 </head>
-<body data-app-build="v166">
+<body data-app-build="v167">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3340,6 +3343,12 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
     </div>
     <div class="tcg-zoom-view-area" id="zoomViewArea">
       <div class="tcg-zoom-title" id="tcgZoomTitle">Card Title</div>
+      <div class="tcg-zoom-set-link-row">
+        <button type="button" class="tcg-zoom-set-link" id="zoomOpenSetBtn" title="Open this card in its set" aria-label="Open this card in its set" onclick="openZoomCardSet(event)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m7.5 14 4.5-4.5 4.5 4.5"/></svg>
+        </button>
+        <div class="tcg-zoom-meta" id="tcgZoomMeta">Set · Number</div>
+      </div>
       <div class="flat-card-container tcg-carousel-card" data-offset="-2" aria-hidden="true" hidden>
         <img class="tcg-zoom-img" alt="Earlier card" />
       </div>
@@ -3362,12 +3371,6 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
     <div id="zoomVersionsPopup" class="zoom-versions-popup" hidden role="dialog" aria-labelledby="zoomVersionsTitle" tabindex="-1">
       <div class="zoom-versions-popup-header"><h2 id="zoomVersionsTitle">Card Variations</h2></div>
       <ul id="zoomVersionsList" class="zoom-versions-list"></ul>
-    </div>
-    <div class="tcg-zoom-set-link-row">
-      <button type="button" class="tcg-zoom-set-link" id="zoomOpenSetBtn" title="Open this set" aria-label="Open this set in Sets" onclick="openZoomCardSet(event)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m7.5 14 4.5-4.5 4.5 4.5"/></svg>
-      </button>
-      <div class="tcg-zoom-meta" id="tcgZoomMeta">Set · Number</div>
     </div>
     <div class="tcg-zoom-variants" id="tcgZoomVariants" style="display:none;"></div>
     <div class="tcg-zoom-bottom-controls">
@@ -12044,6 +12047,31 @@ function findSetForPreviewCard(card, sets) {
   return candidates[0] || null;
 }
 
+function scrollToPreviewCardInSet(card, set, viewRequestId) {
+  requestAnimationFrame(() => {
+    if (activeTcgSet !== set || setsViewRequestId !== viewRequestId) return;
+    const body = document.querySelector('#setsModal .modal-body');
+    const grid = document.getElementById('tcgSetCards');
+    if (!body || !grid) return;
+    // IDs can differ between catalogue providers. Only use number/name when
+    // there is exactly one matching printing in the destination set.
+    let match = currentCardsList.find(entry => entry.id === card.id);
+    if (!match) {
+      const matches = currentCardsList.filter(entry =>
+        normalizeCardNumber(entry.number || entry.localId) === normalizeCardNumber(card.number || card.localId) &&
+        normalizePokemonCardName(entry.name) === normalizePokemonCardName(card.name));
+      if (matches.length === 1) match = matches[0];
+    }
+    const item = match && Array.from(grid.querySelectorAll('[data-live-card-id]'))
+      .find(node => node.dataset.liveCardId === String(match.id));
+    if (!item) return;
+    const top = Math.max(0, body.scrollTop + item.getBoundingClientRect().top - body.getBoundingClientRect().top - 16);
+    body.scrollTo({top, left: 0, behavior: 'auto'});
+    item.focus({preventScroll:true});
+    updateSetCardsBackTop();
+  });
+}
+
 async function openZoomCardSet(event) {
   event?.stopPropagation();
   if (zoomSetNavigation.pending) return;
@@ -12069,7 +12097,10 @@ async function openZoomCardSet(event) {
     closeTcgZoom();
     closeDexCardsModal();
     openModal('setsModal', true);
-    await openTcgSet(set);
+    const opening = openTcgSet(set);
+    const viewRequestId = setsViewRequestId;
+    await opening;
+    scrollToPreviewCardInSet(card, set, viewRequestId);
   } catch (error) {
     if (requestId === zoomSetNavigation.requestId) {
       showToast('Unable to open this set. Please try again.', 'warning');
@@ -12221,8 +12252,8 @@ function updateZoomModalContent() {
   if (tcgZoomMeta) tcgZoomMeta.innerText = `${card.setName} · #${card.number}`;
   const openSetButton = document.getElementById('zoomOpenSetBtn');
   if (openSetButton) {
-    openSetButton.title = `Open ${card.setName} in Sets`;
-    openSetButton.setAttribute('aria-label', `Open ${card.setName} in Sets`);
+    openSetButton.title = `Find ${card.name} in ${card.setName}`;
+    openSetButton.setAttribute('aria-label', `Find ${card.name} in ${card.setName}`);
   }
   if (tcgZoomCounter) tcgZoomCounter.innerText = `${currentZoomIndex + 1} / ${currentCardsList.length}`;
   const priceValEl = document.getElementById('tcgZoomPriceVal');
@@ -12359,7 +12390,7 @@ function getZoomCarouselMetrics() {
   const width = zoomViewArea?.clientWidth || 0;
   const height = zoomViewArea?.clientHeight || 0;
   // Reserve room for the centred name directly above the artwork.
-  const cardWidth = Math.min(width * 0.76, Math.max(0, height - 64) * 63 / 88);
+  const cardWidth = Math.min(width * 0.76, Math.max(0, height - 80) * 63 / 88);
   zoomViewArea?.style.setProperty('--zoom-card-width', `${cardWidth}px`);
   zoomViewArea?.style.setProperty('--zoom-card-height', `${cardWidth * 88 / 63}px`);
   return { step: cardWidth * 0.92 + 10, measurable: width > 0 && height > 0 };

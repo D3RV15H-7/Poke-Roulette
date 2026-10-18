@@ -3135,7 +3135,7 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
 #collectionSignInDialog p { text-align: left; }
 </style>
 </head>
-<body data-app-build="v160">
+<body data-app-build="v161">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3972,7 +3972,15 @@ function isIntrinsicSetStamp(card, stamp) {
     (set.includes('mcdonald') && ['mcdonalds','mcdonald-s'].includes(stamp)) ||
     (set === 'celebrations' && stamp === '25th-anniversary');
 }
+// Evolutions theme-deck exclusives, matched by set, number and name.
+// https://www.tcdb.com/Checklist.cfm/sid/320279/2016-Pokemon-XY-Evolutions---Promos
+const EVOLUTIONS_ADDITIONAL_PRINTINGS = Object.freeze([
+  ['xy12','Evolutions','35','Pikachu',[{type:'holo',foil:'cracked-ice'}]],
+  ['xy12','Evolutions','51','Mewtwo',[{type:'holo',foil:'cracked-ice'}]]
+]);
 function getVerifiedAdditionalCardPrintings(card) {
+  const evolutions = findCardPrintingEvidence(card, EVOLUTIONS_ADDITIONAL_PRINTINGS);
+  if (evolutions) return evolutions.printings;
   // Retailer promos: Pokémon's Pitch Black gift-with-purchase announcement,
   // July 2026. Match expansion, printed number AND name; never name alone.
   const setId = String(card.setId || card.set?.id || card.id?.replace(/-[^-]+$/, '') || '').toLowerCase();

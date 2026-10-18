@@ -3134,6 +3134,8 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
 #accountModal.auth-editing #authLoggedOutView { border-top: 0; margin-top: 0; padding-top: 0; }
 #collectionSignInDialog p { text-align: left; }
 .zoom-versions-button { grid-column: 3; grid-row: 1; justify-self: end; }
+.tcg-zoom-view-area .tcg-zoom-title { position: absolute; top: calc(50% - var(--zoom-card-height, 0px) / 2 - 28px); left: 0; right: 0; line-height: 24px; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; z-index: 5; }
+.tcg-zoom-toolbar .tcg-artwork-retry { width: 30px; height: 30px; font-size: 20px; }
 .zoom-dex-action-row { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 34px; }
 .zoom-dex-action-row .zoom-check-circle { justify-self: center; }
 .zoom-versions-popup { position: absolute; top: 56px; right: 12px; z-index: 20; width: min(235px, calc(100% - 24px)); max-height: min(50dvh, 340px); overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px; border: 1px solid #64748b; border-radius: 14px; background: rgba(15,23,42,.98); box-shadow: 0 12px 32px #0009; }
@@ -3147,7 +3149,7 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
 .zoom-versions-popup button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 </style>
 </head>
-<body data-app-build="v164">
+<body data-app-build="v165">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3337,6 +3339,7 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
       <button type="button" class="zoom-share-button zoom-versions-button" id="zoomVersionsBtn" onclick="toggleZoomVersions(event)" aria-expanded="false" aria-haspopup="dialog" aria-controls="zoomVersionsPopup">Versions</button>
     </div>
     <div class="tcg-zoom-view-area" id="zoomViewArea">
+      <div class="tcg-zoom-title" id="tcgZoomTitle">Card Title</div>
       <div class="flat-card-container tcg-carousel-card" data-offset="-2" aria-hidden="true" hidden>
         <img class="tcg-zoom-img" alt="Earlier card" />
       </div>
@@ -3357,10 +3360,9 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
       <button type="button" class="zoom-check-circle" id="zoomCheckCircle" onclick="toggleZoomCardOwned(event)" aria-pressed="false"><span id="zoomCheckLabel">Add to Dex</span><span class="zoom-check-box" aria-hidden="true">✓</span></button>
     </div>
     <div id="zoomVersionsPopup" class="zoom-versions-popup" hidden role="dialog" aria-labelledby="zoomVersionsTitle">
-      <div class="zoom-versions-popup-header"><h2 id="zoomVersionsTitle">Card versions</h2><button type="button" id="zoomVersionsClose" onclick="closeZoomVersions()" aria-label="Close versions">×</button></div>
+      <div class="zoom-versions-popup-header"><h2 id="zoomVersionsTitle">Card Variations</h2><button type="button" id="zoomVersionsClose" onclick="closeZoomVersions()" aria-label="Close versions">×</button></div>
       <ul id="zoomVersionsList" class="zoom-versions-list"></ul>
     </div>
-    <div class="tcg-zoom-title" id="tcgZoomTitle">Card Title</div>
     <div class="tcg-zoom-set-link-row">
       <button type="button" class="tcg-zoom-set-link" id="zoomOpenSetBtn" title="Open this set" aria-label="Open this set in Sets" onclick="openZoomCardSet(event)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m7.5 14 4.5-4.5 4.5 4.5"/></svg>
@@ -6240,6 +6242,12 @@ function getCardArtworkSources(card) {
     small: [checkedMcDonalds.images.small, checkedMcDonalds.images.large],
     large: [checkedMcDonalds.images.large, checkedMcDonalds.images.small]
   };
+  // The English 2011 set has no TCGdex image files. Use its exact registered
+  // collector number on the Pokémon TCG CDN ahead of stale cached URLs.
+  if (checkedMcDonalds && mcdonalds.id === 'mcd11') {
+    const base = `https://images.pokemontcg.io/mcd11/${normalizeCardNumber(checkedMcDonalds.localId)}`;
+    return {small:[`${base}.png`,`${base}_hires.png`],large:[`${base}_hires.png`,`${base}.png`]};
+  }
   const number = normalizeCardNumber(localId);
   const name = String(card.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const vintage = VINTAGE_CARD_BY_IDENTITY.get(`${setId}:${number}:${normalizePokemonCardName(card.name)}`);
@@ -6444,15 +6452,15 @@ function setTcgArtworkUnavailable(img, unavailable) {
     if (message) message.hidden = !unavailable;
   }
   if (!img._tcgRetryButton) return;
-  // One real retry per card visit; do not leave a repeatedly ineffective icon.
-  img._tcgRetryButton.hidden = !unavailable || !img._tcgCanRetry || !!img._tcgRetryAttempted;
+  // Retry stays available after a failed attempt; disable it only in flight.
+  img._tcgRetryButton.hidden = !unavailable || !img._tcgCanRetry;
   img._tcgRetryButton.disabled = false;
   img._tcgRetryButton.setAttribute('aria-busy', 'false');
 }
 
 function retryTcgArtwork(img) {
   const card = img._tcgCard;
-  if (!card || img._tcgRetryAttempted || img._tcgRetryButton?.disabled) return;
+  if (!card || img._tcgRetryButton?.disabled) return;
   const loadedThumbnail = card.resolvedSmallImg;
   setTcgImageFallbacks(img, card, img._tcgQuality);
   img._tcgRetryAttempted = true;
@@ -12147,7 +12155,7 @@ function renderZoomVersionsPopup(card) {
   const list = document.getElementById('zoomVersionsList');
   const popup = document.getElementById('zoomVersionsPopup');
   const scrollTop = popup.scrollTop;
-  document.getElementById('zoomVersionsTitle').textContent = card.name + ' versions';
+  document.getElementById('zoomVersionsTitle').textContent = 'Card Variations';
   list.innerHTML = getAvailableSetCardVariants(card).map(({key,label}) =>
     `<li class="zoom-version-option" data-variant-kind="${getSetVariantCategory(card,key,label)}"><span class="tcg-variant-label">${getSetVariantLabelMarkup(label)}</span></li>`).join('');
   popup.scrollTop = scrollTop;
@@ -12340,7 +12348,8 @@ function cancelZoomCarousel() {
 function getZoomCarouselMetrics() {
   const width = zoomViewArea?.clientWidth || 0;
   const height = zoomViewArea?.clientHeight || 0;
-  const cardWidth = Math.min(width * 0.76, height * 63 / 88);
+  // Reserve room for the centred name directly above the artwork.
+  const cardWidth = Math.min(width * 0.76, Math.max(0, height - 64) * 63 / 88);
   zoomViewArea?.style.setProperty('--zoom-card-width', `${cardWidth}px`);
   zoomViewArea?.style.setProperty('--zoom-card-height', `${cardWidth * 88 / 63}px`);
   return { step: cardWidth * 0.92 + 10, measurable: width > 0 && height > 0 };

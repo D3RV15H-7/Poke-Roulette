@@ -3135,7 +3135,7 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
 #collectionSignInDialog p { text-align: left; }
 </style>
 </head>
-<body data-app-build="v159">
+<body data-app-build="v160">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -4000,6 +4000,8 @@ function captureNamedCardVariantData(card, detail) {
   const raw = detail?.variants_detailed || detail?.variantsDetailed || (Array.isArray(detail?.variants) ? detail.variants : []);
   card._namedVariantDetails = (Array.isArray(raw) ? raw : []).filter(shouldKeepNamedPrinting).map(normaliseNamedPrinting).filter(Boolean);
   card._namedVariantFlags = !Array.isArray(detail?.variants) ? { ...detail?.variants } : {};
+  card._namedPriceFinishes = Object.keys(detail?.pricing?.tcgplayer || {}).filter(key =>
+    ['normal','holofoil','reverse-holofoil'].includes(key));
   if (card._namedVariantDetails.length) card._namedBaseFinish = getTcgDexFinishEvidence(detail).baseFinish;
   card._namedVariantSourceId = detail?.id || '';
   card._namedVariantsVersion = 143;
@@ -4302,12 +4304,23 @@ function retainNamedCardVariantMetadata(target, source) {
     target._namedVariantsVersion = source._namedVariantsVersion || 141;
     target._namedBaseFinish = source._namedBaseFinish || target._namedBaseFinish;
   }
+  if (Array.isArray(source?._namedPriceFinishes)) target._namedPriceFinishes = source._namedPriceFinishes.slice();
   return target;
 }
 // v146: verified English expansion/logo-stamped printings (TCGdex, 2026-10-15).
 // https://github.com/tcgdex/cards-database — only exact set/number/name matches.
 const EXPANSION_STAMP_SUPPLEMENTS = expandPrintingCatalogue(2);
+// Official Delta Reign prerelease announcement: exact MEP identities.
+// https://www.pokemon.com/uk/news/play-at-a-pokemon-tcg-mega-evolution-delta-reign-prerelease-event
+const RECENT_PRERELEASE_PRINTINGS = Object.freeze([
+  ['mep','MEP Black Star Promos','111','Masquerain',[{type:'holo',stamp:['set-logo']}]],
+  ['mep','MEP Black Star Promos','112','Magmortar',[{type:'holo',stamp:['set-logo']}]],
+  ['mep','MEP Black Star Promos','113','Enamorus',[{type:'holo',stamp:['set-logo']}]],
+  ['mep','MEP Black Star Promos','114','Kommo-o',[{type:'holo',stamp:['set-logo']}]]
+]);
 function getExpansionCardPrintingEvidence(card) {
+  const recentPromo = findCardPrintingEvidence(card, RECENT_PRERELEASE_PRINTINGS, true);
+  if (recentPromo) return recentPromo;
   return findCardPrintingEvidence(card, EXPANSION_STAMP_SUPPLEMENTS, true);
 }
 function isRegularExpansionReverse(card, printing) {
@@ -4325,7 +4338,7 @@ function getExclusiveExpansionPromoPrinting(card, evidence = getExpansionCardPri
     p.type === 'holo' && p.stamp.includes('set-logo')) || null;
 }
 function isGenericPromoFinish(printing, promo) {
-  return Boolean(printing && promo && printing.type === promo.type &&
+  return Boolean(printing && promo && ['normal','holo','reverse'].includes(printing.type) &&
     printing.size === 'standard' && !printing.stamp.length && !printing.foil && !printing.subtype);
 }
 function getNamedCardVariantDefinitions(card) {
@@ -4344,6 +4357,7 @@ function getNamedCardVariantDefinitions(card) {
   const raw = card._namedVariantDetails || card._thirtiethPrintings || card.variants_detailed || card.variantsDetailed || [];
   let detailed = (Array.isArray(raw) ? raw : []).filter(shouldKeepNamedPrinting) .map(normaliseNamedPrinting).filter(Boolean);
   detailed = detailed.concat(printingEvidence.map(normaliseNamedPrinting).filter(Boolean));
+  detailed = detailed.filter(p => !isUnsupportedPlainPrinting(card, p));
   // The original 30C Normal/Reverse placeholders were incorrect. Keep the
   // verified Holo base and separately documented physical exceptions.
   if (anniversary) detailed = detailed.filter(v => v.type === 'holo');
@@ -4365,7 +4379,7 @@ function getNamedCardVariantDefinitions(card) {
   const seen = new Set([namedVariantKey(basePrinting || normaliseNamedPrinting({type:baseType}))]);
   const add = printing => {
     const p = normaliseNamedPrinting(printing);
-    if (!p) return;
+    if (!p || isUnsupportedPlainPrinting(card, p) || isGenericPromoFinish(p, expansionPromo)) return;
     const identity = namedVariantKey(p);
     if (seen.has(identity)) return;
     seen.add(identity);
@@ -4377,7 +4391,11 @@ function getNamedCardVariantDefinitions(card) {
   const prices = card.variants?._priceVariantNames || [];
   if (!detailed.length && !anniversary) {
     const otherType = baseType === 'holo' ? 'normal' : 'holo';
-    if (legacy[otherType] === true || (otherType === 'holo' ? card.variants?.hasHolo : card.variants?.hasNormal)) add({type:otherType});
+    // A generated finish boolean is not proof of a second physical printing.
+    // Require concrete printing records or marketplace finish buckets for it.
+    const primaryOther = otherType === 'holo' ? card.variants?.hasHolo || card._namedPriceFinishes?.includes('holofoil')
+      : card.variants?.hasNormal || card._namedPriceFinishes?.includes('normal') || prices.includes('normal');
+    if (primaryOther) add({type:otherType});
   }
   // Positive stamp flags may supplement an incomplete detailed printing list.
   if (!anniversary) {
@@ -4418,7 +4436,8 @@ function getAvailableSetCardVariants(card) {
     if (definitions.some(v => v.key === key)) continue;
     const printing = decodeNamedVariantKey(key);
     if (printing && basePrinting && namedVariantKey(printing) === namedVariantKey(basePrinting)) continue;
-    if (expansionPromo && (key === 'holo' || isGenericPromoFinish(printing, expansionPromo))) continue;
+    if (isUnsupportedPlainPrinting(card, printing || (key === 'reverseHolo' ? normaliseNamedPrinting({type:'reverse'}) : null))) continue;
+    if (expansionPromo && (['holo','reverseHolo'].includes(key) || isGenericPromoFinish(printing, expansionPromo))) continue;
     definitions.push({ key, label: printing ? namedPrintingLabel(printing, card.baseFinish === 'holo' ? 'holo' : 'normal')
       : key === 'other' ? 'Previously saved variant' : key === 'reverseHolo' ? 'Reverse (saved)' : 'Holo (saved)' });
   }
@@ -4452,7 +4471,12 @@ function migrateNamedSetCardVariants(card) {
   const expansionPromo = getExclusiveExpansionPromoPrinting(card);
   if (expansionPromo) {
     move('holo', 'standard');
+    move('reverseHolo', 'standard');
     move(namedVariantKey(normaliseNamedPrinting({type:expansionPromo.type})), 'standard');
+  }
+  for (const key of getOwnedSetCardVariants(card)) {
+    const printing = decodeNamedVariantKey(key) || (key === 'reverseHolo' ? normaliseNamedPrinting({type:'reverse'}) : null);
+    if (isUnsupportedPlainPrinting(card, printing) || isGenericPromoFinish(printing, expansionPromo)) move(key, 'standard');
   }
   const ordinaryReverse = definitions.filter(v => isRegularExpansionReverse(card, decodeNamedVariantKey(v.key)));
   if (!definitions.some(v => v.key === 'reverseHolo') && ordinaryReverse.length === 1)
@@ -6136,9 +6160,18 @@ const AUDITED_ARTWORK_EXCEPTIONS = Object.freeze({"ecard2:67:aipom":["https://im
 function getArtworkNumberKey(value) {
   return String(value || '').trim().toUpperCase().replace(/\d+/g, digits => String(parseInt(digits, 10)));
 }
+const TRAINER_GALLERY_ARTWORK_PARENTS = Object.freeze({
+  swsh9tg:'swsh9', swsh10tg:'swsh10', swsh11tg:'swsh11', swsh12tg:'swsh12'
+});
 function getAuditedCardArtwork(card, setId) {
   const canonical = AUDITED_ARTWORK_SET_ALIASES[setId] || setId;
   const number = getArtworkNumberKey(getPhysicalCardNumber(card));
+  const galleryParent = TRAINER_GALLERY_ARTWORK_PARENTS[canonical];
+  if (galleryParent && /^TG\d{1,2}$/i.test(number)) {
+    const local = 'TG' + number.replace(/^TG/i, '').padStart(2, '0');
+    const base = `https://assets.tcgdex.net/en/swsh/${galleryParent}/${local}`;
+    return {small:[`${base}/low.webp`,`${base}/high.webp`],large:[`${base}/high.webp`,`${base}/low.webp`]};
+  }
   const name = String(card.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const exact = AUDITED_ARTWORK_EXCEPTIONS[`${setId}:${number}:${name}`] || AUDITED_ARTWORK_EXCEPTIONS[`${canonical}:${number}:${name}`];
   if (exact) return { small: exact.slice(), large: exact.slice().reverse() };
@@ -7793,11 +7826,23 @@ function getThirtyCelebrationVariantSupplement(card) {
   };
 }
 
+function hasFoilOnlyRuleBox(card) {
+  // English EX/GX/V rule-box cards do not gain ordinary Non Holo or Reverse
+  // printings from generic API flags. Distinct stamped/special printings stay.
+  return /(?:\s|-)(?:ex|gx|v|vmax|vstar|v-union)\s*$/i.test(String(card?.name || ''));
+}
+function isUnsupportedPlainPrinting(card, printing) {
+  if (!printing || printing.size !== 'standard' || printing.stamp.length || printing.foil || printing.subtype) return false;
+  if (hasFoilOnlyRuleBox(card) && ['normal','reverse'].includes(printing.type)) return true;
+  const correction = getCardVariantSupplement(card);
+  return Boolean(correction?.baseFinish === 'holo' && correction.other === false && printing.type === 'normal');
+}
 function getCardVariantSupplement(card) {
   const cardId = String(card?.id || '') .trim() .toLowerCase();
   return (
     getThirtyCelebrationVariantSupplement(card) ||
     CARD_VARIANT_SUPPLEMENTS[cardId] ||
+    (hasFoilOnlyRuleBox(card) ? {baseFinish:'holo',reverseHolo:false,other:false,source:'foil-rule-box'} : null) ||
     null
   );
 }

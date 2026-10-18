@@ -3135,7 +3135,7 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
 #collectionSignInDialog p { text-align: left; }
 </style>
 </head>
-<body data-app-build="v161">
+<body data-app-build="v162">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -6866,7 +6866,33 @@ async function fetchEncounterMedia(url, kind) {
   encounterMediaRequests.set(key, task);
   try { return await task; } finally { encounterMediaRequests.delete(key); }
 }
+// The star reveals a random core for Minior, as requested. Core colours use
+// their ordinary form artwork; these are separate from shiny colouration.
+const MINIOR_CORE_FORMS = Object.freeze([
+  {id:10136,colour:'Red'}, {id:10137,colour:'Orange'}, {id:10138,colour:'Yellow'},
+  {id:10139,colour:'Green'}, {id:10140,colour:'Blue'}, {id:10141,colour:'Indigo'}, {id:10142,colour:'Violet'}
+]);
+const miniorCoreSelections = new WeakMap();
+function isMiniorEncounter(p) {
+  return Number(p?.id) === 774 || p?.species?.name === 'minior';
+}
+function getMiniorCore(p, reroll = false) {
+  const previous = miniorCoreSelections.get(p);
+  if (previous && !reroll) return previous;
+  const choices = previous ? MINIOR_CORE_FORMS.filter(core => core.id !== previous.id) : MINIOR_CORE_FORMS;
+  const core = choices[Math.floor(Math.random() * choices.length)];
+  miniorCoreSelections.set(p, core);
+  return core;
+}
+function encounterVariantKey(p, shiny) {
+  return shiny && isMiniorEncounter(p) ? 'core:' + getMiniorCore(p).id : shiny ? 'shiny' : 'normal';
+}
 function encounterArtworkSources(p, shiny = false) {
+  if (isMiniorEncounter(p)) {
+    const id = shiny ? getMiniorCore(p).id : 774;
+    const base = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/';
+    return [`${base}other/home/${id}.png`, `${base}other/official-artwork/${id}.png`, `${base}${id}.png`];
+  }
   const home = p?.sprites?.other?.home;
   const official = p?.sprites?.other?.['official-artwork'];
   return (shiny ? [home?.front_shiny, official?.front_shiny, p?.sprites?.front_shiny,
@@ -6925,7 +6951,7 @@ function getEncounterArtworkPair(p) {
   return encounterArtworkPairs.get(p);
 }
 function getPreparedEncounterVariant(p, shiny) {
-  const pair = getEncounterArtworkPair(p), key = shiny ? 'shiny' : 'normal';
+  const pair = getEncounterArtworkPair(p), key = encounterVariantKey(p, shiny);
   // A revisited Pokémon object can outlive the bounded media cache. Only use
   // a pair entry while its blob is still retained; otherwise load it again.
   if (pair[key] && Array.from(encounterMedia.values()).includes(pair[key])) return pair[key];
@@ -6936,7 +6962,7 @@ function getPreparedEncounterVariant(p, shiny) {
   return ready;
 }
 async function prepareEncounterVariant(p, shiny) {
-  const pair = getEncounterArtworkPair(p), key = shiny ? 'shiny' : 'normal', taskKey = key + 'Task';
+  const pair = getEncounterArtworkPair(p), key = encounterVariantKey(p, shiny), taskKey = key + 'Task';
   const ready = getPreparedEncounterVariant(p, shiny);
   if (ready) return ready;
   if (pair[taskKey]) return pair[taskKey];
@@ -11275,6 +11301,7 @@ function triggerSparkle() {
 function toggleShiny() {
   if (!curPoke) return;
   isShiny = !isShiny;
+  if (isShiny && isMiniorEncounter(curPoke)) getMiniorCore(curPoke, true);
   updateArt();
   if (isShiny) triggerSparkle();
 }
@@ -11285,11 +11312,16 @@ function updateArt() {
   const img = document.getElementById('pokeImg');
   const button = document.getElementById('shinyBtn');
   button?.classList.toggle('active', shiny);
+  button?.setAttribute('aria-pressed', String(shiny));
+  const toggleLabel = isMiniorEncounter(p) ? (shiny ? 'Show Minior Meteor Form' : 'Show a random Minior core colour')
+    : (shiny ? 'Show normal Pokémon' : 'Show shiny Pokémon');
+  button?.setAttribute('aria-label', toggleLabel);
+  if (button) button.title = toggleLabel;
   if (!img) return;
   clearTimeout(img._artTimer);
   img.onload = img.onerror = null;
   const token = img._artToken = (img._artToken || 0) + 1;
-  const pokemonId = String(p.id), key = pokemonId + ':' + shiny;
+  const pokemonId = String(p.id), key = pokemonId + ':' + encounterVariantKey(p, shiny);
   // A different species must not inherit the last encounter. Switching colour
   // for the SAME species keeps its complete image mounted until the swap is ready.
   if (img.dataset.displayedPokemonId !== pokemonId) {
@@ -11297,6 +11329,7 @@ function updateArt() {
   }
   img.dataset.encounterArt = key;
   img.alt = getCleanNationalDexName(p.name, p.species?.name);
+  if (isMiniorEncounter(p)) img.alt += shiny ? ' — ' + getMiniorCore(p).colour + ' Core' : ' — Meteor Form';
   img.decoding = 'async'; img.loading = 'eager'; img.fetchPriority = 'high';
   img.setAttribute('aria-busy', 'true');
   button?.setAttribute('aria-busy', 'true');

@@ -3152,7 +3152,7 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
 .zoom-versions-popup button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 </style>
 </head>
-<body data-app-build="v167">
+<body data-app-build="v168">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -7071,9 +7071,19 @@ const visibleCardDetailQueue = new Map();
 const visibleCardDetailDone = new WeakSet();
 const visibleCardDetailBusy = new WeakSet();
 let visibleCardDetailActive = 0;
+function shouldRefreshVisibleCardPricing(card) {
+  const now = Date.now();
+  // A failed request must not loop as thumbnails repaint.
+  if (card._priceAttemptAt && now - card._priceAttemptAt < 60000) return false;
+  return card._pricingVersion !== 168 || !card._priceCheckedAt ||
+    now - card._priceCheckedAt >= (getNumericPrice(card.priceGBP) != null ? 86400000 : 300000);
+}
 function queueVisibleCardDetails(card) {
-  if (!card || !currentCardsList.includes(card) || visibleCardDetailDone.has(card) || visibleCardDetailBusy.has(card)) return;
-  if (card._namedVariantsVersion === 143 && card._detailsAt && Date.now() - card._detailsAt < 86400000) return;
+  if (!card || !currentCardsList.includes(card) || visibleCardDetailBusy.has(card)) return;
+  if (card._priceAttemptAt && Date.now() - card._priceAttemptAt < 60000) return;
+  const priceDue = shouldRefreshVisibleCardPricing(card);
+  if (visibleCardDetailDone.has(card) && !priceDue) return;
+  if (!priceDue && card._namedVariantsVersion === 143 && card._detailsAt && Date.now() - card._detailsAt < 86400000) return;
   visibleCardDetailQueue.set(card, card);
   pumpVisibleCardDetails();
 }
@@ -7081,13 +7091,15 @@ function pumpVisibleCardDetails() {
   for (const card of visibleCardDetailQueue.keys()) {
     if (visibleCardDetailActive >= 2) return;
     visibleCardDetailQueue.delete(card);
-    if (!currentCardsList.includes(card) || visibleCardDetailDone.has(card)) continue;
+    if (!currentCardsList.includes(card) || (visibleCardDetailDone.has(card) && !shouldRefreshVisibleCardPricing(card))) continue;
     visibleCardDetailActive++;
     visibleCardDetailBusy.add(card);
+    const refreshPrice = shouldRefreshVisibleCardPricing(card);
+    card._priceAttemptAt = Date.now();
     (async () => {
       try {
         if (card._tcgDexDetailId) {
-          const detail = await getTcgDexCardDetail(card._tcgDexDetailId, Date.now() + 7000);
+          const detail = await getTcgDexCardDetail(card._tcgDexDetailId, Date.now() + 7000, refreshPrice);
           card.rarity = detail.rarity || card.rarity;
           card.rarityScore = getRarityScore(card.rarity);
           const fused = mergePhysicalVariantEvidence({ ...card.variants, baseFinish: card.baseFinish }, getTcgDexFinishEvidence(detail), detail);
@@ -7098,13 +7110,15 @@ function pumpVisibleCardDetails() {
           card.priceGBP = getTcgDexBasePriceGBP(detail, evidence) ?? card.priceGBP;
         } else {
           const id = String(card.artworkPokemonSetId || card.id?.split('-').slice(0, -1).join('-') || '');
-          const result = await enrichSetCardsWithTcgDex([card], id, card.setName);
+          const result = await enrichSetCardsWithTcgDex([card], id, card.setName, refreshPrice);
           // The existing enrichment helper returns the original object if no
           // detail was available. Leave that retryable rather than cache failure.
           if (!result[0] || result[0] === card) return;
           Object.assign(card, result[0]);
         }
         card._detailsAt = Date.now();
+        card._priceCheckedAt = Date.now();
+        card._pricingVersion = 168;
         visibleCardDetailDone.add(card);
         saveEnrichedCard(card);
         if (currentCardsList.includes(card)) {
@@ -8097,91 +8111,58 @@ function getTcgDexFinishEvidence(card) {
   };
 }
 
-function getPriceFromTcgDexVariantPricing(pricing) {
-  if (!pricing || typeof pricing !== 'object') {
-    return null;
-  }
-
+function getPriceFromTcgDexVariantPricing(pricing, withPriority = false) {
+  if (!pricing || typeof pricing !== 'object') return null;
   const tcg = pricing.tcgplayer || {};
   const cm = pricing.cardmarket || {};
-  const usd =
-    getNumericPrice(tcg.marketPrice) ??
-    getNumericPrice(tcg.market) ??
-    getNumericPrice(tcg.midPrice) ??
-    getNumericPrice(tcg.mid) ??
-    getNumericPrice(tcg.lowPrice) ??
-    getNumericPrice(tcg.low);
-  if (usd != null) {
-    return usd * USD_TO_GBP;
+  // Rank by the kind of value, not by which provider has any value first.
+  // High prices are asking-price outliers, not a useful market estimate.
+  const candidates = [
+    [tcg.marketPrice, USD_TO_GBP], [tcg.market, USD_TO_GBP],
+    [cm.trend, EUR_TO_GBP], [pricing.trend, EUR_TO_GBP],
+    [cm.avg, EUR_TO_GBP], [cm.average, EUR_TO_GBP],
+    [tcg.midPrice, USD_TO_GBP], [tcg.mid, USD_TO_GBP],
+    [cm.avg1, EUR_TO_GBP], [cm.avg7, EUR_TO_GBP], [cm.avg30, EUR_TO_GBP],
+    [pricing.average, EUR_TO_GBP], [pricing.avg, EUR_TO_GBP],
+    [pricing.avg1, EUR_TO_GBP], [pricing.avg7, EUR_TO_GBP], [pricing.avg30, EUR_TO_GBP],
+    [tcg.lowPrice, USD_TO_GBP], [tcg.low, USD_TO_GBP],
+    [tcg.directLowPrice, USD_TO_GBP], [tcg.directLow, USD_TO_GBP],
+    [cm.low, EUR_TO_GBP], [cm.lowPrice, EUR_TO_GBP], [pricing.low, EUR_TO_GBP]
+  ];
+  for (const [priority, [value, rate]] of candidates.entries()) {
+    const price = getNumericPrice(value);
+    if (price != null) return withPriority ? {price: price * rate, priority} : price * rate;
   }
-
-  const eur =
-    getNumericPrice(cm.trend) ??
-    getNumericPrice(cm.avg) ??
-    getNumericPrice(cm.avg7) ??
-    getNumericPrice(cm.low) ??
-    getNumericPrice(pricing.trend) ??
-    getNumericPrice(pricing.avg) ??
-    getNumericPrice(pricing.avg7) ??
-    getNumericPrice(pricing.low);
-  return eur != null
-    ? eur * EUR_TO_GBP
-    : null;
+  return null;
 }
 
-function getTcgDexBasePriceGBP(card, finishEvidence) {
-  const evidence = finishEvidence || getTcgDexFinishEvidence(card);
-  const detailed = Array.isArray(card?.variants_detailed) ? card.variants_detailed : [];
-  if (detailed.length) {
-    // Main displayed price:
-    // use Normal when it genuinely exists; otherwise Holo.
-    // Never choose Reverse as the single displayed card price.
-    const baseType = evidence.baseFinish || null;
-    if (baseType) {
-      const baseVariant = detailed.find(v =>
-        String(v?.type || '').toLowerCase() === baseType &&
-        (!v?.size || String(v.size).toLowerCase() === 'standard')
-      );
-      const detailedPrice = getPriceFromTcgDexVariantPricing( baseVariant?.pricing );
-      if (detailedPrice != null) {
-        return detailedPrice;
-      }
-    }
-  }
-  // Fallback to top-level finish-specific pricing only when the
-  // detailed variant does not carry a usable price.
+function getTcgDexBasePriceGBP(card, finishEvidence, withPriority = false) {
+  const evidence = finishEvidence || (card?.baseFinish ? {baseFinish:card.baseFinish} : getTcgDexFinishEvidence(card));
+  const rawDetailed = card?.variants_detailed || card?.variantsDetailed;
+  const detailed = Array.isArray(rawDetailed) ? rawDetailed : [];
   const buckets = getTcgDexTcgPlayerFinishBuckets(card);
-  const baseBucket = evidence.baseFinish === 'normal' ? buckets.standard : evidence.baseFinish === 'holo' ? buckets.holo : null;
-  if (baseBucket) {
-    const usd =
-      getNumericPrice(baseBucket.marketPrice) ??
-      getNumericPrice(baseBucket.market) ??
-      getNumericPrice(baseBucket.midPrice) ??
-      getNumericPrice(baseBucket.mid) ??
-      getNumericPrice(baseBucket.lowPrice) ??
-      getNumericPrice(baseBucket.low);
-    if (usd != null) {
-      return usd * USD_TO_GBP;
-    }
-  }
-
+  const baseType = evidence.baseFinish ||
+    (buckets.standard && !buckets.holo ? 'normal' : buckets.holo && !buckets.standard ? 'holo' : null);
+  const baseVariant = baseType && detailed.find(v =>
+    String(v?.type || '').toLowerCase() === baseType &&
+    (!v?.size || String(v.size).toLowerCase() === 'standard')
+  );
+  const baseBucket = baseType === 'normal' ? buckets.standard : baseType === 'holo' ? buckets.holo : null;
   const cm = card?.pricing?.cardmarket || {};
-  const eur = evidence.baseFinish === 'holo'
-    ? (
-        getNumericPrice(cm['trend-holo']) ??
-        getNumericPrice(cm['avg-holo']) ??
-        getNumericPrice(cm['avg7-holo']) ??
-        getNumericPrice(cm['low-holo'])
-      )
-    : (
-        getNumericPrice(cm.trend) ??
-        getNumericPrice(cm.avg) ??
-        getNumericPrice(cm.avg7) ??
-        getNumericPrice(cm.low)
-      );
-  return eur != null
-    ? eur * EUR_TO_GBP
-    : null;
+  const suffix = baseType === 'holo' ? '-holo' : '';
+  const selectedCm = Object.fromEntries(['trend','avg','avg1','avg7','avg30','low']
+    .map(key => [key, cm[key + suffix]]));
+  const detailPricing = baseVariant?.pricing || {};
+  // Combine only the same printing's fields, so a top-level market value
+  // can win over a detailed low-price fallback (and vice versa).
+  const mergePrices = (base, extra) => ({...base, ...Object.fromEntries(
+    Object.entries(extra || {}).filter(([, value]) => getNumericPrice(value) != null))});
+  return getPriceFromTcgDexVariantPricing({
+    ...card?.pricing,
+    ...detailPricing,
+    tcgplayer: mergePrices(baseBucket, detailPricing.tcgplayer),
+    cardmarket: mergePrices(selectedCm, detailPricing.cardmarket)
+  }, withPriority);
 }
 
 function normalizeSetMatchName(value) {
@@ -8220,7 +8201,7 @@ async function findTcgDexSetForPokemonTcgSet(setId, setName) {
   }
 }
 
-async function enrichSetCardsWithTcgDex(cards, setId, setName) {
+async function enrichSetCardsWithTcgDex(cards, setId, setName, refreshPrice = false) {
   if (!Array.isArray(cards) || !cards.length) {
     return cards;
   }
@@ -8254,7 +8235,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
         let dexCard = null;
         for (const candidateId of tcgDexCardIds) {
           try {
-            dexCard = await getTcgDexCardDetail(candidateId, deadline);
+            dexCard = await getTcgDexCardDetail(candidateId, deadline, refreshPrice);
             break;
           } catch (error) {}
         }
@@ -8285,6 +8266,7 @@ async function enrichSetCardsWithTcgDex(cards, setId, setName) {
         const basePriceGBP = getTcgDexBasePriceGBP( dexCard, finishEvidence );
         return captureNamedCardVariantData({
           ...card,
+          _tcgDexDetailId: dexCard.id,
           variants,
           baseFinish: finishEvidence.baseFinish,
           priceGBP: basePriceGBP ?? card.priceGBP
@@ -11540,63 +11522,30 @@ function getNumericPrice(value) {
 
 function extractCardPriceGBP(card) {
   if (!card) return null;
-  let gbpPrice = null;
-  // Pokémon TCG API / TCGplayer - USD
-  const tcgPrices = card.tcgplayer?.prices;
-  if (tcgPrices && typeof tcgPrices === 'object') {
-    const usdCandidates = [];
-    Object.values(tcgPrices).forEach(priceObj => {
-      if (!priceObj) return;
-      const market = getNumericPrice(priceObj.market);
-      const mid = getNumericPrice(priceObj.mid);
-      const low = getNumericPrice(priceObj.low);
-      if (market) usdCandidates.push(market);
-      else if (mid) usdCandidates.push(mid);
-      else if (low) usdCandidates.push(low);
-    });
-    if (usdCandidates.length) {
-      gbpPrice = Math.max(...usdCandidates) * USD_TO_GBP;
+  // Retain finish identity instead of taking the most expensive price bucket.
+  const prices = card.tcgplayer?.prices || {};
+  const normal = prices.normal || prices.unlimited || prices.firstEditionNormal || prices['1stEditionNormal'];
+  const holo = prices.holofoil || prices.unlimitedHolofoil || prices.firstEditionHolofoil || prices['1stEditionHolofoil'];
+  const base = card.baseFinish === 'holo' ? holo : card.baseFinish === 'normal' ? normal : normal || holo;
+  const cm = card.cardmarket?.prices || {};
+  const legacyPricing = {
+    tcgplayer: base,
+    cardmarket: {
+      trend: cm.trendPrice, avg: cm.averageSellPrice, avg1: cm.avg1,
+      avg7: cm.avg7, avg30: cm.avg30,
+      low: getNumericPrice(cm.lowPrice) ?? cm.lowPriceExPlus
     }
-  }
-  // Cardmarket - EUR
-  if (!gbpPrice && card.cardmarket?.prices) {
-    const prices = card.cardmarket.prices;
-    const eurCandidates = [
-      getNumericPrice(prices.trendPrice),
-      getNumericPrice(prices.averageSellPrice),
-      getNumericPrice(prices.avg7),
-      getNumericPrice(prices.avg30),
-      getNumericPrice(prices.lowPrice),
-      getNumericPrice(prices.lowPriceExPlus)
-    ].filter(Boolean);
-    if (eurCandidates.length) {
-      gbpPrice = eurCandidates[0] * EUR_TO_GBP;
-    }
-  }
-  // TCGdex pricing fallback
-  if (!gbpPrice && card.pricing) {
-    const pricing = card.pricing;
-    const possiblePrices = [
-      pricing.cardmarket?.trend,
-      pricing.cardmarket?.avg,
-      pricing.cardmarket?.avg7,
-      pricing.cardmarket?.avg30,
-      pricing.cardmarket?.low,
-      pricing.trend,
-      pricing.average,
-      pricing.avg,
-      pricing.low
-    ]
-      .map(getNumericPrice)
-      .filter(Boolean);
-    if (possiblePrices.length) {
-      gbpPrice = possiblePrices[0] * EUR_TO_GBP;
-    }
-  }
-  if (!gbpPrice || !Number.isFinite(gbpPrice)) {
-    return null;
-  }
-  return gbpPrice.toFixed(2);
+  };
+  // TCGdex's nested normal/holo marketPrice fields need the same extraction
+  // as full card details; their search results are not legacy API objects.
+  const dexQuote = card.pricing || card.variants_detailed || card.variantsDetailed
+    ? getTcgDexBasePriceGBP(card, undefined, true) : null;
+  const legacyQuote = getPriceFromTcgDexVariantPricing(legacyPricing, true);
+  const quote = legacyQuote && dexQuote
+    ? (legacyQuote.priority <= dexQuote.priority ? legacyQuote : dexQuote)
+    : legacyQuote || dexQuote;
+  const price = quote?.price;
+  return price != null && Number.isFinite(price) ? price.toFixed(2) : null;
 }
 
 async function fetchTcgCardsData(pokeName, speciesName, bypassCache = false) {

@@ -3150,6 +3150,27 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
 .zoom-versions-popup .tcg-variant-label-line, .zoom-versions-popup .tcg-play-stamp-label { white-space: normal; overflow-wrap: anywhere; }
 .zoom-version-option + .zoom-version-option { border-top: 1px solid #334155; }
 .zoom-versions-popup button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+
+/* v170 Battle arena */
+.battle-body{overflow-y:auto;gap:12px}.battle-panel{background:#090d16;border:1px solid #334155;border-radius:15px;padding:12px;width:100%}
+.battle-choices{display:grid;grid-template-columns:1fr 1fr;gap:9px}.battle-choices label{font-size:11px;color:#94a3b8;font-weight:800}
+.battle-choices input{width:100%;min-width:0;margin-top:5px;background:#1e293b;color:white;border:1px solid #475569;border-radius:9px;padding:10px;font-size:13px}
+.battle-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.battle-actions button{flex:1;background:#334155;border:1px solid #475569;color:white;border-radius:10px;padding:10px 6px;font-size:12px;font-weight:800}
+.battle-actions .battle-primary{background:#dc2626;border-color:#ef4444}.battle-actions button:disabled{opacity:.45}
+.battle-arena{position:relative;min-height:265px;border-radius:15px;overflow:hidden;background:linear-gradient(#1c3650 0%,#344e63 55%,#304b3d 56%,#182f2c 100%);border:1px solid #64748b;padding:12px}
+.battle-arena:after{content:"";position:absolute;left:8%;right:8%;bottom:13%;height:18%;border-radius:50%;background:#152e2d66}
+.battle-fighter{position:absolute;z-index:2;width:46%;text-align:center}.battle-fighter.left{left:3%;bottom:15%}.battle-fighter.right{right:3%;top:13%}
+.battle-fighter img{width:100%;height:108px;object-fit:contain;filter:drop-shadow(0 9px 5px #0006)}
+.battle-fighter.left img{transform:scaleX(-1)}.battle-fighter .battle-name{font-size:11px;font-weight:900;text-transform:capitalize}
+.battle-hp{height:9px;border:1px solid #15212a;background:#0f172a;border-radius:20px;overflow:hidden;margin:5px 0}
+.battle-hp>div{height:100%;width:100%;background:#10b981;transition:width .5s ease,background .3s}
+.battle-hp-text{font-size:10px;font-weight:800}.battle-fighter.attacking.left img{animation:battleLungeLeft .45s ease}.battle-fighter.attacking.right img{animation:battleLungeRight .45s ease}
+.battle-fighter.hit img{animation:battleHit .4s ease}.battle-fighter.fainted img{opacity:.25;transform:translateY(30px);transition:all .5s}
+@keyframes battleLungeLeft{50%{transform:translateX(65px) scaleX(-1) scale(1.13)}}@keyframes battleLungeRight{50%{transform:translateX(-65px) scale(1.13)}}@keyframes battleHit{20%,60%{opacity:.25}40%,80%{opacity:1}}
+.battle-log{min-height:55px;color:#e2e8f0;font-size:12px;font-weight:700;line-height:1.5}
+.battle-leader-row{display:flex;align-items:center;gap:9px;padding:7px 3px;border-bottom:1px solid #334155;font-size:12px;font-weight:800}
+.battle-leader-row img{width:34px;height:34px;object-fit:contain}.battle-leader-row span:nth-last-child(2){flex:1;text-transform:capitalize}
+.battle-nav-icon{font-size:22px;font-weight:900;color:#ffcb05}
 </style>
 </head>
 <body data-app-build="v169">
@@ -3312,6 +3333,12 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
       <span class="hub-item-label">Dex</span>
     </div>
 
+    <div class="hub-item-wrap">
+      <button class="btn-hub" data-hub-modal="battleModal" onclick="navigateHub('battleModal')" title="Battle" aria-label="Battle">
+        <span class="battle-nav-icon" aria-hidden="true">⚔</span>
+      </button>
+      <span class="hub-item-label">Battle</span>
+    </div>
     <!-- NEW SETS BUTTON -->
     <div class="hub-item-wrap">
       <button class="btn-hub" data-hub-modal="setsModal" onclick="navigateHub('setsModal')" title="Card Sets">
@@ -3327,6 +3354,22 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
       <span class="hub-item-label">Info</span>
     </div>
 
+  </div>
+</div>
+<div class="modal" id="battleModal" onclick="closeModal(event,'battleModal')">
+  <div class="modal-body battle-body" onclick="event.stopPropagation()">
+    <div class="modal-head"><h3 style="font-size:1.15rem;font-weight:900">⚔ Pokémon Battle</h3><button class="btn-header-action" onclick="closeModal(null,'battleModal')">✕</button></div>
+    <div class="battle-panel">
+      <div class="battle-choices"><label>POKÉMON 1<input id="battlePick1" list="battlePokemonList" placeholder="Name or Pokédex #" autocomplete="off"></label><label>POKÉMON 2<input id="battlePick2" list="battlePokemonList" placeholder="Name or Pokédex #" autocomplete="off"></label></div>
+      <datalist id="battlePokemonList"></datalist>
+      <div class="battle-actions"><button onclick="battleRandomise()">🎲 Randomise both</button><button class="battle-primary" id="battleStart" onclick="battleStart()">Start battle</button></div>
+    </div>
+    <div class="battle-arena" aria-label="Pokémon battle arena">
+      <div class="battle-fighter left" id="battleFighter0"><div class="battle-name" id="battleName0">Pokémon 1</div><div class="battle-hp"><div id="battleBar0"></div></div><div class="battle-hp-text" id="battleHP0">—</div><img id="battleImg0" alt=""></div>
+      <div class="battle-fighter right" id="battleFighter1"><div class="battle-name" id="battleName1">Pokémon 2</div><div class="battle-hp"><div id="battleBar1"></div></div><div class="battle-hp-text" id="battleHP1">—</div><img id="battleImg1" alt=""></div>
+    </div>
+    <div class="battle-panel battle-log" id="battleLog" role="status" aria-live="polite">Choose two Pokémon or generate random opponents to begin.</div>
+    <div class="battle-panel"><h3 style="font-size:13px;margin-bottom:8px">🏆 Top 10 · Most Battle Wins</h3><div id="battleLeaderboard"></div></div>
   </div>
 </div>
 <div class="tcg-zoom-modal" id="tcgZoomModal" onclick="closeTcgZoom()">
@@ -10432,7 +10475,7 @@ function updateHubActiveTab() {
   const visible = id => document.getElementById(id)?.style.display === 'flex';
   const activeId = visible('tcgZoomModal') && openedFromDexModal ? 'dexModal' :
     visible('dexCardsModal') ? 'dexModal' :
-    ['setsModal', 'dexModal', 'accountModal', 'infoModal'].find(visible) || null;
+    ['setsModal', 'dexModal', 'accountModal', 'infoModal', 'battleModal'].find(visible) || null;
   const hub = document.querySelector('.hub');
   hub?.classList.toggle('has-active-tab', Boolean(activeId));
   hub?.querySelectorAll('[data-hub-modal]').forEach(button => {
@@ -10445,7 +10488,7 @@ function updateHubActiveTab() {
 }
 {
   const observer = new MutationObserver(updateHubActiveTab);
-  for (const id of ['accountModal', 'dexModal', 'setsModal', 'infoModal', 'dexCardsModal', 'tcgZoomModal']) {
+  for (const id of ['accountModal', 'dexModal', 'setsModal', 'infoModal', 'battleModal', 'dexCardsModal', 'tcgZoomModal']) {
     const modal = document.getElementById(id);
     if (modal) observer.observe(modal, { attributes: true, attributeFilter: ['style'] });
   }
@@ -10453,7 +10496,7 @@ function updateHubActiveTab() {
 }
 // Dock destinations are accessible even while a nested card window is open.
 function navigateHub(id) {
-  if (!['accountModal', 'dexModal', 'setsModal', 'infoModal'].includes(id)) return;
+  if (!['accountModal', 'dexModal', 'setsModal', 'infoModal', 'battleModal'].includes(id)) return;
   document.activeElement?.blur();
   // A second tap also minimises nested cards belonging to that dock view.
   const zoomOpen = document.getElementById('tcgZoomModal')?.style.display === 'flex';
@@ -10471,6 +10514,7 @@ function navigateHub(id) {
   }
   openModal(id, true);
   if (id === 'setsModal') renderTcgSets();
+  if (id === 'battleModal') battleRenderLeaderboard();
 }
 
 function openModal(id, forceOpen = false) {
@@ -10524,7 +10568,7 @@ function openModal(id, forceOpen = false) {
   }
 }
 
-const HUB_PULL_CLOSE_MODAL_IDS = new Set([ 'accountModal', 'dexModal', 'dexCardsModal', 'setsModal', 'infoModal' ]);
+const HUB_PULL_CLOSE_MODAL_IDS = new Set([ 'accountModal', 'dexModal', 'dexCardsModal', 'setsModal', 'infoModal', 'battleModal' ]);
 function getHubModalScroller(modal) {
   if (!modal) return null;
   if (modal.id === 'dexCardsModal') {
@@ -13807,6 +13851,134 @@ if (typeof MutationObserver !== 'undefined') {
 }
 document.fonts?.ready.then(scheduleAppViewportLayout);
 
+</script>
+<script>
+// v170: self-contained turn-based battle game. Local wins are scoped to the signed-in UID.
+const battleTypes = {
+ normal:{rock:.5,ghost:0,steel:.5},fire:{fire:.5,water:.5,grass:2,ice:2,bug:2,rock:.5,dragon:.5,steel:2},
+ water:{fire:2,water:.5,grass:.5,ground:2,rock:2,dragon:.5},
+ electric:{water:2,electric:.5,grass:.5,ground:0,flying:2,dragon:.5},
+ grass:{fire:.5,water:2,grass:.5,poison:.5,ground:2,flying:.5,bug:.5,rock:2,dragon:.5,steel:.5},
+ ice:{fire:.5,water:.5,grass:2,ice:.5,ground:2,flying:2,dragon:2,steel:.5},
+ fighting:{normal:2,ice:2,poison:.5,flying:.5,psychic:.5,bug:.5,rock:2,ghost:0,dark:2,steel:2,fairy:.5},
+ poison:{grass:2,poison:.5,ground:.5,rock:.5,ghost:.5,steel:0,fairy:2},
+ ground:{fire:2,electric:2,grass:.5,poison:2,flying:0,bug:.5,rock:2,steel:2},
+ flying:{electric:.5,grass:2,fighting:2,bug:2,rock:.5,steel:.5},
+ psychic:{fighting:2,poison:2,psychic:.5,dark:0,steel:.5},
+ bug:{fire:.5,grass:2,fighting:.5,poison:.5,flying:.5,psychic:2,ghost:.5,dark:2,steel:.5,fairy:.5},
+ rock:{fire:2,ice:2,fighting:.5,ground:.5,flying:2,bug:2,steel:.5},
+ ghost:{normal:0,psychic:2,ghost:2,dark:.5},
+ dragon:{dragon:2,steel:.5,fairy:0},
+ dark:{fighting:.5,psychic:2,ghost:2,dark:.5,fairy:.5},
+ steel:{fire:.5,water:.5,electric:.5,ice:2,rock:2,steel:.5,fairy:2},
+ fairy:{fire:.5,fighting:2,poison:.5,dragon:2,dark:2,steel:.5}
+};
+let battleBusy=false,battleRun=0;
+const battleEl=id=>document.getElementById(id);
+const battleSleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const battleSprite=id=>`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
+function battleStorageKey(){return 'pokeroulette_battle_wins_v170_'+(currentUser?.uid||'guest')}
+function battleWins(){try{return JSON.parse(localStorage.getItem(battleStorageKey()))||{}}catch(_){return {}}}
+function battleRenderLeaderboard(){
+ const entries=Object.entries(battleWins()).sort((a,b)=>b[1].wins-a[1].wins||Number(a[0])-Number(b[0])).slice(0,10);
+ battleEl('battleLeaderboard').replaceChildren();
+ if(!entries.length){battleEl('battleLeaderboard').textContent='No victories yet. Start a battle!';return}
+ entries.forEach(([id,record],i)=>{
+  const row=document.createElement('div');row.className='battle-leader-row';
+  const rank=document.createElement('span');rank.textContent='#'+(i+1);
+  const img=document.createElement('img');img.src=battleSprite(id);img.loading='lazy';img.alt='';
+  const name=document.createElement('span');name.textContent=record.name;
+  const wins=document.createElement('strong');wins.textContent=record.wins+' wins';
+  row.append(rank,img,name,wins);battleEl('battleLeaderboard').append(row);
+ });
+}
+function battleRandomise(){
+ if(battleBusy)return;
+ let a=1+Math.floor(Math.random()*TOTAL),b=1+Math.floor(Math.random()*TOTAL);
+ while(a===b)b=1+Math.floor(Math.random()*TOTAL);
+ battleEl('battlePick1').value=String(a);battleEl('battlePick2').value=String(b);
+ battleEl('battleLog').textContent='Random opponents selected. Ready to battle!';
+}
+function battleResolve(value){
+ const input=value.trim().toLowerCase();
+ if(/^\d+$/.test(input)){const id=Number(input);if(id>=1&&id<=TOTAL)return id}
+ const names=typeof pokemonNames!=='undefined'?pokemonNames:null;
+ if(Array.isArray(names)){const i=names.findIndex(n=>String(n).toLowerCase()===input);if(i>=0)return i+1}
+ return input&&/^[a-z0-9 -]+$/.test(input)?input.replaceAll(' ','-'):null;
+}
+async function battleFetch(value){
+ const id=battleResolve(value);
+ if(!id)throw Error('Enter a valid Pokémon name or Pokédex number.');
+ const response=await fetch('https://pokeapi.co/api/v2/pokemon/'+encodeURIComponent(id));
+ if(!response.ok)throw Error('Could not find Pokémon: '+value);
+ const data=await response.json();
+ const stats=Object.fromEntries(data.stats.map(s=>[s.stat.name,s.base_stat]));
+ return {id:data.id,name:data.name,types:data.types.map(t=>t.type.name),stats,weight:data.weight,
+ maxHp:Math.max(35,Math.floor(65+data.stats[0].base_stat*1.8)),hp:0};
+}
+function battlePaint(p,i){
+ battleEl('battleName'+i).textContent=p.name;
+ battleEl('battleImg'+i).src=battleSprite(p.id);
+ battleEl('battleImg'+i).alt=p.name;
+ battleEl('battleFighter'+i).className='battle-fighter '+(i?'right':'left');
+ battleEl('battleHP'+i).textContent=Math.max(0,p.hp)+' / '+p.maxHp+' HP';
+ const bar=battleEl('battleBar'+i);bar.style.width=Math.max(0,100*p.hp/p.maxHp)+'%';
+ const ratio=p.hp/p.maxHp;bar.style.background=ratio>.5?'#10b981':ratio>.2?'#facc15':'#ef4444';
+}
+function battleEffectiveness(type,defender){return defender.types.reduce((n,t)=>n*(battleTypes[type]?.[t]??1),1)}
+function battleAttack(attacker,defender){
+ const physical=(attacker.stats.attack/Math.max(1,defender.stats.defense));
+ const special=(attacker.stats['special-attack']/Math.max(1,defender.stats['special-defense']));
+ const ratio=Math.max(physical,special);
+ const options=attacker.types.map(type=>({type,effect:battleEffectiveness(type,defender)})).sort((a,b)=>b.effect-a.effect);
+ const move=options[0];
+ const weightFactor=Math.min(1.08,Math.max(.96,1+Math.log10(Math.max(1,attacker.weight)/Math.max(1,defender.weight))*.025));
+ const damage=move.effect===0?0:Math.max(1,Math.round((13+19*ratio)*move.effect*weightFactor*(.85+Math.random()*.3)));
+ return {damage,type:move.type,effect:move.effect};
+}
+async function battleStart(){
+ if(battleBusy)return;
+ const a=battleEl('battlePick1').value,b=battleEl('battlePick2').value;
+ if(!a.trim()||!b.trim()){battleEl('battleLog').textContent='Choose both Pokémon first.';return}
+ battleBusy=true;const token=++battleRun;battleEl('battleStart').disabled=true;
+ try{
+  battleEl('battleLog').textContent='Preparing your Pokémon…';
+  const fighters=await Promise.all([battleFetch(a),battleFetch(b)]);
+  if(fighters[0].id===fighters[1].id)throw Error('Choose two different Pokémon.');
+  fighters.forEach((p,i)=>{p.hp=p.maxHp;battlePaint(p,i)});
+  await battleSleep(650);
+  let turn=0;
+  while(fighters.every(p=>p.hp>0)&&turn<70&&token===battleRun){
+   const speed0=fighters[0].stats.speed,speed1=fighters[1].stats.speed;
+   const first=speed0===speed1?(Math.random()<.5?0:1):(speed0>speed1?0:1);
+   for(const i of [first,1-first]){
+    const attacker=fighters[i],defender=fighters[1-i];
+    if(attacker.hp<=0||defender.hp<=0)break;
+    const result=battleAttack(attacker,defender);
+    const node=battleEl('battleFighter'+i);
+    node.classList.add('attacking');
+    battleEl('battleLog').textContent=attacker.name+' attacks with '+result.type+' power!';
+    await battleSleep(470);node.classList.remove('attacking');
+    defender.hp=Math.max(0,defender.hp-result.damage);
+    battlePaint(defender,1-i);
+    battleEl('battleFighter'+(1-i)).classList.add('hit');
+    battleEl('battleLog').textContent=attacker.name+' dealt '+result.damage+' damage! '+(result.effect>1?'Super effective!':result.effect===0?'No effect!':result.effect<1?'Not very effective.':'');
+    await battleSleep(680);battleEl('battleFighter'+(1-i)).classList.remove('hit');
+    if(defender.hp<=0){battleEl('battleFighter'+(1-i)).classList.add('fainted');break}
+   }
+   turn++;
+  }
+  if(token!==battleRun)return;
+  const winner=fighters[0].hp===fighters[1].hp?(Math.random()<.5?0:1):(fighters[0].hp>fighters[1].hp?0:1);
+  const champ=fighters[winner];
+  battleEl('battleLog').textContent='🏆 '+champ.name.toUpperCase()+' WINS! '+(turn>=70?'Won on remaining HP.':'The opponent fainted!');
+  const wins=battleWins();const key=String(champ.id);
+  wins[key]={name:champ.name,wins:(wins[key]?.wins||0)+1};
+  try{localStorage.setItem(battleStorageKey(),JSON.stringify(wins))}catch(_){}
+  battleRenderLeaderboard();
+ }catch(err){battleEl('battleLog').textContent=err.message||'Battle could not start. Try again.'}
+ finally{battleBusy=false;battleEl('battleStart').disabled=false}
+}
 </script>
 </body>
 </html>

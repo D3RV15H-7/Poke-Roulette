@@ -3192,6 +3192,28 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
 .battle-arena{min-height:clamp(290px,42dvh,430px);flex-shrink:0}
 .battle-log{flex-shrink:0}
 @media(max-width:360px){.hub .btn-hub{width:34px;height:34px}.hub .hub-item-label{font-size:.42rem}.battle-pokeball{width:82px;height:82px}}
+
+/* v172: fixed-height battle sheet and balanced selectors */
+#battleModal .modal-body{height:calc(100dvh - var(--battle-dock-space, 106px) - env(safe-area-inset-top, 0px));max-height:none;min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:clamp(5px,.8dvh,9px);padding:clamp(8px,1.3dvh,14px) 12px 8px}
+#battleModal .modal-head{flex:0 0 auto;margin-bottom:0;padding-bottom:clamp(5px,.7dvh,9px)}
+#battleModal .battle-panel{flex:0 0 auto;padding:clamp(8px,1.1dvh,12px)}
+#battleModal .battle-choices{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+#battleModal .battle-pick{display:grid;grid-template-rows:20px 42px 36px;gap:5px;align-items:stretch}
+#battleModal .battle-pick label{display:flex;align-items:center;justify-content:center;text-align:center;font-size:clamp(10px,2.8vw,12px);line-height:1}
+#battleModal .battle-pick input{height:42px;text-align:center;padding:5px 6px;font-size:clamp(12px,3.2vw,15px)}
+#battleModal .battle-random{height:36px;padding:4px;font-size:clamp(10px,2.8vw,12px);display:flex;align-items:center;justify-content:center}
+#battleModal .battle-ball-row{margin:clamp(7px,1dvh,11px) 0 0}
+#battleModal .battle-pokeball{width:clamp(62px,9.3dvh,83px);height:clamp(62px,9.3dvh,83px);border:4px solid #0a1221;background:linear-gradient(to bottom,#f12e3b 0 45%,#101827 45% 55%,#f8fafc 55% 100%);box-shadow:0 4px 12px #0008,inset 0 2px 3px #fff5}
+#battleModal .battle-ball-centre{width:clamp(49px,7.4dvh,65px);height:clamp(25px,3.5dvh,30px);font-size:clamp(8px,1.3dvh,10px);border:3px solid #101827}
+#battleModal .battle-arena{flex:1 1 auto;min-height:120px;height:auto;overflow:hidden;padding:8px}
+#battleModal .battle-fighter img{height:clamp(60px,12dvh,105px)}
+#battleModal .battle-fighter.left{bottom:10%}
+#battleModal .battle-fighter.right{top:9%}
+#battleModal .battle-log{flex:0 0 auto;min-height:42px;max-height:70px;overflow:auto;font-size:clamp(11px,1.6dvh,13px);padding:9px 12px}
+#battleModal .battle-name{font-size:clamp(10px,1.6dvh,12px)}
+#battleModal .battle-hp-text{font-size:clamp(9px,1.4dvh,11px)}
+.battle-custom-icon{width:38px!important;height:38px!important;display:block;overflow:visible;filter:drop-shadow(0 1px 3px #ffb44a80)}
+@media(max-height:680px){#battleModal .battle-pick{grid-template-rows:17px 36px 31px;gap:3px}#battleModal .battle-pick input{height:36px}#battleModal .battle-random{height:31px}#battleModal .battle-pokeball{width:58px;height:58px}#battleModal .battle-fighter img{height:65px}}
 </style>
 </head>
 <body data-app-build="v169">
@@ -3354,12 +3376,6 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
       <span class="hub-item-label">Dex</span>
     </div>
 
-    <div class="hub-item-wrap">
-      <button class="btn-hub" data-hub-modal="battleModal" onclick="navigateHub('battleModal')" title="Battle" aria-label="Battle">
-        <span class="battle-nav-icon" aria-hidden="true">⚔</span>
-      </button>
-      <span class="hub-item-label">Battle</span>
-    </div>
     <!-- NEW SETS BUTTON -->
     <div class="hub-item-wrap">
       <button class="btn-hub" data-hub-modal="setsModal" onclick="navigateHub('setsModal')" title="Card Sets">
@@ -3368,6 +3384,17 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
       <span class="hub-item-label">Sets</span>
     </div>
 
+    <div class="hub-item-wrap">
+      <button class="btn-hub" data-hub-modal="battleModal" onclick="navigateHub('battleModal')" title="Battle" aria-label="Battle">
+        <svg class="battle-custom-icon" viewBox="0 0 100 100" aria-hidden="true">
+<defs><linearGradient id="battleBladeA" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff5a0"/><stop offset=".45" stop-color="#ff9e36"/><stop offset="1" stop-color="#f43f5e"/></linearGradient><linearGradient id="battleBladeB" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#3ed8ff"/><stop offset=".55" stop-color="#8b5cf6"/><stop offset="1" stop-color="#ff5a56"/></linearGradient></defs>
+<path d="M15 10 43 33 50 42 57 33 85 10 72 42 59 51 83 85 57 70 50 59 43 70 17 85 41 51 28 42Z" fill="url(#battleBladeA)" stroke="#18223d" stroke-width="7" stroke-linejoin="round"/>
+<path d="M15 90 42 63 50 56 58 63 85 90 72 59 59 50 84 15 57 30 50 41 43 30 16 15 41 50 28 59Z" fill="url(#battleBladeB)" stroke="#17213a" stroke-width="6" stroke-linejoin="round"/>
+<circle cx="50" cy="50" r="18" fill="#0c1629" stroke="#152038" stroke-width="3"/><path d="M34 50a16 16 0 0 1 32 0Z" fill="#f34450"/><path d="M34 50a16 16 0 0 0 32 0Z" fill="#f8fafc"/><path d="M34 50h32" stroke="#16213a" stroke-width="5"/><circle cx="50" cy="50" r="7" fill="#f8fafc" stroke="#17213a" stroke-width="4"/>
+</svg>
+      </button>
+      <span class="hub-item-label">Battle</span>
+    </div>
     <div class="hub-item-wrap">
       <button class="btn-hub info-button" data-hub-modal="infoModal" onclick="navigateHub('infoModal')" title="App Info & Legal" aria-label="Info">
 <span class="dock-artwork-icon nav-artwork nav-artwork-info" aria-hidden="true"></span>
@@ -13904,6 +13931,7 @@ const battleSprite=id=>`https://raw.githubusercontent.com/PokeAPI/sprites/master
 function battleStorageKey(){return 'pokeroulette_battle_wins_v170_'+(currentUser?.uid||'guest')}
 function battleWins(){try{return JSON.parse(localStorage.getItem(battleStorageKey()))||{}}catch(_){return {}}}
 function battleRenderLeaderboard(){
+ if(!battleEl('battleLeaderboard'))return;
  const entries=Object.entries(battleWins()).sort((a,b)=>b[1].wins-a[1].wins||Number(a[0])-Number(b[0])).slice(0,10);
  battleEl('battleLeaderboard').replaceChildren();
  if(!entries.length){battleEl('battleLeaderboard').textContent='No victories yet. Start a battle!';return}

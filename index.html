@@ -3171,6 +3171,27 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
 .battle-leader-row{display:flex;align-items:center;gap:9px;padding:7px 3px;border-bottom:1px solid #334155;font-size:12px;font-weight:800}
 .battle-leader-row img{width:34px;height:34px;object-fit:contain}.battle-leader-row span:nth-last-child(2){flex:1;text-transform:capitalize}
 .battle-nav-icon{font-size:22px;font-weight:900;color:#ffcb05}
+
+/* v171: five equally sized responsive dock slots */
+.hub, body.has-active .hub {grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:0!important;width:100%;max-width:440px}
+.hub-item-wrap {min-width:0;flex:1 1 0;align-items:center}
+.hub .btn-hub{width:clamp(35px,10vw,42px);height:clamp(35px,10vw,42px);margin-inline:auto}
+.hub .hub-item-label{font-size:clamp(.43rem,1.8vw,.56rem);white-space:nowrap;text-align:center}
+.battle-choices{align-items:start;gap:12px}
+.battle-pick{min-width:0;display:flex;flex-direction:column;gap:7px}
+.battle-pick label{font-size:11px;color:#94a3b8;font-weight:800}
+.battle-pick input{margin-top:0;min-width:0;width:100%;font-size:13px}
+.battle-random{width:100%;border:1px solid #475569;background:#334155;color:#fff;padding:10px 4px;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer}
+.battle-random:active{transform:scale(.97)}
+.battle-ball-row{display:flex;justify-content:center;margin:12px 0 0}
+.battle-pokeball{width:92px;height:92px;position:relative;overflow:hidden;isolation:isolate;border:5px solid #0b1220;border-radius:50%;background:linear-gradient(to bottom,#ed2935 0 47%,#101827 47% 55%,#f5f7fb 55% 100%);box-shadow:0 5px 14px #0008, inset 0 2px 3px #ffffff55;cursor:pointer;display:grid;place-items:center}
+.battle-pokeball:active{transform:scale(.95)}
+.battle-pokeball:disabled{opacity:.5;cursor:wait}
+.battle-ball-centre{position:relative;z-index:2;display:grid;place-items:center;width:65px;height:32px;background:#f8fafc;border:4px solid #101827;border-radius:25px;color:#111827;font-size:10px;font-weight:900;letter-spacing:.1px;box-shadow:0 1px 5px #0005}
+.battle-body{gap:10px}
+.battle-arena{min-height:clamp(290px,42dvh,430px);flex-shrink:0}
+.battle-log{flex-shrink:0}
+@media(max-width:360px){.hub .btn-hub{width:34px;height:34px}.hub .hub-item-label{font-size:.42rem}.battle-pokeball{width:82px;height:82px}}
 </style>
 </head>
 <body data-app-build="v169">
@@ -3360,16 +3381,19 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
   <div class="modal-body battle-body" onclick="event.stopPropagation()">
     <div class="modal-head"><h3 style="font-size:1.15rem;font-weight:900">⚔ Pokémon Battle</h3><button class="btn-header-action" onclick="closeModal(null,'battleModal')">✕</button></div>
     <div class="battle-panel">
-      <div class="battle-choices"><label>POKÉMON 1<input id="battlePick1" list="battlePokemonList" placeholder="Name or Pokédex #" autocomplete="off"></label><label>POKÉMON 2<input id="battlePick2" list="battlePokemonList" placeholder="Name or Pokédex #" autocomplete="off"></label></div>
+      <div class="battle-choices">
+        <div class="battle-pick"><label for="battlePick1">POKÉMON 1</label><input id="battlePick1" list="battlePokemonList" placeholder="Pokémon name" autocomplete="off"><button class="battle-random" onclick="battleRandomiseOne(0)">🎲 Randomise</button></div>
+        <div class="battle-pick"><label for="battlePick2">POKÉMON 2</label><input id="battlePick2" list="battlePokemonList" placeholder="Pokémon name" autocomplete="off"><button class="battle-random" onclick="battleRandomiseOne(1)">🎲 Randomise</button></div>
+      </div>
       <datalist id="battlePokemonList"></datalist>
-      <div class="battle-actions"><button onclick="battleRandomise()">🎲 Randomise both</button><button class="battle-primary" id="battleStart" onclick="battleStart()">Start battle</button></div>
+      <div class="battle-ball-row"><button class="battle-pokeball" id="battleStart" onclick="battleStart()" aria-label="Battle!"><span class="battle-ball-top"></span><span class="battle-ball-belt"></span><span class="battle-ball-centre">BATTLE!</span></button></div>
     </div>
     <div class="battle-arena" aria-label="Pokémon battle arena">
       <div class="battle-fighter left" id="battleFighter0"><div class="battle-name" id="battleName0">Pokémon 1</div><div class="battle-hp"><div id="battleBar0"></div></div><div class="battle-hp-text" id="battleHP0">—</div><img id="battleImg0" alt=""></div>
       <div class="battle-fighter right" id="battleFighter1"><div class="battle-name" id="battleName1">Pokémon 2</div><div class="battle-hp"><div id="battleBar1"></div></div><div class="battle-hp-text" id="battleHP1">—</div><img id="battleImg1" alt=""></div>
     </div>
     <div class="battle-panel battle-log" id="battleLog" role="status" aria-live="polite">Choose two Pokémon or generate random opponents to begin.</div>
-    <div class="battle-panel"><h3 style="font-size:13px;margin-bottom:8px">🏆 Top 10 · Most Battle Wins</h3><div id="battleLeaderboard"></div></div>
+
   </div>
 </div>
 <div class="tcg-zoom-modal" id="tcgZoomModal" onclick="closeTcgZoom()">
@@ -13892,12 +13916,36 @@ function battleRenderLeaderboard(){
   row.append(rank,img,name,wins);battleEl('battleLeaderboard').append(row);
  });
 }
-function battleRandomise(){
+const battleNameCache=new Map();
+async function battleNameFor(id){
+ if(battleNameCache.has(id))return battleNameCache.get(id);
+ const response=await fetch('https://pokeapi.co/api/v2/pokemon/'+id);
+ if(!response.ok)throw Error('Unable to load Pokémon name.');
+ const name=(await response.json()).name;
+ battleNameCache.set(id,name);
+ return name;
+}
+async function battleRandomiseOne(slot){
  if(battleBusy)return;
- let a=1+Math.floor(Math.random()*TOTAL),b=1+Math.floor(Math.random()*TOTAL);
- while(a===b)b=1+Math.floor(Math.random()*TOTAL);
- battleEl('battlePick1').value=String(a);battleEl('battlePick2').value=String(b);
- battleEl('battleLog').textContent='Random opponents selected. Ready to battle!';
+ const input=battleEl('battlePick'+(slot+1));
+ const other=battleEl('battlePick'+(slot===0?2:1)).value.trim().toLowerCase();
+ let id=1+Math.floor(Math.random()*TOTAL);
+ let name='';
+ input.disabled=true;
+ try{
+  for(let tries=0;tries<12;tries++){
+   name=await battleNameFor(id);
+   if(name!==other&&String(id)!==other)break;
+   id=1+Math.floor(Math.random()*TOTAL);
+  }
+  input.value=name.replace(/(^|-)([a-z])/g,(_,sep,ch)=>sep+ch.toUpperCase());
+  battleEl('battleLog').textContent='Pokémon selected. Ready to battle!';
+ }catch(err){battleEl('battleLog').textContent=err.message}
+ finally{input.disabled=false}
+}
+async function battleRandomise(){
+ await battleRandomiseOne(0);
+ await battleRandomiseOne(1);
 }
 function battleResolve(value){
  const input=value.trim().toLowerCase();

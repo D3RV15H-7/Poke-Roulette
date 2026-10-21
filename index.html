@@ -3252,9 +3252,26 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
 #battleModal.battle-editing .modal-head{padding-bottom:6px}
 #battleModal.battle-editing .battle-panel{padding:9px}
 @media(max-height:720px){#battleModal .battle-generate-row{margin-top:5px}#battleModal .battle-random-both{min-height:29px;padding:5px 13px}#battleModal .battle-pokeball{width:68px;height:68px}#battleModal .battle-ball-row{margin-top:5px}}
+
+/* v175 — battle arena above selectors, controls below */
+#battleModal .battle-body{display:flex;flex-direction:column;overflow:hidden}
+#battleModal .battle-arena{order:1;flex:1 1 auto;min-height:110px}
+#battleModal .battle-log{order:2;flex:0 0 auto}
+#battleModal .battle-panel:not(.battle-log){order:3;position:relative;flex:0 0 auto}
+#battleModal .modal-head{order:0}
+#battleModal .battle-choices{gap:clamp(8px,2vw,14px)}
+#battleModal .battle-pick:first-child .battle-random{width:calc(100% - 29px);justify-self:start}
+#battleModal .battle-pick:last-child .battle-random{width:calc(100% - 29px);justify-self:end}
+#battleModal .battle-generate-row{position:absolute;left:50%;top:calc(clamp(8px,1.1dvh,12px) + 20px + 5px + 42px + 5px);transform:translateX(-50%);margin:0;z-index:4}
+#battleModal .battle-random-both{width:54px;height:36px;min-height:0;padding:0 2px;border-radius:9px;font-size:10px;line-height:1.1;white-space:nowrap;box-shadow:0 0 0 3px #090d16}
+#battleModal .battle-ball-row{margin:6px 0 0}
+#battleModal .battle-ball-centre{font-size:clamp(8px,1.1dvh,10px)!important;letter-spacing:-.4px!important}
+#battleModal .battle-pokeball::before{inset:15%}
+#battleModal.battle-editing .battle-arena,#battleModal.battle-editing .battle-log{display:none!important}
+@media(max-height:680px){#battleModal .battle-generate-row{top:calc(8px + 17px + 3px + 36px + 3px)}#battleModal .battle-random-both{height:31px}}
 </style>
 </head>
-<body data-app-build="v174">
+<body data-app-build="v175">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3445,20 +3462,21 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
 <div class="modal" id="battleModal" onclick="closeModal(event,'battleModal')">
   <div class="modal-body battle-body" onclick="event.stopPropagation()">
     <div class="modal-head"><h3 style="font-size:1.15rem;font-weight:900"><span id="battleHeaderIcon" aria-hidden="true"></span> Pokémon Battle</h3><button class="btn-header-action" onclick="closeModal(null,'battleModal')">✕</button></div>
+    <div class="battle-arena" aria-label="Pokémon battle arena">
+      <div class="battle-fighter left" id="battleFighter0"><div class="battle-name" id="battleName0">Pokémon 1</div><div class="battle-hp"><div id="battleBar0"></div></div><div class="battle-hp-text" id="battleHP0">—</div><img id="battleImg0" alt="" hidden></div>
+      <div class="battle-fighter right" id="battleFighter1"><div class="battle-name" id="battleName1">Pokémon 2</div><div class="battle-hp"><div id="battleBar1"></div></div><div class="battle-hp-text" id="battleHP1">—</div><img id="battleImg1" alt="" hidden></div>
+    </div>
+    <div class="battle-panel battle-log" id="battleLog" role="status" aria-live="polite">Choose two Pokémon or generate random opponents to begin.</div>
     <div class="battle-panel">
       <div class="battle-choices">
         <div class="battle-pick"><label for="battlePick1">POKÉMON 1</label><input id="battlePick1" list="battlePokemonList" placeholder="Pokémon name" autocomplete="off"><button class="battle-random" onclick="battleRandomiseOne(0)">🎲 Randomise</button></div>
         <div class="battle-pick"><label for="battlePick2">POKÉMON 2</label><input id="battlePick2" list="battlePokemonList" placeholder="Pokémon name" autocomplete="off"><button class="battle-random" onclick="battleRandomiseOne(1)">🎲 Randomise</button></div>
       </div>
       <datalist id="battlePokemonList"></datalist>
-      <div class="battle-generate-row"><button type="button" class="battle-random-both" id="battleRandomBoth" onclick="battleRandomise()">🎲 Randomise both Pokémon</button></div>
+      <div class="battle-generate-row"><button type="button" class="battle-random-both" id="battleRandomBoth" onclick="battleRandomise()">🎲 Both</button></div>
       <div class="battle-ball-row"><button class="battle-pokeball" id="battleStart" onclick="battleStart()" aria-label="Battle!"><span class="battle-ball-centre">BATTLE!</span></button></div>
     </div>
-    <div class="battle-arena" aria-label="Pokémon battle arena">
-      <div class="battle-fighter left" id="battleFighter0"><div class="battle-name" id="battleName0">Pokémon 1</div><div class="battle-hp"><div id="battleBar0"></div></div><div class="battle-hp-text" id="battleHP0">—</div><img id="battleImg0" alt="" hidden></div>
-      <div class="battle-fighter right" id="battleFighter1"><div class="battle-name" id="battleName1">Pokémon 2</div><div class="battle-hp"><div id="battleBar1"></div></div><div class="battle-hp-text" id="battleHP1">—</div><img id="battleImg1" alt="" hidden></div>
-    </div>
-    <div class="battle-panel battle-log" id="battleLog" role="status" aria-live="polite">Choose two Pokémon or generate random opponents to begin.</div>
+
 
   </div>
 </div>

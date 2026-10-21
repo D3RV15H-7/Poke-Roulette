@@ -3230,9 +3230,31 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
 }
 #battleModal .battle-pokeball::before{content:"";position:absolute;inset:0 0 50%;border-radius:50% 50% 0 0;background:linear-gradient(160deg,#ffffff55,transparent 62%);pointer-events:none}
 #battleModal .battle-ball-centre{background:#f8fafc;border:4px solid #0b1220;border-radius:99px;box-shadow:0 0 0 3px #f8fafc,0 2px 5px #0008;color:#111827;letter-spacing:-.15px}
+
+/* v174: wheel-matched Pokéball with round inset centre */
+#battleModal .battle-pokeball{
+ width:clamp(72px,10.6dvh,96px);height:clamp(72px,10.6dvh,96px);
+ border:clamp(3px,.65dvh,5px) solid #0b1326;border-radius:50%;
+ background:radial-gradient(ellipse at 35% 12%,rgba(255,224,173,.6),transparent 48%),linear-gradient(to bottom,#ff6350 0%,#f0443d 45%,#0b1326 45% 54%,#edfaff 54%,#c7dee9 100%);
+ box-shadow:0 5px 12px #0008,inset 0 0 0 2px #ffffff73;display:flex;align-items:center;justify-content:center;
+}
+#battleModal .battle-pokeball::before{content:'';position:absolute;inset:17%;border:clamp(3px,.65dvh,5px) solid #0b1326;border-radius:50%;background:linear-gradient(150deg,#fff,#e5f4f9);pointer-events:none}
+#battleModal .battle-ball-centre{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;width:auto;height:auto;min-width:0;padding:0;border:0;box-shadow:none;background:none;color:#101322;font-size:clamp(10px,1.45dvh,13px);font-weight:900;letter-spacing:0;border-radius:0}
+#battleModal .battle-generate-row{display:flex;justify-content:center;margin-top:8px}
+#battleModal .battle-random-both{border:1px solid #53667e;background:#26364c;color:#f8fafc;font-weight:800;font-size:clamp(11px,1.7dvh,13px);border-radius:12px;padding:7px 17px;min-height:32px;cursor:pointer}
+#battleModal .battle-random-both:disabled{opacity:.55}
+#battleModal .battle-ball-row{margin:8px 0 0}
+/* Keyboard-visible editing state: keep selectors on screen, not behind iOS keyboard */
+#battleModal.battle-editing{top:var(--battle-visible-top,0px)!important;bottom:auto!important;height:var(--battle-visible-height,100dvh)!important;align-items:flex-start;overflow:hidden}
+#battleModal.battle-editing .modal-body{height:auto!important;max-height:100%!important;min-height:0!important;overflow-y:auto!important;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;flex:0 1 auto;margin-top:0;border-radius:20px;border-bottom:1px solid #334155;scroll-padding-top:15px}
+#battleModal.battle-editing .battle-arena,#battleModal.battle-editing .battle-log{display:none!important}
+#battleModal.battle-editing .battle-pokeball{width:65px;height:65px}
+#battleModal.battle-editing .modal-head{padding-bottom:6px}
+#battleModal.battle-editing .battle-panel{padding:9px}
+@media(max-height:720px){#battleModal .battle-generate-row{margin-top:5px}#battleModal .battle-random-both{min-height:29px;padding:5px 13px}#battleModal .battle-pokeball{width:68px;height:68px}#battleModal .battle-ball-row{margin-top:5px}}
 </style>
 </head>
-<body data-app-build="v169">
+<body data-app-build="v174">
 <div class="viewport">
   <header id="appRefreshHandle">
     <h1
@@ -3429,7 +3451,8 @@ body.account-auth-focused .hub-outer-wrap { visibility: hidden; pointer-events: 
         <div class="battle-pick"><label for="battlePick2">POKÉMON 2</label><input id="battlePick2" list="battlePokemonList" placeholder="Pokémon name" autocomplete="off"><button class="battle-random" onclick="battleRandomiseOne(1)">🎲 Randomise</button></div>
       </div>
       <datalist id="battlePokemonList"></datalist>
-      <div class="battle-ball-row"><button class="battle-pokeball" id="battleStart" onclick="battleStart()" aria-label="Battle!"><span class="battle-ball-top"></span><span class="battle-ball-belt"></span><span class="battle-ball-centre">BATTLE!</span></button></div>
+      <div class="battle-generate-row"><button type="button" class="battle-random-both" id="battleRandomBoth" onclick="battleRandomise()">🎲 Randomise both Pokémon</button></div>
+      <div class="battle-ball-row"><button class="battle-pokeball" id="battleStart" onclick="battleStart()" aria-label="Battle!"><span class="battle-ball-centre">BATTLE!</span></button></div>
     </div>
     <div class="battle-arena" aria-label="Pokémon battle arena">
       <div class="battle-fighter left" id="battleFighter0"><div class="battle-name" id="battleName0">Pokémon 1</div><div class="battle-hp"><div id="battleBar0"></div></div><div class="battle-hp-text" id="battleHP0">—</div><img id="battleImg0" alt="" hidden></div>
@@ -13990,8 +14013,20 @@ async function battleRandomiseOne(slot){
  finally{input.disabled=false}
 }
 async function battleRandomise(){
- await battleRandomiseOne(0);
- await battleRandomiseOne(1);
+ if(battleBusy)return;
+ const button=battleEl('battleRandomBoth');
+ button.disabled=true;
+ try{
+  let a=1+Math.floor(Math.random()*TOTAL),b=1+Math.floor(Math.random()*TOTAL);
+  while(b===a)b=1+Math.floor(Math.random()*TOTAL);
+  const names=await Promise.all([battleNameFor(a),battleNameFor(b)]);
+  names.forEach((name,i)=>{
+   battleEl('battlePick'+(i+1)).value=name.replace(/(^|-)([a-z])/g,(_,sep,ch)=>sep+ch.toUpperCase());
+  });
+  await Promise.all([battlePreview(0),battlePreview(1)]);
+  battleEl('battleLog').textContent='Both Pokémon are ready. Press Battle!';
+ }catch(err){battleEl('battleLog').textContent=err.message||'Unable to randomise Pokémon.'}
+ finally{button.disabled=false}
 }
 function battleResolve(value){
  const input=value.trim().toLowerCase();
@@ -14040,12 +14075,41 @@ function battleQueuePreview(slot){
  clearTimeout(battlePreviewTimers[slot]);
  battlePreviewTimers[slot]=setTimeout(()=>battlePreview(slot),350);
 }
+let battleKeyboardRestoreTimer=null;
+function battleSyncKeyboard(){
+ const modal=battleEl('battleModal');
+ if(!modal?.classList.contains('battle-editing'))return;
+ const vv=window.visualViewport;
+ const top=vv?vv.offsetTop:0;
+ const height=vv?vv.height:window.innerHeight;
+ modal.style.setProperty('--battle-visible-top',top+'px');
+ modal.style.setProperty('--battle-visible-height',height+'px');
+}
+function battleFocusStart(){
+ clearTimeout(battleKeyboardRestoreTimer);
+ battleEl('battleModal').classList.add('battle-editing');
+ battleSyncKeyboard();
+ requestAnimationFrame(()=>{battleSyncKeyboard();document.activeElement?.scrollIntoView?.({block:'nearest',behavior:'instant'})});
+}
+function battleFocusEnd(){
+ clearTimeout(battleKeyboardRestoreTimer);
+ battleKeyboardRestoreTimer=setTimeout(()=>{
+  if(battleEl('battleModal').contains(document.activeElement)&&document.activeElement?.matches('input'))return;
+  battleEl('battleModal').classList.remove('battle-editing');
+  battleEl('battleModal').style.removeProperty('--battle-visible-top');
+  battleEl('battleModal').style.removeProperty('--battle-visible-height');
+ },180);
+}
+window.visualViewport?.addEventListener('resize',battleSyncKeyboard);
+window.visualViewport?.addEventListener('scroll',battleSyncKeyboard);
 function battleInitUI(){
  const icon=document.querySelector('[data-hub-modal="battleModal"] .battle-custom-icon');
  const header=battleEl('battleHeaderIcon');
  if(icon&&header&&!header.firstChild){const copy=icon.cloneNode(true);copy.removeAttribute('id');header.append(copy)}
  for(let i=0;i<2;i++){
   const input=battleEl('battlePick'+(i+1));
+  input.addEventListener('focus',battleFocusStart);
+  input.addEventListener('blur',battleFocusEnd);
   input.addEventListener('input',()=>battleQueuePreview(i));
   input.addEventListener('change',()=>battleQueuePreview(i));
   battleResetPreview(i);
